@@ -11,8 +11,8 @@
 **Documentación real (redirección).**
 - [`../../Referencias/EP1_Equipo3_Armijo_Calderon_Saavedra2_produccion.md:76,90,102-104`](../../Referencias/EP1_Equipo3_Armijo_Calderon_Saavedra2_produccion.md) — SLA/frescura y metas iniciales (p. ej. disponibilidad mensual de 99,5%).
 - [`../../Referencias/Actividad C4_FireWatch_produccion.md:63-65,253-263`](<../../Referencias/Actividad C4_FireWatch_produccion.md>) — continuidad y recuperación.
-- [`../../backend/docs/architecture.md:61-63`](../../backend/docs/architecture.md) — decisión de motor pendiente.
-- [`../../backend/docs/verification.md:64`](../../backend/docs/verification.md) — recuperación y SLA no probados.
+- [`../../backend/docs/architecture.md:61`](../../backend/docs/architecture.md) — PostgreSQL/PostGIS aprobado en local; el motor productivo queda decidido en el acta §7.
+- [`../../backend/docs/verification.md:100`](../../backend/docs/verification.md) — recuperación y SLA no probados.
 - [`../tasks/backend/firewatch-data-contract.md:25-29`](../tasks/backend/firewatch-data-contract.md) — PostGIS local aprobado.
 
 ## Specs
@@ -30,7 +30,7 @@
 | T1 | S1 | inline | Motor productivo decidido y documentado con su impacto en migraciones y persistencia: acta §7, con el sustrato enmendado en §7.3. | — |
 | T2 | S2 | inline | Definir continuidad/recuperación y procedimientos de degradación. | — |
 | T3 | S3 | inline | Definir y probar backups/restauración. | — |
-| T4 | S4 | inline | Validar disponibilidad mensual y acordar RPO/RTO. | — |
+| T4 | S4 | inline | Validar la disponibilidad mensual y medir los RPO/RTO ya acordados en el acta §7. | — |
 | T5 | S5 | inline | Confirmar metas de rendimiento/carga con pruebas. | — |
 
 Ruta por defecto: **inline**. T1 quedó resuelto con el acta §7 y ya no bloquea T2–T5; lo que bloquea es la aprobación de metas y el restore probado.
@@ -43,7 +43,7 @@ Ruta por defecto: **inline**. T1 quedó resuelto con el acta §7 y ya no bloquea
 ## Criterios de cierre
 
 - SLA/frescura y metas: `../../Referencias/EP1_Equipo3_Armijo_Calderon_Saavedra2_produccion.md:76,90,104`.
-- Decisión de motor: `../../backend/docs/architecture.md:61-63`; recuperación/SLA no probados: `../../backend/docs/verification.md:64`.
+- Decisión de motor: acta §7, sobre la aprobación local de `../../backend/docs/architecture.md:61`; recuperación/SLA no probados: `../../backend/docs/verification.md:100`.
 
 ## Log
 

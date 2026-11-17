@@ -191,7 +191,7 @@ Se mantiene lo construido: PostGIS `geography` para zonas y su GeoJSON, `uuid` p
 | Frecuencia de prueba | Mensual, y después de cualquier cambio de esquema mayor |
 | Qué no se promete | PITR por segundo: el RPO elegido no lo exige, y añadirlo es una mejora posterior, no un requisito de la 1.0 |
 
-**Estado real: la política está escrita y no implementada.** No existe hoy ni el envío a S3 ni el restore probado; `../../backend/docs/verification.md:64` ya declaraba recuperación y SLA sin probar. Implementarla y probarla es trabajo de las tareas T3 y T4 del frente 14, no de esta acta, y este documento no acredita lo que no existe.
+**Estado real: la política está escrita y no implementada.** No existe hoy ni el envío a S3 ni el restore probado; `../../backend/docs/verification.md:100` ya declaraba recuperación y SLA sin probar. Implementarla y probarla es trabajo de las tareas T3 y T4 del frente 14, no de esta acta, y este documento no acredita lo que no existe.
 
 ### SLA acordado
 
@@ -208,7 +208,7 @@ Se mantiene lo construido: PostGIS `geography` para zonas y su GeoJSON, `uuid` p
 
 - **El restore probado.** Sin él, RPO y RTO son una promesa, no una capacidad.
 - **La pregunta por el motor administrado.** Dejó de ser hipotética al adoptarse Kubernetes (§7.3): se documenta con su costo y sus condiciones y **no se adopta**. El plano de datos sigue dentro del clúster.
-- **El entorno objetivo del despliegue.** Con el sustrato del §7.3, el runbook de Compose en `../../backend/deploy/prod/README.md` ya no describe el camino productivo. El entorno autorizado, su dominio y el certificado de borde se resuelven en T9 y en la elección vinculante de clúster de T10.2 de `../tasks/kubernetes-deployment.md`.
+- **El entorno objetivo del despliegue.** Con el sustrato del §7.3, el runbook de Compose en `../../backend/deploy/prod/README.md` ya no describe el camino productivo. El entorno autorizado, su dominio y el certificado de borde se resuelven en T9 de `../tasks/kubernetes-deployment.md`; el sabor de clúster ya no es una elección abierta: es **GKE**, decidido en el §7.4.
 - **La residencia permanente en Chile.** Hoy se acepta São Paulo como solución temporal (decisión del 2026-11-09, §7.2); que los datos vuelvan a Chile depende de que `sa-west-1` esté disponible o de abrir la cuenta en un proveedor con región chilena, y el traslado será una migración con verificación, no un cambio de configuración.
 
 ### 7.4 Proveedor de nube: corrección del 2026-11-17
