@@ -1,0 +1,40 @@
+# Public edge of the pitch VM. Caddy runs on the host (not in the cluster),
+# obtains Let's Encrypt certificates for the two sslip.io names and forwards to
+# the ingress controller published on 127.0.0.1:8443 by kind-config.yaml.
+#
+# The loopback hop skips certificate verification: the controller serves its
+# default self-signed certificate there, and the traffic never leaves the VM.
+# Everything past the controller is verified TLS, as the base declares.
+{
+	email {$ACME_EMAIL}
+}
+
+{$API_HOST} {
+	@public path /v1/* /health/*
+	handle @public {
+		reverse_proxy https://127.0.0.1:8443 {
+			header_up Host {host}
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle {
+		respond 404
+	}
+}
+
+{$AUTH_HOST} {
+	@public path /realms/firewatch/* /resources/*
+	handle @public {
+		reverse_proxy https://127.0.0.1:8443 {
+			header_up Host {host}
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle {
+		respond 404
+	}
+}

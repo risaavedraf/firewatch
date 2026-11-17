@@ -1,0 +1,17 @@
+# `identity-entry-and-data` (base/network.yaml) admits only the four services
+# into Keycloak. The browser login now arrives through the ingress controller,
+# so this policy adds that one source, on the one port, and nothing else.
+# Kubernetes unions every policy that selects a pod, so the base rule stays.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: identity-from-ingress
+spec:
+  podSelector:
+    matchLabels: {app: keycloak}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
+      ports: [{protocol: TCP, port: 8443}]
