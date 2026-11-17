@@ -28,14 +28,18 @@ die() { printf 'up.sh: %s\n' "$*" >&2; exit 1; }
 if [ $# -eq 3 ]; then
 	ip=$1 page=${2%/} email=$3
 	[[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "not an IPv4 address: $ip"
-	[[ $page =~ ^https://[^/]+$ ]] || die "the page origin must look like https://name.pages.dev, got $page"
-	[[ $email == *@* ]] || die "not an email address: $email"
+	# These values are written to $params, which is sourced on this run and on every
+	# later one, and into a sed replacement. Only characters that mean nothing to a
+	# quoted assignment or to sed are accepted, and the file quotes them anyway.
+	[[ $page =~ ^https://[A-Za-z0-9.-]+$ ]] ||
+		die "the page origin must be https:// plus a host of letters, digits, dots and hyphens, like https://name.pages.dev; got $page"
+	[[ $email =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || die "not an email address: $email"
 	dashed=${ip//./-}
 	cat >"$params" <<-EOF
-	API_HOST=api.$dashed.sslip.io
-	AUTH_HOST=auth.$dashed.sslip.io
-	WEB_ORIGIN=$page
-	ACME_EMAIL=$email
+	API_HOST='api.$dashed.sslip.io'
+	AUTH_HOST='auth.$dashed.sslip.io'
+	WEB_ORIGIN='$page'
+	ACME_EMAIL='$email'
 	EOF
 elif [ $# -ne 0 ]; then
 	sed -n '2,12p' "$0" >&2; exit 1
@@ -121,19 +125,30 @@ docker run -d --name firewatch-edge --restart unless-stopped --network host \
 	caddy:2.10-alpine >/dev/null
 
 say "checking https://$API_HOST/health/ready (the first certificate can take a minute)"
+answer=nothing
 for _ in $(seq 1 30); do
-	if code=$(curl -s -o /dev/null -w '%{http_code}' "https://$API_HOST/health/ready") && [ "$code" = 204 ]; then
+	# --max-time bounds each attempt, so a hung connection cannot stall the loop.
+	if code=$(curl -s --connect-timeout 5 --max-time 15 -o /dev/null -w '%{http_code}' \
+		"https://$API_HOST/health/ready"); then
+		answer=$code
+	fi
+	if [ "$answer" = 204 ]; then
 		break
 	fi
 	sleep 5
 done
-echo "  answered ${code:-nothing}"
+echo "  answered $answer"
+[ "$answer" = 204 ] || die "https://$API_HOST/health/ready never answered 204 (last answer: $answer).
+Look at: docker logs --tail 50 firewatch-edge  (Caddy and the certificate)
+         kubectl -n firewatch get ingress,pods    (routes and readiness)
+         kubectl -n firewatch logs deploy/gateway --tail 50
+Ports 80 and 443 must be open on the VM; the first certificate takes a minute."
 
 cat <<EOF
 
 Done.
   API:    https://$API_HOST
-  Login:  https://$AUTH_HOST/realms/firewatch
+  Login:  https://$AUTH_HOST/realms/firewatch/.well-known/openid-configuration
   Page:   $WEB_ORIGIN   (build the frontend with these three lines in frontend/.env.production)
 
 VITE_GATEWAY_ORIGIN=https://$API_HOST

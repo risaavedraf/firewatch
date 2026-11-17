@@ -48,8 +48,23 @@ def kubectl(*args, capture=True):
 
 
 def secret_value(name, key):
-    raw = kubectl("get", "secret", name, "-o", f"jsonpath={{.data.{key}}}")
+    # A dot inside a key belongs to the field name: kubectl reads
+    # `{.data.ca.crt}` as data -> ca -> crt, finds nothing and still exits 0, so
+    # the value comes back empty. Escaping the dot makes it a literal, the same
+    # way bootstrap-secrets.sh writes `{.data.ca\.crt}`.
+    selector = key.replace(".", r"\.")
+    raw = kubectl("get", "secret", name, "-o", f"jsonpath={{.data.{selector}}}")
     return base64.b64decode(raw).decode()
+
+
+def internal_ca():
+    cert = secret_value("firewatch-ca", "ca.crt")
+    if not cert.strip():
+        raise SystemExit(
+            "secret firewatch-ca has no ca.crt: the internal CA is what verifies "
+            "Keycloak, so the realm cannot be provisioned without it. Re-create "
+            "it with backend/deploy/k8s/bootstrap-secrets.sh and run again.")
+    return cert
 
 
 def demo_passwords():
@@ -143,7 +158,7 @@ def main():
     admin_user = secret_value("keycloak-bootstrap-admin", "KC_BOOTSTRAP_ADMIN_USERNAME")
     admin_password = secret_value("keycloak-bootstrap-admin", "KC_BOOTSTRAP_ADMIN_PASSWORD")
     with tempfile.NamedTemporaryFile("w", suffix=".crt", delete=False) as ca:
-        ca.write(secret_value("firewatch-ca", "ca.crt"))
+        ca.write(internal_ca())
     forward = subprocess.Popen(
         ["kubectl", "--namespace", NAMESPACE, "port-forward", "svc/identity", f"{LOCAL_PORT}:8443"],
         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)

@@ -87,11 +87,23 @@ vuelven solos (`restart unless-stopped`); confirmen con
   JWKS se sigue leyendo por `https://identity:8443`.
 - `WEB_ORIGIN` del gateway apunta a Cloudflare Pages.
 - Un segundo Ingress para el login y una NetworkPolicy que admite a ingress-nginx
-  en Keycloak por 8443.
+  en Keycloak por 8443 (ver «NetworkPolicy: declarada, no aplicada»).
 - El tramo Caddy → ingress-nginx es loopback y no verifica certificado; de
   ingress-nginx hacia adentro, todo es TLS verificado como declara la base.
 - El realm se crea desde el de desarrollo, con contraseñas generadas, solo la
   URL pública como redirect y sin password grant en `firewatch-demo`.
+
+## NetworkPolicy: declarada, no aplicada
+
+El overlay instala las NetworkPolicies de `base/` y añade una propia, y este
+documento las presenta como aislamiento, pero el clúster de esta demo no las
+hace cumplir: kind usa por defecto su propio CNI simple, que no implementa
+NetworkPolicy, así que esos objetos se aceptan y no se aplican. En este clúster
+la separación entre workloads que declara la base es inerte; lo único que limita
+el alcance es el enrutamiento público: Caddy con los dos Ingress, que solo
+publican `/v1/`, `/health/`, `/realms/firewatch/` y `/resources/`. Las políticas
+no están equivocadas ni sobran: son las que aíslan en producción, donde el CNI
+del clúster sí las aplica, y es ahí donde hay que comprobarlas.
 
 ## Lo que no se ha ejecutado
 
