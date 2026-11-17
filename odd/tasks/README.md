@@ -97,7 +97,7 @@ Plan de producción en [`../plan-produccion/README.md`](../plan-produccion/READM
 | [11 — Hardening BH-01…BH-11](../plan-produccion/11-hardening-bh.md) | **Parcial — sesión A cerrada** | Las unidades BH de arriba |
 | [12 — Evaluación científica](../plan-produccion/12-evaluacion-cientifica.md) | **Bloqueado** | Datos reales, modelo y umbrales |
 | [13 — Go/No-Go](../plan-produccion/13-go-no-go.md) | **Bloqueado** | Evidencia de datos y modelo, y criterios firmados |
-| [14 — Motor de datos y continuidad](../plan-produccion/14-motor-datos-continuidad.md) | **Pendiente** | Decisión de motor productivo |
+| [14 — Motor de datos y continuidad](../plan-produccion/14-motor-datos-continuidad.md) | **Parcial — motor decidido; continuidad sin probar** | Motor decidido el 2026-11-09 y sustrato en Kubernetes desde el 2026-11-17 (acta §7 y §7.3); faltan la política de backups implementada, el restore probado y el SLA/RPO/RTO medidos |
 | [15 — Procedencia geoespacial (DIFROL)](../plan-produccion/15-procedencia-geoespacial.md) | **Pendiente** | Validación DIFROL |
 
 ## Frontend
@@ -157,7 +157,8 @@ Plan de producción en [`../plan-produccion/README.md`](../plan-produccion/READM
 
 | Entrega / documento | Estado | Qué está entregado | Qué falta |
 | --- | --- | --- | --- |
-| [Producción con modelo sobre AWS](plan-produccion/aws-ml-delivery.md) | **Parcial — abierta 2026-11-06** | Registro de decisiones D1–S7 con su evidencia; rama `feat/aws-ml-delivery`; contrato del artefacto `firewatch-model/v1`, servicio `inference` y Compose de producción en ejecución | T1–T11 del documento; bloqueados T9 (acceso al DOI y correo a CONAF) y T10 (EC2 y dominio). Sin modelo entrenado: la etiqueta real todavía no está disponible |
+| [Sustrato de entrega Kubernetes](kubernetes-deployment.md) | **Parcial — sustrato verificado en un clúster local; camino a producción documentado** | Overlay `overlays/delivery` con los cinco digests, plano de datos dentro del clúster (PostgreSQL/PostGIS y RabbitMQ como StatefulSet), borde TLS con `proxy-ssl-verify on` verificado y HPA escalando de 2 a 6; el camino a producción real queda documentado en `backend/deploy/k8s/README.md` (acta §7.3), con la elección del sabor de clúster como decisión humana pendiente | Nada aplicado fuera de `kind` (T9); el sabor de clúster sin decidir; la política de backups y el restore probado sin implementar ni medir; el runbook y el Compose de producción quedaron retirados como camino de entrega y marcados como historia (T10.3, `kubernetes-deployment.md` L25) |
+| [Producción con modelo sobre AWS](plan-produccion/aws-ml-delivery.md) | **Parcial — abierta 2026-11-06** | Registro de decisiones D1–S7 con su evidencia; rama `feat/aws-ml-delivery`; contrato del artefacto `firewatch-model/v1` y servicio `inference`. El `docker-compose.prod.yml` quedó escrito y **no es el sustrato productivo**: desde el 2026-11-17 la entrega es un clúster de Kubernetes ([kubernetes-deployment.md](kubernetes-deployment.md); acta §7.3) | T1–T11 del documento; bloqueado T9 (acceso al DOI y correo a CONAF) y T10, que apuntaba a EC2 con Compose y quedó superseded por el sustrato de Kubernetes. Sin modelo entrenado: la etiqueta real todavía no está disponible |
 | [Cierre de la versión 1.0](v1-produccion.md) | **Pendiente — abierto 2026-11-09** | Plan de cierre con 46 tareas en 7 grupos y las decisiones del acta; el modelo queda fuera de v1.0 por decisión del responsable y su frente sigue abierto con la condición de datos medida | Las 46 tareas. El tag `v1.0-produccion` no se emite hasta cerrarlas |
 
 ## Convención práctica

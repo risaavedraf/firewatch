@@ -31,22 +31,24 @@ El plan `Referencias/FireWatch-Plan-implementacion-modelo-AWS.md` propone AWS po
 
 El argumento del plan que **no** se sostiene es que «la guía exige AWS (EC2)». Ver §1.
 
+Esas dos razones explican la elección de AWS del 2026-11-06. El sustrato de entrega cambió después por un requisito externo y eso está en §4: no fue un análisis de costo, fue un pedido del responsable.
+
 ## 3. Qué cambia
 
 | Tema | Antes (documentado) | Ahora |
 | --- | --- | --- |
 | Proveedor | Oracle Cloud | AWS EC2 |
 | Almacenamiento de objetos | Oracle Object Storage | S3, acceso por rol IAM |
-| Base de datos | Oracle Autonomous | PostGIS en contenedor (con Compose); administrada solo si se adopta Kubernetes |
+| Base de datos | Oracle Autonomous | PostGIS en contenedor sobre Kubernetes (StatefulSet dentro del clúster); administrada solo si se adopta un servicio gestionado, que queda documentado y no adoptado (§4) |
 | Ejecución del modelo | Go + ONNX | Go interpretando un artefacto JSON propio (§4) |
 
 ## 4. Qué no se cierra
 
-**Forma de despliegue.** Se implementa Docker Compose en una VM y Kubernetes queda documentado como objetivo. No se declara despliegue productivo cerrado, y la documentación debe leerse así: Compose es lo que existe, Kubernetes es lo que se planea.
+**Forma de despliegue.** **Superseded el 2026-11-17; el texto original se conserva como historia.** Decía: «Se implementa Docker Compose en una VM y Kubernetes queda documentado como objetivo. No se declara despliegue productivo cerrado, y la documentación debe leerse así: Compose es lo que existe, Kubernetes es lo que se planea». La decisión vigente es la contraria: el sustrato de entrega es Kubernetes, con manifiestos en `backend/deploy/k8s/` —`base` como plantilla y `overlays/delivery` con los cinco digests— y el plano de datos dentro del clúster. El Compose de producción deja de ser sustrato productivo: `backend/docker-compose.prod.yml` no incluye `inference` (`:21`) y declara `APP_ENV: production` (`:35`) con `AMQP_URL: amqp://` (`:193`, `:205`) y DSN con `sslmode=disable` (`:192`, `:204`), así que no pasaría sus propias guardas de transporte. Sigue sin declararse despliegue productivo cerrado, y ahora por las razones correctas: falta el entorno autorizado (T9) y la elección vinculante de clúster (T10.2) de [`../kubernetes-deployment.md`](../kubernetes-deployment.md). La corrección completa, con su evidencia, está en [`../../entrega/acta-cierre.md`](../../entrega/acta-cierre.md) §7.3.
 
 **Ejecución del modelo.** Se descarta `onnxruntime` en Go porque exige cgo y glibc, y los cuatro servicios compilan hoy con `CGO_ENABLED=0` sobre `gcr.io/distroless/static-debian12:nonroot` (`backend/services/*/Dockerfile:3,12-14`). El artefacto es un JSON versionado con pesos o árboles y el preprocesamiento declarado. La equivalencia se prueba contra un scorer de Python sobre un set congelado, no se asume.
 
-**Base de datos administrada.** La pregunta «RDS o PostGIS autogestionado» solo aparece si se adopta Kubernetes. Con Compose no hay nada que decidir.
+**Base de datos administrada.** La pregunta «RDS o PostGIS autogestionado» está sobre la mesa desde que se adoptó Kubernetes (2026-11-17, acta §7.3): se documenta con su costo y sus condiciones y **no se adopta**. El plano de datos sigue dentro del clúster, como StatefulSet.
 
 ## 5. Cómo se lee la entrega
 
@@ -58,7 +60,7 @@ El argumento del plan que **no** se sostiene es que «la guía exige AWS (EC2)»
 
 | Pendiente | Dónde se resuelve |
 | --- | --- |
-| Dominio y certificado | `backend/deploy/prod/README.md` |
+| Dominio y certificado | `backend/deploy/k8s/README.md`, sección «Path to a real production cluster». El runbook Compose de `backend/deploy/prod/README.md`, que era el destino anterior de esta fila, quedó superseded como camino de entrega el 2026-11-17 (`../kubernetes-deployment.md` L25) |
 | Rol IAM con permiso de lectura sobre el bucket de datos y modelos | T10 de `aws-ml-delivery.md` |
 | Apagado de la instancia al terminar las demostraciones | Runbook de producción |
 | Actualización de C4/EP1 para la entrega final, si se pide | Documento nuevo, fechado |

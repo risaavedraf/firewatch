@@ -113,6 +113,8 @@ El plan de v1.0 con sus tareas vive en [`../tasks/v1-produccion.md`](../tasks/v1
 
 **PostgreSQL 17 con PostGIS 3.5, autogestionado en contenedor, sobre AWS EC2 con Docker Compose.** No es una decisión nueva: es la que ya estaba tomada en [`../tasks/plan-produccion/architecture-change-aws.md`](../tasks/plan-produccion/architecture-change-aws.md) §3-§4 el 2026-11-06 —«PostGIS en contenedor (con Compose); administrada solo si se adopta Kubernetes»— y que el registro de decisiones nunca recogió, por eso D1 seguía figurando como abierta.
 
+**Superseded en su sustrato por la corrección del §7.3 (2026-11-17).** El párrafo anterior se conserva como historia, no como decisión vigente: el motor no cambia y el sustrato de entrega sí. El Compose en una VM deja de ser la forma de producción y el despliegue pasa a un clúster de Kubernetes. El §7.3 fija qué se sustituye, qué queda igual, con qué evidencia y qué sigue abierto.
+
 ### 7.1 Por qué se propuso Oracle y por qué quedó fuera
 
 **Oracle nunca fue un requisito del mandante.** Fue una propuesta del propio responsable del proyecto, y su motivo no era técnico sino de **residencia de datos**: los servidores están en Santiago y Valparaíso, y así los datos no salen de Chile. Corrección del responsable, textual:
@@ -156,13 +158,29 @@ Las tres salidas posibles, para que la decisión sea explícita cuando toque:
 
 Lo que **no** se hace: desplegar en São Paulo y dejar de mencionar la residencia. Queda escrito que hoy no se cumple, con fecha y con su condición de salida.
 
+### 7.3 Sustrato de entrega: corrección del 2026-11-17
+
+**Supersede el sustrato de D1, no el motor.** Requisito del responsable del proyecto, textual: «por pedido de la profe tenemos que usar si o si kubernetes para montar la app por lo que dejemoslonpreparado para kubernetes» (S1 de [`../tasks/kubernetes-deployment.md`](../tasks/kubernetes-deployment.md)) y «me quedo con ti tercera opción, todo en el cister y documentado» (S3 del mismo documento). La entrega se monta en Kubernetes y el plano de datos vive dentro del clúster.
+
+**Qué se sustituye, textualmente.** De este §7, la frase «PostgreSQL 17 con PostGIS 3.5, autogestionado en contenedor, sobre AWS EC2 con Docker Compose» deja de leerse como decisión vigente en su parte de sustrato: **sobre AWS EC2 con Docker Compose** pasa a **sobre un clúster de Kubernetes, con el plano de datos dentro del clúster**. Del mismo modo queda sustituida la forma de despliegue que fijaba [`../tasks/plan-produccion/architecture-change-aws.md`](../tasks/plan-produccion/architecture-change-aws.md) §4: «Se implementa Docker Compose en una VM y Kubernetes queda documentado como objetivo». Las dos frases se conservan como historia en sus documentos, no como decisión vigente.
+
+**Qué no cambia, y esto no es un cambio de motor.** El motor sigue siendo **PostgreSQL 17 con PostGIS 3.5**. La residencia de datos del §7.2 y la política de backups de este §7 —`pg_dump` a S3 cada 15 minutos, retención de 30 días, restore mensual probado, con los objetivos de SLA/RPO/RTO— se mantienen tal como están escritas, incluidas sus dos salvedades: **no están implementadas ni medidas**. Y el plano de datos sigue **dentro del clúster**: PostgreSQL con PostGIS y RabbitMQ como StatefulSet. La sustitución por servicios gestionados queda documentada con su costo y sus condiciones, **no adoptada**.
+
+**Qué cambia.** El sustrato de despliegue y operación: manifiestos en `backend/deploy/k8s/`, con `base` como plantilla y `overlays/delivery` fijando los cinco digests. El Compose de producción deja de ser sustrato productivo, y no por preferencia: `backend/docker-compose.prod.yml` no incluye el servicio `inference`, declara `APP_ENV: production` con `AMQP_URL: amqp://` y lleva DSN con `sslmode=disable`, así que no pasaría sus propias guardas de transporte. Estaba registrado en [`../tasks/kubernetes-deployment.md`](../tasks/kubernetes-deployment.md) L10 y se resuelve aquí.
+
+**Evidencia, fusionada en `main` antes de esta corrección.** PR #67 `4457d38` (CI en verde, ocho workflows), PR #68 `0edf263` (overlay de entrega con los cinco digests; trece pods en `Running` y ambos Jobs en `Complete`), PR #69 `2687ec0` (metrics-server y HPA escalando de 2 a 6 con evento `SuccessfulRescale` medido) y PR #70 `638c55e` (borde TLS ejercitado: `401` del gateway a través del ingress y `502` con ancla equivocada). Los registros de fusión #71 `835d820` y #72 `734670c` quedaron en el mismo frente. El detalle observado, con lo que no se observó, está en [`../tasks/kubernetes-deployment.md`](../tasks/kubernetes-deployment.md) L20 y L22 y en [`../tasks/k8s-delivery-closure.md`](../tasks/k8s-delivery-closure.md).
+
+**Qué sigue abierto, y no se disimula.** (1) El entorno objetivo: todo lo observado es un clúster local de evidencia, sin despliegue en el entorno autorizado (T9). (2) El realm de Keycloak se sigue aprovisionando fuera de banda. (3) La elección vinculante del sabor de clúster no está tomada y se documenta en T10.2 de [`../tasks/kubernetes-deployment.md`](../tasks/kubernetes-deployment.md). (4) La política de backups y el restore probado siguen sin implementar ni medir, igual que antes de esta corrección.
+
+**Cómo se lee el resto del §7.** Esta corrección es parcial: alcanza al sustrato de entrega y a las frases que lo describían. Todo lo demás de este §7 —motor, impacto en migraciones y persistencia, residencia, política de backups, SLA y sus salvedades— sigue vigente tal como está escrito.
+
 ### Impacto en migraciones
 
 **Ninguno.** Las 14 versiones del ledger compartido se aplican tal como están sobre el motor elegido. La regla de versiones y el conteo por servicio viven en [`../../backend/docs/migration-ledger.md`](../../backend/docs/migration-ledger.md); `risk` y `prevention` comparten `schema_migrations` y `jobs` migra su propia base. La restricción que sí introduce un motor autogestionado es otra y está abajo: el volumen persiste, y su backup es responsabilidad nuestra, no del proveedor.
 
 ### Impacto en persistencia
 
-Se mantiene lo construido: PostGIS `geography` para zonas y su GeoJSON, `uuid` para identidades, `timestamptz` para instantes y `pgxpool` como pool. El inventario real —22 relaciones, 138 columnas, 19 claves primarias, 10 claves foráneas— vive en [`../../backend/docs/schema-inventory.md`](../../backend/docs/schema-inventory.md) y su modelo de dominio en [`../../backend/docs/domain-model.md`](../../backend/docs/domain-model.md). Con Compose el estado está en un volumen gestionado por nosotros: no hay backup automático de plataforma, y por eso la política de la sección siguiente no es opcional.
+Se mantiene lo construido: PostGIS `geography` para zonas y su GeoJSON, `uuid` para identidades, `timestamptz` para instantes y `pgxpool` como pool. El inventario real —22 relaciones, 138 columnas, 19 claves primarias, 10 claves foráneas— vive en [`../../backend/docs/schema-inventory.md`](../../backend/docs/schema-inventory.md) y su modelo de dominio en [`../../backend/docs/domain-model.md`](../../backend/docs/domain-model.md). Con el volumen gestionado por nosotros —Compose en la VM cuando se escribió esto, StatefulSet en el clúster desde el §7.3— no hay backup automático de plataforma, y por eso la política de la sección siguiente no es opcional.
 
 ### Política de backups
 
@@ -189,6 +207,6 @@ Se mantiene lo construido: PostGIS `geography` para zonas y su GeoJSON, `uuid` p
 ### Lo que este §7 no cierra
 
 - **El restore probado.** Sin él, RPO y RTO son una promesa, no una capacidad.
-- **La pregunta por el motor administrado.** Sigue condicionada a adoptar Kubernetes, como fijó `architecture-change-aws.md` §4; con Compose no hay nada que decidir.
-- **El despliegue en EC2.** Dominio, certificado, security group, rol IAM y apagado de la instancia siguen en `../../backend/deploy/prod/README.md` y en los pendientes A4-A6 del §3.
+- **La pregunta por el motor administrado.** Dejó de ser hipotética al adoptarse Kubernetes (§7.3): se documenta con su costo y sus condiciones y **no se adopta**. El plano de datos sigue dentro del clúster.
+- **El entorno objetivo del despliegue.** Con el sustrato del §7.3, el runbook de Compose en `../../backend/deploy/prod/README.md` ya no describe el camino productivo. El entorno autorizado, su dominio y el certificado de borde se resuelven en T9 y en la elección vinculante de clúster de T10.2 de `../tasks/kubernetes-deployment.md`.
 - **La residencia permanente en Chile.** Hoy se acepta São Paulo como solución temporal (decisión del 2026-11-09, §7.2); que los datos vuelvan a Chile depende de que `sa-west-1` esté disponible o de abrir la cuenta en un proveedor con región chilena, y el traslado será una migración con verificación, no un cambio de configuración.

@@ -97,7 +97,7 @@ Se activa cuando **cualquiera** de estas condiciones se cumple:
 `firewatch-rule-v2`, `backend/docker-compose.yml:167`). El "botón de pánico" existe por diseño: retirar el modelo reinicia la publicación
 con reglas, no apaga el producto.
 
-**Lo que falta y se declara:** no hay firma del artefacto (`backend/deploy/prod/README.md:113`), así que el paso 5 restaura un archivo y
+**Lo que falta y se declara:** no hay firma del artefacto (`backend/deploy/prod/README.md:117`), así que el paso 5 restaura un archivo y
 compara su `data_hash`, no verifica una firma. Y **`RED-I2` (procedimiento de rollback) sigue bloqueado**: el rollback de un artefacto
 desplegado nunca se ejecutó, así que este procedimiento está escrito y no probado.
 

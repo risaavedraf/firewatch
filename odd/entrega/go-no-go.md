@@ -37,7 +37,7 @@ posible por fila es `Cumple`, `No cumple` o `No verificado`, y `No verificado` b
 | Medición de señales operativas | Un scrape real registra RPS, p95, memoria y errores, y las reglas validan | `backend/docs/observability-measurement.md` (2026-11-09): RPS 8.95/5.84/2.98/2.95, p95 ≤ 4.75 ms, errores 0, `promtool` 7 reglas OK | Cumple, con el límite declarado: sin token, lo medido es el middleware |
 | Regresión del modelo | Un modelo candidato no degrada frente a la versión en producción sobre datos con ground truth | No existe ground truth ni modelo real | **No verificado** — frente 2 y frente 12 bloqueados por S3 |
 | Calidad científica del modelo | Métricas, tolerancias y protocolo escritos y ejecutados contra datos reales | El análisis de datos entregados concluye que no alcanzan (`backend/training/ANALYSIS-delivered-data.md` §4) | **No verificado** — bloqueado por S3 |
-| Firma y promoción de imágenes | Una imagen firmada se verifica antes de habilitar su promoción, y el rollout se verifica con su rollback | Ninguna de las dos existe (`backend/deploy/prod/README.md:113`) | **No cumple** — frente 7 abierto |
+| Firma y promoción de imágenes | Una imagen firmada se verifica antes de habilitar su promoción, y el rollout se verifica con su rollback | Camino vigente en `backend/deploy/k8s/README.md` §Path to a real production cluster: el rollback por digest existe y es manual; la firma de imágenes y la promoción verificada no existen (`odd/plan-produccion/07-firma-registry-rollout.md:19-22`) | **No cumple** — frente 7 abierto |
 | Respuesta a incidentes | El plan existe, está nombrado y hubo simulacro | Plan redactado (`odd/security/incident-response.md`); sin nombres (D3) y sin simulacro | **No verificado** — `RED-V1` abierto |
 | Accesibilidad y experiencia | Criterios WCAG AA medidos por criterio, dentro del alcance que fije D5 | Sin medición registrada; D5 abierta | **No verificado** — frentes 9 y G1 abiertos |
 | Interfaces del producto | La interfaz declarada existe y funciona | Siete tareas `V1-P-01…07` abiertas en `odd/tasks/v1-produccion.md` | **No cumple** — G6 abierto |
@@ -50,8 +50,8 @@ Resumen del único inventario vinculante: `odd/tasks/v1-produccion.md`. **46 tar
 | --- | --- | --- |
 | G1 | Diseño web | Abierto — 5 tareas |
 | G2 | Usuarios y asignación | Abierto — 4 tareas |
-| G3 | Modelo de datos | Abierto — 4 tareas, una bloqueada por D1 |
-| G4 | Frentes de producción | Abierto — 12 tareas, 4 bloqueadas por S3/D1; `V1-F-05` cerrada |
+| G3 | Modelo de datos | **Cerrado** — las cuatro tareas (`V1-M-01`…`V1-M-04`); la de motor se resolvió el 2026-11-09 (acta §7) |
+| G4 | Frentes de producción | Abierto — 12 tareas; `V1-F-05` cerrada, 3 bloqueadas por S3 y **ninguna por D1**, que se resolvió el 2026-11-09 (acta §7). `V1-F-14` sigue abierta por la política de backups y el restore probado, no por la decisión |
 | G5 | Hardening | Abierto — 7 tareas, `BH-12` bloqueada por activación explícita |
 | G6 | Interfaz declarada no implementada | Abierto — 7 tareas |
 | G7 | Cierre documental | En ejecución |
@@ -60,7 +60,7 @@ Resumen del único inventario vinculante: `odd/tasks/v1-produccion.md`. **46 tar
 
 1. **S3 — datos reales.** Sin meteorología diaria en días sin incendio y sin acceso al registro de eventos de CONAF, el frente del modelo no
    se desbloquea y las filas de calidad y regresión quedan en `No verificado`.
-2. **D1 — motor de datos productivo.** Decisión humana pendiente; condiciona `V1-M-03` y `V1-F-14`.
+2. **D1 — motor de datos productivo.** **Resuelta el 2026-11-09** (acta §7) y enmendada el 2026-11-17 para que el sustrato de entrega sea Kubernetes (acta §7.3). Ya no bloquea: `V1-M-03` quedó cerrada. Lo que sigue abierto es la política de backups implementada y el restore probado, que condicionan `V1-F-14`.
 3. **D3 — responsables de gobierno.** El AI Security Officer y el comandante de incidente no tienen nombre; sin ellos no hay quién apruebe ni
    quién firme.
 4. **D5 — alcance de accesibilidad.** Sin alcance escrito no hay criterio de aceptación para el frente 9.
