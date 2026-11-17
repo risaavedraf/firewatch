@@ -37,8 +37,8 @@ Ruta por defecto: **inline**. T1 quedó resuelto con el acta §7 y ya no bloquea
 
 ## Dependencias y bloqueos humanos
 
-- **Bloqueo humano:** aprobar las metas de recuperación (disponibilidad, RPO y RTO) y ejecutar un restore probado. El motor ya no es un bloqueo: está decidido en el acta §7.
-- Los objetivos de RPO (15 min) y RTO (1 h) están acordados en el acta §7 y **ninguno está medido**; el criterio de restauración sigue sin probarse.
+- **Bloqueo humano:** la **implementación y medición** de las metas de recuperación (disponibilidad, RPO y RTO) —un restore probado, cronometrado y registrado— y, si no consta ya, su **firma**. Las metas no se deciden aquí: están escritas en el acta §7. El motor ya no es un bloqueo: está decidido en el acta §7.
+- Los objetivos de RPO (15 min) y RTO (1 h) están acordados en el acta §7 y **ninguno está medido**; lo que falta no es volver a acordarlos, sino implementarlos y medirlos, y el criterio de restauración sigue sin probarse.
 
 ## Criterios de cierre
 
