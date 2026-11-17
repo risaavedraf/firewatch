@@ -114,7 +114,7 @@ Cada frente tiene su propio documento con el contrato ODD (**Specs → Tasks →
 | Grupo | Frente | Archivo | Depende de | Bloqueo |
 | --- | --- | --- | --- | --- |
 | G1 Base de entrega | 7 — Firma, registry y rollout | [`07-firma-registry-rollout.md`](07-firma-registry-rollout.md) | registry/llaves/clúster | Decisión de registry y claves |
-| G1 Base de entrega | 14 — Motor de datos y continuidad | [`14-motor-datos-continuidad.md`](14-motor-datos-continuidad.md) | decisión de motor/infra | **Motor productivo pendiente** |
+| G1 Base de entrega | 14 — Motor de datos y continuidad | [`14-motor-datos-continuidad.md`](14-motor-datos-continuidad.md) | decisión de motor/infra | **Motor productivo resuelto (acta §7); pendientes el backup y el restore probado** |
 | G2 Núcleo datos/modelo (solo *seam*) | 1 — Ingesta y scheduler 15 min | [`01-ingesta-scheduler.md`](01-ingesta-scheduler.md) | acceso a fuentes | Fuentes reales (permitido) |
 | G2 Núcleo datos/modelo (solo *seam*) | 2 — Servicio de inferencia | [`02-modelo-inferencia.md`](02-modelo-inferencia.md) | frente 1 | Modelo real (permitido) |
 | G3 Robustez backend | 4 — Fallos terminales y replay DLQ | [`04-dlq-replay-terminal.md`](04-dlq-replay-terminal.md) | BH-01 | Política de recuperación |
@@ -257,7 +257,7 @@ Los SHA de la sesión A cambiaron al reaplicarse sobre `main`: `ee215b4`→`0291
 
 ## 10. Pendientes consolidados (2026-10-16; actualizado el 2026-10-18)
 
-Todo lo que sigue abierto de este plan, en un solo lugar, con **qué lo desbloquea**: una decisión humana, un entorno, otra sesión o otro frente. El estado por unidad de hardening vive en [`../tasks/security/backend-hardening/`](../tasks/security/backend-hardening/) y el índice del §5 se mantiene en [`../tasks/README.md`](../tasks/README.md). **Actualización del 2026-10-18:** las filas de los frentes 1, 2, 3, 5 y 9 incorporan la evidencia de la entrega de presentación y de la ola de observabilidad; el detalle autoritativo vive en el `## Log` de [`../tasks/presentation-client-ready.md`](../tasks/presentation-client-ready.md) L22–L28.
+Todo lo que sigue abierto de este plan, en un solo lugar, con **qué lo desbloquea**: una decisión humana, un entorno, otra sesión o otro frente. El estado por unidad de hardening vive en [`../tasks/security/backend-hardening/`](../tasks/security/backend-hardening/) y el índice del §5 se mantiene en [`../tasks/README.md`](../tasks/README.md). **Actualización del 2026-10-18:** las filas de los frentes 1, 2, 3, 5 y 9 incorporan la evidencia de la entrega de presentación y de la ola de observabilidad; el detalle autoritativo vive en el `## Log` de [`../tasks/presentation-client-ready.md`](../tasks/presentation-client-ready.md) L22–L28. **Actualización del 2026-11-17:** la fila del frente 14 deja de presentar el motor como no decidido; D1 se resolvió el 2026-11-09 y su sustrato de entrega es Kubernetes desde el 2026-11-17 (§7 y §7.3 de [`../entrega/acta-cierre.md`](../entrega/acta-cierre.md)).
 
 | Frente | Estado | Qué falta | Qué lo desbloquea |
 | --- | --- | --- | --- |
@@ -274,7 +274,7 @@ Todo lo que sigue abierto de este plan, en un solo lugar, con **qué lo desbloqu
 | 11 — Hardening BH-01…BH-11 | Sesión A cerrada (detalle en §9) | BH-02 imágenes (inventario + `trivy`); BH-04/05/06 (entorno); BH-10 (DB y broker aislados); BH-11 (depende de BH-02/04/05/06); BH-12 (activación explícita) | Docker y `trivy`, entorno y accesos, y una decisión de activación para BH-12 |
 | 12 — Evaluación científica | **Bloqueado** | Nada avanza sin datos reales | Datos representativos, modelo evaluable, *ground truth* y umbrales acordados |
 | 13 — Go/No-Go | **Bloqueado** | Ídem | Evidencia de datos y modelo, y criterios firmados |
-| 14 — Motor de datos y continuidad | Pendiente | Decisión de motor productivo (hoy solo PostGIS local aprobado) | Decisión humana; el despliegue redundante depende del frente 7 |
+| 14 — Motor de datos y continuidad | Pendiente — motor y sustrato decididos | Implementar y probar la política de backups y el restore (acta §7); el despliegue redundante depende del frente 7 | Almacenamiento para los backups y un entorno donde ejecutar el restore |
 | 15 — Procedencia geoespacial (DIFROL) | Pendiente | Validación de la cartografía | Revisión DIFROL |
 
 ### 10.1 Entrega y revisión
@@ -320,6 +320,8 @@ Sigue en pie lo que este documento ya declara fuera: frentes 6, 7, 8, 12, 13, 14
 
 Salida de la fase: acta con nombre, fecha y criterio por decisión. D3 y D4 son las de mayor retorno: 41 IDs dependen de la primera y, sin la segunda, ningún cierre es defendible.
 
+**Corrección posterior (2026-11-17): D1 ya no es una decisión por resolver.** Se resolvió el 2026-11-09 ([`../entrega/acta-cierre.md`](../entrega/acta-cierre.md) §7) y su sustrato de entrega se enmendó a Kubernetes el 2026-11-17 (§7.3 del acta); el Compose en una VM no es la forma de producción. La fila se conserva como el plan del 2026-10-20. D2, D3, D4 y D5 siguen abiertas.
+
 ### 12.2 Fase 1 — Cerrar lo que ya está escrito, días 2–3
 
 | Frente | Qué falta exactamente | Evidencia de cierre |
@@ -362,6 +364,8 @@ D4 (alcance) ──────────────► marcado de cualquier 
 ```
 
 Si D1 y D2 no se resuelven el día 1, los frentes 6, 7, 13 y 14 no arrancan y la semana se consume en los parciales de la Fase 1. Ese es el único riesgo real del plan.
+
+**Corrección posterior (2026-11-17):** el nodo «D1 (motor)» ya está resuelto, así que el camino crítico vigente arranca en el frente 14 con el sustrato de Kubernetes y el riesgo que describe el párrafo anterior se reduce a D2.
 
 ### 12.6 Lo que este plan no hace
 

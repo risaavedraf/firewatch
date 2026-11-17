@@ -2,6 +2,7 @@
 
 Feature: ejecutar el plan de implementación del modelo con inferencia en Go y etiquetas reales de CONAF, en dos frentes paralelos (modelo y despliegue). Depende de dos accesos externos; todo lo demás ya es ejecutable.
 Estado: en curso · abierto 2026-11-06 · documento fuente: [`Referencias/FireWatch-Plan-implementacion-modelo-AWS.md`](../../../Referencias/FireWatch-Plan-implementacion-modelo-AWS.md)
+**Sustrato vigente:** Kubernetes desde el 2026-11-17 (`../kubernetes-deployment.md`; corrección en [`../../entrega/acta-cierre.md`](../../entrega/acta-cierre.md) §7.3). Este plan describe el trabajo del modelo y el Compose que lo acompañó; la forma de producción es el clúster, no la VM.
 
 ## Specs
 
@@ -11,7 +12,7 @@ Estado: en curso · abierto 2026-11-06 · documento fuente: [`Referencias/FireWa
 
 **S3 — Superficie de la inferencia.** El servicio no se publica a través del gateway. La consume `risk` por red interna. Razón en L3.
 
-**S4 — Forma de despliegue.** Textual: «Documentar ambas y no cerrar aún». Se implementa Compose en una VM; Kubernetes queda documentado como objetivo, sin declarar el despliegue productivo cerrado.
+**S4 — Forma de despliegue.** Textual: «Documentar ambas y no cerrar aún». **Superseded en su sustrato el 2026-11-17:** la decisión vigente es Kubernetes, con el plano de datos dentro del clúster (S1 y S3 de [`../kubernetes-deployment.md`](../kubernetes-deployment.md), y [`../../entrega/acta-cierre.md`](../../entrega/acta-cierre.md) §7.3). El Compose en una VM queda como lo que existía cuando se escribió esta spec, no como forma de producción. La segunda mitad de la spec sigue vigente: el despliegue productivo no está cerrado.
 
 **S5 — Etiqueta de entrenamiento.** Se intenta el producto CONAF 2010–2025 y se usa el registro 2002/03–2019/20 como respaldo. El estado real de ambas fuentes está verificado en L5 y condiciona las tareas T9.
 
@@ -22,7 +23,7 @@ Estado: en curso · abierto 2026-11-06 · documento fuente: [`Referencias/FireWa
 ## Non-goals
 
 - No se entrena ni se publica un modelo con el sample de Maule ni con los 90 días regionales; ambos sirven para probar maquinaria, no como modelo del producto.
-- No se implementa Kubernetes ahora, ni ECS.
+- No se implementa Kubernetes en este plan: **lo implementa su propio frente**, [`kubernetes-deployment.md`](../kubernetes-deployment.md), que es el sustrato vigente desde el 2026-11-17. ECS sigue fuera.
 - No se usa FIRMS como etiqueta mientras el acceso al registro CONAF esté disponible.
 - No se modifican los documentos originales de `Referencias/`.
 

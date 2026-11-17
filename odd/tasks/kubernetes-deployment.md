@@ -34,7 +34,10 @@ Requisito externo nuevo: la entrega se monta en Kubernetes. Sustituye el sustrat
 | T7.9 | **T7.9 — contrato de render ampliado.** Va al final: comprueba el resultado de todas las unidades, así que no se ejecuta en paralelo con ninguna | S1 | inline | Hecho en `fde877c` — 16 renders mutados a propósito, cada uno detectado; el chequeo de volúmenes declarados ahora recorre todo el render |
 | T8 | Ingress y TLS, incluidos los listeners internos | S2 | inline | Hecho en `4ce9b3c` — `backend-protocol: HTTPS` era la línea que faltaba; el Secret `firewatch-tls` lo aporta el operador porque certifica un DNS que el repositorio no posee |
 | T9 | Validación end-to-end en el clúster, con evidencia | S1 | inline | Validada en kind (L20): 14 cargas `1/1 Running`, ambos Jobs `Complete`, handshake verificado contra la CA interna y certificado no confiable rechazado. **Falta el entorno objetivo**: esto es un clúster local, no un despliegue |
-| T10 | Camino a producción real documentado y enmienda a D1 | S2, S3 | inline | Pendiente |
+| **T10** | **Camino a producción real documentado y enmienda a D1** — bloque partido en tres unidades T10.1–T10.3; la superficie de cada una va en su propia celda | S2, S3 | inline | T10.1 hecha; T10.2 y T10.3 pendientes |
+| T10.1 | **T10.1 — Enmienda a D1: el sustrato de entrega es Kubernetes, y corrección de las afirmaciones de estado vigente.** Superficie: los documentos de `odd/` que todavía presentaban la decisión como pendiente o el Compose en una VM como forma de producción. No toca `backend/`. | S2, S3 | inline | Hecho — acta §7.3; L23 |
+| T10.2 | **T10.2 — Camino a producción real documentado sobre el sustrato Kubernetes: elección vinculante del sabor de clúster, promoción de imágenes por digest, ciclo de vida de secretos y de la CA interna, plano de datos dentro del clúster con la sustitución por servicios gestionados documentada con su costo y sus condiciones, política de backups y restore con su estado real, rollback y lo que sigue sin verificar en el entorno objetivo.** Redirige a los frentes 7 y 14 y al acta §7 en lugar de duplicarlos. | S2, S3 | inline | Pendiente |
+| T10.3 | **T10.3 — Retirar del runbook de producción la forma Compose en una VM como camino de entrega.** Superficie: `backend/deploy/prod/README.md` y `backend/docker-compose.prod.yml`. | S2 | inline | Pendiente |
 
 **Superficies de edición de T7, una por unidad** (rutas relativas al repositorio):
 
@@ -49,6 +52,16 @@ Requisito externo nuevo: la entrega se monta en Kubernetes. Sustituye el sustrat
 - `T7.9` — `backend/deploy/k8s/tests/render-contract.sh`.
 
 **Paralelismo.** T7.1–T7.5 tienen superficies disjuntas entre sí. T7.6, T7.7 y T7.8 son disjuntas entre sí y también respecto de T7.1–T7.5. Esas ocho unidades pueden ejecutarse en paralelo. T7.9 no puede: comprueba el resultado de todas y va al final, sobre las ocho anteriores ya presentes.
+
+**Superficies de edición de T10, una por unidad** (rutas relativas al repositorio):
+
+- `T10.1` — `odd/entrega/acta-cierre.md`, `odd/entrega/go-no-go.md`, `odd/tasks/v1-produccion.md`, `odd/tasks/plan-produccion/architecture-change-aws.md`, `odd/tasks/plan-produccion/aws-ml-delivery.md`, `odd/tasks/README.md`, `odd/plan-produccion/README.md`, `odd/plan-produccion/14-motor-datos-continuidad.md` y este documento.
+- `T10.2` — `backend/deploy/k8s/README.md`, `odd/plan-produccion/07-firma-registry-rollout.md`, `odd/plan-produccion/14-motor-datos-continuidad.md` y este documento.
+- `T10.3` — `backend/deploy/prod/README.md` y `backend/docker-compose.prod.yml`.
+
+**T10.2 redirige, no duplica.** Los frentes 7 y 14 y el acta §7 ya son dueños de la promoción de imágenes, del motor con su continuidad y de la política de backups; T10.2 solo escribe lo que es propio del sustrato Kubernetes.
+
+**T10 no es paralela.** T10.1 es documental y no toca `backend/`; T10.2 y T10.3 escriben ahí y van después, cada una sobre su propia superficie.
 
 ## Restricciones que no vienen de este pedido
 
@@ -350,3 +363,31 @@ El detalle completo, lo observado y lo que no se observó están en `odd/tasks/k
 **Sin cambios respecto de L21:** el pendiente 5 (entorno objetivo) sigue abierto, el realm se sigue aprovisionando fuera de banda, y `T9`/`T10` siguen en pie.
 
 **Fusiones:** #67 `4457d38`, #68 `0edf263`, #69 `2687ec0`, #70 `638c55e`.
+
+**L23 (2026-11-17) — T10.1: D1 queda enmendada al sustrato Kubernetes, y las piezas que decían lo contrario se corrigen.**
+
+**Qué se enmendó, y con qué mecanismo.** D1 se resolvió el 2026-11-09 con el sustrato viejo —«PostgreSQL 17 con PostGIS 3.5, autogestionado en contenedor, sobre AWS EC2 con Docker Compose»— y esa frase se seguía leyendo como decisión vigente en `odd/entrega/acta-cierre.md:114`. El acta no borra nada: conserva el texto original, lo marca como superseded en su sustrato con el mecanismo que ya usó E4 en `:25-27`, y añade el §7.3 en `:161` con fecha, qué se sustituye textualmente, qué no cambia, con qué evidencia y qué sigue abierto. La corrección es parcial a propósito y lo dice: alcanza al sustrato de entrega y a las frases que lo describían.
+
+**No es un cambio de motor, y el acta lo escribe explícito.** PostgreSQL 17 con PostGIS 3.5 sigue igual. La residencia del §7.2 y la política de backups de `:185-205` —`pg_dump` a S3 cada 15 minutos, retención de 30 días, restore mensual probado, con los objetivos de SLA/RPO/RTO— se conservan, incluidas sus dos salvedades ya escritas: **no están implementadas ni medidas**. El plano de datos sigue **dentro del clúster**, con PostgreSQL/PostGIS y RabbitMQ como StatefulSet, y la sustitución por servicios gestionados queda documentada con su costo y sus condiciones, **no adoptada**.
+
+**Por qué el sustrato cambia, y qué lo prueba.** El requisito es del responsable y está en L1 y L3 de este documento: usar «si o si kubernetes» para montar la aplicación y dejarlo «todo en el cister y documentado». La prueba de que el sustrato ya es Kubernetes no es este documento: son las fusiones #67 `4457d38` (CI), #68 `0edf263` (overlay con los cinco digests), #69 `2687ec0` (metrics-server y HPA escalando de 2 a 6) y #70 `638c55e` (borde TLS), con los registros de fusión #71 `835d820` y #72 `734670c`; lo observado está en L20 y L22 y en `odd/tasks/k8s-delivery-closure.md`.
+
+**Por qué el Compose de producción deja de serlo, medido.** `backend/docker-compose.prod.yml` no incluye `inference` (`:21`) y declara `APP_ENV: production` (`:35`) con `AMQP_URL: amqp://` (`:193`, `:205`) y DSN con `sslmode=disable` (`:192`, `:204`): no pasaría sus propias guardas de transporte. Estaba registrado en L10 y no se corrigió en T7. El runbook que todavía lo presenta como forma de producción (`backend/deploy/prod/README.md:3`) **no se toca en esta unidad**: es superficie de T10.3.
+
+**Siete documentos corregidos, más este, y ninguno de ellos es un Log histórico.**
+
+- `odd/entrega/acta-cierre.md` — §7.3 nuevo; marca de superseded en el motor elegido (`:116`); «Impacto en persistencia» y las dos viñetas de «Lo que este §7 no cierra» (`:210-211`).
+- `odd/tasks/plan-produccion/architecture-change-aws.md` — una frase en §2 y los dos párrafos de §4 (`:47`, `:51`), más la fila de la base de datos en la tabla de §3 (`:42`).
+- `odd/tasks/plan-produccion/aws-ml-delivery.md` — encabezado (`:5`), S4 (`:15`) y el non-goal de Kubernetes/ECS (`:26`).
+- `odd/entrega/go-no-go.md` — las filas G3 y G4 (`:53-54`) y el bloqueo 2 del §4 (`:63`).
+- `odd/tasks/v1-produccion.md` — §G3 (`:81`), la fila de `V1-M-03` (`:89`) y la de `V1-F-14` (`:112`). La corrección se resolvió hacia lo que ya decían L13 y L16, no al revés.
+- `odd/tasks/README.md` — la fila del plan AWS (`:160`).
+- `odd/plan-produccion/README.md` — §7 (`:117`), §10 (intro en `:260` y fila del frente 14 en `:277`) y las notas del §12.1 y del §12.5 (`:323`, `:368`).
+
+**Ninguna entrada de Log se reescribió.** L13 y L16 de `odd/tasks/v1-produccion.md` —que registran la resolución del 2026-11-09 y el cambio de sustrato— se conservan tal cual, y el §12 del plan de producción conserva su texto del 2026-10-20 con la corrección al lado, no encima. Los números de línea que otros documentos citan siguen resolviendo al mismo contenido: `../entrega/acta-cierre.md:29-39`, `:31`, `:37`, `:73-93` y `:94-106` —las citas que hoy existen en `odd/tasks/v1-produccion.md:13,19,46` y `odd/security/ai-risk-classification-policy.md:46`— quedan antes del §7.3, y `../plan-produccion/README.md:258-289`, que cita L3 de `v1-produccion.md`, no se desplaza porque la primera inserción en ese archivo está en `:323`.
+
+**Qué sigue abierto, sin disimular.** El entorno objetivo (T9): todo lo observado es un clúster local de evidencia. El realm de Keycloak, aprovisionado fuera de banda. La elección vinculante del sabor de clúster, que es T10.2. La forma Compose en el runbook de producción, que es T10.3. Y la política de backups y el restore probado, que siguen sin implementar ni medir, igual que antes de esta corrección.
+
+**T10 se parte en tres, con su superficie cada una.** T10.1 queda hecha con esta entrada. T10.2 —el camino a producción real documentado sobre el sustrato Kubernetes: elección vinculante del sabor de clúster, promoción de imágenes por digest, ciclo de vida de secretos y de la CA interna, plano de datos dentro del clúster con la sustitución por servicios gestionados documentada con su costo y sus condiciones, política de backups y restore con su estado real, rollback y lo que sigue sin verificar en el entorno objetivo, redirigiendo a los frentes 7 y 14 y al acta §7 en vez de duplicarlos— y T10.3 —retirar del runbook de producción la forma Compose en una VM— quedan pendientes, y ninguna de las dos se ejecuta en esta unidad: esta no toca `backend/`.
+
+**La corrección alcanzó también al frente 14:** `odd/plan-produccion/14-motor-datos-continuidad.md` (`:4`, `:40` y `:41`) y la fila de ese frente en `odd/tasks/README.md` (`:100`) seguían afirmando que el motor productivo está por decidir y que no hay RPO/RTO, y se corrigieron porque ese documento es el destino de la redirección de T10.2 y no puede seguir contradiciendo el acta §7 y §7.3.

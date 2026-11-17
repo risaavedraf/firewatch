@@ -50,8 +50,8 @@ Resumen del único inventario vinculante: `odd/tasks/v1-produccion.md`. **46 tar
 | --- | --- | --- |
 | G1 | Diseño web | Abierto — 5 tareas |
 | G2 | Usuarios y asignación | Abierto — 4 tareas |
-| G3 | Modelo de datos | Abierto — 4 tareas, una bloqueada por D1 |
-| G4 | Frentes de producción | Abierto — 12 tareas, 4 bloqueadas por S3/D1; `V1-F-05` cerrada |
+| G3 | Modelo de datos | **Cerrado** — las cuatro tareas (`V1-M-01`…`V1-M-04`); la de motor se resolvió el 2026-11-09 (acta §7) |
+| G4 | Frentes de producción | Abierto — 12 tareas; `V1-F-05` cerrada, 3 bloqueadas por S3 y **ninguna por D1**, que se resolvió el 2026-11-09 (acta §7). `V1-F-14` sigue abierta por la política de backups y el restore probado, no por la decisión |
 | G5 | Hardening | Abierto — 7 tareas, `BH-12` bloqueada por activación explícita |
 | G6 | Interfaz declarada no implementada | Abierto — 7 tareas |
 | G7 | Cierre documental | En ejecución |
@@ -60,7 +60,7 @@ Resumen del único inventario vinculante: `odd/tasks/v1-produccion.md`. **46 tar
 
 1. **S3 — datos reales.** Sin meteorología diaria en días sin incendio y sin acceso al registro de eventos de CONAF, el frente del modelo no
    se desbloquea y las filas de calidad y regresión quedan en `No verificado`.
-2. **D1 — motor de datos productivo.** Decisión humana pendiente; condiciona `V1-M-03` y `V1-F-14`.
+2. **D1 — motor de datos productivo.** **Resuelta el 2026-11-09** (acta §7) y enmendada el 2026-11-17 para que el sustrato de entrega sea Kubernetes (acta §7.3). Ya no bloquea: `V1-M-03` quedó cerrada. Lo que sigue abierto es la política de backups implementada y el restore probado, que condicionan `V1-F-14`.
 3. **D3 — responsables de gobierno.** El AI Security Officer y el comandante de incidente no tienen nombre; sin ellos no hay quién apruebe ni
    quién firme.
 4. **D5 — alcance de accesibilidad.** Sin alcance escrito no hay criterio de aceptación para el frente 9.
