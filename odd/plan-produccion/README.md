@@ -320,7 +320,7 @@ Sigue en pie lo que este documento ya declara fuera: frentes 6, 7, 8, 12, 13, 14
 
 Salida de la fase: acta con nombre, fecha y criterio por decisión. D3 y D4 son las de mayor retorno: 41 IDs dependen de la primera y, sin la segunda, ningún cierre es defendible.
 
-**Corrección posterior (2026-11-17): D1 ya no es una decisión por resolver.** Se resolvió el 2026-11-09 ([`../entrega/acta-cierre.md`](../entrega/acta-cierre.md) §7) y su sustrato de entrega se enmendó a Kubernetes el 2026-11-17 (§7.3 del acta); el Compose en una VM no es la forma de producción. La fila se conserva como el plan del 2026-10-20. D2, D3, D4 y D5 siguen abiertas.
+**Corrección posterior (2026-11-17): D1 ya no es una decisión por resolver.** Se resolvió el 2026-11-09 ([`../entrega/acta-cierre.md`](../entrega/acta-cierre.md) §7) y su sustrato de entrega se enmendó a Kubernetes el 2026-11-17 (§7.3 del acta); el Compose en una VM no es la forma de producción. El mismo 2026-11-17 se enmendó su dimensión de **proveedor** a **Google Cloud con GKE** (§7.4): GKE en lugar de una VM, Artifact Registry en lugar de ECR, Cloud Storage en lugar de S3, IAM de Google en lugar de los roles de AWS, y la región `southamerica-west1` (Santiago, Chile) en lugar del compromiso temporal de São Paulo, con lo que la residencia del §7.2 deja de ser un compromiso y pasa a ser una elección de región. La fila se conserva como el plan del 2026-10-20. D2, D3, D4 y D5 siguen abiertas.
 
 ### 12.2 Fase 1 — Cerrar lo que ya está escrito, días 2–3
 

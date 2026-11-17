@@ -60,7 +60,7 @@ Resumen del único inventario vinculante: `odd/tasks/v1-produccion.md`. **46 tar
 
 1. **S3 — datos reales.** Sin meteorología diaria en días sin incendio y sin acceso al registro de eventos de CONAF, el frente del modelo no
    se desbloquea y las filas de calidad y regresión quedan en `No verificado`.
-2. **D1 — motor de datos productivo.** **Resuelta el 2026-11-09** (acta §7) y enmendada el 2026-11-17 para que el sustrato de entrega sea Kubernetes (acta §7.3). Ya no bloquea: `V1-M-03` quedó cerrada. Lo que sigue abierto es la política de backups implementada y el restore probado, que condicionan `V1-F-14`.
+2. **D1 — motor de datos productivo.** **Resuelta el 2026-11-09** (acta §7) y enmendada el 2026-11-17 para que el sustrato de entrega sea Kubernetes (acta §7.3) y el proveedor Google Cloud con GKE (acta §7.4), que además resuelve el compromiso de residencia del §7.2 con la región `southamerica-west1` (Santiago, Chile). Ya no bloquea: `V1-M-03` quedó cerrada. Lo que sigue abierto es la política de backups implementada y el restore probado, que condicionan `V1-F-14`.
 3. **D3 — responsables de gobierno.** El AI Security Officer y el comandante de incidente no tienen nombre; sin ellos no hay quién apruebe ni
    quién firme.
 4. **D5 — alcance de accesibilidad.** Sin alcance escrito no hay criterio de aceptación para el frente 9.
