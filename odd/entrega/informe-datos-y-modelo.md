@@ -1,5 +1,7 @@
 # Entrega de datos y modelo: informe para el mandante
 
+> **La pila de producción que describe este informe fue retirada como camino de entrega el 2026-11-17.** Lo superseded es la forma Compose de producción (`docker-compose.prod.yml` con Caddy en una VM): el acta §7.3 fijó Kubernetes como sustrato, el §7.4 fijó Google Cloud con GKE y T10.3 retiró esa forma. El cuerpo de este informe se conserva sin cambios como registro de su fecha, y el camino vigente vive en `backend/deploy/k8s/README.md` (sección «Path to a real production cluster») con su runbook en `backend/deploy/k8s/DEPLOY-GKE.md`.
+
 Este informe explica por qué el modelo de riesgo de incendios no puede construirse con los datos entregados y qué entrega el sistema en su lugar, en términos verificables por quien evalúa. Documenta el **corte actual** del proyecto: no es el documento de cierre de la versión 1.0, que sigue abierta (ver `odd/entrega/acta-cierre.md`, §5).
 
 **Anexos técnicos.** Las cifras de este informe provienen de dos anexos que son la autoridad: `backend/training/REPORT-delivered-data.md` (la medición) y `backend/training/ANALYSIS-delivered-data.md` (el análisis archivo por archivo). Ambos los generan scripts —`train_delivered.py` y `analyze_delivered.py`— y no deben editarse a mano: una edición manual es un defecto, no un atajo. Si una cifra difiere, la autoridad son los anexos.
