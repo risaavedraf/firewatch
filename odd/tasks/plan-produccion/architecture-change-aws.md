@@ -60,7 +60,7 @@ Esas dos razones explican la elección de AWS del 2026-11-06. El sustrato de ent
 
 | Pendiente | Dónde se resuelve |
 | --- | --- |
-| Dominio y certificado | `backend/deploy/prod/README.md` |
+| Dominio y certificado | `backend/deploy/k8s/README.md`, sección «Path to a real production cluster». El runbook Compose de `backend/deploy/prod/README.md`, que era el destino anterior de esta fila, quedó superseded como camino de entrega el 2026-11-17 (`../kubernetes-deployment.md` L25) |
 | Rol IAM con permiso de lectura sobre el bucket de datos y modelos | T10 de `aws-ml-delivery.md` |
 | Apagado de la instancia al terminar las demostraciones | Runbook de producción |
 | Actualización de C4/EP1 para la entrega final, si se pide | Documento nuevo, fechado |

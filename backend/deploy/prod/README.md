@@ -1,5 +1,9 @@
 # Production deployment: one VM, Compose, Caddy edge
 
+> **Superseded as the delivery path on 2026-11-17 — kept as history, not as an instruction to deploy this form.** This runbook documented the form S4 of `odd/tasks/plan-produccion/aws-ml-delivery.md` recorded: the whole stack on one VM, driven by `docker-compose.prod.yml`, with Caddy as the only public edge. Since 2026-11-17 that is no longer how the application is delivered: delivery is a Kubernetes cluster (`odd/entrega/acta-cierre.md` §7.3), and the path is section "Path to a real production cluster" of [`backend/deploy/k8s/README.md`](../k8s/README.md). Everything from here down is retained unchanged as the record of that form, including its stop-and-shutdown procedure and its Caddy setup.
+>
+> **The limits in section 6 are part of the reason it was retired, not a minor caveat.** No registry push/pull, no immutable image tag, no rollback path, no inference service in the file, no backups, no replication and no measured availability. A form that also cannot pass its own services' transport guards —`APP_ENV: production` next to `amqp://` and `sslmode=disable` in `docker-compose.prod.yml`— is not a production substrate, and marking the file is all that was done to it.
+
 This is the deployment form recorded in S4 of `odd/tasks/plan-produccion/aws-ml-delivery.md`: the whole stack on one VM, driven by `docker-compose.prod.yml`, with Caddy as the only public edge. Kubernetes stays a documented target (`backend/deploy/k8s/README.md`), not the chosen path; nothing here deploys to ECS.
 
 What runs where: `caddy` publishes **80** and **443** and nothing else does. The gateway, the identity provider, PostgreSQL, RabbitMQ, Prometheus and Grafana are reachable only on the internal `backend` network.

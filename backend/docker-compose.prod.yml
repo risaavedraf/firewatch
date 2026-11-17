@@ -1,3 +1,27 @@
+# SUPERSEDED as the production delivery substrate on 2026-11-17, and kept as
+# history. Delivery is a Kubernetes cluster —the decision, with its evidence, is
+# `odd/entrega/acta-cierre.md` §7.3— and the path is `deploy/k8s/README.md`,
+# section "Path to a real production cluster". Nothing below is a deployment
+# target any more.
+#
+# Why it cannot be the substrate, measured rather than argued: this file does not
+# include the inference service (`:21`), and its `APP_ENV: production` (`:35`)
+# coexists with `AMQP_URL: amqp://` (`:193`, `:205`) and DSNs carrying
+# `sslmode=disable` (`:192`, `:204`), so it would not pass the transport guards
+# the services enforce outside development. It also has no registry push/pull, no
+# immutable image tag, no rollback path, no backups, no replication and no
+# measured availability, as its own runbook states (`deploy/prod/README.md`,
+# section 6).
+#
+# Those line numbers are as measured on 2026-11-17, before this header, and they
+# are how `odd/tasks/kubernetes-deployment.md` L10 and L23 and
+# `odd/entrega/acta-cierre.md` §7.3 cite them. In this file as it now stands they
+# are 24 lines further down.
+#
+# Nothing below was deleted or corrected. The plaintext `amqp://`, the
+# `sslmode=disable` DSNs and the missing `inference` stay exactly as they are:
+# this file is history, and the substrate is the cluster.
+#
 # Production stack for the demo VM (S4: Compose on one VM; Kubernetes stays a
 # documented target, not this file).
 #

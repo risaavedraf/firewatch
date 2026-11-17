@@ -85,7 +85,7 @@ El artefacto del modelo se carga desde `/models/logistic.json`, montado de solo 
 | 4 | Servicios → `/metrics` | Series internas | Puerto no publicado en el compose local; en clúster, red interna |
 
 La frontera 3 es la más débil y así se declara: **no hay firma del artefacto ni promoción entre entornos**
-(`backend/deploy/prod/README.md:113`), y el frente 7 de `odd/plan-produccion/` está abierto justo por eso.
+(`backend/deploy/prod/README.md:117`), y el frente 7 de `odd/plan-produccion/` está abierto justo por eso.
 
 ## 3. Actores
 
