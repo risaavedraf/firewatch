@@ -3,7 +3,7 @@
 #
 # The base renders `firewatch/<service>:replace-before-deploy` on purpose: it is
 # a template, and a digest written into it would name one build for every
-# environment. This script writes the registry host and the digest into
+# environment. This script writes the registry path and the digest into
 # overlays/delivery/kustomization.yaml, where a digest belongs, so pinning a
 # release is a mechanical change instead of a hand-edited tag.
 #
@@ -30,7 +30,15 @@ Pin the delivery overlay's images from IMAGE_LIST, in place.
 
 IMAGE_LIST holds one image per line, in this format:
 
-    <service> <registry>/firewatch/<service>@sha256:<64 lowercase hex>
+    <service> <registry-path>/firewatch/<service>@sha256:<64 lowercase hex>
+
+`<registry-path>` is everything in front of `/firewatch/<service>`. It is one
+segment when the registry serves the repository at its root, as `kind-registry`
+and `kind-registry:5000` both do, and several when the registry nests one:
+Artifact Registry serves `<location>-docker.pkg.dev/<project>/<repository>`,
+and that whole path is written here. The script requires the name to end in
+`/firewatch/<service>` after at least one segment, and it rejects a name with an
+empty segment, so a doubled or trailing slash is not a way in.
 
 For example (the digest is abbreviated here; the script wants all 64 digits):
 
@@ -42,7 +50,7 @@ the same service, a service the base does not declare, and a base service the
 list omits are all errors: the message names the line or the service it is
 about, and the overlay is left as it was.
 
-The registry host is the one value the tree cannot derive; the digests are
+The registry path is the one value the tree cannot derive; the digests are
 content digests and travel with the image they belong to.
 EOF
 }
@@ -148,7 +156,14 @@ if ! awk -v prog="$prog" -v list="$list" -v overlay="$overlay" \
 			fail("\"" digest "\" has " length(digest) - 7 " hex digits, want 64")
 			next
 		}
-		if (newname !~ ("^[^/]+/firewatch/" svc "$")) {
+		# One or more nonempty segments, then `firewatch/<service>`: the registry
+		# host and any repository path the registry nests under it, with no empty
+		# segment a doubled or trailing slash would leave. The ending is fixed, so
+		# a name for another service, or one that never reaches `firewatch/`, is
+		# still rejected.
+		# The diagnostic below keeps its wording, `registry host` included: a
+		# caller may match it, and only the check widened.
+		if (newname !~ ("^([^/]+/)+firewatch/" svc "$")) {
 			fail("\"" newname "\" does not name firewatch/" svc " under a registry host")
 			next
 		}
