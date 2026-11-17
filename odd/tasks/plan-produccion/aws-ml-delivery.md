@@ -3,10 +3,11 @@
 Feature: ejecutar el plan de implementación del modelo con inferencia en Go y etiquetas reales de CONAF, en dos frentes paralelos (modelo y despliegue). Depende de dos accesos externos; todo lo demás ya es ejecutable.
 Estado: en curso · abierto 2026-11-06 · documento fuente: [`Referencias/FireWatch-Plan-implementacion-modelo-AWS.md`](../../../Referencias/FireWatch-Plan-implementacion-modelo-AWS.md)
 **Sustrato vigente:** Kubernetes desde el 2026-11-17 (`../kubernetes-deployment.md`; corrección en [`../../entrega/acta-cierre.md`](../../entrega/acta-cierre.md) §7.3). Este plan describe el trabajo del modelo y el Compose que lo acompañó; la forma de producción es el clúster, no la VM.
+**Destino de nube vigente:** Google Cloud con GKE desde el 2026-11-17 ([`../../entrega/acta-cierre.md`](../../entrega/acta-cierre.md) §7.4). Lo superseded es **solo el destino de despliegue**: el contrato del artefacto `firewatch-model/v1`, el servicio `inference` y el trabajo de modelo de T2–T4 y T7–T9 **se conservan** tal como están escritos, con su alcance y sus criterios. Lo que cambia es dónde se despliega y con qué servicios del proveedor: GKE en lugar de EC2, Artifact Registry en lugar de ECR y Cloud Storage en lugar de S3.
 
 ## Specs
 
-**S1 — Proveedor cloud.** El usuario decide pivotar a AWS EC2, contra lo que documentan `Referencias/Actividad C4_FireWatch_produccion.md:235`, `Actividad Dimensionamiento_FireWatch_produccion.md:48-50` y `EP1_...:474-478`, que dicen Oracle Cloud. El cambio se documenta en un registro propio; los originales de `Referencias/` no se reescriben.
+**S1 — Proveedor cloud.** El usuario decide pivotar a AWS EC2, contra lo que documentan `Referencias/Actividad C4_FireWatch_produccion.md:235`, `Actividad Dimensionamiento_FireWatch_produccion.md:48-50` y `EP1_...:474-478`, que dicen Oracle Cloud. El cambio se documenta en un registro propio; los originales de `Referencias/` no se reescriben. **Superseded en su destino el 2026-11-17:** el proveedor vigente es Google Cloud con GKE (acta §7.4), no AWS EC2; la parte que sigue vigente es que el proveedor se decide, se documenta en un registro propio y no reescribe las referencias.
 
 **S2 — Quién ejecuta el modelo.** Textual: «todo el backend se hará con Go asi que el servicio de inferencia tiene que estar en go con el modelo guardado en onnx o similiar y python solo de entrenamiento, lo que se habla de fastapi es una sugerencia pero si ya tenemos todo hecho en go  sigamos con go». Forma cerrada: «Go interpreta el artefacto (pesos o árboles)». El artefacto es un JSON versionado con parámetros y preprocesamiento; no se usa `onnxruntime` ni cgo, porque los cuatro servicios compilan hoy con `CGO_ENABLED=0` sobre `gcr.io/distroless/static-debian12:nonroot` (`backend/services/*/Dockerfile:3,12-14`).
 
@@ -40,7 +41,7 @@ Estado: en curso · abierto 2026-11-06 · documento fuente: [`Referencias/FireWa
 | T7 | S5 | Ensamblador comuna-día con el sample de Maule: unión por CUT, agregación evento→día, clamp de la etiqueta | worker | — |
 | T8 | S2 | Clasificador `ml-v1` en `risk`: llamada HTTP con timeout, fallo cerrado, fila en `models` | pendiente | — |
 | T9 | S5 | Solicitar acceso al DOI y escribir a CONAF por el producto 2010–2025 | bloqueado | — |
-| T10 | S1 | EC2, dominio, security group y rol IAM para S3 | bloqueado | — |
+| T10 | S1 | EC2, dominio, security group y rol IAM para S3 — **superseded el 2026-11-17 en su destino** (acta §7.4): lo equivalente es aprovisionar Google Cloud, que es T3 de [`../gcp-gke-delivery.md`](../gcp-gke-delivery.md) | bloqueado | — |
 | T11 | S1 | `deploy.yml`: build/test, push, pull & up, smoke contra la URL pública | pendiente | — |
 
 ## Pipeline de entrenamiento
