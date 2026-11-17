@@ -2,16 +2,18 @@
 //
 // scripts/serve.mjs sends the page's security headers when the build is served
 // locally. Cloudflare Pages does not run that server, so the same headers travel
-// in a `_headers` file instead. The policy is serve.mjs's, with `connect-src`
-// pointed at the gateway and the identity provider the production build was
-// compiled against: the same variables `npm run build` required, read the same
-// way Vite read them, so the bundle and its policy cannot name different hosts.
+// in a `_headers` file instead. The policy is the one csp.mjs renders for both,
+// with `connect-src` pointed at the gateway and the identity provider the
+// production build was compiled against: the same variables `npm run build`
+// required, read the same way Vite read them, so the bundle and its policy
+// cannot name different hosts.
 import { stat, writeFile } from 'node:fs/promises';
 import { fileURLToPath, URL } from 'node:url';
 import path from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
 import { loadEnv } from 'vite';
+import { contentSecurityPolicy } from './csp.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const env = loadEnv('production', root, 'VITE_');
@@ -28,7 +30,7 @@ const gateway = httpsOrigin('VITE_GATEWAY_ORIGIN');
 const identity = httpsOrigin('VITE_ISSUER');
 const page = httpsOrigin('VITE_REDIRECT_URI');
 
-const policy = `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ${gateway} ${identity}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+const policy = contentSecurityPolicy([gateway, identity]);
 
 const dist = path.join(root, 'dist');
 try {
