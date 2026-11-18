@@ -592,11 +592,15 @@ done
 
 **Do not continue unless** every running pod's `imageID` carries the pinned digest.
 
-### 5.5 A denied connection proves `NetworkPolicy` is applied
+### 5.5 A denied connection tests `NetworkPolicy` on one path
 
 An accepted connection proves nothing on a cluster whose policy set is inert. The gate is a pair: one pod the data plane admits, one it does not, both from inside `firewatch`.
 
 Both probes carry a `restricted`-compliant security context, because the namespace enforces `restricted` (`base/namespace.yaml:6`), and both end their command with `exit 0`: the pod has to reach `Succeeded` for the wait below to return, and the criterion is the `status=` the probe prints, not the pod's phase.
+
+Of the fields these two blocks set, the [restricted profile](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted) constrains `runAsNonRoot`, `allowPrivilegeEscalation`, `capabilities.drop`, `seccompProfile.type` and `runAsUser`: it requires `runAsNonRoot: true`, `allowPrivilegeEscalation: false` and a `drop` list containing `ALL`, it accepts `RuntimeDefault` or `Localhost` as the seccomp type, and it accepts any non-zero `runAsUser` or none at all — `65532` is this probe's choice inside that range, not a value the standard names. `readOnlyRootFilesystem: true` is not one of its controls. That page is the authority, and its controls span pod and container scope, so those five are the ones this context touches, not the profile's whole list.
+
+`-U` and `-d` are connection arguments, not admission fields, and they are not credentials: no password is supplied, and libpq counts a server that asked for authentication as accepting connections ([fe-connect.c:4488-4498](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/interfaces/libpq/fe-connect.c#L4488-L4498)). Without `-U`, the libpq defaults apply — the user is the operating-system name of the running process, and the database defaults to that same name ([libpq parameters](https://www.postgresql.org/docs/17/libpq-connect.html#LIBPQ-PARAMKEYWORDS)) — and with no user supplied through options or defaults, libpq resolves it from the effective UID; if that lookup fails, it fails while resolving its options, before a socket exists, and `pg_isready` reports `no attempt` and exit `3` instead of a network result ([fe-connect.c:1274-1293](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/interfaces/libpq/fe-connect.c#L1274-L1293)). The explicit pair keeps the probe off that path, and it is what the StatefulSet's own probes pass, readiness at `base/postgres.yaml:160` and liveness at `:170`.
 
 ```sh
 kubectl -n firewatch apply -f - <<'EOF'
@@ -609,7 +613,7 @@ spec:
   containers:
     - name: probe
       image: postgis/postgis:17-3.5
-      command: ["sh", "-c", "pg_isready -h postgres -p 5432 -t 10; echo status=$?; exit 0"]
+      command: ["sh", "-c", "pg_isready -h postgres -p 5432 -U postgres -d postgres -t 10; echo status=$?; exit 0"]
       securityContext:
         allowPrivilegeEscalation: false
         capabilities: {drop: [ALL]}
@@ -619,9 +623,11 @@ kubectl -n firewatch wait --for=jsonpath='{.status.phase}'=Succeeded pod/np-deny
 kubectl -n firewatch logs np-deny
 ```
 
-**Expected:** `postgres:5432 - no response` and `status=2`. `pg_isready` exits `2` when nothing answered.
+**Expected:** `postgres:5432 - no response` and `status=2`.
 
-`app: netprobe` is admitted by no policy: `postgres-entry` admits only `app` in `jobs`, `risk`, `prevention`, `keycloak` and `migrate` on 5432 (`base/network.yaml:196-201`), and `default-deny` (`:5-6`) closes everything else.
+`pg_isready` returns `0` when the server is accepting connections, `1` when it is rejecting them, `2` when there was no response to the attempt, and `3` when no attempt was made, for example because the parameters were invalid ([exit status](https://www.postgresql.org/docs/17/app-pg-isready.html)). No single code decides the policy question: `2` is what a blocked path looks like, and it is equally what an unresolved `postgres` name looks like, or a database that is down, or a wrong address; `1` says a server answered and refused for reasons of its own; `3` means no connection was attempted, so nothing about the network follows from it. The pair is the observation this step asks for, and it is evidence about this pair of paths only — `app: netprobe` denied and `app: migrate` admitted, both to PostgreSQL on TCP 5432 — not proof that `NetworkPolicy` is enforced anywhere else. It is also still an observation somebody has to make on the destination: the status line at `:3` still applies.
+
+`app: netprobe` has no route to PostgreSQL on TCP 5432: `postgres-entry` (`base/network.yaml:190-202`) admits only `app` in `jobs`, `risk`, `prevention`, `keycloak` and `migrate` to that port, and `default-deny` (`:5-6`) closes what no other policy opens. That is a statement about 5432 and not about the pod's egress in general — `dns-and-oidc` (`:8-23`) gives every pod name resolution through `kube-system` and TCP 443 out, so an answer from some other destination would say nothing about PostgreSQL.
 
 Then the other half of the pair, the connection that must be **allowed**, which is what catches an over-blocking policy:
 
@@ -636,7 +642,7 @@ spec:
   containers:
     - name: probe
       image: postgis/postgis:17-3.5
-      command: ["sh", "-c", "pg_isready -h postgres -p 5432 -t 10; echo status=$?; exit 0"]
+      command: ["sh", "-c", "pg_isready -h postgres -p 5432 -U postgres -d postgres -t 10; echo status=$?; exit 0"]
       securityContext:
         allowPrivilegeEscalation: false
         capabilities: {drop: [ALL]}
@@ -650,7 +656,7 @@ kubectl -n firewatch logs np-allow
 
 `app: migrate` is chosen over the documented `app: jobs` pair on purpose: the `jobs` Service selects `{app: jobs}` (`base/workloads.yaml:317`), so a probe pod carrying that label would be added as an endpoint and the gateway would route real traffic into it for as long as it lives. `app: migrate` selects no Service.
 
-**If it fails:** `status=0` on `np-deny` means `default-deny` is inert and the cluster is not what this file describes, whatever `kubectl get networkpolicy` prints — the database's own authentication would be the only thing in the way, and this is the observation `--enable-network-policy` exists to produce. `status=2` on `np-allow` means the pair of policies is wrong in the other direction and no service could reach the database either.
+**If it fails:** `status=3` on either probe is not a verdict — no attempt was made, so the policies were not exercised, and the fault is in the invocation or in the pod's environment. `status=0` on `np-deny` contradicts the pair: a server answered at `postgres:5432` for a pod that no policy in this tree admits to that port, which is the failure `--enable-network-policy` (`:104`) exists to prevent. The probe does not rank the causes — a CNI that does not apply these objects, an allowing rule applied outside this tree, and an address that does not lead where this file assumes are all consistent with it — and `kubectl get networkpolicy` lists objects without showing which are enforced. `status=1` on `np-deny` is the same contradiction in another shape: a server answered and refused for its own reasons. `status=2` on `np-allow` contradicts the other half without naming the cause — an over-blocking rule, a `postgres` name that did not resolve, a database that is down and a wrong address are all consistent with it. `status=1` there points at the server's state rather than at the policy, since something answered while refusing connections. Neither half is read alone, and the pair — run against the destination — is evidence about this path only, not proof that `NetworkPolicy` is enforced in general.
 
 **Do not continue unless** the deny pod prints `status=2` **and** the allow pod prints `status=0`. Then delete both probes:
 
