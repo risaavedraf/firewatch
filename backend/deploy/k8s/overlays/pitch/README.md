@@ -90,23 +90,47 @@ API no contesta, el nodo está parado y el remedio es
   JWKS se sigue leyendo por `https://identity:8443`.
 - `WEB_ORIGIN` del gateway apunta a Cloudflare Pages.
 - Un segundo Ingress para el login y una NetworkPolicy que admite a ingress-nginx
-  en Keycloak por 8443 (ver «NetworkPolicy: declarada, no aplicada»).
+  en Keycloak por 8443 (ver «NetworkPolicy: aplicada por kindnet»).
 - El tramo Caddy → ingress-nginx es loopback y no verifica certificado; de
   ingress-nginx hacia adentro, todo es TLS verificado como declara la base.
 - El realm se crea desde el de desarrollo, con contraseñas generadas, solo la
   URL pública como redirect y sin password grant en `firewatch-demo`.
 
-## NetworkPolicy: declarada, no aplicada
+## NetworkPolicy: aplicada por kindnet
 
-El overlay instala las NetworkPolicies de `base/` y añade una propia, y este
-documento las presenta como aislamiento, pero el clúster de esta demo no las
-hace cumplir: kind usa por defecto su propio CNI simple, que no implementa
-NetworkPolicy, así que esos objetos se aceptan y no se aplican. En este clúster
-la separación entre workloads que declara la base es inerte; lo único que limita
-el alcance es el enrutamiento público: Caddy con los dos Ingress, que solo
-publican `/v1/`, `/health/`, `/realms/firewatch/` y `/resources/`. Las políticas
-no están equivocadas ni sobran: son las que aíslan en producción, donde el CNI
-del clúster sí las aplica, y es ahí donde hay que comprobarlas.
+El overlay instala las NetworkPolicies de `base/` y añade una propia, y en este
+clúster esas políticas se cumplen. kindnet, el CNI que kind pone por defecto,
+implementa NetworkPolicy desde kind v0.24.0 mediante
+`sigs.k8s.io/kube-network-policies`, y este overlay fija kind v0.29.0 en
+`install-tools.sh`, así que las políticas de la base y la del overlay se aplican.
+Lo que se declara en `base/network.yaml` es lo que pasa en el clúster:
+`default-deny` cierra el namespace y cada regla abre un flujo concreto.
+
+Por eso `identity-from-ingress.yaml` no es decorativo. La política
+`identity-entry-and-data` de la base admite solo a los cuatro servicios, y el
+login del navegador llega por el ingress controller: sin esa política del
+overlay, ingress-nginx no alcanza Keycloak en 8443 y el login responde 502.
+
+La consecuencia vale para depurar: cuando algo detrás del Ingress falla, lo
+primero que hay que revisar son las políticas de red, no lo último. Un 502 en el
+login, un timeout entre servicios o un Job de bootstrap que no termina pueden ser
+una regla que falta y no un problema de TLS ni de imagen.
+
+Para verlo cumplirse, creen un pod que no lleva ninguna de las etiquetas que las
+políticas admiten e intenten abrir PostgreSQL dentro del namespace:
+
+```bash
+kubectl -n firewatch run netpol-probe --rm -it --image=busybox --restart=Never -- sh -c 'nc -zv -w 5 postgres 5432; echo exit=$?'
+```
+
+`postgres-entry` admite solo a los pods con `app` en
+`jobs, risk, prevention, keycloak, migrate`, y el sondeo no lleva esa etiqueta:
+la conexión tiene que morir por timeout y la línea final tiene que imprimir un
+`exit=` distinto de cero. El nombre se resuelve porque `dns-and-oidc` permite
+DNS a todo el namespace; lo que no se alcanza es el puerto. Si en cambio conecta,
+el CNI no está haciendo cumplir las políticas, la demo pierde el aislamiento que
+declara y hay que revisar qué CNI quedó instalado antes de creerle al resto del
+documento.
 
 ## Lo que no se ha ejecutado
 

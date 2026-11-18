@@ -4,19 +4,17 @@
 # (local/ingress.sh checks it). The controller binds hostPort 443 on the node,
 # and the mapping below publishes it only on the VM's loopback: the public
 # entry point is Caddy on the VM host, which forwards to 127.0.0.1:8443.
-# kubeadm's v1beta4 config takes kubeletExtraArgs as a list of name/value entries.
+# The label is set with the node's own `labels` field instead of a kubeadm patch:
+# kind v0.29.0 renders the kubeadm v1beta3 template for this Kubernetes version
+# (ConfigTemplateBetaV3), where kubeletExtraArgs is a mapping, not a list. The
+# node field produces the same node label and does not depend on that template.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: firewatch
 nodes:
   - role: control-plane
-    kubeadmConfigPatches:
-      - |
-        kind: InitConfiguration
-        nodeRegistration:
-          kubeletExtraArgs:
-            - name: node-labels
-              value: "ingress-ready=true"
+    labels:
+      ingress-ready: "true"
     extraPortMappings:
       - containerPort: 443
         hostPort: 8443
