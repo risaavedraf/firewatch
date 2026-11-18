@@ -1,5 +1,6 @@
 name: Risk
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'backend/services/risk/**'

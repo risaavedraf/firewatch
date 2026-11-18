@@ -65,6 +65,18 @@ bash up.sh
 Reconstruye las imágenes, las vuelve a cargar y reinicia los Deployments. El
 clúster, los Secrets, el realm y los certificados se reutilizan.
 
+## CD automático, dormido
+
+`CD.md` describe el workflow que despliega `main` reejecutando este mismo `up.sh`.
+Queda dormido hasta que se configure: la activación, los valores de conexión y lo que
+hay que observar antes de encenderlo están ahí, y no hace falta tocar este README ni
+el script para activarlo.
+
+La CI que ese CD exige para un SHA de `main` es `pitch-main-ci.yml`: corre en cada
+push a `main`, sin filtro de `paths`, y llama a los ocho workflows de cobertura. Los
+triggers filtrados existentes se conservan, así que un push a `main` puede correr
+los checks dos veces; `CD.md` explica el motivo y el costo.
+
 ## Usuarios de la demo
 
 `demo-admin` y `demo-viewer`, con contraseñas generadas y guardadas en el Secret

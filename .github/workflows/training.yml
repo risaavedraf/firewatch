@@ -1,5 +1,6 @@
 name: Training panel
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'backend/training/**'
