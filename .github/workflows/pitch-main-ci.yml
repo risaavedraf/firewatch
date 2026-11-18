@@ -124,3 +124,8 @@ jobs:
       # PyYAML and no network, so neither adds a runner dependency to main CI.
       - name: Offline main-CI contract
         run: sh backend/deploy/k8s/tests/pitch-main-ci-contract.sh
+
+      # The dormant CD slice adds this step: a CI-only landing runs the contract
+      # above and stops there, because this file does not exist yet.
+      - name: Offline CD contract
+        run: sh backend/deploy/k8s/tests/pitch-cd-contract.sh

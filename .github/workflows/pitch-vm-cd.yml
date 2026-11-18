@@ -1,0 +1,432 @@
+# Pitch CD: deploy main to the pitch VM by re-running up.sh there.
+#
+# DORMANT BY DEFAULT. Two repository variables opt in, in this order and never
+# together: PITCH_CD_ENABLE_MANUAL turns on the manual path, and only after a
+# manual run has been observed does PITCH_CD_ENABLE_AUTO turn on the path that
+# follows main. With either unset every job is skipped and no push reaches the VM.
+#
+# Both paths (manual and automatic) deploy one thing: the SHA the run was created
+# for (github.sha). If main has moved since, the run refuses; a stale dispatch or a
+# re-run of an old run deploys nothing, and a fresh run is started instead.
+#
+# The gate is one exact-SHA question, not an inference: `pitch-main-ci.yml` runs on
+# every push to main and calls every main-coverage workflow, so its push run for a
+# SHA is the authoritative CI result. The gate accepts only one run of that workflow
+# for that SHA, in this repository, on main, completed and successful. A missing run,
+# a queued or in-progress one waits inside a bounded deadline; an ambiguous, foreign
+# or non-successful one refuses. Renamed repositories and forks are refused by the
+# `repository`/`head_repository` identity check, never read as a match.
+#
+# The reviewed bootstrap script is pinned too. `bootstrap-secrets.sh` is where a
+# rewritten CA would come from (issue #81); the candidate's bytes must match the
+# operator-approved SHA-256 pin, on the runner and again on the VM. That is evidence
+# that the reviewed bytes are what runs, not proof of their semantics.
+#
+# Both the aggregate check and the pin are repeated in the deploy job after the
+# environment approval and the concurrency queue, so a deploy-only re-run re-verifies
+# instead of inheriting a previous green. Then, over SSH, on the VM: operator
+# preconditions, the active CA certificate pin, the canonical origin host and path,
+# a dedicated clean checkout (no untracked or ignored build input), a fetch compared
+# through FETCH_HEAD, `bash up.sh` as the only deployment path, and read-only
+# verification.
+#
+# It does not: run on a PR, upload anything, roll back, open a network port, expose
+# the cluster API, create the first install, or invent credentials/target values.
+# When the operator's values are absent it refuses and names them.
+#
+# Sources, cited and not observed in this session:
+#   https://docs.github.com/en/rest/actions/workflow-runs
+#     (GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs, filtered by
+#      head_sha, branch and event; the run object carries repository,
+#      head_repository, head_branch, head_sha, event, status, conclusion, run_attempt)
+#   https://docs.github.com/en/actions/reference/events-that-trigger-workflows
+#     (a push run uses the workflow file at the pushed SHA)
+name: Pitch VM CD
+
+on:
+  # The automatic path. A push trigger, not workflow_run, so the run that gates is
+  # the run for this SHA; the job's own `if` is what keeps it dormant.
+  push:
+    branches: [main]
+  # The manual path. No inputs, on purpose: it deploys the SHA the run was made for.
+  workflow_dispatch:
+
+# Read-only floor. Both jobs add actions: read to read the run list; no job gets a
+# write scope. A job-level block replaces this one, so each restates both scopes.
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: CI gate for the exact main SHA
+    if: >-
+      github.repository == 'risaavedraf/firewatch-dev' &&
+      github.server_url == 'https://github.com' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && vars.PITCH_CD_ENABLE_MANUAL == 'true') ||
+       (github.event_name == 'push' && vars.PITCH_CD_ENABLE_MANUAL == 'true' &&
+        vars.PITCH_CD_ENABLE_AUTO == 'true'))
+    runs-on: ubuntu-24.04
+    # Bounded: the wait for the aggregate is 30 minutes and this is the hard cap.
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Check out the run's SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Explicit, not the branch tip: a dispatch resolves refs/heads/main, which
+          # may have moved since the run was created, and the stale check must be
+          # able to say so.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Wait for the aggregate's run of this SHA
+        env:
+          CD_API_URL: ${{ github.api_url }}
+          CD_REPOSITORY: risaavedraf/firewatch-dev
+          CD_TOKEN: ${{ github.token }}
+          CD_SHA: ${{ github.sha }}
+          CD_WORKFLOW_PATH: .github/workflows/pitch-main-ci.yml
+          CD_MAX_SECONDS: '1800'
+          CD_POLL_SECONDS: '30'
+        run: |
+          set -euo pipefail
+          sh backend/deploy/k8s/overlays/pitch/cd/gate.sh fresh
+          sh backend/deploy/k8s/overlays/pitch/cd/gate.sh wait
+
+  deploy:
+    name: Deploy that SHA on the pitch VM
+    needs: gate
+    # Deliberately not conditioned on the gate's result: a re-run of only this job
+    # is allowed, and it repeats every check below instead of inheriting a green.
+    if: >-
+      github.repository == 'risaavedraf/firewatch-dev' &&
+      github.server_url == 'https://github.com' &&
+      github.ref == 'refs/heads/main' && vars.PITCH_CD_ENABLE_MANUAL == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && vars.PITCH_CD_ENABLE_AUTO == 'true'))
+    runs-on: ubuntu-24.04
+    # Rebuilding five images and waiting for the data plane takes minutes, not
+    # seconds; this cap is what bounds a hung SSH session.
+    timeout-minutes: 90
+    # The environment is where the approval and the connection material live.
+    # It is on the deploy job only: the gate reads public API data and needs none
+    # of it, and nothing else in this repository uses an environment.
+    environment:
+      name: pitch-cd
+    # One deploy at a time, and a queued run never cancels the one in progress:
+    # cancel-in-progress is false, so a newer run replaces only a still-pending
+    # one. Freshness and the aggregate are re-read after the queue and the approval.
+    concurrency:
+      group: pitch-vm-cd-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+    env:
+      CD_API_URL: ${{ github.api_url }}
+      # Pinned canonical identity. A fork, a renamed repository or another GitHub
+      # host must edit this file under review; it never inherits the value from the
+      # event, so a copied workflow cannot deploy to another repository.
+      CD_REPOSITORY: risaavedraf/firewatch-dev
+      CD_CANONICAL_HOST: github.com
+      # The SHA the run was created for. No other SHA is accepted below.
+      CD_SHA: ${{ github.sha }}
+      CD_WORKFLOW_PATH: .github/workflows/pitch-main-ci.yml
+      PITCH_CD_VM_HOST: ${{ vars.PITCH_CD_VM_HOST }}
+      PITCH_CD_VM_USER: ${{ vars.PITCH_CD_VM_USER }}
+      PITCH_CD_VM_PORT: ${{ vars.PITCH_CD_VM_PORT }}
+      PITCH_CD_KNOWN_HOSTS: ${{ vars.PITCH_CD_KNOWN_HOSTS }}
+      PITCH_CD_CA_SHA256: ${{ vars.PITCH_CD_CA_SHA256 }}
+      PITCH_CD_BOOTSTRAP_SHA256: ${{ vars.PITCH_CD_BOOTSTRAP_SHA256 }}
+    steps:
+      - name: Refuse to run without the operator's configuration
+        env:
+          # The presence of the key, not its value: this step never holds the
+          # private key, and a multi-line secret must not go through add-mask.
+          HAS_SSH_KEY: ${{ secrets.PITCH_CD_SSH_KEY != '' }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for name in PITCH_CD_VM_HOST PITCH_CD_VM_USER PITCH_CD_KNOWN_HOSTS \
+                      PITCH_CD_CA_SHA256 PITCH_CD_BOOTSTRAP_SHA256; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          [ "$HAS_SSH_KEY" = "true" ] || missing="$missing PITCH_CD_SSH_KEY(secret)"
+          if [ -n "$missing" ]; then
+            echo "::error::missing configuration:$missing." \
+              "backend/deploy/k8s/overlays/pitch/CD.md lists where each value comes from." \
+              "Nothing was deployed."
+            exit 1
+          fi
+          echo "configured: host=$PITCH_CD_VM_HOST user=$PITCH_CD_VM_USER ca=$PITCH_CD_CA_SHA256"
+
+      - name: Check out the run's SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: The candidate's bootstrap script must be the reviewed one
+        run: |
+          set -euo pipefail
+          # Evidence, not proof of behaviour: the pin says these are the bytes the
+          # operator reviewed for issue #81. A mismatch means the script changed
+          # after that review, and this run stops before anything is deployed.
+          actual=$(sha256sum backend/deploy/k8s/bootstrap-secrets.sh | cut -d' ' -f1)
+          if [ "$actual" != "$PITCH_CD_BOOTSTRAP_SHA256" ]; then
+            echo "::error::bootstrap-secrets.sh is $actual and the approved pin is" \
+              "$PITCH_CD_BOOTSTRAP_SHA256. Review the change and update the pin only" \
+              "after #81 is settled for it. Nothing was deployed."
+            exit 1
+          fi
+          echo "bootstrap-secrets.sh matches the approved pin $actual"
+
+      - name: Re-check the main tip and the aggregate's run after the approval
+        env:
+          CD_TOKEN: ${{ github.token }}
+          CD_MAX_SECONDS: '300'
+          CD_POLL_SECONDS: '10'
+        run: |
+          set -euo pipefail
+          # A short bound, because the gate already waited: this is the confirmation
+          # that the answer is still green now, after the approval and the queue.
+          sh backend/deploy/k8s/overlays/pitch/cd/gate.sh fresh
+          sh backend/deploy/k8s/overlays/pitch/cd/gate.sh wait
+
+      - name: Write the key and the pinned host key outside the workspace
+        env:
+          PITCH_CD_SSH_KEY: ${{ secrets.PITCH_CD_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          dir=$RUNNER_TEMP/pitch-cd-ssh
+          mkdir -p "$dir"
+          umask 077
+          printf '%s\n' "$PITCH_CD_SSH_KEY" >"$dir/id"
+          printf '%s\n' "$PITCH_CD_KNOWN_HOSTS" >"$dir/known_hosts"
+          chmod 600 "$dir/id"
+          chmod 644 "$dir/known_hosts"
+          if ! head -n 1 "$dir/id" |
+            grep -qE '^-----BEGIN (OPENSSH |RSA |EC )?PRIVATE KEY-----$'; then
+            echo "::error::PITCH_CD_SSH_KEY is not an OpenSSH/PEM private key:" \
+              "the first line is not a private-key header"
+            exit 1
+          fi
+          ssh-keygen -y -f "$dir/id" >/dev/null
+          echo "key material written, 0600, outside the workspace"
+
+      - name: Run up.sh on the VM and verify the result read-only
+        # The key is already on disk from the previous step; this one never reads
+        # its value, so the secret is expanded in exactly one place.
+        run: |
+          set -euo pipefail
+          dir=$RUNNER_TEMP/pitch-cd-ssh
+          port="${PITCH_CD_VM_PORT:-22}"
+          remote_status=0
+          ssh -i "$dir/id" -p "$port" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$dir/known_hosts" -o UpdateHostKeys=no \
+            -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no \
+            -o ForwardAgent=no -o ForwardX11=no -o ClearAllForwardings=yes \
+            -o PermitLocalCommand=no -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -o LogLevel=ERROR \
+            "$PITCH_CD_VM_USER@$PITCH_CD_VM_HOST" \
+            bash -s -- "$CD_SHA" "$PITCH_CD_CA_SHA256" "$CD_CANONICAL_HOST" \
+            "$CD_REPOSITORY" "$PITCH_CD_BOOTSTRAP_SHA256" <<'REMOTE' || remote_status=$?
+          set -euo pipefail
+          sha=$1
+          ca_pin=$2
+          host=$3
+          repo=$4
+          bootstrap_pin=$5
+          deploy_dir=$HOME/firewatch-cd/checkout
+          state_dir=$HOME/firewatch-cd
+          params=$HOME/.firewatch-pitch.env
+          overlay=backend/deploy/k8s/overlays/pitch
+          context=kind-firewatch
+          say() { printf '\n==> %s\n' "$*"; }
+          die() { printf 'pitch-cd: %s\n' "$*" >&2; exit 1; }
+
+          # The values up.sh reuses are operator values; they are validated here,
+          # with the same shapes up.sh enforces on a first run, so a bad line stops
+          # the run before anything is rebuilt or applied.
+          param() { sed -n "s/^$1='\(.*\)'$/\1/p" "$params"; }
+          check_params() {
+            api_host=$(param API_HOST)
+            auth_host=$(param AUTH_HOST)
+            web_origin=$(param WEB_ORIGIN)
+            acme_email=$(param ACME_EMAIL)
+            printf '%s' "$api_host" | grep -Eq '^[A-Za-z0-9.-]+$' ||
+              die "API_HOST in $params is not a host name"
+            printf '%s' "$auth_host" | grep -Eq '^[A-Za-z0-9.-]+$' ||
+              die "AUTH_HOST in $params is not a host name"
+            printf '%s' "$web_origin" | grep -Eq '^https://[A-Za-z0-9.-]+$' ||
+              die "WEB_ORIGIN in $params is not an https origin of letters, digits, dots and hyphens"
+            printf '%s' "$acme_email" | grep -Eq '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' ||
+              die "ACME_EMAIL in $params is not an email address"
+          }
+
+          say "preconditions on the VM"
+          [ -f "$params" ] ||
+            die "there is no $params. The first bring-up was not done by this user, and" \
+              "this workflow does not invent its three values: run the first install by" \
+              "hand (README.md, Primera vez), then re-run."
+          mkdir -p "$state_dir"
+          check_params
+          [ -d "$deploy_dir/.git" ] ||
+            die "there is no deploy checkout at $deploy_dir. Create it once with your own" \
+              "access: git clone <the same remote as your working checkout> $deploy_dir —" \
+              "this workflow never supplies credentials."
+          for tool in git docker kind kubectl openssl python3 sha256sum; do
+            command -v "$tool" >/dev/null || die "$tool is missing on the VM (see install-tools.sh)"
+          done
+          [ "$(docker inspect -f '{{.State.Running}}' firewatch-control-plane 2>/dev/null || echo false)" = true ] ||
+            die "the kind node container is stopped, which is what a stopped VM leaves" \
+              "behind. Start it with: docker start firewatch-control-plane — nothing was" \
+              "deployed."
+          kubectl --context "$context" -n firewatch get namespace firewatch >/dev/null 2>&1 ||
+            die "no $context context with namespace firewatch. Check kubectl config get-contexts; nothing was deployed."
+
+          # The active CA is a precondition, not something this run may change. This
+          # reads the certificate only: when the run reaches this check it compares
+          # ca.crt with the operator's pin, and it never reads the private key, so it
+          # is never described as a key check. The pin is the operator's proof for
+          # issue #81: if the authority that signs the certificates is not the
+          # approved one, refuse before up.sh runs.
+          ca_now() {
+            kubectl --context "$context" -n firewatch get secret firewatch-ca \
+              -o jsonpath='{.data.ca\.crt}' |
+              base64 -d | openssl x509 -outform der | sha256sum | cut -d' ' -f1
+          }
+          say "the active CA certificate must be the approved one"
+          before_ca=$(ca_now) || die "cannot read secret/firewatch-ca. This workflow only" \
+            "updates an existing install; it never creates a CA."
+          [ "$before_ca" = "$ca_pin" ] ||
+            die "the active CA certificate ($before_ca) is not the approved one ($ca_pin)." \
+              "Nothing was deployed. This is issue #81's boundary: resolve it or correct" \
+              "the pin, never both at once."
+
+          say "the dedicated deploy checkout must be clean and at the candidate"
+          cd "$deploy_dir"
+          [ -z "$(git status --porcelain --ignored)" ] ||
+            die "$deploy_dir has changes, or untracked or ignored files. A build input" \
+              "that is not in the candidate would be baked into the images, and this" \
+              "workflow never cleans a checkout: inspect it and re-run. Nothing was deployed."
+          [ -z "${GIT_SSL_NO_VERIFY:-}" ] ||
+            die "GIT_SSL_NO_VERIFY is set in this session and would disable certificate" \
+              "verification for the fetch. Unset it and re-run; nothing was deployed."
+          # "where reasonable": the effective git setting, local/global/system, and
+          # the environment. An operator can still force it another way; that is theirs.
+          [ "$(git config --get http.sslVerify 2>/dev/null || echo unset)" != "false" ] ||
+            die "git config http.sslVerify=false is in effect here and would disable" \
+              "certificate verification for the fetch. Nothing was deployed."
+          configured_origin=$(git config --get remote.origin.url) ||
+            die "$deploy_dir has no configured origin remote; configure it once with your own access"
+          effective_origin=$(git remote get-url origin) ||
+            die "cannot resolve the effective origin URL in $deploy_dir"
+          # Complete-URL comparison against the three canonical forms, never a tail
+          # match: a mirror, or a URL that merely ends in the same path, is refused.
+          # Both the configured value and the effective URL (git expands
+          # url.*.insteadOf, so this is what the fetch will use) must be canonical.
+          # The operator controls git and ssh configuration, so this is a
+          # configuration check, not a trust proof: the fetch and the pins are the
+          # real assurance.
+          canonical_https="https://$host/$repo"
+          canonical_scp="git@$host:$repo"
+          canonical_ssh="ssh://git@$host/$repo"
+          for origin in "$configured_origin" "$effective_origin"; do
+            normalized=$(printf '%s' "$origin" | sed -E 's#/+$##; s#\.git$##')
+            case $normalized in
+            "$canonical_https" | "$canonical_scp" | "$canonical_ssh") ;;
+            *)
+              die "origin '$origin' is not one of '$canonical_https', '$canonical_scp' or" \
+                "'$canonical_ssh'. An SSH alias or a mirror cannot be verified here and is" \
+                "refused. Nothing was deployed."
+              ;;
+            esac
+          done
+          git fetch --no-tags origin main ||
+            die "git fetch failed in $deploy_dir: this checkout has no working access to origin"
+          # FETCH_HEAD is what this fetch brought, read directly instead of through
+          # a remote-tracking ref another process could move between the two reads.
+          fetched=$(git rev-parse --verify FETCH_HEAD) ||
+            die "cannot read FETCH_HEAD after fetching origin main"
+          [ "$fetched" = "$sha" ] ||
+            die "main moved: the fetch from origin returned $fetched and this run is for" \
+              "$sha. Nothing was deployed."
+          git checkout --detach "$sha" >/dev/null ||
+            die "cannot check out $sha in $deploy_dir"
+          [ "$(git rev-parse HEAD)" = "$sha" ] ||
+            die "the checkout did not land on $sha; refusing to build an unknown tree"
+          script_sha=$(sha256sum "$deploy_dir/backend/deploy/k8s/bootstrap-secrets.sh" |
+            cut -d' ' -f1)
+          [ "$script_sha" = "$bootstrap_pin" ] ||
+            die "the checkout's bootstrap-secrets.sh is $script_sha and the approved pin is" \
+              "$bootstrap_pin. Stopping before up.sh; nothing was deployed."
+
+          # S4: one deployment path, the one that already exists. This wrapper adds
+          # preconditions and verification around it and nothing else.
+          say "up.sh (the only deployment path)"
+          cd "$deploy_dir/$overlay"
+          bash up.sh
+
+          say "read-only verification after up.sh"
+          for deployment in gateway jobs risk prevention inference; do
+            kubectl --context "$context" -n firewatch rollout status \
+              "deployment/$deployment" --timeout=120s
+          done
+          kubectl --context "$context" -n firewatch get deployments
+          kubectl --context "$context" -n firewatch get pods
+          # up.sh's own last check is the public edge; repeating it read-only shows
+          # that the edge answers. It is not an attestation of the SHA: the images
+          # are tagged `pitch`, so the SHA evidence is the checkout and the marker.
+          api_host=$(param API_HOST)
+          [ -n "$api_host" ] || die "cannot read API_HOST from $params; the install's own values are not readable"
+          code=$(curl -sS --connect-timeout 5 --max-time 20 -o /dev/null -w '%{http_code}' \
+            "https://$api_host/health/ready" || echo 000)
+          [ "$code" = 204 ] ||
+            die "https://$api_host/health/ready answered $code after the rollout. Nothing" \
+              "is rolled back automatically: a partial rollout is left visible (CD.md, fallos)."
+          say "the active CA certificate must still be the approved one"
+          after_ca=$(ca_now) || die "cannot read secret/firewatch-ca after the rollout"
+          [ "$after_ca" = "$ca_pin" ] ||
+            die "the active CA certificate changed during the run ($before_ca -> $after_ca)." \
+              "Do not roll back blindly: stop, read the CD.md entry for issue #81, and" \
+              "report before acting."
+
+          printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$sha" >"$state_dir/last-deployed"
+          say "done: $sha"
+          # Informational only: the next run reads main, never this file, so a stale
+          # marker cannot make a deploy look current.
+          echo "  recorded in $state_dir/last-deployed (informational)"
+          REMOTE
+          if [ "$remote_status" -eq 255 ]; then
+            echo "::error::ssh failed (exit 255): the VM is off, the route is closed, the" \
+              "key was rejected, the pinned host key does not match, or the remote command" \
+              "itself returned 255. The remote state is unknown — check the VM before" \
+              "re-running. CD.md has the recovery table."
+            exit 1
+          fi
+          if [ "$remote_status" -ne 0 ]; then
+            echo "::error::the deploy on the VM failed (exit $remote_status). No automatic" \
+              "rollback: CD.md has the recovery table. A red run means nothing was reported" \
+              "as deployed; it does not mean the VM is unchanged."
+            exit 1
+          fi
+
+      - name: Record what this run deployed
+        run: |
+          {
+            echo "### Pitch VM CD"
+            echo ""
+            echo "- SHA: \`$CD_SHA\`"
+            echo "- Path: \`bash up.sh\` in \`~/firewatch-cd/checkout\`, after the aggregate" \
+              "gate, the reviewed bootstrap pin, the freshness checks and the active CA" \
+              "certificate pin."
+            echo "- If main moved during the run, the next run deploys the newer tip; this" \
+              "one does not roll back."
+          } >>"$GITHUB_STEP_SUMMARY"
