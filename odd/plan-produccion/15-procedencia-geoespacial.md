@@ -1,10 +1,10 @@
 # Frente 15 — Procedencia geoespacial (restricción DIFROL)
 
 - **Grupo de entrega:** G5 — Producto y cierre.
-- **Estado:** Pendiente — planificación. La fuente indica que la cartografía **no está validada**.
+- **Estado:** Parcial — procedencia registrada; validación DIFROL del producto derivado, pendiente. La fuente indica que la cartografía **no está validada**.
 - **Riesgo (Task Size):** alto al implementar — ítem 1 (trazabilidad/procedencia persistida) e ítem 3 (producto que se publica/consume).
 - **Depende de:** datos y metadatos del servicio geoespacial; revisión/validación DIFROL como condición de producción.
-- **Seam / superficie:** `data/trazabilidad/`, `backend/scripts/`, `backend/services/risk/assets/geo/`, `backend/services/risk/migrations/` y README.
+- **Seam / superficie:** `backend/contracts/gen/geo/` (procedencia y derivado versionados), `backend/scripts/fetch_comunas.py`, `backend/services/risk/internal/handler/sources.go` y README.
 
 **Objetivo.** Registrar procedencia y declarar la restricción DIFROL para la cartografía derivada antes de asumir la fuente lista para producción.
 
@@ -22,9 +22,9 @@
 
 | ID | Spec | Ruta | Descripción | Commit |
 | --- | --- | --- | --- | --- |
-| T1 | S1 | inline | Registrar la fila real de trazabilidad (endpoint, huella, `retrieved_at`, `cutoff_at`, formatos). | — |
-| T2 | S2 | inline | Registrar atribución SUBDERE/IGM/INE. | — |
-| T3 | S3 | inline | Declarar la restricción DIFROL en tabla y README. | — |
+| T1 | S1 | inline | Registrar la fila real de trazabilidad (endpoint, huella, `retrieved_at`, `cutoff_at`, formatos). | `backend/contracts/gen/geo/valparaiso-comunas.provenance.json:4-11` |
+| T2 | S2 | inline | Registrar atribución SUBDERE/IGM/INE. | mismo artefacto, `attribution` (`:21`) |
+| T3 | S3 | inline | Declarar la restricción DIFROL en tabla y README. | restricción en el artefacto (`:22`) y servida; falta el README |
 
 Ruta por defecto: **inline** (trabajo documental acotado).
 
@@ -39,3 +39,4 @@ Ruta por defecto: **inline** (trabajo documental acotado).
 ## Log
 
 - **L1 (2026-10-16)** — Creación del desglose por spec a partir de [`README.md`](README.md) §1 (frente 15). Documento de planificación; sin implementación.
+- **L2 (2026-11-18) — Estado corregido a Parcial (H10 de la auditoría de despliegue).** El frente decía «Pendiente — planificación» y apuntaba la procedencia a `data/trazabilidad/`, una ruta que no existe en el árbol: la fila real está registrada y versionada en `backend/contracts/gen/geo/valparaiso-comunas.provenance.json:4-11` (endpoint, `query_sha256`, `retrieved_at`, `cutoff_at`, formatos de origen y derivado), con la atribución en `:21` y la restricción DIFROL en `:22`. La escribe `backend/scripts/fetch_comunas.py:32-33`, la embebe `backend/contracts/gen/geo/geo.go:19,24` y la sirve `backend/services/risk/internal/handler/sources.go:93`. Lo que sigue abierto es la validación DIFROL del producto derivado (el mapa comunal) y la declaración textual de la restricción en el README; la cartografía **no** se declara validada.
