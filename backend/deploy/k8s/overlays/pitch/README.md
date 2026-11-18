@@ -76,9 +76,12 @@ kubectl -n firewatch get secret pitch-demo-users -o jsonpath='{.data.DEMO_ADMIN_
 
 ## Apagar y encender
 
-Con la VM detenida el clúster se detiene con ella. Al encenderla, kind y Caddy
-vuelven solos (`restart unless-stopped`); confirmen con
-`kubectl -n firewatch get pods` y `curl https://api.<ip>.sslip.io/health/ready`.
+Con la VM detenida el clúster se detiene con ella. Al encenderla Caddy vuelve
+solo (`restart unless-stopped`); el contenedor del nodo de kind no lleva esa
+política y puede quedarse detenido, con Caddy arriba y las dos rutas públicas sin
+respuesta. La revisión es `kubectl -n firewatch get pods`: si el servidor de la
+API no contesta, el nodo está parado y el remedio es
+`docker start firewatch-control-plane`.
 
 ## Diferencias con `overlays/delivery`, solo para el pitch
 
