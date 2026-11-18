@@ -36,6 +36,7 @@ Preparación permitida sin datos: historial de versiones, matriz de pruebas y cr
 
 - **Bloqueo doble:** datos reales y modelo aprobado (los dos pendientes permitidos).
 - **Bloqueo humano:** el responsable debe decidir y firmar; sin firma no hay aprobación de producción.
+- **Continuidad de datos (H20):** la matriz no puede presentar backup, restore o SLA como evidencia. El sustrato es un `StatefulSet` de una réplica (`backend/deploy/k8s/base/postgres.yaml:44,53`), no hay `CronJob` de backup en `backend/deploy/k8s/` ni una admisión de ingreso dedicada: la única regla de los pods de PostgreSQL selecciona el par por la etiqueta `app` sobre TCP/5432 (`backend/deploy/k8s/base/network.yaml:190-202`), y su efecto en un destino no se ha observado; la política está escrita y no implementada (`backend/deploy/k8s/README.md:212-218`; `backend/deploy/k8s/DEPLOY-GKE.md:859`, §«Hard stops», ítem 4). Detalle y dueño en [`14-motor-datos-continuidad.md`](14-motor-datos-continuidad.md).
 
 ## Criterios de cierre
 
@@ -45,3 +46,4 @@ Preparación permitida sin datos: historial de versiones, matriz de pruebas y cr
 
 - **L1 (2026-10-16)** — Creación del desglose por spec a partir de [`README.md`](README.md) §1 (frente 13). Documento de planificación; sin implementación.
 - **L2 (2026-10-20)** — Estado precisado a «bloqueado para acreditar»: historial, matriz y criterios se preparan sin datos; la firma sigue bloqueada (README §5.1).
+- **L3 (2026-11-18) — Continuidad fuera de la matriz (H20 de la auditoría de producción).** El documento fija qué evidencia falta para datos y modelo, y no decía que la continuidad del sustrato tampoco se puede presentar: la base es un `StatefulSet` de una réplica (`backend/deploy/k8s/base/postgres.yaml:44,53`), no existe `CronJob` ni Job de backup en `backend/deploy/k8s/` ni una admisión de ingreso dedicada, y `postgres-entry` selecciona el par por la etiqueta `app` sobre TCP/5432 (`base/network.yaml:190-202`), sin observación del efecto en un destino; la política está escrita y no implementada (`backend/deploy/k8s/README.md:212-218`; `backend/deploy/k8s/DEPLOY-GKE.md:859`, §«Hard stops», ítem 4; `odd/entrega/acta-cierre.md:194,205`). Se añadió el bloqueo con el dueño remitido al frente 14 para no duplicar el detalle. Es lectura de manifiestos: no se ejecutó ningún backup ni restore.
