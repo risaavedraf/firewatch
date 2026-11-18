@@ -1,7 +1,7 @@
 import { PanelHeading, StatusCopy } from '../components/ui';
 import { rejectedSessionCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
-import { startLogin, type SessionState } from '../core/session';
+import { accountConsoleURL, startLogin, type SessionState } from '../core/session';
 
 // N8b — the session + permissions view (S13/S17). It carries two clearly
 // separated things and nothing else:
@@ -226,8 +226,9 @@ function roleDisplay(session: SessionState): RoleDisplay {
 export function SessionView() {
   const session = useSessionState();
   const role = roleDisplay(session);
+  const signedIn = session.status === 'signed-in';
   const authStatus =
-    session.status === 'signed-in'
+    signedIn
       ? 'Sesión lista. Las acciones autorizadas se validan en el servidor.'
       : session.status === 'signing-in'
         ? 'Iniciando el acceso seguro a Keycloak…'
@@ -241,29 +242,39 @@ export function SessionView() {
         <article className="panel auth-panel">
           <div className="panel-heading">
             <div>
-              <h3>Conectar sesión</h3>
+              <h3>{signedIn ? 'Tu cuenta' : 'Conectar sesión'}</h3>
             </div>
             <span className="lock-mark" aria-hidden="true">
               ⌑
             </span>
           </div>
           <p className="panel-note">
-            Inicia sesión en Keycloak. FireWatch nunca solicita ni recibe tu contraseña; la API valida los permisos.
+            {signedIn
+              ? 'Tu cuenta vive en Keycloak: ahí cambias tu contraseña, tu nombre o tu correo. FireWatch nunca solicita ni recibe tu contraseña; la API valida los permisos.'
+              : 'Inicia sesión en Keycloak. FireWatch nunca solicita ni recibe tu contraseña; la API valida los permisos.'}
           </p>
           {/* F3 — one control, one state. `Shell.tsx` hides the logout control while
               signed out; this one is disabled while a session is established or still
               being established, so an authenticated operator can no longer see an
               enabled "Iniciar sesión" whose only effect would be to restart the OAuth
-              flow. The status line below states which of the two situations it is. */}
+              flow. With a session it is also hidden: the account link below is the
+              only thing this panel can usefully offer an operator who is signed in. */}
           <button
             id="login"
             className="primary-button"
             type="button"
+            hidden={signedIn}
             disabled={session.status !== 'signed-out'}
             onClick={() => startLogin()}
           >
             Iniciar sesión con Keycloak
           </button>
+          {/* A plain link to the identity provider's own account console. It leaves
+              the page on purpose: profile and password changes never pass through
+              FireWatch. */}
+          <a id="account-console" className="primary-button" href={accountConsoleURL()} hidden={!signedIn}>
+            Gestionar mi cuenta en Keycloak
+          </a>
           <p className="panel-note">
             El token de acceso permanece solo en memoria mientras esta página está abierta. No se guardan tokens ni se
             envían cookies.

@@ -51,6 +51,42 @@ Open **Clients → firewatch-demo → Settings** and confirm all three fields sh
 
 A programmatic check was **not executed** as part of this change: it needs a running Keycloak with the local `.env` credentials, which is outside what this repository can verify on its own. Treat the sign-in and logout round trip through the browser as the real acceptance check.
 
+## Self-registration and the FireWatch login theme
+
+The page offers two Keycloak round trips: **Iniciar sesión** opens `/protocol/openid-connect/auth` and **Crear cuenta** opens `/protocol/openid-connect/registrations`, Keycloak's sign-up entry point. Both are the same Authorization Code + PKCE `S256` flow with the same client, and both return to the same callback; the page never renders a credential field. What makes sign-up possible is the realm, not the page:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| `registrationAllowed` | `true` | Without it `/registrations` answers with Keycloak's own error page |
+| `defaultRole` → `default-roles-firewatch` | composite of `viewer`, `offline_access`, `uma_authorization` | A self-registered account can **read** risk data and nothing more. `admin` is never granted by registration; an administrator assigns it by hand |
+| `passwordPolicy` | `length(10) and notUsername and notEmail` | Open sign-up needs a floor. The generated demo passwords (48 hex characters locally, 24 on the pitch) already satisfy it |
+| `verifyEmail` / `resetPasswordAllowed` | `false` / `false` | Both need SMTP, which no environment here configures. Turn them on together with `smtpServer` |
+| `rememberMe` | `false` | The page keeps tokens in memory only; a long-lived Keycloak SSO cookie would contradict that |
+| `loginTheme` | `firewatch` | The sign-in and sign-up pages in the FireWatch palette |
+| `internationalizationEnabled`, `supportedLocales`, `defaultLocale` | `true`, `["es","en"]`, `es` | Keycloak's pages in Spanish; the page also sends `ui_locales=es` |
+| `displayName` / `displayNameHtml` | `FireWatch` | Window title and header text of the Keycloak pages |
+
+**Decide before exposing it publicly.** With these settings anyone who can reach the identity provider can create an account that reads the (synthetic) risk data. That is the intended demo behaviour. If it is not wanted on a given environment, set `registrationAllowed` to `false` there, or remove `viewer` from `default-roles-firewatch` so new accounts receive `403` until an administrator grants a role. The gateway and the services remain the only authority either way: the page never decides a permission.
+
+### The theme
+
+`backend/deploy/local/keycloak-themes/firewatch/login/` is a login theme that extends `keycloak.v2`, the default login theme of the pinned Keycloak 26.5.7. It overrides **no template**: only a stylesheet (`resources/css/firewatch.css`, loaded after the parent's) and a few Spanish and English strings (`messages/`). Every flow Keycloak ships — login, registration, required actions, errors, OTP — keeps working as upstream, and a selector a future version renames simply stops applying instead of breaking the page.
+
+`docker-compose.yml`, `docker-compose.prod.yml` and `scripts/verify_synthetic.py` mount it read-only at `/opt/keycloak/themes/firewatch`. A Keycloak **without** the mount — the Kubernetes base and the pitch overlay today — logs that it cannot find the theme and serves its built-in one, so the realm setting is never a login dependency. `start-dev` does not cache themes, so CSS edits show on reload; production mode (`start`) caches them until restart.
+
+### Applying it to an existing realm
+
+The create-only import rule above applies: an initialised realm ignores these keys. In the Administration Console, realm **firewatch**:
+
+1. **Realm settings → General**: Display name `FireWatch`, HTML display name `FireWatch`.
+2. **Realm settings → Login**: User registration **On**; Forgot password **Off**; Remember me **Off**; Verify email **Off**; Login with email **On**; Duplicate emails **Off**.
+3. **Realm settings → Themes**: Login theme `firewatch` (it is listed only when the container has the theme mount; recreate it with `docker compose up -d identity` after pulling this change).
+4. **Realm settings → Localization**: Internationalization **On**, supported locales `es` and `en`, default locale `es`.
+5. **Authentication → Policies → Password policy**: add *Minimum length* `10`, *Not username*, *Not email*. Save.
+6. **Realm settings → User registration → Default roles**: **Assign role** → `viewer`.
+
+Verification: open the page, choose **Crear cuenta**, complete the Keycloak form, and confirm the page comes back signed in with `viewer` listed under **Sesión y permisos**; then confirm that `#jobs` answers `403` for that account.
+
 ## The directory client: `firewatch-directory`
 
 `backend/deploy/local/firewatch-realm.json` declares a second client, the confidential one the prevention service reads the realm's users with at `GET /v1/users`:

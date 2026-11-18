@@ -20,6 +20,7 @@ import { useMemo } from 'react';
 
 import { PanelHeading } from '../ui';
 import { idleCopy } from '../../app/sessionCopy';
+import type { SessionState } from '../../core/session';
 import type { RiskLevel, ZoneCollection } from '../../types/api';
 import { buildMapLayout, countVertices, DETACHED_LONGITUDE, geometryBounds, zoneLabel, type MapFrame, type ProjectedZone } from './projection';
 import { zoneShapeClasses } from './zone-classes';
@@ -46,7 +47,7 @@ export interface MapPanelProps {
   // The session's rejection reason, so the idle panel can name a refused token
   // instead of the first-visit copy. The panel does not read the session store:
   // the caller hands it the fact (S2).
-  sessionReason: 'rejected' | null;
+  sessionReason: SessionState['reason'];
 }
 
 const MAINLAND_SVG_LABEL = 'Comunas seleccionables: clic, Enter o Espacio';

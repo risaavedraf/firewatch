@@ -117,6 +117,10 @@ services:
       DIRECTORY_CLIENT_SECRET: ${DIRECTORY_CLIENT_SECRET:-}
     volumes:
       - ./deploy/local/firewatch-realm.json:/opt/keycloak/data/import/firewatch-realm.json:ro
+      # The FireWatch login theme (sign-in and sign-up pages). The realm selects it
+      # with `loginTheme`; a Keycloak without this mount falls back to its
+      # built-in theme, so the mount is presentation, never a login dependency.
+      - ./deploy/local/keycloak-themes/firewatch:/opt/keycloak/themes/firewatch:ro
     ports: ['127.0.0.1:8081:8080']
     networks: [backend, edge]
     depends_on:

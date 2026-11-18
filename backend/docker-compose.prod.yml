@@ -173,6 +173,10 @@ services:
       DEMO_VIEWER_PASSWORD: ${DEMO_VIEWER_PASSWORD:?required}
     volumes:
       - ./deploy/local/firewatch-realm.json:/opt/keycloak/data/import/firewatch-realm.json:ro
+      # The FireWatch login theme (sign-in and sign-up pages). The realm selects it
+      # with `loginTheme`; a Keycloak without this mount falls back to its
+      # built-in theme, so the mount is presentation, never a login dependency.
+      - ./deploy/local/keycloak-themes/firewatch:/opt/keycloak/themes/firewatch:ro
     networks: [backend]
     depends_on:
       postgres: {condition: service_healthy}

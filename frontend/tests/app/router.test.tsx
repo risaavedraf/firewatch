@@ -2,6 +2,10 @@ import { act, render, screen } from '@testing-library/react';
 
 import { App } from '../../src/App';
 import { routes } from '../../src/app/routes';
+import { issuer, pkceTransactionKey } from '../../src/config';
+import { completeLogin, resetSession } from '../../src/core/session';
+
+import { createCryptoStub, createFetchStub, flush, jwt } from '../core/harness';
 
 // N4 — the nine real areas are now seven views, and exactly one of them is
 // rendered at a time. The retired page stacked all nine sections in one scroll,
@@ -19,8 +23,26 @@ function renderedViews(): string[] {
   return [...document.querySelectorAll('[data-view]')].map(node => node.getAttribute('data-view') ?? '');
 }
 
-beforeEach(() => {
+// The workspace is only rendered with an established session (the sign-in screen
+// stands in for it otherwise, see `auth.test.tsx`), so every routing test starts
+// signed in. The role is irrelevant here: no route depends on it.
+const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
+
+beforeEach(async () => {
   window.location.hash = '';
+  const fetchStub = createFetchStub();
+  vi.stubGlobal('fetch', fetchStub.fetch);
+  vi.stubGlobal('crypto', createCryptoStub());
+  window.sessionStorage.setItem(pkceTransactionKey, JSON.stringify({ state: 's', verifier: 'verifier' }));
+  const callback = completeLogin('?code=c&state=s');
+  await flush();
+  fetchStub.answer(TOKEN_URL, { access_token: jwt({ realm_access: { roles: ['viewer'] } }), id_token: jwt({ sub: 'u' }) });
+  await callback;
+});
+
+afterEach(() => {
+  resetSession();
+  vi.unstubAllGlobals();
 });
 
 test('the eight views are declared once, with the two merged pairs and no duplicate hash', () => {

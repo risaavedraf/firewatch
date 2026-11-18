@@ -13,6 +13,7 @@ import {
   resumePendingLogin,
   signOut,
   startLogin,
+  startRegistration,
   subscribeSession,
 } from '../../src/core/session';
 
@@ -129,7 +130,9 @@ test('completeLogin rejects and resets the session when the returned state does 
   await expect(completeLogin('?code=code-1&state=other')).rejects.toThrow();
 
   expect(fetchStub.calls).toHaveLength(0);
-  expect(getSessionSnapshot()).toEqual({ status: 'signed-out', roles: null, reason: null });
+  // The callback is the only writer of `login-failed`: the sign-in screen uses it
+  // to say the attempt did not complete instead of showing the first-visit text.
+  expect(getSessionSnapshot()).toEqual({ status: 'signed-out', roles: null, reason: 'login-failed' });
   expect(getAccessToken()).toBe('');
   expect(storageStub.removals).toContain(pkceTransactionKey);
   expect(windowStub.replaceState).toHaveBeenCalled();
@@ -393,4 +396,56 @@ test('a reason-only change with the same status notifies subscribers (S3)', () =
   resetSession();
   expect(listener).toHaveBeenCalledTimes(2);
   unsubscribe();
+});
+
+// Registration is the same Authorization Code + PKCE round trip as a sign-in: only
+// the Keycloak entry point differs. Everything that protects the sign-in — the
+// state, the S256 challenge, the redirect URI, the short-lived transaction — must
+// protect the sign-up as well, because both come back through the same callback.
+test('startRegistration opens the Keycloak sign-up endpoint with the same PKCE parameters', async () => {
+  setup();
+  startRegistration();
+  expect(getSessionSnapshot()).toEqual({ status: 'signing-in', roles: null, reason: null });
+
+  await vi.waitFor(() => expect(windowStub.assign).toHaveBeenCalledTimes(1));
+  const transaction = JSON.parse(storageStub.writes[0].value) as { state: string; verifier: string };
+  const target = new URL(windowStub.assign.mock.calls[0][0] as string);
+  expect(`${target.origin}${target.pathname}`).toBe(`${issuer}/protocol/openid-connect/registrations`);
+  expect(target.searchParams.get('client_id')).toBe(clientID);
+  expect(target.searchParams.get('redirect_uri')).toBe(redirectURI);
+  expect(target.searchParams.get('response_type')).toBe('code');
+  expect(target.searchParams.get('scope')).toBe('openid');
+  expect(target.searchParams.get('state')).toBe(transaction.state);
+  expect(target.searchParams.get('code_challenge_method')).toBe('S256');
+  expect(target.searchParams.get('code_challenge')).toBe(await sha256Base64url(transaction.verifier));
+  expect(target.searchParams.get('ui_locales')).toBe('es');
+  expect(storageStub.writes).toHaveLength(1);
+  expect(storageStub.writes[0].key).toBe(pkceTransactionKey);
+});
+
+test('startLogin keeps using the authorization endpoint, not the sign-up one', async () => {
+  setup();
+  startLogin();
+  await vi.waitFor(() => expect(windowStub.assign).toHaveBeenCalledTimes(1));
+  const target = new URL(windowStub.assign.mock.calls[0][0] as string);
+  expect(`${target.origin}${target.pathname}`).toBe(`${issuer}/protocol/openid-connect/auth`);
+});
+
+// While the code is being exchanged the page is neither signed out nor signed in.
+// Without this transition the sign-in screen would offer an enabled control on top
+// of a round trip that is still completing.
+test('the callback is in flight as signing-in, and a refused exchange ends as login-failed', async () => {
+  setup();
+  seedTransaction();
+  const login = completeLogin('?code=code-1&state=s');
+  expect(getSessionSnapshot()).toEqual({ status: 'signing-in', roles: null, reason: null });
+  await flush();
+  fetchStub.answer(TOKEN_URL, { error: 'invalid_grant' }, 400);
+  await expect(login).rejects.toThrow();
+  expect(getSessionSnapshot()).toEqual({ status: 'signed-out', roles: null, reason: 'login-failed' });
+
+  // A new attempt clears the failure before it leaves the page.
+  startLogin();
+  expect(getSessionSnapshot()).toEqual({ status: 'signing-in', roles: null, reason: null });
+  await vi.waitFor(() => expect(windowStub.assign).toHaveBeenCalledTimes(1));
 });

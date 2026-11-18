@@ -370,10 +370,17 @@ test('the sign-in control is disabled while a session is established and enabled
   await connect(jwt({ realm_access: { roles: ['viewer'] } }));
   expect(getSessionSnapshot().status).toBe('signed-in');
   expect((document.getElementById('login') as HTMLButtonElement).disabled).toBe(true);
+  // With a session the control is also hidden, and the panel offers the identity
+  // provider's account console instead.
+  expect(document.getElementById('login')).toHaveAttribute('hidden');
+  expect(document.getElementById('account-console')).not.toHaveAttribute('hidden');
+  expect(document.getElementById('account-console')).toHaveAttribute('href', `${issuer}/account`);
 
   await act(async () => {
     resetSession();
   });
   expect(getSessionSnapshot().status).toBe('signed-out');
   expect((document.getElementById('login') as HTMLButtonElement).disabled).toBe(false);
+  expect(document.getElementById('login')).not.toHaveAttribute('hidden');
+  expect(document.getElementById('account-console')).toHaveAttribute('hidden');
 });
