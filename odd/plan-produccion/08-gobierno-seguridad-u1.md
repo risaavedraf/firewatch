@@ -12,6 +12,12 @@
 - [`../urgent/01-seguridad-gobierno.md:3-23`](../urgent/01-seguridad-gobierno.md) — unidad U1 y criterio de cierre.
 - [`../../Referencias/tareas_verificacion_implementacion_IA.md:51-187`](../../Referencias/tareas_verificacion_implementacion_IA.md) — requisitos por ID.
 
+## Continuidad de datos: lo que este frente no puede acreditar (H20)
+
+La U1 incluye respuesta operacional, y el sustrato de datos no tiene hoy continuidad. No se repite aquí la política —su dueño es el frente 14— sino el estado del árbol, para que ninguna evidencia de U1 lo lea como cubierto: la base es un `StatefulSet` de **una réplica** (`backend/deploy/k8s/base/postgres.yaml:44,53`) con un claim `ReadWriteOnce` de 8 Gi por réplica (`:200-207`), **no hay ningún `CronJob` ni Job de backup** en `backend/deploy/k8s/` (los únicos Jobs son `base/broker-provision.yaml:23` y `base/jobs-migrate.yaml:30`), y `postgres-entry` es una regla de ingreso que selecciona el par por la etiqueta `app` —valores `jobs`, `risk`, `prevention`, `keycloak` y `migrate`— sobre TCP/5432 (`base/network.yaml:190-202`); los manifiestos no traen **ninguna carga de backup ni una admisión dedicada a ella**, y el efecto de esa política en un destino no se ha observado (`backend/deploy/k8s/README.md:238`). La política está escrita y no implementada (`backend/deploy/k8s/README.md:212-218`; `backend/deploy/k8s/DEPLOY-GKE.md:859`, §«Hard stops», ítem 4; `odd/entrega/acta-cierre.md:194,205`).
+
+Consecuencia para esta unidad: ni el backup ni el restore probado pueden figurar como evidencia de S3/S5. El destino de la redirección es [`14-motor-datos-continuidad.md`](14-motor-datos-continuidad.md). **Es lectura de manifiestos**: no se ejecutó ningún backup, ningún restore ni ningún `kubectl`.
+
 ## Specs
 
 - **S1** — Se define clasificación de riesgo, responsable de seguridad IA y aprobación previa a producción; se verifica consistencia regulatoria.
@@ -46,3 +52,4 @@ Ruta por defecto: **inline** (trabajo documental/de gobierno). Delegar solo por 
 ## Log
 
 - **L1 (2026-10-16)** — Creación del desglose por spec a partir de [`README.md`](README.md) §1 (frente 8). Documento de planificación; sin implementación.
+- **L2 (2026-11-18) — Continuidad de datos acotada (H20 de la auditoría de producción).** El frente podía leerse como si la respuesta operacional de S5 incluyera continuidad del sustrato. No la incluye: la base del despliegue es un `StatefulSet` de una réplica (`backend/deploy/k8s/base/postgres.yaml:44,53`) con un claim `ReadWriteOnce` por réplica (`:200-207`), no hay `CronJob` ni Job de backup en el árbol, y `postgres-entry` selecciona el par por la etiqueta `app` —cinco valores de aplicación— sobre TCP/5432 (`base/network.yaml:190-202`), sin una carga de backup ni una admisión dedicada en los manifiestos, y sin observación del efecto en un destino (`backend/deploy/k8s/README.md:238`); su estado es «escrita, no implementada» (`backend/deploy/k8s/README.md:212-218`; `backend/deploy/k8s/DEPLOY-GKE.md:859`, §«Hard stops», ítem 4). Se añadió la sección que lo declara y que remite al dueño, el frente 14. El detalle completo vive en [`14-motor-datos-continuidad.md`](14-motor-datos-continuidad.md) y no se duplica aquí. Es lectura de manifiestos: no se ejecutó ningún backup ni restore.

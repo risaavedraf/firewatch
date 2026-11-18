@@ -44,6 +44,19 @@ Ruta por defecto: **inline** para definición; la ejecución del benchmark (larg
 
 Todo lo anterior requiere **entorno**: stack aislado (Docker + k6 + Prometheus) para S2/S5 y un **clúster de Kubernetes** con `metrics-server` para S3/S4.
 
+## Entradas del benchmark k6 (H16)
+
+El script `backend/deploy/load/k6-risk.js` no toma argumentos: se gobierna con cuatro variables de entorno, cada una con default en el propio script.
+
+| Variable | Default | Qué cambia | Evidencia |
+| --- | --- | --- | --- |
+| `BASE_URL` | `http://localhost:8080` | Host del gateway contra el que se mide | `backend/deploy/load/k6-risk.js:19` |
+| `TOKEN` | vacío | Token de portador; nunca se commitea | `k6-risk.js:20` |
+| `ZONE_ID` | `valparaiso-demo` | Zona consultada en `GET /v1/risk/latest` | `k6-risk.js:21,45` |
+| `DURATION` | `3m` | Duración del escenario de tasa constante | `k6-risk.js:31` |
+
+Invocación documentada en el propio script: `k6 run -e TOKEN="$TOKEN" -e BASE_URL=http://localhost:8080 deploy/load/k6-risk.js` (`k6-risk.js:12`). **Ningún workflow lo ejecuta**: `.github/workflows/` no nombra `k6` ni una sola vez, así que el reporte pasa/falla de S2 sigue siendo una corrida local y no una evidencia de CI.
+
 ## Dependencias y bloqueos humanos
 
 - **Bloqueo humano:** acordar SLO/SLA, carga, RTO y herramientas **antes** de medir.
@@ -72,3 +85,4 @@ Todo lo anterior requiere **entorno**: stack aislado (Docker + k6 + Prometheus) 
   - **S5 — capacidad:** plan de validación documentado (§8); la capacidad inicial sigue siendo objetivo, no resultado.
   - **Evidencia observada (estructural):** `autoscaling.yaml` parsea con `yaml.safe_load_all` (3 documentos) y `kustomization.yaml` es válido; el script k6 pasa `node --check` (sintaxis) con Node v24.11.1. **No ejecutado:** no hay clúster, ni stack levantado, ni k6 en este entorno. Se declara.
 - **L4 (2026-11-18) — Estado corregido (H11 de la auditoría de despliegue).** El documento decía que la ejecución del escalado seguía pendiente y que «el path de HPA debe determinarse». El HPA existe desde L3 (`backend/deploy/k8s/base/autoscaling.yaml:12`, cuatro objetos: `gateway`, `jobs`, `risk`, `prevention`) y el escalado se observó en un clúster local: `gateway` pasó de 2 a 6 réplicas con evento `SuccessfulRescale` (`odd/tasks/k8s-delivery-closure.md:23,58`). La observación tiene límites declarados en la fuente: solo se ejercitó `gateway` y el objetivo se bajó a 1 % para forzarlo (`:60`). No se convierte en prueba de producción: el benchmark k6 con `p(95)<500`, el RTO y el clúster de destino siguen abiertos (`:90`).
+- **L5 (2026-11-18) — Entradas del benchmark documentadas (H16 de la auditoría de producción).** El `## Log` describía el escenario y decía que «el token se pasa por entorno (`TOKEN`)», y dejaba fuera tres de las cuatro entradas reales del script: `BASE_URL` (default `http://localhost:8080`), `ZONE_ID` (default `valparaiso-demo`) y `DURATION` (default `3m`), con sus líneas en `backend/deploy/load/k6-risk.js:19-21,31`. Se añadió la tabla de las cuatro con su default y su efecto, y se dejó dicho que **ningún workflow ejecuta k6** (`.github/workflows/` no lo nombra), así que S2 sigue sin evidencia de CI. `## 8.3` del README del plan repite el dato y no se reescribe: es una sección histórica fechada. Es lectura del script: el benchmark no se ejecutó.
