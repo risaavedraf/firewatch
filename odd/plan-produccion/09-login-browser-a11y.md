@@ -23,22 +23,30 @@
 
 | ID | Spec | Ruta | Descripción | Commit |
 | --- | --- | --- | --- | --- |
-| T1 | S1 | inline | Aplicar en Admin Console los ajustes no destructivos del cliente (post-logout, valores de login). | — |
-| T2 | S2 | inline | Ejecutar login/logout real + llamada API autenticada. | — |
-| T3 | S3 | inline | Verificación visual navegador y móvil. | — |
+| T1 | S1 | inline | Aplicar los ajustes no destructivos del cliente (post-logout, valores de login) en el realm vivo. | `../tasks/presentation-client-ready.md` L23 |
+| T2 | S2 | inline | Ejecutar login/logout real + llamada API autenticada. | `../tasks/presentation-client-ready.md` L23 (T17, Chrome) |
+| T3 | S3 | inline | Verificación visual navegador y móvil. | `../tasks/presentation-client-ready.md` L23 (390 px, teclado) |
 | T4 | S4 | inline | Evaluación de accesibilidad formal. | — |
 
 Ruta por defecto: **inline**. El recorrido de navegador puede ejecutarse con el actor de revisión de página.
 
 ## Dependencias y bloqueos humanos
 
-- **Bloqueo humano:** aplicar los ajustes no destructivos en Admin Console; resolver la selección nativa de archivos antes de declarar revisión/cierre.
+- **Bloqueo humano:** el realm local ya quedó ajustado y medido (post-logout corregido en la base viva y verificado, L23); el realm del entorno objetivo se aprovisiona fuera de banda y necesita ese valor por su cuenta. Sigue abierta la selección nativa de archivos antes de declarar revisión/cierre.
 
 ## Criterios de cierre
 
-- `../tasks/frontend/client-proposal-page.md:24-26,42-45`: checks y próximo paso; falta prueba live.
+- `../tasks/frontend/client-proposal-page.md:24-26,42-45`: checks y próximo paso. La prueba live ya se tomó —login y logout con Keycloak vivo, 390 px, teclado y contraste— en [`../tasks/presentation-client-ready.md`](../tasks/presentation-client-ready.md) L23; falta certificación WCAG y lector de pantalla.
+
+## Qué corre en CI y qué se midió a mano (H21)
+
+Las mediciones de este frente son **manuales** y ningún workflow las reproduce: el recorrido browser/Keycloak, los 390 px, el teclado y el contraste se observaron en Chrome y quedaron registrados en [`../tasks/presentation-client-ready.md`](../tasks/presentation-client-ready.md) L23, no en una corrida de CI.
+
+Lo que sí corre en CI es la mitad automatizable: `frontend/tests/a11y/*.test.tsx` se ejecuta con el resto de la suite en `npm test` (`.github/workflows/frontend.yml:45-46`), y esa suite es explícita sobre su límite — jsdom no calcula layout, así que la mitad geométrica se fija contra la hoja de estilos que recibe el navegador y no contra un render real de 390 px (`frontend/tests/a11y/actions-accessibility.test.tsx:13-24`). Ni la certificación WCAG ni la prueba con lector de pantalla están cableadas en ninguna de las dos formas: siguen siendo el faltante de S4.
 
 ## Log
 
 - **L1 (2026-10-16)** — Creación del desglose por spec a partir de [`README.md`](README.md) §1 (frente 9). Documento de planificación; sin implementación.
 - **L2 (2026-10-20)** - Estado corregido a Parcial: recorrido browser/Keycloak y revisión móvil/accesibilidad medidos en L14/L23; faltan certificación WCAG y lector de pantalla (README §7).
+- **L3 (2026-11-18) — T1 y la prueba live corregidos (H13 de la auditoría de despliegue).** «Aplicar los ajustes no destructivos en Admin Console» y «falta prueba live» eran ciertos al planificar y dejaron de serlo. L23 corrigió `post.logout.redirect.uris` del realm vivo por base —la Admin Console no sirve con las credenciales documentadas, que responden `invalid_grant`— y midió `PASS BROWSER: Keycloak logout clears private session`; T17 ya había medido login/logout, 390 px, teclado y contraste. El realm del entorno objetivo es independiente y no hereda ese ajuste. Lo que falta sigue siendo certificación WCAG y lector de pantalla.
+- **L4 (2026-11-18) — Reparto local/CI declarado (H21 de la auditoría de producción).** El documento decía que las mediciones se tomaron y no decía que ninguna corre en CI. Las de navegador, móvil, teclado y contraste son manuales (L14/L23, en `../tasks/presentation-client-ready.md`) y ningún workflow las reproduce; lo que sí corre es la suite de `frontend/tests/a11y/` bajo `npm test` (`.github/workflows/frontend.yml:45-46`), que fija la mitad geométrica contra la hoja de estilos y no contra un render (`frontend/tests/a11y/actions-accessibility.test.tsx:13-24`). La certificación WCAG y el lector de pantalla no están cableados en ninguna forma. Se añadió la sección con el reparto. Es lectura de workflows y de la suite: no se ejecutó ni el navegador ni la suite en esta pasada.

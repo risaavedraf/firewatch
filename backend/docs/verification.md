@@ -81,6 +81,36 @@ Four pinned images were examined and deliberately not moved:
 
 Not verified: no image was pulled, built or scanned here. The Docker daemon was not running, so `docker compose config --quiet` is the only check that ran; the Trivy scan of runtime images stays in CI.
 
+## Toolchain refresh — 2026-11-18
+
+Go 1.27.3 carried [GO-2026-6859](https://vuln.go.dev/ID/GO-2026-6859.json) in `net/http`; the scanner attributes that advisory to 1.27.3, reports the fix in 1.27.4, and `govulncheck` on `main` stopped on it. PR [#88](https://github.com/risaavedraf/firewatch-dev/pull/88) moved the thirteen operative pins and the two documents that state the live toolchain to 1.27.4 (`893a5d1748fb4c47f0cc5a669d07bf568a8c0307`), merged as `c67165a69d93a93389614484601ea96f548905b8`. Everything above this section describes 1.27.3 and earlier and stays as written.
+
+| Change | Scope |
+|---|---|
+| `go 1.27.4` | `backend/go.work:1` |
+| `go 1.27.4` | `backend/contracts/gen/go.mod:3` |
+| `go 1.27.4` | `backend/services/gateway/go.mod:3` |
+| `go 1.27.4` | `backend/services/inference/go.mod:3` |
+| `go 1.27.4` | `backend/services/jobs/go.mod:3` |
+| `go 1.27.4` | `backend/services/prevention/go.mod:3` |
+| `go 1.27.4` | `backend/services/risk/go.mod:3` |
+| `go-version: '1.27.4'` | `.github/workflows/_go-service.yml:25` |
+| `golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea` | `backend/services/{gateway,inference,jobs,prevention,risk}/Dockerfile:1` |
+| Live toolchain statement | `backend/README.md:7` |
+| Live toolchain statements | `backend/docs/code-explanation/07-deployment.md:3,52,53,55,56,63` |
+
+The image digest is the multi-architecture index digest of the tag, not a tag label: `docker buildx imagetools inspect docker.io/library/golang:1.27.4-bookworm` returned index `sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea`, with Linux `amd64` and `arm64` manifests, which is what the five Dockerfiles carry. It differs from the 1.27.3 pin in the section above.
+
+| Check (CI, PR #88, Go 1.27.4) | Result |
+|---|---|
+| `Vulnerability scan (govulncheck)` — [run `44228345085`](https://github.com/risaavedraf/firewatch-dev/actions/runs/44228345085), job `134546966930` | Success; `govulncheck@v1.9.0 ./...` fails on findings, so this run reports none |
+| `compose` — [run `44228345062`](https://github.com/risaavedraf/firewatch-dev/actions/runs/44228345062), job `134546966824` | Success |
+| `compose` — [run `44228364387`](https://github.com/risaavedraf/firewatch-dev/actions/runs/44228364387), job `134547032353` | Success |
+
+Both Compose jobs build the service images from these Dockerfiles and boot the stack (`.github/workflows/integration.yml:10,26-29`), so the pinned index digest resolved to buildable images in CI.
+
+Not covered by this refresh: no Go 1.27.4 check was run on the Windows host and no Kubernetes cluster was contacted. The local results above for 1.27.3 and earlier remain the last local observations; this section records only the CI jobs cited, and claims neither a Windows Go 1.27.4 run nor live cluster validation.
+
 ## Reproduce the meaningful runtime checks
 
 From `backend/`, with the local `.env` already initialized:

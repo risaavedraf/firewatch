@@ -1,0 +1,131 @@
+# Pitch main CI: one authoritative, fail-closed CI result per main SHA.
+#
+# Why this exists: the pitch CD gate must not infer from `paths:` filters which
+# workflows should have run. This workflow runs on every push to main, with no path
+# filter, and calls the eight reusable main-coverage workflows at the same SHA. Its
+# run for a SHA is therefore the single answer to "was main green there", and the CD
+# accepts exactly one such run, for the exact SHA, in this repository, on main.
+#
+# The eight bodies keep their own triggers and gates. The only change to each is the
+# additive `workflow_call:` trigger: a caller cannot skip, replace or weaken their
+# steps, and their `permissions: contents: read` is the ceiling this workflow grants
+# (a caller cannot elevate a called workflow). No secrets are mapped and no
+# environment is used, so no deployment credential is in scope here.
+#
+# Existing behaviour is kept: the filtered `push` and `pull_request` triggers of
+# those workflows still run as they did, so a main push may run their checks twice —
+# once in their own run, once here. That is the cost of an explicit aggregate, and
+# it is accepted rather than hidden by editing their filters.
+#
+# The `aggregate` job is the fail-closed gate. It runs `always()` and requires every
+# dependency's result to be exactly `success`: failed, cancelled and skipped are all
+# refusals, and a missing dependency leaves an empty result that also fails. There is
+# no neutral or skipped false-green, and the count is checked so a name that silently
+# disappears cannot shrink the gate.
+name: Pitch main CI
+
+on:
+  # Every push to main, no path filter: a main SHA without this run is not
+  # deployable, so the run must exist for every main SHA.
+  push:
+    branches: [main]
+
+# CI may cancel superseded work, which is the efficiency default for CI. It is safe
+# here because a cancelled run is not green: the deployment gates refuse the older
+# SHA and the newer one is the SHA that deploys. The CD has its own concurrency with
+# cancel-in-progress: false and is unaffected.
+concurrency:
+  group: pitch-main-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# The floor is exactly what the called workflows declare. No job gets a write scope
+# and no job-level block replaces this one.
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: frontend
+    uses: ./.github/workflows/frontend.yml
+  gateway:
+    name: gateway
+    uses: ./.github/workflows/gateway.yml
+  inference:
+    name: inference
+    uses: ./.github/workflows/inference.yml
+  integration:
+    name: integration
+    uses: ./.github/workflows/integration.yml
+  jobs_service:
+    name: jobs
+    uses: ./.github/workflows/jobs.yml
+  prevention:
+    name: prevention
+    uses: ./.github/workflows/prevention.yml
+  risk:
+    name: risk
+    uses: ./.github/workflows/risk.yml
+  training:
+    name: training
+    uses: ./.github/workflows/training.yml
+
+  aggregate:
+    name: aggregate
+    needs: [frontend, gateway, inference, integration, jobs_service, prevention, risk, training]
+    # always() is what makes a failure or a skip visible here instead of turning this
+    # job into another skipped dependency that reads as neutral.
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Every required workflow must be exactly success
+        env:
+          FRONTEND: ${{ needs.frontend.result }}
+          GATEWAY: ${{ needs.gateway.result }}
+          INFERENCE: ${{ needs.inference.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+          JOBS: ${{ needs.jobs_service.result }}
+          PREVENTION: ${{ needs.prevention.result }}
+          RISK: ${{ needs.risk.result }}
+          TRAINING: ${{ needs.training.result }}
+        run: |
+          set -euo pipefail
+          failed=""
+          checked=0
+          for pair in "frontend:$FRONTEND" "gateway:$GATEWAY" "inference:$INFERENCE" \
+                      "integration:$INTEGRATION" "jobs:$JOBS" "prevention:$PREVENTION" \
+                      "risk:$RISK" "training:$TRAINING"; do
+            name=${pair%%:*}
+            result=${pair#*:}
+            checked=$((checked + 1))
+            [ "$result" = "success" ] || failed="$failed $name=$result"
+          done
+          if [ "$checked" -ne 8 ]; then
+            echo "::error::checked $checked of 8 required workflows; a missing dependency"
+            echo "must not shrink this gate"
+            exit 1
+          fi
+          if [ -n "$failed" ]; then
+            echo "::error::not every required main workflow succeeded:$failed"
+            echo "A skipped, cancelled or failed workflow is not green; the deployment"
+            echo "gates refuse this SHA."
+            exit 1
+          fi
+          echo "all 8 required main workflows succeeded for $GITHUB_SHA"
+
+      - name: Check out for the offline contracts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      # Both contracts are stdlib-only shell (grep, awk, sed, python3): no kubectl, no
+      # PyYAML and no network, so neither adds a runner dependency to main CI.
+      - name: Offline main-CI contract
+        run: sh backend/deploy/k8s/tests/pitch-main-ci-contract.sh
+
+      # The dormant CD slice adds this step: a CI-only landing runs the contract
+      # above and stops there, because this file does not exist yet.
+      - name: Offline CD contract
+        run: sh backend/deploy/k8s/tests/pitch-cd-contract.sh

@@ -748,7 +748,7 @@ paths:
                   code: {type: string, enum: [invalid_action_request, assignee_not_found]}
                   request_id: {type: string, format: uuid}
         '429': {$ref: '#/components/responses/RateLimited'}
-        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '502': {$ref: '#/components/responses/UpstreamOrDirectoryFailed'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
   /v1/prevention/actions/{id}:
     get:
@@ -1312,7 +1312,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
-        '502': {$ref: '#/components/responses/DirectoryUpstreamFailed'}
+        '502': {$ref: '#/components/responses/UpstreamOrDirectoryFailed'}
         '503': {$ref: '#/components/responses/DirectoryUnavailable'}
 components:
   securitySchemes:
@@ -1459,6 +1459,29 @@ components:
             required: [code, request_id]
             properties:
               code: {type: string, enum: [directory_upstream_failed]}
+              request_id: {type: string, format: uuid}
+    UpstreamOrDirectoryFailed:
+      description: >-
+        Two layers answer 502 on this route and the code names which one.
+        upstream_unavailable is the gateway: it could not reach the upstream
+        service that owns the route (connection failure or response-header
+        timeout), so no upstream response was observed.
+        directory_upstream_failed is this service's own directory client: the
+        identity provider's admin API answered an error or could not be
+        reached, so no user data was produced. They are different failures with
+        different owners; sharing the status does not make them one error.
+      headers:
+        X-Request-ID: {$ref: '#/components/headers/RequestID'}
+        Cache-Control: {schema: {type: string, enum: [no-store]}}
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, request_id]
+            properties:
+              code:
+                type: string
+                enum: [upstream_unavailable, directory_upstream_failed]
               request_id: {type: string, format: uuid}
   schemas:
     CycleSourceStatus:

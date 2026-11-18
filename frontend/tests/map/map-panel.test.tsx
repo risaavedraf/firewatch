@@ -4,6 +4,7 @@ import type { ComponentProps } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { MapPanel, type ZoneLevelLookup } from '../../src/components/map/MapPanel';
+import type { JobProgress } from '../../src/domain/job-progress';
 import type { RiskLevel, ZoneCollection, ZoneFeature } from '../../src/types/api';
 
 // The copy the retired page shipped, copied here from `frontend/legacy/index.html`
@@ -62,6 +63,12 @@ function rememberedLevels(entries: Record<string, RiskLevel>): ZoneLevelLookup {
   return { levelFor: zone => entries[zone] ?? '' };
 }
 
+const IDLE: JobProgress = { kind: 'idle', zone: '' };
+
+function progress(kind: JobProgress['kind'], zone = '05101'): JobProgress {
+  return { kind, zone };
+}
+
 function baseProps(overrides: Partial<ComponentProps<typeof MapPanel>> = {}): ComponentProps<typeof MapPanel> {
   return {
     collection: CATALOGUE,
@@ -70,6 +77,7 @@ function baseProps(overrides: Partial<ComponentProps<typeof MapPanel>> = {}): Co
     selectedCode: '05101',
     zoneLevels: noLevels(),
     onSelect: vi.fn(),
+    jobProgress: IDLE,
     ...overrides,
   };
 }
@@ -267,6 +275,57 @@ describe('map rendering honesty', () => {
     expect([...(insets?.querySelectorAll('figcaption') ?? [])].map(node => node.textContent)).toEqual([
       'Juan Fernández (05201)',
     ]);
+  });
+});
+
+describe('batch progress', () => {
+  test('a batch in process is announced instead of "información insuficiente"', () => {
+    render(<MapPanel {...baseProps({ jobProgress: progress('processing') })} />);
+
+    const announced = document.getElementById('map-job-progress');
+    expect(announced).not.toBeNull();
+    // Announced to a screen reader, not only painted.
+    expect(announced).toHaveAttribute('role', 'status');
+    expect(announced).toHaveAttribute('aria-live', 'polite');
+    expect(announced).toHaveTextContent(/proceso/i);
+    expect(announced).not.toHaveTextContent(/INFORMACIÓN INSUFICIENTE/i);
+    expect(announced).not.toHaveTextContent(/Sin evaluación para esta zona/i);
+  });
+
+  test('a batch in process does not paint a level the server has not published', () => {
+    render(<MapPanel {...baseProps({ jobProgress: progress('processing') })} />);
+
+    const valparaiso = screen.getByRole('button', { name: 'Valparaíso (05101)' });
+    // No assessment exists yet, so nothing may claim one — and "no assessment
+    // yet" is not the same fact as "desconocido".
+    expect(valparaiso).toHaveClass('zone-neutral');
+    expect(valparaiso).not.toHaveClass('level-desconocido');
+    expect(valparaiso).not.toHaveClass('level-bajo');
+  });
+
+  test('with no batch in flight the map states nothing about progress', () => {
+    render(<MapPanel {...baseProps({ jobProgress: IDLE })} />);
+
+    // The panel draws a mainland frame here, so it has no empty message either:
+    // silence is the honest answer when no batch was requested.
+    expect(document.getElementById('map-job-progress')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  test('progress for another comuna is not shown on the selected one', () => {
+    render(<MapPanel {...baseProps({ jobProgress: progress('processing', '05102') })} />);
+
+    expect(document.getElementById('map-job-progress')).toBeNull();
+  });
+
+  test('a genuine published "desconocido" stays INFORMACIÓN INSUFICIENTE', () => {
+    render(<MapPanel {...baseProps({ zoneLevels: rememberedLevels({ '05101': 'desconocido' }) })} />);
+
+    // The label is reserved for the case it was written for: the server published
+    // a level that says the information is insufficient.
+    expect(screen.getByRole('button', { name: 'Valparaíso (05101)' })).toHaveClass('level-desconocido');
+    const legend = screen.getByRole('list', { name: 'Leyenda de niveles de riesgo' });
+    expect(within(legend).getByText('INFORMACIÓN INSUFICIENTE')).toBeInTheDocument();
   });
 });
 

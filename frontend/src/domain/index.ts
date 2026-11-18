@@ -14,3 +14,4 @@ export * from './supersession';
 export * from './prevention';
 export * from './cycle';
 export * from './model';
+export * from './job-progress';

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
+import { IDLE_JOB_PROGRESS, type JobProgress, type JobProgressKind } from '../domain/job-progress';
 import { getSessionSnapshot, subscribeSession, type SessionState } from '../core/session';
 import type { RiskLevel } from '../types/api';
 
@@ -22,10 +23,17 @@ import type { RiskLevel } from '../types/api';
 //
 // Everything here is cleared when the session ends, so a logout cannot leave the
 // previous session's selection, colours or names on screen.
+//
+// The batch progress lives here for the same reason: the view that requests a
+// batch and the view that draws the map are different screens, so "a batch is
+// being produced for this comuna" is a fact two views have to share. Keeping it
+// inside the jobs view made the map unable to tell a pending batch apart from an
+// absent one (issue #96).
 
 let selectedZone = '';
 let zoneLevels: ReadonlyMap<string, RiskLevel> = new Map();
 let zoneLabels: ReadonlyMap<string, string> = new Map();
+let jobProgress: JobProgress = IDLE_JOB_PROGRESS;
 // The aggregate read that colours every comuna on load is a per-session read, not
 // a per-mount one: the view claims it once and leaving the map and returning must
 // not issue it again. It lives with the rest of the zone state so the end of a
@@ -86,6 +94,27 @@ export function claimZoneBatchAggregateRead(): boolean {
   return true;
 }
 
+// ── Batch progress ────────────────────────────────────────────────────────
+// Only the jobs view writes this: it is the view that owns the request, the poll
+// and the deadline. The map and the risk panel read it, so a comuna that is
+// waiting for a batch is never described as a comuna without information. A
+// write that changes nothing does not notify, so a poll cannot wake every view
+// on every attempt.
+export function getJobProgress(): JobProgress {
+  return jobProgress;
+}
+
+export function reportJobProgress(kind: JobProgressKind, zone: string): void {
+  const next: JobProgress = kind === 'idle' ? IDLE_JOB_PROGRESS : { kind, zone };
+  if (next.kind === jobProgress.kind && next.zone === jobProgress.zone) return;
+  jobProgress = next;
+  emit();
+}
+
+export function useJobProgress(): JobProgress {
+  return useSyncExternalStore(subscribeZoneState, getJobProgress, getJobProgress);
+}
+
 // A defensive copy, because the caller keeps the collection it built: a later
 // mutation of that map must not change the name the page is showing.
 export function rememberZoneCatalogue(labels: ReadonlyMap<string, string>): void {
@@ -97,10 +126,20 @@ export function clearZoneState(): void {
   // The claim is dropped even when there is nothing else to clear: a session that
   // has ended must leave the next one free to read the aggregate again.
   zoneBatchAggregateClaimed = false;
-  if (selectedZone === '' && zoneLevels.size === 0 && zoneLabels.size === 0) return;
+  if (
+    selectedZone === '' &&
+    zoneLevels.size === 0 &&
+    zoneLabels.size === 0 &&
+    jobProgress.kind === 'idle'
+  ) {
+    return;
+  }
   selectedZone = '';
   zoneLevels = new Map();
   zoneLabels = new Map();
+  // A batch that was still being produced belongs to the session that requested
+  // it: the next session must not inherit a "en proceso" claim it never made.
+  jobProgress = IDLE_JOB_PROGRESS;
   emit();
 }
 

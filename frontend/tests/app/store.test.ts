@@ -5,11 +5,13 @@ import {
   claimZoneBatchAggregateRead,
   clearZoneState,
   getHistoryFilters,
+  getJobProgress,
   getSelectedZone,
   getSelectedZoneLabel,
   getZoneLevels,
   rememberZoneCatalogue,
   rememberZoneLevel,
+  reportJobProgress,
   resetHistoryFilters,
   selectZone,
   setHistoryQuery,
@@ -137,6 +139,35 @@ test('readers are not notified when there is nothing to clear', () => {  let not
 
   clearZoneState();
   expect(notifications).toBe(0);
+  unsubscribe();
+});
+
+test('the batch progress is shared with the map and dropped with the zone state', () => {
+  expect(getJobProgress()).toEqual({ kind: 'idle', zone: '' });
+
+  let notifications = 0;
+  const unsubscribe = subscribeZoneState(() => {
+    notifications += 1;
+  });
+
+  reportJobProgress('processing', '05101');
+  expect(getJobProgress()).toEqual({ kind: 'processing', zone: '05101' });
+  expect(notifications).toBe(1);
+
+  // A poll that re-reports the same progress wakes nobody: the state matters to
+  // every reader, so a no-op write must not repaint the map on every attempt.
+  reportJobProgress('processing', '05101');
+  expect(notifications).toBe(1);
+
+  // A different zone is a different fact, and the map has to hear it.
+  reportJobProgress('unconfirmed', '05102');
+  expect(notifications).toBe(2);
+
+  // The end of the session drops it, even when the progress is the only state
+  // left: a pending batch belongs to the session that requested it.
+  clearZoneState();
+  expect(getJobProgress()).toEqual({ kind: 'idle', zone: '' });
+  expect(notifications).toBe(3);
   unsubscribe();
 });
 

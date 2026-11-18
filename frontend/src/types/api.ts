@@ -133,7 +133,11 @@ export interface Job {
   id: string;
   zone_id: string;
   state: string;
-  batch_id?: string;
+  // The jobs service stores `batch_id` as a nullable column and serializes it
+  // without `omitempty`, so a job that has not been published yet answers
+  // `"batch_id": null` rather than omitting the field. `undefined` covers a
+  // payload that omits it; `null` is the wire's own spelling of "not yet".
+  batch_id?: string | null;
   scenario_id?: string | null;
   evaluated_at?: string | null;
   requested_at?: string;

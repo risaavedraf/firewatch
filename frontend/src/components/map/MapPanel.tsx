@@ -15,12 +15,18 @@
 //
 // The element identifiers are the legacy contract preserved for N9: they are
 // spelled exactly as the retired page had them.
+//
+// A third rule joins the two above: a pending batch is not an absent one. The
+// panel never infers progress from the collection — the caller hands it the fact
+// as `jobProgress`, and the live region in `#map-job-progress` states that the
+// batch is being produced instead of letting the neutral vocabulary speak for it.
 
 import { useMemo } from 'react';
 
 import { PanelHeading } from '../ui';
 import { idleCopy } from '../../app/sessionCopy';
 import type { SessionState } from '../../core/session';
+import { mapProgressState, type JobProgress } from '../../domain/job-progress';
 import type { RiskLevel, ZoneCollection } from '../../types/api';
 import { buildMapLayout, countVertices, DETACHED_LONGITUDE, geometryBounds, zoneLabel, type MapFrame, type ProjectedZone } from './projection';
 import { zoneShapeClasses } from './zone-classes';
@@ -48,6 +54,10 @@ export interface MapPanelProps {
   // instead of the first-visit copy. The panel does not read the session store:
   // the caller hands it the fact (S2).
   sessionReason: SessionState['reason'];
+  // What the jobs view last observed about a batch for the selected comuna. The
+  // panel does not read the store either; a `processing` batch and an absent one
+  // are different facts, and only the caller can state which one holds.
+  jobProgress: JobProgress;
 }
 
 const MAINLAND_SVG_LABEL = 'Comunas seleccionables: clic, Enter o Espacio';
@@ -89,10 +99,13 @@ function emptyMessageFor(loadState: MapLoadState, hasZones: boolean, idleMessage
   return idleMessage;
 }
 
-export function MapPanel({ collection, loadState, selectedCode, zoneLevels, onSelect, sessionReason }: MapPanelProps) {
+export function MapPanel({ collection, loadState, selectedCode, zoneLevels, onSelect, sessionReason, jobProgress }: MapPanelProps) {
   const layout = useMemo(() => buildMapLayout(collection), [collection]);
   const features = collection?.features ?? [];
   const hasZones = features.length > 0;
+  // A pending batch is its own state. `none` means the jobs view has nothing to
+  // say about this comuna and the panel keeps its absence vocabulary.
+  const batchProgress = mapProgressState(jobProgress, selectedCode);
 
   const zoneOptions = useMemo(() => {
     const options: Array<{ code: string; label: string }> = [];
@@ -191,6 +204,15 @@ export function MapPanel({ collection, loadState, selectedCode, zoneLevels, onSe
           <span id="map-coordinates">{coordinatesText}</span>
         </p>
       </div>
+
+      {/* The batch fact is announced rather than inferred from a neutral fill:
+          "the lote is still being produced" and "there is no information" must
+          not share a sentence, and neither of them is INFORMACIÓN INSUFICIENTE. */}
+      {batchProgress.kind === 'none' ? null : (
+        <p id="map-job-progress" className="map-job-progress" role="status" aria-live="polite">
+          {batchProgress.text}
+        </p>
+      )}
 
       <div className="map-stage">
         <div className="map-viewport">

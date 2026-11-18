@@ -424,6 +424,34 @@ test('createJob posts only the chosen fields with the idempotency header', async
   await empty;
 });
 
+test('a queued job whose batch_id is null is an acceptance, not a malformed answer', async () => {
+  const { fetchStub } = await connectedSession();
+
+  // The exact body `POST /v1/jobs` serves with its 202: `batch_id` is a nullable
+  // column serialized without `omitempty`, so a queued job answers `null` rather
+  // than omitting the field. The boundary guard used to reject it as
+  // `invalid_shape` with status 202, and the view then reported the acceptance as
+  // `No se pudo solicitar el trabajo (HTTP 202).` (issue #96).
+  const accepted = createJob({ zoneId: '05101', idempotencyKey: 'key-null' });
+  await flush();
+  fetchStub.answer(
+    `${gatewayOrigin}/v1/jobs`,
+    { ...jobFixture(), batch_id: null, requested_at: '2026-01-01T00:00:00Z', attempts: 0 },
+    202,
+  );
+  const outcome = await accepted;
+  if (!outcome.ok) throw new Error(`expected an accepted job, got ${outcome.failure.reason}`);
+  expect(outcome.data.state).toBe('queued');
+  expect(outcome.data.batch_id).toBeNull();
+
+  // `null` and `undefined` are the two honest spellings of "no batch yet"; a value
+  // that is neither a string nor null is still a contract violation.
+  const wrong = createJob({ zoneId: '05101', idempotencyKey: 'key-wrong' });
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/jobs`, { ...jobFixture(), batch_id: 7 }, 202);
+  expect(expectFailure(await wrong).reason).toBe('invalid_shape');
+});
+
 test('sources passes the served provenance through and the domain decides its integrity', async () => {
   const { fetchStub } = await connectedSession();
 

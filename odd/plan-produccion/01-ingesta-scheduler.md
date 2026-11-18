@@ -1,7 +1,7 @@
 # Frente 1 — Ingesta de fuentes reales y ciclo/scheduler de 15 min
 
 - **Grupo de entrega:** G2 — Núcleo de datos y modelo (solo el *seam*).
-- **Estado:** Parcial — el contrato `Provider`/`ObservationSet`/`Provenance` y el fixture determinista quedaron entregados en la presentación (2026-10-18). La ingesta de fuentes reales y el ciclo de 15 min con datos reales siguen pendientes (pendiente permitido).
+- **Estado:** Parcial — el contrato `Provider`/`ObservationSet`/`Provenance` y el fixture determinista quedaron entregados en la presentación (2026-10-18). El ciclo de 15 min está **cableado y observado**: `risk` arranca el runner y el runner ejecuta ingesta → validación → clasificación → publicación con ese período (`backend/services/risk/internal/cycle/runner.go:23-25,249-268`; `backend/services/risk/cmd/server/main.go:245-249`), con dos corridas separadas por 899.962 s en la verificación del 2026-10-18 (`../tasks/presentation-client-ready.md:145`). El ciclo se configura por entorno: `FIREWATCH_SOURCE_URL` elige el proveedor HTTP/JSON y, sin valor, sirve el fixture determinista (`backend/services/risk/cmd/server/main.go:189-197`), mientras `FIREWATCH_CYCLE_ZONES` fija las zonas publicadas y cae a `valparaiso-demo` cuando falta o no lista ninguna (`:249`, `:394-415`); corre solo con el tick de 15 min (`backend/services/risk/internal/cycle/runner.go:23-25,249-262`) y admite además un disparo manual admin-only, `POST /v1/risk/cycle/run` (`backend/services/risk/internal/handler/api.go:106`). **Ninguna de esas dos variables la inyecta el cableado entregado**: `backend/deploy/k8s/base/config.yaml:5-31` declara ocho claves y ninguna es `FIREWATCH_*`, y `backend/deploy/k8s/base/workloads.yaml:203-215` solo añade las tres rutas TLS al `envFrom` del ConfigMap, así que en el clúster el ciclo publica el fixture sobre la zona de demostración. La ingesta de **fuentes reales** y la frescura con datos reales siguen pendientes (pendiente permitido): el límite es la fuente y la evidencia con datos reales, no el cableado.
 - **Riesgo (Task Size):** alto al implementar — ítem 1 (datos/procedencia persistidos) e ítem 3 (contrato `Provider` que otros consumen).
 - **Depende de:** acceso y periodicidad real de las fuentes (decisión humana); frente 2 (misma frontera de observaciones).
 - **Seam / superficie:** `backend/services/risk/internal/source/` (`provider.go`, `fixture.go`); interfaz `Provider`; `contracts/gen/observations/v1` (`Observation`, `ObservationSet`, `Provenance`); migración `007_synthetic_evaluation.sql`.
@@ -13,7 +13,7 @@
 - [`../../Referencias/Actividad C4_FireWatch_produccion.md:151-169,193-199,245-246`](<../../Referencias/Actividad C4_FireWatch_produccion.md>) — proceso automático.
 - [`../tasks/backend/firewatch-data-contract.md:7-9,16-19,25-28`](../tasks/backend/firewatch-data-contract.md) — alcance del contrato; excluye la descarga real por decisión del usuario.
 - [`../../backend/README.md:96-98`](../../backend/README.md) — estado operativo.
-- [`../../backend/docs/verification.md:65`](../../backend/docs/verification.md) — límite declarado.
+- [`../../backend/docs/verification.md:130-131`](../../backend/docs/verification.md) — límite declarado.
 
 ## Specs
 
@@ -44,10 +44,12 @@ Ruta por defecto: **inline** (seam + fixtures). Delegar escritura solo por dispa
 
 - Requisito de ciclo y frescura: `../../Referencias/EP1_Equipo3_Armijo_Calderon_Saavedra2_produccion.md:88,104`.
 - La prueba de sustitución (T6) pasa sin cambios fuera de `backend/services/risk/internal/source/`, y el fixture es determinista con semilla.
-- `../../backend/docs/verification.md:65` declara que scheduler y datos reales **no están establecidos**: no marcar cierre sin evidencia reproducible y umbrales acordados.
+- `../../backend/docs/verification.md:131` no establece el scheduler de 15 min, la inferencia real ni la validez de la fuente: esos checks no son la evidencia de cierre. No marcar cierre sin evidencia reproducible y umbrales acordados.
 
 ## Log
 
 - **L1 (2026-10-16)** — Creación del desglose por spec a partir de [`README.md`](README.md) §1 (frente 1). Documento de planificación; sin implementación.
 - **L2 (2026-10-20)** — Estado corregido a Parcial: seam y fixture entregados en la presentación; la fuente real sigue pendiente por decisión (README §1 y §7).
 - **L3 (2026-10-20)** — Se agrega T6 (prueba de sustitución) y su criterio de cierre; el frente puede completarse sin fuente real según README §5.1.
+- **L4 (2026-11-17)** — Estado precisado: el ciclo de 15 min está cableado y observado (dos corridas a 899.962 s, `../tasks/presentation-client-ready.md:145`); lo pendiente es la fuente real y la frescura con datos reales. La cita de cierre apunta a `backend/docs/verification.md:101`, donde consta el límite de esos checks; antes apuntaba a `:65`, una línea sobre `govulncheck`.
+- **L5 (2026-11-18) — Configuración, disparo y fixture del ciclo (H17 de la auditoría de producción).** El documento describía el ciclo cableado y observado y callaba dos cosas que sí existen en el código: `FIREWATCH_SOURCE_URL` selecciona el proveedor y sin valor sirve el fixture (`backend/services/risk/cmd/server/main.go:189-197`), `FIREWATCH_CYCLE_ZONES` fija las zonas con `valparaiso-demo` por defecto (`:249`, `:394-415`), y hay un disparo manual admin-only `POST /v1/risk/cycle/run` (`backend/services/risk/internal/handler/api.go:106`) además del tick de 15 min (`backend/services/risk/internal/cycle/runner.go:23-25,249-262`). También callaba que **ninguna de las dos variables llega al clúster**: `backend/deploy/k8s/base/config.yaml:5-31` no declara ninguna `FIREWATCH_*` y `backend/deploy/k8s/base/workloads.yaml:203-215` solo añade las tres rutas TLS. **Reparación de cita en la misma pasada:** `backend/docs/verification.md:101` quedó en blanco tras la actualización del 2026-11-18 y `:65` ya no era `govulncheck`; el límite que este frente cita está en `:130-131`, y ambas referencias se reapuntaron ahí. Es inferencia de código y manifiestos: no se ejecutó el ciclo en ningún clúster en esta pasada.
