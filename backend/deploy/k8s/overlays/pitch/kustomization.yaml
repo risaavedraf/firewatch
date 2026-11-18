@@ -15,6 +15,11 @@
 #      lives on Cloudflare Pages.
 #   4. A second Ingress exposes only the `firewatch` realm's login, and a policy
 #      admits the ingress controller into the identity pod for it.
+#   5. Keycloak mounts the `firewatch` login theme from the ConfigMap
+#      `keycloak-theme-firewatch`, which `up.sh` builds from
+#      deploy/local/keycloak-themes/firewatch (kustomize cannot read files outside
+#      this directory). The volume is optional: without the ConfigMap Keycloak
+#      starts and serves its built-in theme.
 #
 # The three PITCH_* words are placeholders that `up.sh` replaces in the
 # rendered output; this file is not meant to be applied with `kubectl apply -k`
@@ -60,6 +65,23 @@ patches:
                     value: 'true'
                   - name: KC_PROXY_HEADERS
                     value: xforwarded
+                volumeMounts:
+                  - name: theme-firewatch
+                    mountPath: /opt/keycloak/themes/firewatch
+                    readOnly: true
+            volumes:
+              # ConfigMap keys cannot contain `/`, so `items` rebuilds the theme's
+              # directory layout. Keep this list in step with the files under
+              # deploy/local/keycloak-themes/firewatch and with up.sh.
+              - name: theme-firewatch
+                configMap:
+                  name: keycloak-theme-firewatch
+                  optional: true
+                  items:
+                    - {key: theme.properties, path: login/theme.properties}
+                    - {key: messages_es.properties, path: login/messages/messages_es.properties}
+                    - {key: messages_en.properties, path: login/messages/messages_en.properties}
+                    - {key: firewatch.css, path: login/resources/css/firewatch.css}
   # The public API host replaces the reserved `.invalid` one. TLS for the public
   # name is terminated by Caddy on the VM host, so the Ingress carries no `tls`
   # block; the hop from the controller to the gateway stays HTTPS and verified,

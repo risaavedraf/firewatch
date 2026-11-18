@@ -10,11 +10,16 @@ placeholders no Secret supplies. For the pitch this script supplies them:
     directory client, so prevention answers /v1/users with 503, as it does in
     the base);
   - the `firewatch-demo` client is pointed at the public page origin only, and
-    its password grant is disabled: the browser uses Authorization Code + PKCE.
+    its password grant is disabled: the browser uses Authorization Code + PKCE;
+  - the realm-level login settings of the realm file (self-registration, the
+    `firewatch` login theme, Spanish, the password policy, the display name)
+    and the `viewer` default role are applied on every run, so a realm created
+    before they existed picks them up too.
 
 It reaches Keycloak through `kubectl port-forward`, so the admin console and the
-master realm never need a public route. On a realm that already exists it only
-updates the client's URIs and leaves users and passwords untouched.
+master realm never need a public route. On a realm that already exists it
+updates the client's URIs and the login settings below, and leaves users and
+passwords untouched.
 
 Usage: python3 provision-realm.py https://<page-origin>
 """
@@ -93,6 +98,27 @@ def substitute(node, values):
     return node
 
 
+# The realm-level keys that shape sign-in and sign-up. They are copied from the
+# realm file onto an existing realm, because Keycloak's import is create-only and
+# an initialised realm would otherwise keep refusing registration ("Registration
+# not allowed") and showing the built-in theme. A partial PUT only touches the
+# keys it carries.
+LOGIN_SETTINGS = (
+    "displayName", "displayNameHtml",
+    "registrationAllowed", "registrationEmailAsUsername", "loginWithEmailAllowed",
+    "duplicateEmailsAllowed", "verifyEmail", "resetPasswordAllowed", "rememberMe",
+    "passwordPolicy", "loginTheme",
+    "internationalizationEnabled", "supportedLocales", "defaultLocale",
+)
+# What a self-registered account receives. Read access only: `admin` is never
+# granted by registration.
+DEFAULT_REALM_ROLES = ("viewer",)
+
+
+def login_settings(realm_file):
+    return {key: realm_file[key] for key in LOGIN_SETTINGS if key in realm_file}
+
+
 def point_client(client, origin):
     client["redirectUris"] = [f"{origin}/"]
     client["webOrigins"] = [origin]
@@ -147,6 +173,29 @@ def wait_for_port(process):
     raise SystemExit(f"port-forward to svc/identity did not open 127.0.0.1:{LOCAL_PORT} within 60 s")
 
 
+def apply_login_settings(keycloak):
+    realm_file = json.loads(REALM_FILE.read_text(encoding="utf-8"))
+    settings = login_settings(realm_file)
+    keycloak.call("PUT", "/admin/realms/firewatch", body=settings, expect=(204,))
+    print("Login settings applied: " + ", ".join(f"{k}={settings[k]}" for k in
+          ("registrationAllowed", "loginTheme", "defaultLocale") if k in settings))
+
+    _, realm = keycloak.call("GET", "/admin/realms/firewatch")
+    default_role = (realm.get("defaultRole") or {}).get("name") or "default-roles-firewatch"
+    _, composites = keycloak.call("GET", f"/admin/realms/firewatch/roles/{default_role}/composites/realm")
+    present = {role["name"] for role in composites or []}
+    missing = []
+    for name in DEFAULT_REALM_ROLES:
+        if name in present:
+            continue
+        _, role = keycloak.call("GET", f"/admin/realms/firewatch/roles/{name}")
+        missing.append(role)
+    if missing:
+        keycloak.call("POST", f"/admin/realms/firewatch/roles/{default_role}/composites",
+                      body=missing, expect=(204,))
+    print(f"New accounts receive {', '.join(DEFAULT_REALM_ROLES)} through {default_role}")
+
+
 def main():
     if len(sys.argv) != 2:
         raise SystemExit(__doc__)
@@ -175,6 +224,7 @@ def main():
                     point_client(client, origin)
             keycloak.call("POST", "/admin/realms", body=realm, expect=(201,))
             print(f"Created realm firewatch; firewatch-demo accepts {origin}/")
+            apply_login_settings(keycloak)
         else:
             _, clients = keycloak.call("GET", "/admin/realms/firewatch/clients?clientId=firewatch-demo")
             if not clients:
@@ -183,6 +233,7 @@ def main():
             point_client(client, origin)
             keycloak.call("PUT", f"/admin/realms/firewatch/clients/{client['id']}", body=client, expect=(204,))
             print(f"Realm firewatch already existed; firewatch-demo now accepts {origin}/")
+            apply_login_settings(keycloak)
     finally:
         forward.terminate()
         os.unlink(ca.name)

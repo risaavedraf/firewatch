@@ -95,6 +95,15 @@ API no contesta, el nodo está parado y el remedio es
   ingress-nginx hacia adentro, todo es TLS verificado como declara la base.
 - El realm se crea desde el de desarrollo, con contraseñas generadas, solo la
   URL pública como redirect y sin password grant en `firewatch-demo`.
+- Registro abierto y tema de login `firewatch`: `provision-realm.py` copia en
+  cada corrida los ajustes de login del realm de desarrollo (registro, tema,
+  español, política de contraseñas, nombre visible) y deja `viewer` como rol por
+  defecto, también sobre un realm que ya existía. Las cuentas nuevas solo leen;
+  `admin` se asigna a mano. El tema viaja en el ConfigMap
+  `keycloak-theme-firewatch`, que `up.sh` crea desde
+  `deploy/local/keycloak-themes/firewatch` y Keycloak monta en
+  `/opt/keycloak/themes/firewatch`; si cambia, `up.sh` reinicia Keycloak (que
+  cachea los temas en modo producción), lo que cierra las sesiones abiertas.
 
 ## NetworkPolicy: aplicada por kindnet
 
