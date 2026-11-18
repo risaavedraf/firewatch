@@ -116,6 +116,43 @@ exec "$REAL_OPENSSL" "$@"
 OPENSSL
 chmod +x "$shim_dir/openssl"
 
+# A mkdir shim plays a concurrent winner and a chmod shim records every mode
+# change. Together they demonstrate, without depending on this host honouring
+# directory modes, whether a run secures a directory it did not create.
+real_mkdir=$(command -v mkdir)
+real_chmod=$(command -v chmod)
+race_bin="$scratch/race-bin"
+case "$(uname -s 2>/dev/null || echo unknown)" in
+	MINGW*|MSYS*|CYGWIN*)
+		race_bin="$(cygpath -u "$scratch")/race-bin"
+		;;
+esac
+mkdir -p "$race_bin"
+cat >"$race_bin/mkdir" <<'RACEMKDIR'
+#!/usr/bin/env sh
+# Plays the concurrent winner: when the script asks to create the operator
+# directory, another process is taken to have created it a moment earlier, so
+# the delegated call reports "already exists" exactly as a lost race does.
+target=""
+for arg in "$@"; do
+	case "$arg" in
+		-p) ;;
+		*) target=$arg ;;
+	esac
+done
+if [ -n "${RACE_DIR:-}" ] && [ "$target" = "$RACE_DIR" ] && [ ! -d "$RACE_DIR" ]; then
+	"$REAL_MKDIR" -p "$RACE_DIR" || exit 1
+	"$REAL_CHMOD" 750 "$RACE_DIR" || exit 1
+fi
+exec "$REAL_MKDIR" "$@"
+RACEMKDIR
+cat >"$race_bin/chmod" <<'RACECHMOD'
+#!/usr/bin/env sh
+printf '%s\n' "$*" >>"$RACE_CHMOD_LOG"
+exec "$REAL_CHMOD" "$@"
+RACECHMOD
+chmod +x "$race_bin/mkdir" "$race_bin/chmod"
+
 make_ca() {
 	ca_prefix=$1
 	common_name=$2
@@ -328,7 +365,10 @@ case "$verb" in
 							cp "$STUB_BAD_CERT" "$state/data/firewatch-ca/ca.crt"
 							;;
 					esac
-					record "FAILED create secret generic firewatch-ca"
+				if [ -n "${STUB_SWAP_KEY_SOURCE:-}" ] && [ -n "${STUB_SWAP_KEY_TARGET:-}" ]; then
+					cp "$STUB_SWAP_KEY_SOURCE" "$STUB_SWAP_KEY_TARGET"
+				fi
+			record "FAILED create secret generic firewatch-ca"
 					echo "stub: create secret generic firewatch-ca rejected for test" >&2
 					exit 1
 				fi
@@ -376,6 +416,11 @@ ca_cert=""
 ca_cert_second=""
 replace_key_source=""
 replace_key_target=""
+swap_key_source=""
+swap_key_target=""
+run_path_prefix=""
+race_dir=""
+race_chmod_log=""
 appear_key=""
 appear_stage=""
 fail_staging=0
@@ -392,6 +437,11 @@ reset_stub_env() {
 	ca_cert_second=""
 	replace_key_source=""
 	replace_key_target=""
+	swap_key_source=""
+	swap_key_target=""
+	run_path_prefix=""
+	race_dir=""
+	race_chmod_log=""
 	appear_key=""
 	appear_stage=""
 	fail_staging=0
@@ -411,7 +461,11 @@ new_case() {
 }
 
 run_bootstrap() {
-	run_path="$shim_dir:$PATH"
+	if [ -n "$run_path_prefix" ]; then
+		run_path="$shim_dir:$run_path_prefix:$PATH"
+	else
+		run_path="$shim_dir:$PATH"
+	fi
 	set +e
 	KUBECTL="$stub" \
 		FIREWATCH_CA_KEY="$key_path" \
@@ -425,6 +479,12 @@ run_bootstrap() {
 		STUB_CA_CERT_SECOND="$ca_cert_second" \
 		STUB_REPLACE_KEY_SOURCE="$replace_key_source" \
 		STUB_REPLACE_KEY_TARGET="$replace_key_target" \
+		STUB_SWAP_KEY_SOURCE="$swap_key_source" \
+		STUB_SWAP_KEY_TARGET="$swap_key_target" \
+		RACE_DIR="$race_dir" \
+		RACE_CHMOD_LOG="$race_chmod_log" \
+		REAL_MKDIR="$real_mkdir" \
+		REAL_CHMOD="$real_chmod" \
 		STUB_APPEAR_KEY="$appear_key" \
 		STUB_APPEAR_STAGE="$appear_stage" \
 		STUB_FAIL_STAGING="$fail_staging" \
@@ -818,6 +878,35 @@ for mode in absent matching conflict unknown malformed; do
 done
 echo "PASS: CA create recovery exits matching=10 absent=11 conflict=12 unknown=13 verification=14"
 
+# --- 12b) a replaced local key against a matching Secret is a conflict -----
+# The failed create leaves a Secret carrying the new ca.crt, so the read-only
+# check finds a cluster CA matching the new certificate, while an external
+# actor has replaced the published operator key with a key from another
+# authority. That is a confirmed mismatch and must exit 12; only a comparison
+# that could not be completed is exit 14. Reporting the mismatch as 14 makes
+# the two outcomes indistinguishable, which is the same as having no exit code.
+new_case ca-create-key-replaced
+key_path="$case_dir/ca.key"
+fail_ca_create=matching
+swap_key_source="$scratch/ca-b.key"
+swap_key_target="$key_path"
+refuse=0
+run_bootstrap
+label="CA create with a replaced local key"
+assert_status 12 "$label"
+assert_contains "$out" "does not match the preserved key" "$label"
+assert_contains "$out" "does not match the new CA certificate" "$label"
+assert_contains "$out" "verified public-key mismatch" "$label"
+assert_not_contains "$out" "could not be verified" "$label"
+assert_not_contains "$out" "No mismatch conclusion was drawn" "$label"
+assert_same "$key_path" "$scratch/ca-b.key" "$label: the replaced key was overwritten"
+replaced_marker=$(awk 'NR == 2 { print; exit }' "$scratch/ca-b.key")
+assert_not_contains "$out" "$replaced_marker" "$label"
+assert_not_contains "$out" "delete secret/firewatch-ca" "$label"
+assert_contains "$case_dir/mutations.log" "FAILED create secret generic firewatch-ca" "$label"
+assert_no_ca_staging "$label"
+echo "PASS: a local key replaced under a Secret matching the new CA exits 12 as a confirmed mismatch, not 14"
+
 # --- 13) recovery recipe is private and short-circuited ---------------------
 new_case recovery-recipe
 key_path="$case_dir/ca.key"
@@ -864,6 +953,55 @@ set -e
 [ ! -s "$case_dir/cmp-marker" ] || fail "recovery recipe: comparison ran after failed extraction"
 assert_no_ca_staging "recovery recipe"
 echo "PASS: recovery recipe used per-invocation scratch and short-circuited cmp on failed extraction"
+
+# --- E) a directory this run did not create is not chmodded ---------------
+# Two runs starting against the same operator path both see it missing; one
+# creates it, and `mkdir -p` then reports success for the loser as well. A run
+# that cannot tell "I created it" from "it exists now" applies 0700 to a
+# directory it does not own, replacing the mode its owner chose. The mkdir shim
+# plays the winner deterministically and the chmod shim records every mode
+# change, so the assertion does not depend on this host honouring modes.
+new_case operator-dir-race
+operator_dir="$case_dir/operator"
+key_path="$operator_dir/ca.key"
+namespace_present=no
+refuse=0
+race_chmod_log="$case_dir/chmod.log"
+: >"$race_chmod_log"
+run_path_prefix="$race_bin"
+race_dir="$operator_dir"
+run_bootstrap
+label="operator directory created concurrently"
+assert_status 0 "$label"
+[ -d "$operator_dir" ] || fail "$label: the operator directory is missing"
+[ -s "$key_path" ] || fail "$label: the key was not published at $key_path"
+if grep -qxF "700 $operator_dir" "$race_chmod_log"; then
+	fail "$label: the run applied mode 0700 to a directory it did not create; chmod log was:
+$(cat "$race_chmod_log")"
+fi
+assert_no_ca_staging "$label"
+echo "PASS: a directory created concurrently by another process was not chmodded by this run"
+
+# The run that does create the directory still secures it: the guard is "not
+# mine to change", not "never chmod", so dropping the 0700 entirely would also
+# fail this case.
+new_case operator-dir-created
+operator_dir="$case_dir/operator"
+key_path="$operator_dir/ca.key"
+namespace_present=no
+refuse=0
+race_chmod_log="$case_dir/chmod.log"
+: >"$race_chmod_log"
+run_path_prefix="$race_bin"
+run_bootstrap
+label="operator directory created by this run"
+assert_status 0 "$label"
+[ -s "$key_path" ] || fail "$label: the key was not published at $key_path"
+grep -qxF "700 $operator_dir" "$race_chmod_log" ||
+	fail "$label: a directory this run created was not set to 0700; chmod log was:
+$(cat "$race_chmod_log")"
+assert_no_ca_staging "$label"
+echo "PASS: a directory this run creates is still secured to 0700"
 
 # --- 14) fresh initialisation with no local path is preserved ---------------
 # No namespace, no Secret and no key: the preflight reports true absence, and

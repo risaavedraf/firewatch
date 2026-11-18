@@ -193,11 +193,25 @@ preflight_new_ca_key_staging() {
 			preflight_staging_die "the operator key directory $ca_key_dir exists but is not writable."
 		fi
 	else
-		if ! mkdir -p "$ca_key_dir" 2>"$workdir/ca-key-dir.err"; then
-			preflight_staging_die "cannot create the CA key directory $ca_key_dir."
+		# The parent chain is created with -p, the leaf without it. `mkdir -p`
+		# succeeds when a concurrent run has already created the leaf, so its
+		# status cannot say "this run created the directory"; on that false
+		# positive the 0700 below lands on a directory this run does not own
+		# and replaces whatever mode its owner chose. A plain mkdir fails with
+		# "already exists", which is the only local signal that distinguishes
+		# the two cases.
+		ca_key_parent=$(dirname "$ca_key_dir")
+		if [ -n "$ca_key_parent" ] && [ "$ca_key_parent" != "$ca_key_dir" ] && [ ! -d "$ca_key_parent" ]; then
+			if ! mkdir -p "$ca_key_parent" 2>"$workdir/ca-key-dir.err"; then
+				preflight_staging_die "cannot create the CA key directory $ca_key_dir."
+			fi
 		fi
-		if ! chmod 700 "$ca_key_dir" 2>"$workdir/ca-key-dir-chmod.err"; then
-			preflight_staging_die "cannot secure the CA key directory this run created at $ca_key_dir."
+		if mkdir "$ca_key_dir" 2>"$workdir/ca-key-dir.err"; then
+			if ! chmod 700 "$ca_key_dir" 2>"$workdir/ca-key-dir-chmod.err"; then
+				preflight_staging_die "cannot secure the CA key directory this run created at $ca_key_dir."
+			fi
+		elif [ ! -d "$ca_key_dir" ]; then
+			preflight_staging_die "cannot create the CA key directory $ca_key_dir."
 		fi
 	fi
 	if ! ca_staging_dir=$(umask 077; mktemp -d "$ca_key_dir/.firewatch-ca.staging.XXXXXX" 2>"$workdir/ca-staging.err"); then
@@ -321,8 +335,13 @@ ca_key_state() {
 	if compare_public_keys "$workdir/ca-intact.pub" "$workdir/ca-cert.pub"; then
 		printf 'matching\n'
 		return
+	else
+		# $? is the comparison's own status only here, inside the branch it
+		# selects. After `fi` it is the if compound's status, which is 0 when no
+		# branch ran, so reading it there reports every confirmed mismatch as a
+		# verification failure and cannot tell the two exits apart.
+		status=$?
 	fi
-	status=$?
 	if [ "$status" -eq 1 ]; then
 		printf 'mismatch\n'
 	else
