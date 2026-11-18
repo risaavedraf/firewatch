@@ -31,9 +31,9 @@
 | T4 | S4 | *bloqueada* | Champion/Challenger con umbrales. | — |
 | T5 | S5 | *bloqueada* | Monitoreo/frecuencia de drift + recálculo. | — |
 
-Ruta por defecto: **bloqueada**. No iniciar hasta que datos y modelo reales estén disponibles y aprobados.
+Ruta por defecto: **bloqueada para acreditar**, no para ensayar. Ningún resultado se presenta como acreditado hasta que datos y modelo reales estén disponibles y aprobados.
 
-Preparación permitida sin datos: protocolo, métricas, tolerancias y criterios de evaluación. La ejecución y la acreditación quedan bloqueadas.
+Preparación permitida sin datos: protocolo, métricas, tolerancias y criterios de evaluación. La **acreditación** queda bloqueada; el **ensayo** no: `backend/training/REPORT-delivered-data.md:11,53` registra una corrida temporal (2026-11-06) con dos modelos y dos líneas base sobre julio–agosto contra septiembre, y `:74-78` dictamina que ningún modelo entrenado gana a su línea base en esa data. Eso no acredita ningún ID.
 
 ## Dependencias y bloqueos humanos
 
@@ -48,3 +48,4 @@ Preparación permitida sin datos: protocolo, métricas, tolerancias y criterios 
 
 - **L1 (2026-10-16)** — Creación del desglose por spec a partir de [`README.md`](README.md) §1 (frente 12). Documento de planificación; sin implementación.
 - **L2 (2026-10-20)** — Estado precisado a «bloqueado para acreditar»: protocolo y criterios se preparan sin datos; la ejecución sigue bloqueada (README §5.1).
+- **L3 (2026-11-18) — Precisión: el ensayo existe, la acreditación no (H12 de la auditoría de despliegue).** «La ejecución y la acreditación quedan bloqueadas» era falso para la ejecución: `backend/training/REPORT-delivered-data.md` conserva una corrida medida del 2026-11-06 (`:11`) con split temporal julio–agosto contra septiembre (`:38-41`), dos modelos y dos líneas base (`:53`), y veredicto de que ninguno gana a su línea base (`:74-78`). Se mantiene el bloqueo de acreditación: el ensayo no cierra los IDs y el modelo sigue sin aprobación.

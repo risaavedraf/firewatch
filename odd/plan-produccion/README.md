@@ -266,7 +266,7 @@ Todo lo que sigue abierto de este plan, en un solo lugar, con **qué lo desbloqu
 | 3 — `prevention` | **Listo — servicio entregado y verificado** | Nada del alcance de demo; separar la base de `risk` es una decisión de producción | Decisión de producción sobre la base |
 | 4 — Fallos terminales y replay | **Implementado y verificado** | El escenario end-to-end (interrumpir PostgreSQL, agotar reintentos, restaurar, reiniciar consumidores) y `-race` local | Entorno con PostgreSQL y broker |
 | 5 — Observabilidad | Parcial — monitoreo local completo | Medir los umbrales con carga; `LOG-I3` (*ground truth*); Alertmanager; monitoreo en Kubernetes | Entorno y *ground truth* para medir |
-| 6 — Autoscaling, carga y p95/SLO | Parcial | Ejecutar k6, verificar el HPA en clúster y medir el RTO | Entorno aislado y clúster de destino |
+| 6 — Autoscaling, carga y p95/SLO | Parcial | Ejecutar k6, verificar el HPA en el clúster de destino (observado en clúster local: `gateway` 2→6) y medir el RTO | Entorno aislado y clúster de destino |
 | 7 — Firma, registry y rollout | Pendiente | Firma, promoción y despliegue verificado (la CI ya produce SBOM/provenance) | Decisión de registry y llaves, y clúster (accesos) |
 | 8 — Gobierno y seguridad (U1) | Pendiente | Controles y clasificación sin aprobar | Designar responsable y aprobar |
 | 9 — Login browser/móvil/a11y | **Parcial — recorrido real medido** | Límites de prueba: sin certificación WCAG ni lector de pantalla; la aserción de foco a 390 px cierra sobre BODY | No es un bloqueo de producto; es el límite de lo medido |

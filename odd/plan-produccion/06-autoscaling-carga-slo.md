@@ -1,7 +1,7 @@
 # Frente 6 — Autoscaling/HPA, carga y medición p95/SLO
 
 - **Grupo de entrega:** G4 — Operación.
-- **Estado:** Parcial — S1 acordado; artefactos de S2–S5 escritos (k6, HPA, runbook). La ejecución (benchmark, escalado, RTO) sigue pendiente de un entorno aislado y de un clúster.
+- **Estado:** Parcial — S1 acordado; artefactos de S2–S5 escritos (k6, HPA, runbook). El escalado del HPA se observó en un clúster local (`gateway` de 2 a 6 réplicas, evento `SuccessfulRescale`); el benchmark de carga, la verificación en el clúster de destino y el RTO siguen pendientes.
 - **Riesgo (Task Size):** alto al implementar — ítem 5 (infraestructura de despliegue/escalado).
 - **Depende de:** SLO/SLA, carga y RTO acordados; Kubernetes confirmado como destino.
 - **Seam / superficie:** objetivos p95/RPS y configuración de despliegue Kubernetes/autoscaling; `backend/docs/architecture.md:61-63`.
@@ -47,7 +47,7 @@ Todo lo anterior requiere **entorno**: stack aislado (Docker + k6 + Prometheus) 
 ## Dependencias y bloqueos humanos
 
 - **Bloqueo humano:** acordar SLO/SLA, carga, RTO y herramientas **antes** de medir.
-- No se identifica aquí una configuración HPA concreta; el path de HPA debe determinarse.
+- El HPA está definido: `backend/deploy/k8s/base/autoscaling.yaml:12` declara un `HorizontalPodAutoscaler` por servicio (2→6 réplicas, 70 % de CPU). Lo que falta no es determinar el path de HPA, sino verificar el escalado en el clúster de destino; en el clúster local ya se observó `gateway` de 2 a 6.
 
 ## Criterios de cierre
 
@@ -71,3 +71,4 @@ Todo lo anterior requiere **entorno**: stack aislado (Docker + k6 + Prometheus) 
   - **S4 — RTO:** objetivo ≤ 15 min documentado en `backend/docs/operations.md` §6, junto con la base que lo sostiene (2 réplicas, `PodDisruptionBudget` `minAvailable: 1`, rollout). La prueba de recuperación (matar una réplica o una dependencia y medir) no se ejecutó.
   - **S5 — capacidad:** plan de validación documentado (§8); la capacidad inicial sigue siendo objetivo, no resultado.
   - **Evidencia observada (estructural):** `autoscaling.yaml` parsea con `yaml.safe_load_all` (3 documentos) y `kustomization.yaml` es válido; el script k6 pasa `node --check` (sintaxis) con Node v24.11.1. **No ejecutado:** no hay clúster, ni stack levantado, ni k6 en este entorno. Se declara.
+- **L4 (2026-11-18) — Estado corregido (H11 de la auditoría de despliegue).** El documento decía que la ejecución del escalado seguía pendiente y que «el path de HPA debe determinarse». El HPA existe desde L3 (`backend/deploy/k8s/base/autoscaling.yaml:12`, cuatro objetos: `gateway`, `jobs`, `risk`, `prevention`) y el escalado se observó en un clúster local: `gateway` pasó de 2 a 6 réplicas con evento `SuccessfulRescale` (`odd/tasks/k8s-delivery-closure.md:23,58`). La observación tiene límites declarados en la fuente: solo se ejercitó `gateway` y el objetivo se bajó a 1 % para forzarlo (`:60`). No se convierte en prueba de producción: el benchmark k6 con `p(95)<500`, el RTO y el clúster de destino siguen abiertos (`:90`).
