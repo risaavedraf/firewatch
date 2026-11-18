@@ -505,13 +505,18 @@ The only realm file in the tree is the development one, whose `${DEMO_ADMIN_PASS
 
 **Expected:** a Keycloak that answers with no `firewatch` realm after its pod starts. That is the correct state, not a silent failure.
 
-**Do not continue to any authenticated test** until the receiving team says the realm exists. Read the first administrator out of the cluster and hand it over; it is the one Secret whose value an operator must read:
+**Do not continue to any authenticated test** until the receiving team says the realm exists. Read the first administrator out of the cluster and hand it over; it is the one Secret whose values an operator must read:
 
 ```sh
-kubectl -n firewatch get secret keycloak-bootstrap-admin -o jsonpath='{.data.KC_BOOTSTRAP_ADMIN_USERNAME}{"\n"}'
+kubectl -n firewatch get secret keycloak-bootstrap-admin \
+  -o jsonpath='{.data.KC_BOOTSTRAP_ADMIN_USERNAME}{"\n"}{.data.KC_BOOTSTRAP_ADMIN_PASSWORD}{"\n"}'
 ```
 
-**Expected:** a base64 value to decode and hand over. Keycloak reads this Secret only on a first start against an empty `identity` database.
+**Expected:** two non-empty base64 lines. Decode the first as the username and the second as the password, and hand over **both**: the username alone cannot create the realm. The handoff goes over the secure channel the receiving team already uses — never into this repository, a commit, a ticket, or a log.
+
+The startup options create a **temporary** admin account only on the initial start, when the master realm does not exist yet (Keycloak 26.5.7, `docs/guides/server/bootstrap-admin-recovery.adoc` L9-L27: <https://github.com/keycloak/keycloak/blob/26.5.7/docs/guides/server/bootstrap-admin-recovery.adoc#L9-L27>). The account does not expire by itself: the receiving team creates a permanent administrator, then removes the temporary one manually. If the receiving team provisions its own administrator instead, do not read this Secret at all.
+
+**Do not continue** until the receiving team has received both values through that channel, or has confirmed it provisions its own administrator. If either key is missing from the Secret, stop the handoff: it does not prove the bootstrap never happened — the Secret may be incomplete or the account may already exist — so establish the actual state with the receiving team before any authenticated test.
 
 ### 4.5 Set the public host in the Ingress
 
