@@ -2,7 +2,14 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 
 import { rejectedSessionCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
-import { startLogin, startRegistration, type AuthorizationIntent, type SessionState } from '../core/session';
+import { googleLoginEnabled } from '../config';
+import {
+  startGoogleLogin,
+  startLogin,
+  startRegistration,
+  type AuthorizationIntent,
+  type SessionState,
+} from '../core/session';
 
 // The sign-in and sign-up screen, shown instead of the workspace while there is
 // no established session.
@@ -16,6 +23,13 @@ import { startLogin, startRegistration, type AuthorizationIntent, type SessionSt
 // What a new account may do is NOT decided here either: the realm assigns its
 // roles and the server verifies them on every request. The screen says so instead
 // of promising a permission it cannot grant.
+//
+// "Continuar con Google" is the same Keycloak round trip with a hint that sends
+// the browser straight to Google; Keycloak brokers it and creates the account on
+// a first visit. It is shown only when the build enables it (`googleLoginEnabled`).
+
+// Which button started the round trip: one of the two tabs, or Google.
+type Launch = AuthorizationIntent | 'google';
 
 const TABS: readonly { id: AuthorizationIntent; label: string }[] = [
   { id: 'login', label: 'Iniciar sesión' },
@@ -51,8 +65,9 @@ function tabIndexForKey(key: string, index: number): number | null {
 // `launched` is which button on this screen started the round trip, if any. It is
 // only read while the session is `signing-in`; a stale value after a round trip
 // ended is harmless because only those same buttons can start the next one.
-function statusCopy(session: SessionState, launched: AuthorizationIntent | null): string {
+function statusCopy(session: SessionState, launched: Launch | null): string {
   if (session.status === 'signing-in') {
+    if (launched === 'google') return 'Abriendo el acceso con Google…';
     if (launched === 'register') return 'Abriendo el registro seguro de Keycloak…';
     if (launched === 'login') return 'Abriendo el acceso seguro de Keycloak…';
     // Not launched from this screen: the page has just come back from Keycloak
@@ -66,10 +81,10 @@ function statusCopy(session: SessionState, launched: AuthorizationIntent | null)
   return '';
 }
 
-export function AuthView() {
+export function AuthView({ googleLogin = googleLoginEnabled }: { googleLogin?: boolean } = {}) {
   const session = useSessionState();
   const [intent, setIntent] = useState<AuthorizationIntent>(initialIntent);
-  const [launched, setLaunched] = useState<AuthorizationIntent | null>(null);
+  const [launched, setLaunched] = useState<Launch | null>(null);
   const tabRefs = useRef<Record<AuthorizationIntent, HTMLButtonElement | null>>({ login: null, register: null });
 
   const busy = session.status === 'signing-in';
@@ -80,11 +95,26 @@ export function AuthView() {
     document.title = `${intent === 'register' ? 'Crear cuenta' : 'Iniciar sesión'} | FireWatch`;
   }, [intent]);
 
-  const launch = (next: AuthorizationIntent) => {
+  const launch = (next: Launch) => {
     setLaunched(next);
-    if (next === 'register') startRegistration();
+    if (next === 'google') startGoogleLogin();
+    else if (next === 'register') startRegistration();
     else startLogin();
   };
+
+  // Rendered at the top of each tab: the quick path first, then the Keycloak form.
+  const googleOption = (id: string, label: string, divider: string) =>
+    googleLogin ? (
+      <>
+        <button id={id} className="auth-google" type="button" disabled={busy} onClick={() => launch('google')}>
+          <GoogleGlyph />
+          {label}
+        </button>
+        <p className="auth-divider">
+          <span>{divider}</span>
+        </p>
+      </>
+    ) : null;
 
   // WAI-ARIA tabs: arrows move between the two tabs, Home/End jump to the ends,
   // and the selection follows focus.
@@ -178,6 +208,7 @@ export function AuthView() {
               Inicia sesión con tu cuenta del centro de monitoreo. El acceso se realiza en Keycloak, el proveedor de
               identidad de FireWatch.
             </p>
+            {googleOption('google-login', 'Continuar con Google', 'o con tu usuario y contraseña')}
             <button id="login" className="auth-primary" type="button" disabled={busy} onClick={() => launch('login')}>
               <LockGlyph />
               Continuar con Keycloak
@@ -201,6 +232,7 @@ export function AuthView() {
             <p className="auth-lead">
               El registro se completa en Keycloak. Al terminar vuelves aquí con la sesión ya iniciada.
             </p>
+            {googleOption('google-register', 'Registrarse con Google', 'o crea un usuario con contraseña')}
             <ol className="auth-steps">
               <li>Completa nombre, correo, usuario y contraseña en el formulario de Keycloak.</li>
               <li>Keycloak crea la cuenta y te devuelve a FireWatch con una sesión.</li>
@@ -243,6 +275,20 @@ export function AuthView() {
         </div>
       </main>
     </div>
+  );
+}
+
+// The Google "G", as Google's sign-in branding guidelines ask a "Sign in with
+// Google" button to show it. Inline, so the page still loads nothing from
+// another origin.
+function GoogleGlyph() {
+  return (
+    <svg className="icon" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
   );
 }
 

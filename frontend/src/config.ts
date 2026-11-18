@@ -21,6 +21,7 @@ declare global {
     readonly VITE_GATEWAY_ORIGIN?: string;
     readonly VITE_ISSUER?: string;
     readonly VITE_REDIRECT_URI?: string;
+    readonly VITE_GOOGLE_LOGIN?: string;
   }
 }
 
@@ -49,6 +50,18 @@ export const issuer = environmentOrigin('VITE_ISSUER', import.meta.env.VITE_ISSU
 // fails both the login round trip and the cross-origin API calls.
 export const redirectURI = environmentOrigin('VITE_REDIRECT_URI', import.meta.env.VITE_REDIRECT_URI, 'http://localhost:4173/');
 export const clientID = 'firewatch-demo';
+
+// Whether the sign-in screen offers "Continuar con Google". It is a build flag,
+// not a discovery: the realm's identity providers are not published to a public
+// client, and a button for a provider the realm does not have would land on the
+// plain Keycloak form instead of Google. Set `VITE_GOOGLE_LOGIN=true` only for a
+// realm whose `google` identity provider is configured
+// (backend/docs/keycloak-realm-setup.md). Off by default and in development.
+export const googleLoginEnabled = import.meta.env.VITE_GOOGLE_LOGIN?.trim() === 'true';
+
+// The alias of that identity provider in the realm. Keycloak's `kc_idp_hint`
+// names it so the round trip skips the Keycloak form and goes straight to Google.
+export const googleIdentityProvider = 'google';
 
 // The PKCE transaction (`state` + `code_verifier`) is the only value the app
 // writes to browser storage. It lives just long enough to survive the redirect

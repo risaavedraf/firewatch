@@ -87,6 +87,16 @@ The create-only import rule above applies: an initialised realm ignores these ke
 
 Verification: open the page, choose **Crear cuenta**, complete the Keycloak form, and confirm the page comes back signed in with `viewer` listed under **Sesión y permisos**; then confirm that `#jobs` answers `403` for that account.
 
+## Sign-in and sign-up with Google
+
+"Continuar con Google" is Keycloak brokering Google: the page sends the ordinary sign-in round trip with `kc_idp_hint=google`, Keycloak hands the browser to Google, and on a first visit creates the account from the Google profile with the realm's default roles (`viewer`). The page still receives only a Keycloak code, never a Google token. Three pieces, all needed:
+
+1. **An OAuth client in Google Cloud** (APIs & Services → Credentials → Create credentials → OAuth client ID → *Web application*), with the authorized redirect URI `<issuer>/broker/google/endpoint`, for the pitch `https://auth.<ip-with-dashes>.sslip.io/realms/firewatch/broker/google/endpoint`. The OAuth consent screen needs only the non-sensitive `openid`, `email` and `profile` scopes. While it is in **Testing**, only the Google accounts listed as test users can sign in (up to 100); publishing it lifts that, and Google may ask to verify the domains it names.
+2. **The identity provider `google` in the realm.** On the pitch, `provision-realm.py` creates or updates it from the Secret `pitch-google-idp` (keys `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`); see the pitch README. Elsewhere, by hand: **Identity providers → Google**, alias `google`, the client ID and secret, *Trust email* on. The client secret is never written to the realm file or any tracked file.
+3. **The page built with `VITE_GOOGLE_LOGIN=true`.** Without it the button is not shown, because a public client cannot discover the realm's providers and a hint for a missing provider would land on the plain Keycloak form.
+
+An e-mail already registered through the form is not merged silently: Keycloak's *first broker login* flow asks the person to confirm the existing account's password before linking Google to it.
+
 ## The directory client: `firewatch-directory`
 
 `backend/deploy/local/firewatch-realm.json` declares a second client, the confidential one the prevention service reads the realm's users with at `GET /v1/users`:

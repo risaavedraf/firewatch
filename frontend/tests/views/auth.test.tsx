@@ -150,3 +150,38 @@ test('a return from Keycloak reads as completing, and a refused one says it did 
   expect(document.getElementById('auth-status')).toHaveClass('is-error');
   expect(document.getElementById('login')).toBeEnabled();
 });
+
+// Google is a Keycloak round trip with `kc_idp_hint`: the page still sends the
+// browser to the issuer, never to Google, and still receives only a Keycloak code.
+test('without the build flag there is no Google option', () => {
+  render(<AuthView googleLogin={false} />);
+
+  expect(document.getElementById('google-login')).toBeNull();
+  expect(document.getElementById('google-register')).toBeNull();
+  expect(screen.queryByText(/Google/)).toBeNull();
+});
+
+test('with the flag, both tabs offer Google and it opens Keycloak with the google hint', async () => {
+  const user = userEvent.setup();
+  const windowStub = createWindowStub();
+  render(<AuthView googleLogin />);
+
+  expect(document.getElementById('google-login')).toHaveTextContent('Continuar con Google');
+  await user.click(screen.getByRole('tab', { name: 'Crear cuenta' }));
+  expect(document.getElementById('google-register')).toHaveTextContent('Registrarse con Google');
+
+  vi.stubGlobal('window', windowStub.window);
+  act(() => {
+    (document.getElementById('google-register') as HTMLButtonElement).click();
+  });
+  expect(getSessionSnapshot().status).toBe('signing-in');
+  expect(document.getElementById('auth-status')).toHaveTextContent('Abriendo el acceso con Google…');
+
+  await vi.waitFor(() => expect(windowStub.assign).toHaveBeenCalledTimes(1));
+  const target = new URL(String(windowStub.assign.mock.calls[0][0]));
+  // The authorization endpoint, not the sign-up one: a first Google visit is
+  // turned into an account by Keycloak's broker, not by its registration form.
+  expect(`${target.origin}${target.pathname}`).toBe(`${issuer}/protocol/openid-connect/auth`);
+  expect(target.searchParams.get('kc_idp_hint')).toBe('google');
+  expect(target.searchParams.get('code_challenge_method')).toBe('S256');
+});

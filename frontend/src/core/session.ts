@@ -10,7 +10,7 @@
 // the only authority. The single value written to `sessionStorage` is the PKCE
 // transaction (`state` + `code_verifier`), which is only useful for the length
 // of the redirect and is removed at the callback and again on logout.
-import { clientID, issuer, pkceTransactionKey, redirectURI } from '../config';
+import { clientID, googleIdentityProvider, issuer, pkceTransactionKey, redirectURI } from '../config';
 
 export interface SessionState {
   status: 'signed-out' | 'signing-in' | 'signed-in';
@@ -233,6 +233,16 @@ export function startRegistration(): void {
   void beginAuthorizationCodeFlow('register');
 }
 
+// Sign-in or sign-up with Google, brokered by Keycloak. It is the ordinary
+// sign-in round trip with `kc_idp_hint`, which makes Keycloak hand the browser to
+// Google straight away. On a first visit Keycloak creates the account from the
+// Google profile (with the realm's default roles), so the same button serves both
+// tabs. The page still only ever receives a Keycloak code: never a Google token.
+export function startGoogleLogin(): void {
+  publish({ status: 'signing-in', roles: null, reason: null });
+  void beginAuthorizationCodeFlow('login', googleIdentityProvider);
+}
+
 // The Keycloak account console, where an operator changes their own password,
 // name or e-mail. It is a link to the identity provider, never a form here.
 export function accountConsoleURL(): string {
@@ -247,7 +257,7 @@ function authorizationEndpoint(intent: AuthorizationIntent): string {
     : `${issuer}/protocol/openid-connect/auth`;
 }
 
-async function beginAuthorizationCodeFlow(intent: AuthorizationIntent): Promise<void> {
+async function beginAuthorizationCodeFlow(intent: AuthorizationIntent, identityProvider?: string): Promise<void> {
   try {
     const state = randomBase64URL(32);
     const verifier = randomBase64URL(32);
@@ -267,6 +277,7 @@ async function beginAuthorizationCodeFlow(intent: AuthorizationIntent): Promise<
       // Keycloak's pages follow the page's language. The realm must list `es`
       // as a supported locale for this to apply; otherwise it is ignored.
       ui_locales: 'es',
+      ...(identityProvider ? { kc_idp_hint: identityProvider } : {}),
     }).toString();
     window.location.assign(authorization.href);
   } catch {

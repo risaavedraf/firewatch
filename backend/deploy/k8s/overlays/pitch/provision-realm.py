@@ -14,7 +14,11 @@ placeholders no Secret supplies. For the pitch this script supplies them:
   - the realm-level login settings of the realm file (self-registration, the
     `firewatch` login theme, Spanish, the password policy, the display name)
     and the `viewer` default role are applied on every run, so a realm created
-    before they existed picks them up too.
+    before they existed picks them up too;
+  - when the Secret `pitch-google-idp` exists (keys GOOGLE_CLIENT_ID and
+    GOOGLE_CLIENT_SECRET, an OAuth client from Google Cloud), the `google`
+    identity provider is created or updated with it, so "Continuar con Google"
+    works. Without the Secret nothing about Google is touched.
 
 It reaches Keycloak through `kubectl port-forward`, so the admin console and the
 master realm never need a public route. On a realm that already exists it
@@ -42,6 +46,8 @@ NAMESPACE = "firewatch"
 LOCAL_PORT = 18443
 REALM_FILE = Path(__file__).resolve().parents[3] / "local" / "firewatch-realm.json"
 DEMO_SECRET = "pitch-demo-users"
+GOOGLE_SECRET = "pitch-google-idp"
+GOOGLE_ALIAS = "google"
 
 
 def kubectl(*args, capture=True):
@@ -173,6 +179,54 @@ def wait_for_port(process):
     raise SystemExit(f"port-forward to svc/identity did not open 127.0.0.1:{LOCAL_PORT} within 60 s")
 
 
+def google_credentials():
+    # The client secret only ever travels Secret -> this process -> Keycloak's
+    # admin API: never an argument, a file in the repository or a log line.
+    exists = subprocess.run(["kubectl", "--namespace", NAMESPACE, "get", "secret", GOOGLE_SECRET],
+                            capture_output=True).returncode == 0
+    if not exists:
+        return None
+    client_id = secret_value(GOOGLE_SECRET, "GOOGLE_CLIENT_ID").strip()
+    client_secret = secret_value(GOOGLE_SECRET, "GOOGLE_CLIENT_SECRET").strip()
+    if not client_id or not client_secret:
+        raise SystemExit(f"secret {GOOGLE_SECRET} must carry both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET")
+    return client_id, client_secret
+
+
+def apply_google(keycloak, credentials):
+    if credentials is None:
+        print(f"Google sign-in: not configured (no Secret {GOOGLE_SECRET})")
+        return
+    client_id, client_secret = credentials
+    provider = {
+        "alias": GOOGLE_ALIAS,
+        "displayName": "Google",
+        "providerId": "google",
+        "enabled": True,
+        # Google only hands out addresses it has verified, so the account
+        # Keycloak creates starts with a verified e-mail.
+        "trustEmail": True,
+        "storeToken": False,
+        "firstBrokerLoginFlowAlias": "first broker login",
+        "config": {
+            "clientId": client_id,
+            "clientSecret": client_secret,
+            "defaultScope": "openid email profile",
+            "syncMode": "IMPORT",
+            "guiOrder": "1",
+        },
+    }
+    path = f"/admin/realms/firewatch/identity-provider/instances/{GOOGLE_ALIAS}"
+    status, _ = keycloak.call("GET", path, expect=(200, 404))
+    if status == 404:
+        keycloak.call("POST", "/admin/realms/firewatch/identity-provider/instances", body=provider, expect=(201,))
+        print("Google sign-in: identity provider created")
+    else:
+        keycloak.call("PUT", path, body=provider, expect=(204,))
+        print("Google sign-in: identity provider updated")
+    print(f"  Google's authorized redirect URI: <issuer>/broker/{GOOGLE_ALIAS}/endpoint")
+
+
 def apply_login_settings(keycloak):
     realm_file = json.loads(REALM_FILE.read_text(encoding="utf-8"))
     settings = login_settings(realm_file)
@@ -204,6 +258,7 @@ def main():
         raise SystemExit(f"Expected the page origin, like https://firewatch-pitch.pages.dev; got {sys.argv[1]}")
     origin = f"https://{page.netloc}"
 
+    google = google_credentials()
     admin_user = secret_value("keycloak-bootstrap-admin", "KC_BOOTSTRAP_ADMIN_USERNAME")
     admin_password = secret_value("keycloak-bootstrap-admin", "KC_BOOTSTRAP_ADMIN_PASSWORD")
     with tempfile.NamedTemporaryFile("w", suffix=".crt", delete=False) as ca:
@@ -225,6 +280,7 @@ def main():
             keycloak.call("POST", "/admin/realms", body=realm, expect=(201,))
             print(f"Created realm firewatch; firewatch-demo accepts {origin}/")
             apply_login_settings(keycloak)
+            apply_google(keycloak, google)
         else:
             _, clients = keycloak.call("GET", "/admin/realms/firewatch/clients?clientId=firewatch-demo")
             if not clients:
@@ -234,6 +290,7 @@ def main():
             keycloak.call("PUT", f"/admin/realms/firewatch/clients/{client['id']}", body=client, expect=(204,))
             print(f"Realm firewatch already existed; firewatch-demo now accepts {origin}/")
             apply_login_settings(keycloak)
+            apply_google(keycloak, google)
     finally:
         forward.terminate()
         os.unlink(ca.name)

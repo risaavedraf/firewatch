@@ -105,6 +105,37 @@ API no contesta, el nodo está parado y el remedio es
   `/opt/keycloak/themes/firewatch`; si cambia, `up.sh` reinicia Keycloak (que
   cachea los temas en modo producción), lo que cierra las sesiones abiertas.
 
+## Acceso con Google
+
+1. En Google Cloud: **APIs y servicios → Credenciales → Crear credenciales → ID
+   de cliente de OAuth → Aplicación web**, con este URI de redireccionamiento
+   autorizado (cambia la IP):
+
+   ```text
+   https://auth.<ip-con-guiones>.sslip.io/realms/firewatch/broker/google/endpoint
+   ```
+
+   La pantalla de consentimiento solo necesita `openid`, `email` y `profile`.
+   Mientras esté en **Prueba**, solo entran las cuentas de Google agregadas como
+   usuarios de prueba.
+
+2. En la VM, guarda las credenciales en un Secret sin dejarlas en el historial
+   de la shell, y vuelve a correr el aprovisionamiento:
+
+   ```sh
+   read -r -p 'Client ID: ' GID; read -r -s -p 'Client secret: ' GSECRET; echo
+   kubectl -n firewatch create secret generic pitch-google-idp      --from-env-file=<(printf 'GOOGLE_CLIENT_ID=%s
+GOOGLE_CLIENT_SECRET=%s
+' "$GID" "$GSECRET")      --dry-run=client -o yaml | kubectl apply -f -
+   unset GID GSECRET
+   python3 ~/firewatch-dev/backend/deploy/k8s/overlays/pitch/provision-realm.py https://firewatch-pitch.pages.dev
+   ```
+
+   Debe decir `Google sign-in: identity provider created`.
+
+3. Agrega `VITE_GOOGLE_LOGIN=true` a `frontend/.env.production`, recompila y
+   vuelve a publicar la página.
+
 ## Consola de administración de Keycloak
 
 No tiene ruta pública (`/admin` responde 404 en `auth.<ip>.sslip.io`, a

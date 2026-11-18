@@ -169,6 +169,42 @@
 .auth-primary:disabled { cursor: progress; opacity: .6; }
 .auth-primary .icon { width: 16px; height: 16px; }
 
+.auth-google {
+  width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border: 1px solid #c9d1c8;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f1f1f;
+  font-size: 13px;
+  font-weight: 650;
+  transition: background .15s, border-color .15s;
+}
+.auth-google:hover:not(:disabled) { background: #f7f8f5; border-color: var(--forest-500); }
+.auth-google:disabled { cursor: progress; opacity: .6; }
+.auth-google .icon { width: 18px; height: 18px; }
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 .auth-switch { margin: 16px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
 .auth-link {
   padding: 0;
@@ -215,5 +251,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-tab, .auth-primary { transition: none; }
+  .auth-tab, .auth-primary, .auth-google { transition: none; }
 }

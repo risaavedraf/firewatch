@@ -429,6 +429,8 @@ test('startLogin keeps using the authorization endpoint, not the sign-up one', a
   await vi.waitFor(() => expect(windowStub.assign).toHaveBeenCalledTimes(1));
   const target = new URL(windowStub.assign.mock.calls[0][0] as string);
   expect(`${target.origin}${target.pathname}`).toBe(`${issuer}/protocol/openid-connect/auth`);
+  // Only the Google button names an identity provider.
+  expect(target.searchParams.has('kc_idp_hint')).toBe(false);
 });
 
 // While the code is being exchanged the page is neither signed out nor signed in.
