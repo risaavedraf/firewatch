@@ -1,6 +1,6 @@
 # Kubernetes deployment — v1.0 delivery substrate
 
-**Estado:** abierto y en ejecución.
+**Estado:** cerrado en todo lo que no exige el entorno objetivo — T2–T8 completas, T7 cerrada con los cinco digests en `deploy/k8s/overlays/delivery` (PR #68), T10.1–T10.3 hechas (L23–L25) y la validación end-to-end corrida en un clúster kind real (L20); los pendientes 1 a 4 de L21 cerraron en L22. **Sigue abierto el pendiente 5 de L21: el entorno objetivo** — todo lo observado es un clúster local, no un despliegue — y T1 quedó diferida por decisión del responsable.
 
 Requisito externo nuevo: la entrega se monta en Kubernetes. Sustituye el sustrato que fijaba D1 (Compose en una VM) y deja el motor de datos intacto.
 

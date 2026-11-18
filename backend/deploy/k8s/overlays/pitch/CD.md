@@ -212,6 +212,30 @@ objetos:
 - **Borde**: `up.sh` recrea el contenedor `firewatch-edge`; sus volúmenes y
   certificados de Let's Encrypt se reutilizan.
 
+### Esto despliega una instalación que ya existe
+
+El CD **no es una primera instalación y no crea una CA**. Reejecuta `up.sh` **sin
+argumentos**, que reutiliza el estado de la VM en vez de crearlo: los cuatro valores del
+arranque salen de `~/.firewatch-pitch.env` y los Secrets, el namespace y la CA se leen
+del clúster. En la forma en que lo invoca el workflow, `up.sh` no es una vía de primera
+instalación; lo que despliega es una instalación existente. La primera instalación se
+hace a mano, una sola vez, con `install-tools.sh` y `up.sh <ip> <pages> <correo>` como
+describe [`README.md`](README.md), y hasta que exista no hay nada que el CD pueda
+actualizar.
+
+El pin de la CA es la pieza que lo dice en voz alta. El workflow lee
+`secret/firewatch-ca` en la VM —el mismo comando que imprime la huella en §Una sola vez
+en la VM— y **se niega a seguir si no puede leerlo**, con este mensaje:
+
+```text
+cannot read secret/firewatch-ca. This workflow only updates an existing install; it never creates a CA.
+```
+
+Se detiene antes de `up.sh`: no reconstruye imágenes, no aplica el overlay y no emite
+certificado alguno. Un `firewatch-ca` que falta no es un pin mal configurado, es una
+instalación que no existe, y el remedio es hacerla antes con el README, no ajustar la
+variable.
+
 ## Una sola vez en la VM
 
 Con el usuario que ya ejecutó `up.sh` (el mismo `HOME`), y desde la VM:
@@ -220,8 +244,9 @@ Con el usuario que ya ejecutó `up.sh` (el mismo `HOME`), y desde la VM:
 # 1. Los valores del arranque tienen que existir: up.sh sin argumentos los reusa.
 ls -l ~/.firewatch-pitch.env
 
-# 2. Un clon dedicado, distinto del checkout de trabajo, con el remoto canónico.
-git clone <https://<host>/<owner>/<repo> o git@<host>:<owner>/<repo>> ~/firewatch-cd/checkout
+# 2. Un clon dedicado, distinto del checkout de trabajo, con el remoto canónico del
+#    workflow: `github.com` y `risaavedraf/firewatch-dev`.
+git clone https://github.com/risaavedraf/firewatch-dev.git ~/firewatch-cd/checkout
 
 # 3. Una clave dedicada para el CD.
 ssh-keygen -t ed25519 -N '' -C pitch-cd -f ~/.ssh/pitch-cd
@@ -231,6 +256,12 @@ printf 'restrict %s\n' "$(cat ~/.ssh/pitch-cd.pub)" >> ~/.ssh/authorized_keys
 #    local: la clave solo vive en GitHub y en authorized_keys queda la pública.
 cat ~/.ssh/pitch-cd
 ```
+
+El comando de arriba usa la forma HTTPS del remoto. `git@github.com:risaavedraf/firewatch-dev.git`
+es la misma URL para una VM que autentica contra GitHub por clave SSH, y el workflow
+acepta cualquiera de las tres formas que enumera §El clon dedicado y su `origin`: lo
+que compara es la URL completa, no la forma de transporte. Las credenciales del clon
+son las del operador en la VM; el workflow no aporta ninguna.
 
 El `known_hosts` que se pega en `PITCH_CD_KNOWN_HOSTS` se obtiene por fuera de banda:
 
