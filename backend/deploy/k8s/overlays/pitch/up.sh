@@ -62,7 +62,7 @@ if ! kind get clusters 2>/dev/null | grep -qx "$cluster"; then
 	kind create cluster --config "$here/kind-config.yaml" --wait 120s
 fi
 kubectl config use-context "kind-$cluster" >/dev/null
-# kind-config.yaml sets the label too; setting it here keeps the run independent of that patch.
+# kind-config.yaml already labels the node; labelling it here keeps the run independent of how that configuration is rendered.
 kubectl label node --all ingress-ready=true --overwrite >/dev/null
 kubectl apply -f "$k8s/base/namespace.yaml"
 
