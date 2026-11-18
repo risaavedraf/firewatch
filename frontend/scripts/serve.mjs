@@ -4,6 +4,7 @@ import { fileURLToPath, URL } from 'node:url';
 import path from 'node:path';
 import process from 'node:process';
 import console from 'node:console';
+import { contentSecurityPolicy } from './csp.mjs';
 
 const distRoot = fileURLToPath(new URL('../dist/', import.meta.url));
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
@@ -11,7 +12,9 @@ const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=u
 // The page talks to two other origins and the build must not be allowed to reach
 // any other. `connect-src` names exactly the gateway and the identity provider:
 // neither a wildcard nor `'none'`, and the two spellings are the registered ones.
-const CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src http://localhost:8080 http://localhost:8081; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+// The policy itself is rendered by csp.mjs, the same module pages-headers.mjs
+// uses, so the two deployments cannot end up serving different policies.
+const CONTENT_SECURITY_POLICY = contentSecurityPolicy(['http://localhost:8080', 'http://localhost:8081']);
 
 function safeRelativePath(target) {
   const raw = target.split('?')[0];

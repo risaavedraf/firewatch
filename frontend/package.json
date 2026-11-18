@@ -9,6 +9,7 @@
     "dev": "vite",
     "build": "node scripts/require-build-env.mjs && tsc --noEmit && vite build",
     "build:local": "tsc --noEmit && vite build --mode development",
+    "build:pages": "npm run build && node scripts/pages-headers.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "check": "node scripts/check.mjs",

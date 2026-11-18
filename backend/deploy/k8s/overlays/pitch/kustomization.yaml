@@ -1,0 +1,89 @@
+# Pitch overlay: the base on a single-node kind cluster inside the demo VM,
+# reachable from the internet through Caddy on the VM host (see README.md).
+#
+# It differs from `overlays/delivery` in four ways, each for the pitch only:
+#
+#   1. Images are built on the VM and loaded into the node with `kind load`, so
+#      they are pinned by the tag `pitch` instead of a registry digest. No
+#      `imagePullPolicy` is set anywhere in the base, so the default for a
+#      non-`latest` tag (IfNotPresent) serves the loaded image.
+#   2. The identity provider answers on a public hostname: KC_HOSTNAME is the
+#      public URL, the issuer every service compares against is that URL, and
+#      the key set is still fetched over the internal `identity:8443` address
+#      (KC_HOSTNAME_BACKCHANNEL_DYNAMIC lets the backchannel keep that name).
+#   3. The gateway sends CORS headers to the page origin (WEB_ORIGIN), which
+#      lives on Cloudflare Pages.
+#   4. A second Ingress exposes only the `firewatch` realm's login, and a policy
+#      admits the ingress controller into the identity pod for it.
+#
+# The three PITCH_* words are placeholders that `up.sh` replaces in the
+# rendered output; this file is not meant to be applied with `kubectl apply -k`
+# directly.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: firewatch
+resources:
+  - ../../base
+  - identity-ingress.yaml
+  - identity-from-ingress.yaml
+images:
+  - {name: firewatch/gateway, newTag: pitch}
+  - {name: firewatch/jobs, newTag: pitch}
+  - {name: firewatch/risk, newTag: pitch}
+  - {name: firewatch/prevention, newTag: pitch}
+  - {name: firewatch/inference, newTag: pitch}
+patches:
+  # The issuer is the public URL the browser logs in through, because that is
+  # what Keycloak writes in `iss`. The key-set URL keeps the internal address.
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: firewatch-config
+      data:
+        OIDC_ISSUER: https://PITCH_AUTH_HOST/realms/firewatch
+        WEB_ORIGIN: PITCH_WEB_ORIGIN
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: keycloak
+      spec:
+        template:
+          spec:
+            containers:
+              - name: keycloak
+                env:
+                  - name: KC_HOSTNAME
+                    value: https://PITCH_AUTH_HOST
+                  - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
+                    value: 'true'
+                  - name: KC_PROXY_HEADERS
+                    value: xforwarded
+  # The public API host replaces the reserved `.invalid` one. TLS for the public
+  # name is terminated by Caddy on the VM host, so the Ingress carries no `tls`
+  # block; the hop from the controller to the gateway stays HTTPS and verified,
+  # exactly as the base declares. `/health/` is added because the page polls
+  # the gateway's readiness.
+  - target: {kind: Ingress, name: firewatch}
+    patch: |-
+      - op: remove
+        path: /spec/tls
+      - op: replace
+        path: /spec/rules
+        value:
+          - host: PITCH_API_HOST
+            http:
+              paths:
+                - path: /v1/
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: gateway
+                      port: {number: 8080}
+                - path: /health/
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: gateway
+                      port: {number: 8080}

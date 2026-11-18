@@ -1,0 +1,24 @@
+# Single-node kind cluster for the pitch VM.
+#
+# `ingress-ready=true` is the label the kind flavour of ingress-nginx selects
+# (local/ingress.sh checks it). The controller binds hostPort 443 on the node,
+# and the mapping below publishes it only on the VM's loopback: the public
+# entry point is Caddy on the VM host, which forwards to 127.0.0.1:8443.
+# kubeadm's v1beta4 config takes kubeletExtraArgs as a list of name/value entries.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: firewatch
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            - name: node-labels
+              value: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 443
+        hostPort: 8443
+        listenAddress: "127.0.0.1"
+        protocol: TCP
