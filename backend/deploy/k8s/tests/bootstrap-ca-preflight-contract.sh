@@ -143,6 +143,9 @@ done
 if [ -n "${RACE_DIR:-}" ] && [ "$target" = "$RACE_DIR" ] && [ ! -d "$RACE_DIR" ]; then
 	"$REAL_MKDIR" -p "$RACE_DIR" || exit 1
 	"$REAL_CHMOD" 750 "$RACE_DIR" || exit 1
+	if [ -n "${RACE_WINNER_MARKER:-}" ]; then
+		: >"$RACE_WINNER_MARKER"
+	fi
 fi
 exec "$REAL_MKDIR" "$@"
 RACEMKDIR
@@ -421,6 +424,7 @@ swap_key_target=""
 run_path_prefix=""
 race_dir=""
 race_chmod_log=""
+race_winner_marker=""
 appear_key=""
 appear_stage=""
 fail_staging=0
@@ -442,6 +446,7 @@ reset_stub_env() {
 	run_path_prefix=""
 	race_dir=""
 	race_chmod_log=""
+	race_winner_marker=""
 	appear_key=""
 	appear_stage=""
 	fail_staging=0
@@ -483,6 +488,7 @@ run_bootstrap() {
 		STUB_SWAP_KEY_TARGET="$swap_key_target" \
 		RACE_DIR="$race_dir" \
 		RACE_CHMOD_LOG="$race_chmod_log" \
+		RACE_WINNER_MARKER="$race_winner_marker" \
 		REAL_MKDIR="$real_mkdir" \
 		REAL_CHMOD="$real_chmod" \
 		STUB_APPEAR_KEY="$appear_key" \
@@ -514,10 +520,38 @@ $(cat "$1")"
 }
 
 assert_not_contains() {
+	# Neither the pattern nor the asserted file is printed on failure: the
+	# pattern may be private material and the asserted file is the output being
+	# checked for it, so a diagnostic that dumps either turns a caught leak into
+	# a logged one. The count locates the failure without reproducing anything.
 	if grep -qF -- "$2" "$1"; then
-		fail "$3: output emitted the protected value '$2':
-$(cat "$1")"
+		matches=$(grep -cF -- "$2" "$1" 2>/dev/null || true)
+		fail "$3: $1 holds $matches line(s) matching the protected pattern; neither the pattern nor the file is printed"
 	fi
+}
+
+assert_no_key_material() {
+	# Proves a file does not reproduce a private key without capturing or
+	# printing a body line: each non-header line is tested in turn, and a
+	# failure names the source file and the line number only. The trailing CR is
+	# stripped from the pattern because the shell's read keeps it while grep
+	# removes it in text mode, so a CR-carrying pattern matches neither spelling
+	# and every check against a CRLF key would pass without looking.
+	key_file=$1
+	checked_file=$2
+	key_label=$3
+	key_line=0
+	key_cr=$(printf '\r')
+	while IFS= read -r key_body || [ -n "$key_body" ]; do
+		key_line=$((key_line + 1))
+		key_body=${key_body%"$key_cr"}
+		case "$key_body" in
+			''|-----BEGIN*|-----END*) continue ;;
+		esac
+		if grep -qF -- "$key_body" "$checked_file"; then
+			fail "$key_label: $checked_file reproduces line $key_line of the private key at $key_file (the line is deliberately not printed)"
+		fi
+	done <"$key_file"
 }
 
 assert_no_mutations() {
@@ -540,6 +574,51 @@ assert_no_ca_staging() {
 	found=$(find "$case_dir" \( -name '.firewatch-ca.staging.*' -o -name '.firewatch-ca.key.*' \) -print 2>/dev/null || true)
 	[ -z "$found" ] || fail "$1: private staging path left at $found"
 }
+
+# --- 0) the contract's own failure messages never reproduce material -------
+# A guard that prints what it caught turns a caught leak into a logged one, so
+# the diagnostics are asserted too: a failing negative assertion may name the
+# file and the count, never the pattern it matched, and a private-key guard may
+# name the source line, never the bytes.
+new_case assertion-diagnostic-hygiene
+needle='-SYNTHETIC-PROTECTED-VALUE-'
+assert_input="$case_dir/asserted-file.txt"
+assert_message="$case_dir/assertion-message.txt"
+printf '%s\n' 'context line before' "$needle" 'context line after' >"$assert_input"
+set +e
+(
+	assert_not_contains "$assert_input" "$needle" "diagnostic hygiene"
+) >"$assert_message" 2>&1
+meta_status=$?
+set -e
+[ "$meta_status" -ne 0 ] ||
+	fail "diagnostic hygiene: the negative assertion accepted a present pattern"
+if grep -qF -- "$needle" "$assert_message"; then
+	fail "diagnostic hygiene: the failure message reproduced the pattern it matched"
+fi
+if grep -qF -- 'context line after' "$assert_message"; then
+	fail "diagnostic hygiene: the failure message dumped the asserted file"
+fi
+echo "PASS: a failing negative assertion names the file and the count, never the pattern or the asserted file"
+
+new_case assertion-private-material
+leak_output="$case_dir/leaked.txt"
+private_message="$case_dir/private-message.txt"
+# A script that printed the key is simulated by copying the fixture into the
+# output file; the guard has to fail without reproducing any of it.
+cp "$scratch/ca-b.key" "$leak_output"
+set +e
+(
+	assert_no_key_material "$scratch/ca-b.key" "$leak_output" "private material"
+) >"$private_message" 2>&1
+meta_status=$?
+set -e
+[ "$meta_status" -ne 0 ] ||
+	fail "private material: the guard accepted an output that reproduces the private key"
+grep -qF "reproduces line 2 of the private key" "$private_message" ||
+	fail "private material: the failure did not name the reproduced source line (message not printed)"
+assert_no_key_material "$scratch/ca-b.key" "$private_message" "private material message"
+echo "PASS: a private-key guard reports the source line without reproducing the key"
 
 # --- A) preflight staging directory writeability ----------------------------
 new_case staging-failure
@@ -684,7 +763,6 @@ cp "$scratch/ca-b.key" "$key_path"
 cp "$key_path" "$case_dir/original.key"
 MSYS_NO_PATHCONV=1 openssl pkey -in "$(native_path "$key_path")" -noout >/dev/null 2>&1 ||
 	fail "test fixture: the copied key at $key_path is not readable by openssl"
-key_marker=$(awk 'NR == 2 { print; exit }' "$key_path")
 ca_present=yes
 ca_cert="$scratch/ca-a.crt"
 run_bootstrap
@@ -694,7 +772,7 @@ assert_contains "$out" "$key_path" "key/cert mismatch"
 assert_contains "$out" "secret/firewatch-ca" "key/cert mismatch"
 assert_contains "$out" "rotate the authority deliberately" "key/cert mismatch"
 assert_contains "$out" "Nothing has been written" "key/cert mismatch"
-assert_not_contains "$out" "$key_marker" "key/cert mismatch"
+assert_no_key_material "$key_path" "$out" "key/cert mismatch"
 assert_no_mutations "key/cert mismatch"
 assert_key_unchanged "key/cert mismatch"
 assert_no_ca_staging "key/cert mismatch"
@@ -776,8 +854,7 @@ assert_same "$case_dir/state/data/postgres-tls/ca.crt" "$scratch/ca-a.crt" "pref
 assert_same "$key_path" "$scratch/ca-b.key" "preflight snapshot: the script overwrote the externally replaced local key"
 [ "$(cat "$case_dir/state/ca-cert-reads")" = 1 ] ||
 	fail "preflight snapshot: the cluster ca.crt was read more than once"
-key_marker=$(awk 'NR == 2 { print; exit }' "$key_path")
-assert_not_contains "$out" "$key_marker" "preflight snapshot"
+assert_no_key_material "$key_path" "$out" "preflight snapshot"
 
 # --- 9) a local path appearing after the preflight is refused accurately --
 # Credentials have already been written by this stage, so the message must not
@@ -900,8 +977,7 @@ assert_contains "$out" "verified public-key mismatch" "$label"
 assert_not_contains "$out" "could not be verified" "$label"
 assert_not_contains "$out" "No mismatch conclusion was drawn" "$label"
 assert_same "$key_path" "$scratch/ca-b.key" "$label: the replaced key was overwritten"
-replaced_marker=$(awk 'NR == 2 { print; exit }' "$scratch/ca-b.key")
-assert_not_contains "$out" "$replaced_marker" "$label"
+assert_no_key_material "$key_path" "$out" "$label"
 assert_not_contains "$out" "delete secret/firewatch-ca" "$label"
 assert_contains "$case_dir/mutations.log" "FAILED create secret generic firewatch-ca" "$label"
 assert_no_ca_staging "$label"
@@ -968,6 +1044,7 @@ namespace_present=no
 refuse=0
 race_chmod_log="$case_dir/chmod.log"
 : >"$race_chmod_log"
+race_winner_marker="$case_dir/winner.marker"
 run_path_prefix="$race_bin"
 race_dir="$operator_dir"
 run_bootstrap
@@ -975,8 +1052,16 @@ label="operator directory created concurrently"
 assert_status 0 "$label"
 [ -d "$operator_dir" ] || fail "$label: the operator directory is missing"
 [ -s "$key_path" ] || fail "$label: the key was not published at $key_path"
-if grep -qxF "700 $operator_dir" "$race_chmod_log"; then
-	fail "$label: the run applied mode 0700 to a directory it did not create; chmod log was:
+# Positive controls: an absent chmod line only means something if the race was
+# actually played and the log is actually being written.
+[ -f "$race_winner_marker" ] ||
+	fail "$label: the mkdir shim never played the winner, so the race was not exercised"
+[ -s "$race_chmod_log" ] ||
+	fail "$label: no chmod invocation was recorded, so the chmod shim did not fire"
+# Any mode spelling counts: compare the last field so `700`, `0700` or a
+# symbolic mode aimed at the same directory all fail this case.
+if awk -v d="$operator_dir" '{ p = $0; sub(/^[^ ]+ /, "", p); if (p == d) found = 1 } END { exit(found ? 0 : 1) }' "$race_chmod_log"; then
+	fail "$label: the run changed the mode of a directory it did not create; chmod log was:
 $(cat "$race_chmod_log")"
 fi
 assert_no_ca_staging "$label"
@@ -1021,7 +1106,6 @@ MSYS_NO_PATHCONV=1 openssl pkey -in "$(native_path "$key_path")" -noout >/dev/nu
 	fail "fresh initialisation: the file at $key_path is not a private key"
 assert_contains "$case_dir/mutations.log" "WRITE create namespace firewatch" "fresh initialisation"
 assert_contains "$case_dir/mutations.log" "WRITE create secret generic firewatch-ca" "fresh initialisation"
-fresh_marker=$(awk 'NR == 2 { print; exit }' "$key_path")
-assert_not_contains "$out" "$fresh_marker" "fresh initialisation"
+assert_no_key_material "$key_path" "$out" "fresh initialisation"
 
 echo "PASS: bootstrap-secrets.sh preflights writable operator-path staging before namespace/Secret writes, refuses a present local key without a cluster CA, refuses a mismatched key/cert pair and invalid material before any write, signs with the private staging snapshot, refuses staging failure and any existing destination type, classifies rejected CA Secret creates with confirmed matching/absent/conflict/unknown diagnostics and a public-key-only recipe, survives lookup errors, and preserves the fresh path"
