@@ -1,5 +1,6 @@
 name: Backend integration
 on:
+  workflow_call:
   pull_request:
     paths: ['backend/**', '.github/workflows/**', '.gitattributes']
   push:

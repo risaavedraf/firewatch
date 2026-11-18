@@ -1,5 +1,6 @@
 name: Prevention
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'backend/services/prevention/**'
