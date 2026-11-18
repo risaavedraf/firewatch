@@ -337,7 +337,13 @@ function isServiceSnapshot(value: unknown): value is ServiceSnapshot {
 function isJob(value: unknown): value is Job {
   if (!record(value)) return false;
   if (!nonempty(value.id) || !nonempty(value.zone_id) || typeof value.state !== 'string') return false;
-  if (!optionalString(value.batch_id) || !optionalString(value.requested_at)) return false;
+  // `batch_id` is serialized as `null` until the job publishes (the column is a
+  // `*string` behind a tag without `omitempty`). Demanding a string here rejected
+  // the 202 acceptance of every queued job as `invalid_shape`, and the view then
+  // rendered the acceptance as a failure with the raw status code. A null stays
+  // "no batch yet"; only a value that is neither null nor a string is malformed.
+  if (!nullableString(value.batch_id)) return false;
+  if (!optionalString(value.requested_at)) return false;
   if (!nullableString(value.scenario_id) || !nullableString(value.evaluated_at)) return false;
   return true;
 }
