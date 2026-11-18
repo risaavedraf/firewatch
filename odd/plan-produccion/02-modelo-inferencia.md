@@ -1,7 +1,7 @@
 # Frente 2 — Servicio real de inferencia y modelo aprobado
 
 - **Grupo de entrega:** G2 — Núcleo de datos y modelo (solo el *seam*).
-- **Estado:** Parcial — el clasificador por defecto `academic-rule-v1` quedó entregado en la presentación (modelo v2). El servicio de inferencia con modelo entrenado y aprobado sigue pendiente (pendiente permitido).
+- **Estado:** Parcial — el clasificador por defecto `academic-rule-v1` quedó entregado en la presentación (modelo v2). El servicio de inferencia está **cableado**: tiene Deployment propio (`../../backend/deploy/k8s/base/inference.yaml`) y `risk` lo alcanza por `INFERENCE_URL` (`../../backend/deploy/k8s/base/config.yaml:31`), cuya presencia es la que registra el clasificador de modelo. Lo que sigue pendiente es el modelo **entrenado y aprobado** y su evidencia de producción (pendiente permitido); el artefacto del repositorio es un ensayo no servible.
 - **Riesgo (Task Size):** alto al implementar — ítem 1 (versión/procedencia persistida) e ítem 3 (contratos `Classifier`/`Provider`).
 - **Depende de:** frente 1 (observaciones); disponibilidad de modelo y política de aprobación (decisión humana).
 - **Seam / superficie:** `backend/services/risk/internal/classify/` (`classifier.go`, `academic_rule.go`); interfaces `Classifier`/`Provider`; persistencia `models` y publicación de lotes.
@@ -12,7 +12,7 @@
 - [`../../Referencias/EP1_Equipo3_Armijo_Calderon_Saavedra2_produccion.md:30,46-56,80`](../../Referencias/EP1_Equipo3_Armijo_Calderon_Saavedra2_produccion.md) — contrato `Provider`/`Classifier`, metadatos y aprobación.
 - [`../../Referencias/Actividad C4_FireWatch_produccion.md:59-65,79-91,171-199,247-248`](<../../Referencias/Actividad C4_FireWatch_produccion.md>) — operación objetivo.
 - [`../tasks/backend/firewatch-data-contract.md:18-23,68`](../tasks/backend/firewatch-data-contract.md) — define `academic-rule-v1`; los datos sintéticos no son un modelo validado.
-- [`../../backend/docs/verification.md:65`](../../backend/docs/verification.md) — límite declarado.
+- [`../../backend/docs/verification.md:101`](../../backend/docs/verification.md) — límite declarado.
 
 ## Specs
 
@@ -43,10 +43,11 @@ Ruta por defecto: **inline** (seam + fixtures). La sustitución real del modelo 
 
 - Metadatos y aprobación: `../../Referencias/EP1_Equipo3_Armijo_Calderon_Saavedra2_produccion.md:54-56`.
 - La prueba de sustitución (T6) pasa sin cambios fuera de `backend/services/risk/internal/classify/`, y `academic-rule-v1` sigue siendo determinista.
-- `../../backend/docs/verification.md:65` declara que precisión/calibración y publicación por ruta productiva **no están establecidas**.
+- `../../backend/docs/verification.md:101` no establece la inferencia real ni la precisión/calibración: el cableado existe, el modelo aprobado y la evidencia de producción no. No marcar cierre sin esos dos.
 
 ## Log
 
 - **L1 (2026-10-16)** — Creación del desglose por spec a partir de [`README.md`](README.md) §1 (frente 2). Documento de planificación; sin implementación.
 - **L2 (2026-10-20)** — Estado corregido a Parcial: `academic-rule-v1` entregado (modelo v2); el modelo entrenado sigue pendiente por decisión (README §1 y §7).
 - **L3 (2026-10-20)** — Se agrega T6 (prueba de sustitución) y su criterio de cierre; el frente puede completarse sin modelo real según README §5.1.
+- **L4 (2026-11-17)** — Estado precisado: el servicio está cableado (`base/inference.yaml`; `risk` lo alcanza por `INFERENCE_URL`, `base/config.yaml:31`) y lo pendiente es el modelo entrenado y aprobado y su evidencia de producción. La cita de cierre apunta a `backend/docs/verification.md:101` (límite de esos checks), no a `:65`.
