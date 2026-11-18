@@ -105,6 +105,30 @@ API no contesta, el nodo está parado y el remedio es
   `/opt/keycloak/themes/firewatch`; si cambia, `up.sh` reinicia Keycloak (que
   cachea los temas en modo producción), lo que cierra las sesiones abiertas.
 
+## Consola de administración de Keycloak
+
+No tiene ruta pública (`/admin` responde 404 en `auth.<ip>.sslip.io`, a
+propósito). Se abre por túnel:
+
+```sh
+# 1. Desde tu equipo: túnel SSH a la VM
+gcloud compute ssh <vm> --zone <zona> -- -L 18443:localhost:18443
+# 2. En esa sesión, dentro de la VM
+kubectl -n firewatch port-forward svc/identity 18443:8443
+```
+
+Luego abre `https://localhost:18443/admin/` en tu navegador (el certificado lo
+firma la CA interna: acepta la advertencia). El usuario y la contraseña del
+administrador están en el Secret `keycloak-bootstrap-admin`:
+
+```sh
+kubectl -n firewatch get secret keycloak-bootstrap-admin -o jsonpath='{.data.KC_BOOTSTRAP_ADMIN_USERNAME}' | base64 -d; echo
+kubectl -n firewatch get secret keycloak-bootstrap-admin -o jsonpath='{.data.KC_BOOTSTRAP_ADMIN_PASSWORD}' | base64 -d; echo
+```
+
+`KC_HOSTNAME_ADMIN=https://localhost:18443` es lo que hace que la consola no
+redirija al hostname público; por eso el puerto local tiene que ser 18443.
+
 ## NetworkPolicy: aplicada por kindnet
 
 El overlay instala las NetworkPolicies de `base/` y añade una propia, y en este

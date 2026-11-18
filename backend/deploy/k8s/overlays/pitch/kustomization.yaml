@@ -65,6 +65,14 @@ patches:
                     value: 'true'
                   - name: KC_PROXY_HEADERS
                     value: xforwarded
+                  # The admin console is never routed publicly (identity-ingress.yaml
+                  # serves only the `firewatch` realm). Without this it built every
+                  # URL from KC_HOSTNAME and redirected a port-forwarded browser to
+                  # the public host, where /admin answers 404. With it, the console
+                  # works through `kubectl port-forward svc/identity 18443:8443`
+                  # plus an SSH tunnel, and still has no public path.
+                  - name: KC_HOSTNAME_ADMIN
+                    value: https://localhost:18443
                 volumeMounts:
                   - name: theme-firewatch
                     mountPath: /opt/keycloak/themes/firewatch
