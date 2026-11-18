@@ -27,7 +27,12 @@ navegador ──► Cloudflare Pages (frontend)
 - `e2-standard-4` (4 vCPU, 16 GB). Los manifiestos reservan 1,6 vCPU y 2,3 GB
   en 13 pods; con el plano de control de kind e ingress-nginx no caben en 2 vCPU.
 - IP estática y regla de firewall `tcp:80,tcp:443`.
-- Docker, y el stack de Docker Compose detenido (`docker compose down` en `backend/`).
+- Docker: el motor y el plugin de Compose, en la forma que estos comandos usan
+  (`docker compose`; el binario suelto `docker-compose` no es el que se invoca aquí).
+  Docker no está fijado a una versión. El usuario de la VM tiene que poder ejecutar
+  Docker **sin `sudo`**, porque `install-tools.sh`, `up.sh` y kind hablan con el daemon
+  directamente.
+- El stack de Docker Compose de `backend/` detenido (`docker compose down` en `backend/`).
 
 ## Primera vez
 

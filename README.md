@@ -33,6 +33,7 @@ Open it as `localhost`, never as `127.0.0.1`. The identity provider and the gate
 - [HTTP contract](backend/contracts/openapi/firewatch-v1.yaml)
 - [Keycloak realm setup for the separated frontend](backend/docs/keycloak-realm-setup.md)
 - [Kubernetes deployment base](backend/deploy/k8s/README.md)
+- [Pitch demo on one VM: the VM deployment path](backend/deploy/k8s/overlays/pitch/README.md)
 - [Original project references](Referencias/)
 
 The current backend uses demonstration data only. It does not estimate real wildfire risk.
