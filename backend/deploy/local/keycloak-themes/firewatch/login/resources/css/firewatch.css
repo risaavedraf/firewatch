@@ -1,0 +1,468 @@
+/* FireWatch skin for the Keycloak `keycloak.v2` login theme (PatternFly 5).
+
+   Loaded after the parent's stylesheet. It turns the upstream single-column
+   card into the same split screen as the FireWatch sign-in screen
+   (frontend/src/styles/auth.css): a forest column with the brand, the headline
+   and the scope statement, and a paper card with the form on the canvas.
+
+   Only the markup the parent's templates render is targeted (checked against
+   Keycloak 26.5.7: #kc-header, .pf-v5-c-login__main, #kc-form-login,
+   #kc-register-form, #kc-social-providers, #kc-info). No template is
+   overridden, so if a future version renames a hook the rule stops applying and
+   the page falls back to the upstream look instead of breaking.
+
+   The headline and the scope statement live in `content:` on the header's
+   pseudo-elements because no template is overridden; they are decorative
+   restatements of what the FireWatch page already says in its own markup. */
+
+:root {
+  --fw-forest-950: #102c2d;
+  --fw-forest-900: #173c3b;
+  --fw-forest-700: #285e56;
+  --fw-forest-500: #638579;
+  --fw-canvas: #f5f5ef;
+  --fw-paper: #fffefa;
+  --fw-ink: #233b39;
+  --fw-muted: #5c6c65;
+  --fw-line: #dde3da;
+  --fw-field-line: #c9d1c8;
+  --fw-soft: #eef1e9;
+  --fw-terracotta: #a74d34;
+  --fw-terracotta-soft: #f7e9e2;
+  --fw-gold: #d7aa73;
+  --fw-font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* The parent paints a blue band on top of the card with this variable. */
+  --keycloak-card-top-color: transparent;
+
+  /* PatternFly 5 globals the parent reads. */
+  --pf-v5-global--FontFamily--text: var(--fw-font);
+  --pf-v5-global--FontFamily--heading: var(--fw-font);
+  --pf-v5-global--primary-color--100: var(--fw-forest-900);
+  --pf-v5-global--primary-color--200: var(--fw-forest-700);
+  --pf-v5-global--link--Color: var(--fw-terracotta);
+  --pf-v5-global--link--Color--hover: #8a3c27;
+  --pf-v5-global--Color--100: var(--fw-ink);
+  --pf-v5-global--Color--200: var(--fw-muted);
+  --pf-v5-global--BackgroundColor--100: var(--fw-paper);
+  --pf-v5-global--BorderColor--100: var(--fw-line);
+  --pf-v5-global--active-color--100: var(--fw-forest-700);
+  --pf-v5-global--danger-color--100: var(--fw-terracotta);
+}
+
+html, body, #keycloak-bg {
+  min-height: 100%;
+  margin: 0;
+  background: var(--fw-canvas);
+  color: var(--fw-ink);
+  font-family: var(--fw-font);
+}
+
+/* ── Split layout ─────────────────────────────────────────────────────────── */
+.pf-v5-c-login {
+  min-height: 100vh;
+  display: block;
+  padding: 0;
+  background: var(--fw-canvas);
+}
+.pf-v5-c-login__container {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(340px, 1.05fr) minmax(360px, 1fr);
+  grid-template-areas: "header main";
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Brand column ─────────────────────────────────────────────────────────── */
+#kc-header.pf-v5-c-login__header {
+  grid-area: header;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  margin: 0;
+  padding: 44px clamp(28px, 5vw, 72px) 36px;
+  overflow: hidden;
+  color: #d5e1db;
+  background:
+    repeating-radial-gradient(circle at 78% 92%, transparent 0 34px, rgb(255 255 255 / 2.5%) 34px 35px),
+    radial-gradient(120% 80% at 110% 115%, rgb(215 170 115 / 22%) 0%, transparent 55%),
+    radial-gradient(90% 70% at -10% -10%, rgb(99 133 121 / 35%) 0%, transparent 60%),
+    var(--fw-forest-900);
+}
+
+#kc-header-wrapper.pf-v5-c-brand {
+  order: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  margin: 0;
+  color: #f6fff9;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -.6px;
+  line-height: 1.2;
+  text-transform: none;
+}
+/* The "F" mark of the page. */
+#kc-header-wrapper::before {
+  content: "F";
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--fw-gold);
+  color: var(--fw-forest-900);
+  font-family: Georgia, serif;
+  font-size: 23px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Headline, vertically centred in the column. */
+#kc-header::after {
+  order: 1;
+  margin-block: auto;
+  max-width: 520px;
+  content: "El riesgo territorial de incendio, comuna por comuna.";
+  color: #f6fff9;
+  font-size: clamp(30px, 3.4vw, 46px);
+  font-weight: 650;
+  line-height: 1.08;
+  letter-spacing: -1.6px;
+}
+/* Scope statement, at the foot of the column. */
+#kc-header::before {
+  order: 2;
+  padding-top: 16px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+  content: "Entorno de demostración: entrada sintética, sin calibración y no oficial. No reemplaza a CONAF ni a SENAPRED.";
+  color: #9fbcb2;
+  font-size: 11px;
+  line-height: 1.6;
+}
+html[lang^="en"] #kc-header::after { content: "Territorial wildfire risk, district by district."; }
+html[lang^="en"] #kc-header::before { content: "Demonstration environment: synthetic input, uncalibrated and unofficial. It does not replace CONAF or SENAPRED."; }
+
+/* ── The card ─────────────────────────────────────────────────────────────── */
+.pf-v5-c-login__main {
+  grid-area: main;
+  align-self: center;
+  justify-self: center;
+  width: min(460px, calc(100% - 32px));
+  margin: 40px 0;
+  overflow: visible;
+  border: 1px solid var(--fw-line);
+  border-radius: 16px;
+  background: var(--fw-paper);
+  box-shadow: 0 18px 50px rgb(16 44 45 / 8%), 0 3px 14px rgb(24 52 40 / 3%);
+}
+
+/* The parent splits the header 70/30 from 768px up, which wrapped the title;
+   the title takes what the language picker leaves. */
+div.pf-v5-c-login__main-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.pf-v5-c-login__main-header {
+  align-items: center;
+  gap: 12px;
+  padding: 30px 30px 6px;
+  border-top: 0;
+}
+#kc-page-title,
+.pf-v5-c-login__main-header .pf-v5-c-title {
+  margin: 0;
+  color: var(--fw-forest-950);
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -.8px;
+}
+
+/* The language picker: a quiet pill instead of a boxed field. */
+.pf-v5-c-login__main-header-utilities { justify-self: end; }
+.pf-v5-c-login__main-header-utilities .pf-v5-c-form-control {
+  --pf-v5-c-form-control--BackgroundColor: transparent;
+  width: auto;
+  min-height: 32px;
+  border: 1px solid var(--fw-line);
+  border-radius: 999px;
+  background: var(--fw-soft);
+  font-size: 12px;
+}
+.pf-v5-c-login__main-header-utilities .pf-v5-c-form-control::before,
+.pf-v5-c-login__main-header-utilities .pf-v5-c-form-control::after {
+  border: 0;
+}
+.pf-v5-c-login__main-header-utilities select {
+  padding: 4px 26px 4px 10px;
+  color: var(--fw-muted);
+  font-size: 12px;
+}
+
+.pf-v5-c-login__main-body {
+  padding: 18px 30px 6px;
+}
+
+/* ── Fields ───────────────────────────────────────────────────────────────── */
+.pf-v5-c-form { gap: 14px; }
+
+/* Registration: first and last name share a row. */
+#kc-register-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 12px;
+}
+#kc-register-form > * { grid-column: 1 / -1; }
+#kc-register-form > .pf-v5-c-form__group:has(#firstName),
+#kc-register-form > .pf-v5-c-form__group:has(#lastName) { grid-column: auto; }
+#kc-register-form .pf-v5-c-form__label-required { margin-left: 3px; }
+.pf-v5-c-form__group-label { padding-bottom: 6px; }
+.pf-v5-c-form__label-text {
+  color: var(--fw-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+.pf-v5-c-form__label-required { color: var(--fw-terracotta); }
+
+/* One full, rounded border instead of PatternFly's underline. */
+.pf-v5-c-login__main-body .pf-v5-c-form-control {
+  --pf-v5-c-form-control--BorderRadius: 10px;
+  min-height: 44px;
+  border: 1px solid var(--fw-field-line);
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.pf-v5-c-login__main-body .pf-v5-c-form-control::before,
+.pf-v5-c-login__main-body .pf-v5-c-form-control::after {
+  border: 0;
+}
+.pf-v5-c-login__main-body .pf-v5-c-form-control:hover { border-color: var(--fw-forest-500); }
+.pf-v5-c-login__main-body .pf-v5-c-form-control:focus-within {
+  border-color: var(--fw-forest-700);
+  box-shadow: 0 0 0 3px rgb(40 94 86 / 16%);
+}
+.pf-v5-c-login__main-body .pf-v5-c-form-control > input,
+.pf-v5-c-login__main-body .pf-v5-c-form-control > select,
+.pf-v5-c-login__main-body .pf-v5-c-form-control > textarea {
+  padding: 11px 14px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fw-ink);
+  font-size: 14px;
+}
+.pf-v5-c-form-control.pf-m-error,
+.pf-v5-c-form-control:has(input[aria-invalid="true"]) {
+  border-color: var(--fw-terracotta);
+}
+
+/* Password field and its show/hide button read as one control. */
+.pf-v5-c-login__main-body .pf-v5-c-input-group {
+  overflow: hidden;
+  border: 1px solid var(--fw-field-line);
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.pf-v5-c-login__main-body .pf-v5-c-input-group:hover { border-color: var(--fw-forest-500); }
+.pf-v5-c-login__main-body .pf-v5-c-input-group:focus-within {
+  border-color: var(--fw-forest-700);
+  box-shadow: 0 0 0 3px rgb(40 94 86 / 16%);
+}
+.pf-v5-c-login__main-body .pf-v5-c-input-group .pf-v5-c-form-control,
+.pf-v5-c-login__main-body .pf-v5-c-input-group .pf-v5-c-form-control:focus-within {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.pf-v5-c-button.pf-m-control {
+  --pf-v5-c-button--after--BorderColor: transparent;
+  --pf-v5-c-button--m-control--after--BorderBottomColor: transparent;
+  min-width: 46px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fw-muted);
+}
+.pf-v5-c-button.pf-m-control::after { border: 0; }
+.pf-v5-c-button.pf-m-control:hover { color: var(--fw-forest-900); background: var(--fw-soft); }
+
+.pf-v5-c-form__helper-text:has(.pf-v5-c-helper-text:empty) { display: none; }
+.pf-v5-c-form__helper-text,
+.pf-v5-c-helper-text__item.pf-m-error,
+.pf-v5-c-helper-text__item-text {
+  color: var(--fw-terracotta);
+  font-size: 12px;
+}
+.pf-v5-c-check__label { color: var(--fw-muted); font-size: 13px; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.pf-v5-c-form__actions { margin-top: 0; }
+.pf-v5-c-button.pf-m-primary {
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--fw-forest-900);
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--fw-forest-700);
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--fw-forest-700);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--fw-forest-950);
+  --pf-v5-c-button--BorderRadius: 10px;
+  min-height: 46px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Google (and any other provider): white, light border, centred label, as on
+   the FireWatch page. The parent spreads icon and label apart with utility
+   classes that use !important, so these overrides need it as well. The footer
+   sits inside the card body, which already carries the horizontal padding. */
+#kc-social-providers ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 4px !important;
+  list-style: none;
+}
+#kc-social-providers li { padding: 0 !important; }
+#kc-social-providers .pf-v5-c-button.pf-m-secondary {
+  --pf-v5-c-button--after--BorderColor: transparent;
+  --pf-v5-c-button--m-secondary--Color: #1f1f1f;
+  --pf-v5-c-button--m-secondary--hover--Color: #1f1f1f;
+  --pf-v5-c-button--m-secondary--BackgroundColor: #fff;
+  --pf-v5-c-button--m-secondary--hover--BackgroundColor: #f7f8f5;
+  min-height: 46px;
+  justify-content: center !important;
+  gap: 10px;
+  border: 1px solid var(--fw-field-line);
+  border-radius: 10px;
+  background: #fff;
+  color: #1f1f1f;
+  font-size: 14px;
+  font-weight: 650;
+}
+#kc-social-providers .pf-v5-c-button.pf-m-secondary::after { border: 0; }
+#kc-social-providers .pf-v5-c-button.pf-m-secondary:hover { border-color: var(--fw-forest-500); background: #f7f8f5; }
+#kc-social-providers .pf-v5-c-button span { margin: 0 !important; }
+#kc-social-providers .pf-v5-c-button svg { width: 18px; height: 18px; }
+
+/* ── Footer: divider and the sign-up / sign-in switch ─────────────────────── */
+.pf-v5-c-login__main-footer {
+  display: block;
+  padding: 0 0 26px;
+  border: 0;
+  background: transparent;
+}
+.pf-v5-c-login__main-footer:empty { display: none; }
+.pf-v5-c-login__main-footer-band {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* "O inicie sesión con" becomes a rule with the words in the middle. */
+.pf-v5-c-login__main-footer-band:first-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 16px;
+  color: var(--fw-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.pf-v5-c-login__main-footer-band:first-child::before,
+.pf-v5-c-login__main-footer-band:first-child::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--fw-line);
+}
+.pf-v5-c-login__main-footer-band:first-child .pf-v5-c-login__main-footer-band-item {
+  flex: 0 1 auto;
+  color: var(--fw-muted);
+}
+
+#kc-info.pf-v5-c-login__main-footer-band {
+  /* The parent marks it `pf-v5-u-w-100` (width: 100% !important), which
+     pushed it past the card once it had a margin. */
+  width: auto !important;
+  margin: 20px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--fw-line);
+  color: var(--fw-muted);
+  font-size: 13px;
+  text-align: center;
+}
+#kc-registration a,
+#kc-info-wrapper a,
+#kc-form-options a,
+.pf-v5-c-login__main-footer-band a {
+  color: var(--fw-terracotta);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Registration: "« Volver a iniciar sesión" sits under the button. */
+#kc-form-options {
+  margin-top: 4px;
+  text-align: center;
+  font-size: 13px;
+}
+
+/* ── Focus and alerts ─────────────────────────────────────────────────────── */
+.pf-v5-c-button:focus-visible,
+a:focus-visible,
+select:focus-visible {
+  outline: 3px solid #cf7d4f;
+  outline-offset: 2px;
+}
+.pf-v5-c-alert {
+  margin: 0 0 6px;
+  border-radius: 10px;
+}
+.pf-v5-c-alert.pf-m-danger,
+.pf-v5-c-alert.pf-m-error {
+  --pf-v5-c-alert--BorderTopColor: var(--fw-terracotta);
+  background: var(--fw-terracotta-soft);
+}
+
+/* ── Narrow screens: brand on top, card below ─────────────────────────────── */
+@media (max-width: 900px) {
+  .pf-v5-c-login__container {
+    grid-template-columns: 1fr;
+    grid-template-areas: "header" "main";
+  }
+  #kc-header.pf-v5-c-login__header {
+    gap: 18px;
+    padding: 26px 16px 24px;
+  }
+  #kc-header::after {
+    margin-block: 0;
+    font-size: 26px;
+    letter-spacing: -1px;
+  }
+  .pf-v5-c-login__main {
+    align-self: start;
+    margin: 24px 0 40px;
+  }
+}
+
+@media (max-width: 420px) {
+  .pf-v5-c-login__main-header,
+  .pf-v5-c-login__main-body { padding-inline: 18px; }
+  #kc-register-form > .pf-v5-c-form__group:has(#firstName),
+  #kc-register-form > .pf-v5-c-form__group:has(#lastName) { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-v5-c-form-control, .pf-v5-c-input-group { transition: none; }
+}

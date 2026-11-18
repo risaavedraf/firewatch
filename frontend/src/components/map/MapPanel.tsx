@@ -25,6 +25,7 @@ import { useMemo } from 'react';
 
 import { PanelHeading } from '../ui';
 import { idleCopy } from '../../app/sessionCopy';
+import type { SessionState } from '../../core/session';
 import { mapProgressState, type JobProgress } from '../../domain/job-progress';
 import type { RiskLevel, ZoneCollection } from '../../types/api';
 import { buildMapLayout, countVertices, DETACHED_LONGITUDE, geometryBounds, zoneLabel, type MapFrame, type ProjectedZone } from './projection';
@@ -52,7 +53,7 @@ export interface MapPanelProps {
   // The session's rejection reason, so the idle panel can name a refused token
   // instead of the first-visit copy. The panel does not read the session store:
   // the caller hands it the fact (S2).
-  sessionReason: 'rejected' | null;
+  sessionReason: SessionState['reason'];
   // What the jobs view last observed about a batch for the selected comuna. The
   // panel does not read the store either; a `processing` batch and an absent one
   // are different facts, and only the caller can state which one holds.

@@ -588,6 +588,7 @@ class Harness:
             ports=[f"127.0.0.1:{self.identity_port}:8080"],
             mounts=[
                 (_container_path(ROOT / "deploy" / "local" / "firewatch-realm.json"), "/opt/keycloak/data/import/firewatch-realm.json"),
+                (_container_path(ROOT / "deploy" / "local" / "keycloak-themes" / "firewatch"), "/opt/keycloak/themes/firewatch"),
             ],
             command=["start-dev", "--import-realm"],
         )

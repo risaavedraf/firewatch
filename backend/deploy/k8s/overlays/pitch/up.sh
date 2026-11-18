@@ -81,6 +81,20 @@ for svc in $services; do
 	echo "  firewatch/$svc:pitch"
 done
 
+# --- login theme ----------------------------------------------------------------
+# The Keycloak login theme travels as a ConfigMap the overlay mounts (see
+# kustomization.yaml, item 5). Keycloak in production mode caches themes, so a
+# changed theme only shows after a restart: the restart happens below, and only
+# when the content actually changed, because it also ends every Keycloak session.
+say "login theme"
+theme="$backend/deploy/local/keycloak-themes/firewatch/login"
+theme_before=$(kubectl -n "$ns" get configmap keycloak-theme-firewatch -o jsonpath='{.data}' 2>/dev/null | sha256sum || true)
+kubectl -n "$ns" create configmap keycloak-theme-firewatch 	--from-file=theme.properties="$theme/theme.properties" 	--from-file=messages_es.properties="$theme/messages/messages_es.properties" 	--from-file=messages_en.properties="$theme/messages/messages_en.properties" 	--from-file=firewatch.css="$theme/resources/css/firewatch.css" 	--dry-run=client -o yaml | kubectl apply -f - >/dev/null
+theme_after=$(kubectl -n "$ns" get configmap keycloak-theme-firewatch -o jsonpath='{.data}' | sha256sum)
+theme_changed=no
+[ "$theme_before" = "$theme_after" ] || theme_changed=yes
+echo "  keycloak-theme-firewatch (changed: $theme_changed)"
+
 # --- manifests ------------------------------------------------------------------
 render() {
 	kubectl kustomize "$here" | sed \
@@ -110,6 +124,10 @@ done
 
 say "restarting the application on the freshly loaded images"
 for svc in $services; do kubectl -n "$ns" rollout restart "deployment/$svc" >/dev/null; done
+if [ "$theme_changed" = yes ]; then
+	echo "  the login theme changed: restarting keycloak so it drops its theme cache"
+	kubectl -n "$ns" rollout restart deployment/keycloak >/dev/null
+fi
 for r in $(kubectl -n "$ns" get deployment -o name); do
 	kubectl -n "$ns" rollout status "$r" --timeout=600s
 done

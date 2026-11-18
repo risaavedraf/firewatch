@@ -10,7 +10,7 @@
 // the only authority. The single value written to `sessionStorage` is the PKCE
 // transaction (`state` + `code_verifier`), which is only useful for the length
 // of the redirect and is removed at the callback and again on logout.
-import { clientID, issuer, pkceTransactionKey, redirectURI } from '../config';
+import { clientID, googleIdentityProvider, issuer, pkceTransactionKey, redirectURI } from '../config';
 
 export interface SessionState {
   status: 'signed-out' | 'signing-in' | 'signed-in';
@@ -21,9 +21,22 @@ export interface SessionState {
   // transport sent a non-empty bearer and the gateway answered 401, so the
   // token existed and the server refused it. It is `null` for a first visit,
   // for a logout and for a 401 answered to a request that carried no token:
-  // those are not a rejected token. The transport is the only writer.
-  reason: 'rejected' | null;
+  // those are not a rejected token. The transport is the only writer of it.
+  //
+  // `'login-failed'` means a return from the identity provider could not be
+  // turned into a session: the provider refused or cancelled the round trip, the
+  // returned state did not match, or the code exchange failed. The callback is
+  // the only writer of it, so the sign-in screen can say the attempt did not
+  // complete instead of silently showing the first-visit text again.
+  reason: 'rejected' | 'login-failed' | null;
 }
+
+// Which Keycloak page the round trip opens. Both are the same Authorization Code
+// + PKCE flow against the same client and return to the same callback: the
+// registration endpoint only shows Keycloak's sign-up form first, and a new
+// account comes back with a code exactly like a sign-in does. The page never
+// sees a password or a registration form field in either case.
+export type AuthorizationIntent = 'login' | 'register';
 
 let accessToken = '';
 let idToken = '';
@@ -208,10 +221,43 @@ function parseTransaction(stored: string | null): { state: string; verifier: str
 
 export function startLogin(): void {
   publish({ status: 'signing-in', roles: null, reason: null });
-  void beginAuthorizationCodeFlow();
+  void beginAuthorizationCodeFlow('login');
 }
 
-async function beginAuthorizationCodeFlow(): Promise<void> {
+// Opens Keycloak's own sign-up form. Registration is a realm setting
+// (`registrationAllowed`), not something the page can grant: on a realm that
+// does not allow it Keycloak answers with its own error page, and the account
+// that comes back is whatever the realm makes of it, roles included.
+export function startRegistration(): void {
+  publish({ status: 'signing-in', roles: null, reason: null });
+  void beginAuthorizationCodeFlow('register');
+}
+
+// Sign-in or sign-up with Google, brokered by Keycloak. It is the ordinary
+// sign-in round trip with `kc_idp_hint`, which makes Keycloak hand the browser to
+// Google straight away. On a first visit Keycloak creates the account from the
+// Google profile (with the realm's default roles), so the same button serves both
+// tabs. The page still only ever receives a Keycloak code: never a Google token.
+export function startGoogleLogin(): void {
+  publish({ status: 'signing-in', roles: null, reason: null });
+  void beginAuthorizationCodeFlow('login', googleIdentityProvider);
+}
+
+// The Keycloak account console, where an operator changes their own password,
+// name or e-mail. It is a link to the identity provider, never a form here.
+export function accountConsoleURL(): string {
+  return `${issuer}/account`;
+}
+
+function authorizationEndpoint(intent: AuthorizationIntent): string {
+  // `/registrations` is Keycloak's sign-up entry point for the OIDC protocol: it
+  // takes the same parameters as `/auth` and lands on the registration form.
+  return intent === 'register'
+    ? `${issuer}/protocol/openid-connect/registrations`
+    : `${issuer}/protocol/openid-connect/auth`;
+}
+
+async function beginAuthorizationCodeFlow(intent: AuthorizationIntent, identityProvider?: string): Promise<void> {
   try {
     const state = randomBase64URL(32);
     const verifier = randomBase64URL(32);
@@ -219,7 +265,7 @@ async function beginAuthorizationCodeFlow(): Promise<void> {
     const challenge = encodeBase64URL(new Uint8Array(digest));
     // Written once, read and removed at the callback.
     sessionStorage.setItem(pkceTransactionKey, JSON.stringify({ state, verifier }));
-    const authorization = new URL(`${issuer}/protocol/openid-connect/auth`);
+    const authorization = new URL(authorizationEndpoint(intent));
     authorization.search = new URLSearchParams({
       client_id: clientID,
       redirect_uri: redirectURI,
@@ -228,6 +274,10 @@ async function beginAuthorizationCodeFlow(): Promise<void> {
       state,
       code_challenge: challenge,
       code_challenge_method: 'S256',
+      // Keycloak's pages follow the page's language. The realm must list `es`
+      // as a supported locale for this to apply; otherwise it is ignored.
+      ui_locales: 'es',
+      ...(identityProvider ? { kc_idp_hint: identityProvider } : {}),
     }).toString();
     window.location.assign(authorization.href);
   } catch {
@@ -247,6 +297,10 @@ export async function completeLogin(search: string): Promise<void> {
   const code = callback.get('code') ?? '';
   const returnedState = callback.get('state') ?? '';
   const oauthError = callback.get('error') ?? '';
+  // The exchange is a network round trip: until it settles the page is neither
+  // signed out nor signed in, and the sign-in screen says so instead of offering
+  // a control that would restart the flow underneath it.
+  publish({ status: 'signing-in', roles: null, reason: null });
   try {
     const stored = sessionStorage.getItem(pkceTransactionKey);
     sessionStorage.removeItem(pkceTransactionKey);
@@ -275,7 +329,7 @@ export async function completeLogin(search: string): Promise<void> {
     const returnedIDToken = record(tokenResponse) && typeof tokenResponse.id_token === 'string' ? tokenResponse.id_token : '';
     connectSession(token, returnedIDToken);
   } catch (error) {
-    resetSession();
+    resetSession('login-failed');
     throw error instanceof Error ? error : new Error('login_failed');
   } finally {
     // The callback query is consumed on every path: success, refusal and
@@ -330,10 +384,10 @@ export function signOut(): void {
 }
 
 // Closes the session. `reason` is `'rejected'` only when the caller is the
-// transport reporting a 401 for a non-empty bearer it actually sent (S3); a
-// logout, a failed login and a tokenless 401 pass `null` and say nothing about
-// a token the server never saw.
-export function resetSession(reason: 'rejected' | null = null): void {
+// transport reporting a 401 for a non-empty bearer it actually sent (S3), and
+// `'login-failed'` only when the callback could not complete; a logout and a
+// tokenless 401 pass `null` and say nothing about a token the server never saw.
+export function resetSession(reason: SessionState['reason'] = null): void {
   accessToken = '';
   idToken = '';
   publish({ status: 'signed-out', roles: null, reason });

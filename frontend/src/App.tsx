@@ -1,10 +1,12 @@
 import { useEffect, type ReactElement } from 'react';
 
+import { useSessionState } from './app/store';
 import { useHashRoute } from './app/useHashRoute';
 import { Shell } from './components/Shell';
 import type { ViewId } from './app/routes';
 import { ActionsView } from './views/ActionsView';
 import { AuditView } from './views/AuditView';
+import { AuthView } from './views/AuthView';
 import { HistoryView } from './views/HistoryView';
 import { JobsView } from './views/JobsView';
 import { OverviewView } from './views/OverviewView';
@@ -23,7 +25,22 @@ const views: Record<ViewId, () => ReactElement> = {
   audit: AuditView,
 };
 
+// Every route the workspace reads needs a bearer, so without a session the
+// workspace has nothing true to show. The sign-in screen stands in for it until
+// the session is established, and comes back the moment it ends — a logout, a
+// refused callback or a 401 for the token the page held.
+//
+// This is a presentation gate, not an authorization boundary: it asks only
+// whether there is a token, never which role it declares. The server still
+// decides every permission.
 export function App() {
+  const session = useSessionState();
+  return session.status === 'signed-in' ? <Workspace /> : <AuthView />;
+}
+
+// The router lives below the gate on purpose: while the sign-in screen is shown no
+// workspace route is resolved, so its `#registro` hash is not normalised away.
+function Workspace() {
   const route = useHashRoute();
 
   useEffect(() => {

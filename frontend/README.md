@@ -13,6 +13,7 @@ single-file, framework-free page; the reasons and the parity obligations are rec
 | `src/config.ts` | The two external origins, the identity provider, the consumed routes and the timing bounds |
 | `src/types/api.ts` | Declared payload shapes. Declarations, not guarantees: consumers validate at the boundary |
 | `src/app/routes.ts` | The eight views and their four navigation groups |
+| `src/views/AuthView.tsx` | The sign-in and sign-up screen shown instead of the workspace while there is no session. Both buttons open Keycloak; the page renders no credential field |
 | `src/app/useHashRoute.ts` | Hash routing: reads the view from the address bar, follows back/forward, normalises an unknown hash |
 | `src/components/Shell.tsx` | Sidebar, topbar, update bar and footer |
 | `src/components/ui.tsx` | Presentation primitives: `Icon`, `Chip`, `Metric`, `PanelHeading`, `DataList`, `StatusCopy`, `EmptyState`, the "not implemented" markers |
@@ -21,7 +22,7 @@ single-file, framework-free page; the reasons and the parity obligations are rec
 | `src/core/session.ts` | OIDC PKCE, the in-memory token, the unverified role claim, logout |
 | `src/domain/` | Pure rules: validity, level mapping, fail-closed batch and provenance acceptance, readiness, history filters |
 | `src/views/` | The eight views |
-| `src/styles/` | `tokens.css` (palette, level colours, type) and `app.css` (layout, components, responsive) |
+| `src/styles/` | `tokens.css` (palette, level colours, type), `app.css` (layout, components, responsive) and `auth.css` (the sign-in screen) |
 | `scripts/serve.mjs` | Static server for the build output: explicit allowlist, CSP, no directory listing, no SPA fallback |
 | `scripts/smoke.mjs` | Loopback check of that server against the build |
 | `scripts/check.mjs` | Source gate: requires the honesty statement, forbids invented data, requires the real endpoints |
@@ -66,6 +67,15 @@ has none — and all three are registered in services this repository does not o
 
 `WEB_ORIGIN` on the gateway must be exactly `http://localhost:4173`, or the browser's
 cross-origin calls are refused. `backend/docker-compose.yml` already sets it.
+
+Without a session the page shows only the sign-in screen (`src/views/AuthView.tsx`): every
+workspace route needs a bearer, so there is nothing true to show before one exists. It offers two
+Keycloak round trips — **Iniciar sesión** (`/protocol/openid-connect/auth`) and **Crear cuenta**
+(`/protocol/openid-connect/registrations`) — and `#registro` opens the second tab directly. Both
+pages are Keycloak's own, styled by the `firewatch` login theme; registration must be enabled in
+the realm, see [`backend/docs/keycloak-realm-setup.md`](../backend/docs/keycloak-realm-setup.md#self-registration-and-the-firewatch-login-theme).
+The screen is a presentation gate, not an authorization boundary: it asks whether a token exists,
+never which role it declares.
 
 Login uses the public `firewatch-demo` client with Authorization Code and PKCE `S256`. Access
 and ID tokens live in page memory only and are never written to cookies or to `localStorage`.

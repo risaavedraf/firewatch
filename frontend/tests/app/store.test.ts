@@ -174,13 +174,15 @@ test('the batch progress is shared with the map and dropped with the zone state'
 test('ending a real session clears the selection, the colours and the filters', async () => {
   const unbind = bindZoneStateToSession();
 
+  // The private view is filled during the session: the callback passes through
+  // `signing-in`, which is not a session and empties the view on its own.
+  await signIn();
+  expect(getSessionSnapshot().status).toBe('signed-in');
+
   selectZone('05109');
   rememberZoneLevel('05109', 'alto');
   setHistoryQuery('05501');
   setHistoryStatus('publicado');
-
-  await signIn();
-  expect(getSessionSnapshot().status).toBe('signed-in');
   expect(getSelectedZone()).toBe('05109');
 
   // A logout, a 401 or a refused callback all end the session the same way: the

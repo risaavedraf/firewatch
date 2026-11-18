@@ -6,6 +6,7 @@ import { bindZoneStateToSession } from './app/store';
 import { resetInterruptedLogin, resumePendingLogin } from './core/session';
 import './styles/tokens.css';
 import './styles/app.css';
+import './styles/auth.css';
 
 // A return from the identity provider is an ordinary page load whose query carries
 // the callback. Consuming it is the whole round trip: without this call the code
