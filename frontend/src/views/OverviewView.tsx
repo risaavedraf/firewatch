@@ -31,6 +31,7 @@ import {
   useSelectedZone,
   useSessionState,
   useZoneLevels,
+  useJobProgress,
 } from '../app/store';
 import { idleCopy } from '../app/sessionCopy';
 import { MapPanel, type MapLoadState, type ZoneLevelLookup } from '../components/map/MapPanel';
@@ -227,6 +228,9 @@ export function OverviewView() {
   const session = useSessionState();
   const selectedZone = useSelectedZone();
   const levels = useZoneLevels();
+  // The batch fact the jobs view publishes. The map reads it through this view so
+  // a comuna waiting for its batch is not described as a comuna without data.
+  const jobProgress = useJobProgress();
   const signedIn = session.status === 'signed-in';
 
   const [catalogue, setCatalogue] = useState<CatalogueState | null>(null);
@@ -569,6 +573,7 @@ export function OverviewView() {
           zoneLevels={zoneLevelLookup}
           onSelect={selectZone}
           sessionReason={session.reason}
+          jobProgress={jobProgress}
         />
 
         <article className="panel risk-panel">

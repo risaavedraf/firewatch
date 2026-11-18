@@ -206,6 +206,10 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .map-summary { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin: 0; }
 .map-summary strong { font-size: 10px; }
 .map-summary span { color: var(--muted); font-size: 9px; }
+/* The map's batch-progress line. It carries the one fact the neutral fill used to
+   conflate with "no data", so it keeps the readable ink colour instead of the
+   muted note one. It is a live region: the state is announced, not only painted. */
+.map-job-progress { margin: 10px 0 0; color: var(--ink); font-size: 9px; line-height: 1.6; }
 .map-stage { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 10px; margin-top: 12px; }
 .map-viewport { position: relative; min-height: 298px; overflow: hidden; border: 1px solid #d4dfd0; border-radius: 9px; background: #eef2e8; }
 .map-svg { display: block; width: 100%; height: auto; min-height: 298px; }

@@ -9,7 +9,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import { gatewayOrigin, issuer, pkceTransactionKey, routes } from '../../src/config';
-import { clearZoneState, getSelectedZone, getSelectedZoneLabel, getZoneLevels } from '../../src/app/store';
+import { clearZoneState, getSelectedZone, getSelectedZoneLabel, getZoneLevels, reportJobProgress } from '../../src/app/store';
 import { completeLogin, getSessionSnapshot, resetSession } from '../../src/core/session';
 import type { RiskBatch, ZoneCollection, ZoneFeature } from '../../src/types/api';
 import { OverviewView } from '../../src/views/OverviewView';
@@ -882,4 +882,50 @@ test('separates the registry version from the batch version and states when an a
   expect(note).not.toMatch(/fija su versión con MODEL_ID al arrancar, así que/i);
   expect(note).not.toMatch(/no el clasificador que está en uso/i);
   expect(note).not.toMatch(/recrear el servicio/i);
+});
+
+// Issue #96 — the map had one vocabulary for "no level yet", so a batch the
+// operator had just requested was presented as a comuna without information. The
+// jobs view now publishes the progress through the shared store and the map states
+// it, which is the difference between «procesando» and «sin información».
+test('the map announces a batch in process instead of treating it as missing information', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  // Nothing published yet: the batch the operator asked for is still being built.
+  await serveZone('05101', null, 404);
+
+  act(() => {
+    reportJobProgress('processing', '05101');
+  });
+  await settle();
+
+  const progress = document.getElementById('map-job-progress');
+  expect(progress).not.toBeNull();
+  expect(progress).toHaveAttribute('role', 'status');
+  expect(progress).toHaveAttribute('aria-live', 'polite');
+  expect(progress).toHaveTextContent(/proceso/i);
+  expect(progress).not.toHaveTextContent(/INFORMACIÓN INSUFICIENTE/i);
+
+  // The risk panel still reports the absence it actually observed; what changed is
+  // that the map no longer presents the pending batch as a missing assessment.
+  expect(textOf('risk-level')).toBe('Sin lote publicado');
+  expect(textOf('risk-level')).not.toMatch(/INFORMACIÓN INSUFICIENTE/i);
+});
+
+test('the map stops claiming a batch in process once the jobs view reports none', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', null, 404);
+
+  act(() => {
+    reportJobProgress('processing', '05101');
+  });
+  await settle();
+  expect(document.getElementById('map-job-progress')).not.toBeNull();
+
+  act(() => {
+    reportJobProgress('idle', '');
+  });
+  await settle();
+  expect(document.getElementById('map-job-progress')).toBeNull();
 });

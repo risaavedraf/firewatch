@@ -1,6 +1,6 @@
 import { act, fireEvent, render } from '@testing-library/react';
 
-import { clearZoneState, selectZone } from '../../src/app/store';
+import { clearZoneState, getJobProgress, selectZone } from '../../src/app/store';
 import { gatewayOrigin, issuer, pkceTransactionKey, timing } from '../../src/config';
 import { completeLogin, resetSession } from '../../src/core/session';
 import { JobsView } from '../../src/views/JobsView';
@@ -45,6 +45,20 @@ const CATALOGUE = [
   { id: 'mild', description: 'Perfil suave' },
   { id: 'dry-windy', description: 'Seco y ventoso' },
 ];
+
+// The exact body `POST /v1/jobs` serves with its 202: the `repository.Job`
+// projection, where `batch_id` is a `*string` and is therefore serialized as
+// JSON `null` while the job is still queued. Quoting the wire here is the point
+// of the test — a payload this view has never actually seen cannot prove that a
+// real acceptance is read as one.
+const ACCEPTED_JOB = {
+  id: 'job',
+  zone_id: '05101',
+  state: 'queued',
+  batch_id: null,
+  requested_at: '2026-01-01T00:00:00Z',
+  attempts: 0,
+};
 
 let fetchStub: ReturnType<typeof createFetchStub>;
 let keyCounter = 0;
@@ -337,8 +351,98 @@ test('a create or poll answer for a superseded zone is discarded', async () => {
   expect(element('job-id')).not.toHaveTextContent('job');
 });
 
-test('a 403 reads as a permission denial, not as a missing service', async () => {
+test('an accepted batch is reported as accepted and in progress, without the raw status code', async () => {
   await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('create-job'));
+  await flush();
+  await answer(JOBS_URL, ACCEPTED_JOB, 202);
+
+  const status = element('job-status');
+  // 202 with the job body is an ACCEPTANCE: the page must not read it as a
+  // failure and must not show the HTTP status to an operator.
+  expect(status).not.toHaveTextContent('202');
+  expect(status).not.toHaveTextContent(/No se pudo/);
+  expect(status).toHaveTextContent(/aceptad/i);
+  expect(status).toHaveTextContent(/proces/i);
+  // The acceptance is announced, not only repainted: `#job-status` is the
+  // panel's live region.
+  expect(status).toHaveAttribute('role', 'status');
+  expect(status).toHaveAttribute('aria-live', 'polite');
+});
+
+test('a genuine failure still names what failed', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('create-job'));
+  await flush();
+  await answer(JOBS_URL, { code: 'storage_unavailable' }, 503);
+
+  // Keeping the acceptance copy must not soften a real failure: the operator
+  // still learns which action failed and what the server answered.
+  expect(element('job-status')).toHaveTextContent(/No se pudo solicitar el trabajo/);
+  expect(element('job-status')).toHaveTextContent(/503/);
+});
+
+test('the batch in progress is shared with the map and dropped once it is published', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  expect(getJobProgress()).toEqual({ kind: 'idle', zone: '' });
+
+  fireEvent.click(element('create-job'));
+  await flush();
+  // The request alone is progress. Without this the map can only see "no level"
+  // while the batch it was asked for is being built (issue #96).
+  expect(getJobProgress()).toEqual({ kind: 'processing', zone: '05101' });
+
+  await answer(JOBS_URL, ACCEPTED_JOB, 202);
+  expect(getJobProgress()).toEqual({ kind: 'processing', zone: '05101' });
+
+  await answer(JOB_URL, { ...ACCEPTED_JOB, state: 'published', batch_id: 'batch' });
+  await answer(latestUrl('05101'), batch('05101', 'batch', 'job'));
+  await answer(historyUrl('05101'), [batch('05101', 'batch', 'job')]);
+
+  // Publication is a fact, not a pending state: the map stops claiming progress
+  // and its level comes from the batch reads it already makes.
+  expect(element('job-status')).toHaveTextContent(/verificado/);
+  expect(getJobProgress()).toEqual({ kind: 'idle', zone: '' });
+});
+
+test('a failed request is shared as a failure, not as a batch in process', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('create-job'));
+  await flush();
+  await answer(JOBS_URL, { code: 'storage_unavailable' }, 503);
+
+  expect(getJobProgress()).toEqual({ kind: 'failed', zone: '05101' });
+});
+
+test('a 202 without a usable job body is a failure, never a silent acceptance', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('create-job'));
+  await flush();
+  await answer(JOBS_URL, { code: 'accepted_without_job' }, 202);
+
+  // The acceptance is keyed on a readable job, not on the status alone: a 202
+  // the page cannot use leaves it unable to say a batch is in progress.
+  expect(element('job-status')).toHaveTextContent(/No se pudo solicitar el trabajo/);
+  expect(element('job-status')).not.toHaveTextContent(/aceptad/i);
+  expect(element('job-status')).not.toHaveTextContent(/proces/i);
+});
+
+test('a 403 reads as a permission denial, not as a missing service', async () => {  await connect();
   await mount();
   await serveCatalogue();
 

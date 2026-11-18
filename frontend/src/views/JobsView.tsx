@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { idleCopy } from '../app/sessionCopy';
-import { getSelectedZone, subscribeZoneState, useSelectedZone, useSessionState } from '../app/store';
+import {
+  getJobProgress,
+  getSelectedZone,
+  reportJobProgress,
+  subscribeZoneState,
+  useSelectedZone,
+  useSessionState,
+} from '../app/store';
 import { StatusCopy, UnimplementedNote } from '../components/ui';
 import { timing } from '../config';
 import { createJob, history, job as readJob, latest, scenarios } from '../core/api';
 import type { Failure } from '../core/api';
 import { getAccessToken, getSessionSnapshot, subscribeSession } from '../core/session';
 import { expectedBatchInHistory, matchesBatch, presentBatch } from '../domain';
+import type { JobProgressKind } from '../domain/job-progress';
 import type { Job, Scenario } from '../types/api';
 
 // The processing view: request one synthetic batch for the selected zone, then
@@ -36,6 +44,15 @@ import type { Job, Scenario } from '../types/api';
 // answer from another zone impossible to display.
 
 const NO_JOB_STATUS = 'Sin trabajo para la zona seleccionada.';
+// A 202 is an ACCEPTANCE. `POST /v1/jobs` answers it with the stored job while its
+// `batch_id` is still null, and that job is processed asynchronously: the page
+// states the acceptance and the progress, never the HTTP status and never the
+// bare `queued` token as the whole sentence.
+const ACCEPTED_STATUS = 'Trabajo aceptado · el lote se está procesando; el servidor decide cuándo lo publica.';
+const ACCEPTED_POLLING_STATUS = 'Trabajo aceptado · el lote se está procesando; consultando su estado…';
+const POLLING_STATUS = 'Consultando estado del trabajo…';
+const SERVER_FAILED_STATUS =
+  'El servidor informó que el trabajo falló; solicita un lote nuevo para reintentar.';
 const DEFAULT_SCENARIO_NOTE =
   'El escenario se elige en esta página. El servidor asigna su instante de evaluación en UTC, una sola vez por trabajo; son perfiles de prueba, no condiciones observadas.';
 const CATALOGUE_REJECTED =
@@ -76,8 +93,28 @@ function failureCopy(failure: Failure, action: string): string | null {
   return `No se pudo ${action} (HTTP ${status}).`;
 }
 
+// What the map is told about the batch this job stands for. `queued` is a batch
+// being produced, a server-reported `failed` is a failed request, and
+// `published` — or a state this view does not know — stops claiming progress
+// instead of guessing one.
+function jobProgressKind(state: string): JobProgressKind {
+  if (state === 'queued') return 'processing';
+  if (state === 'failed') return 'failed';
+  return 'idle';
+}
+
 function scenarioLabel(scenario: Scenario): string {
   return scenario.description === '' ? scenario.id : `${scenario.id} — ${scenario.description}`;
+}
+
+// The sentence for a job the server has not published yet. `queued` is what the
+// acceptance always answers, so it carries the acceptance copy; a state this view
+// does not know is shown as the server spelled it rather than translated into a
+// guess, and a server-reported failure is named as a failure.
+function jobStateCopy(state: string, scenario: string): string {
+  if (state === 'queued') return `${ACCEPTED_STATUS}${scenario}`;
+  if (state === 'failed') return `${SERVER_FAILED_STATUS}${scenario}`;
+  return `Trabajo ${state}${scenario}; el servidor controla su procesamiento.`;
 }
 
 export function JobsView() {
@@ -129,12 +166,16 @@ export function JobsView() {
     currentJobIdRef.current = '';
   }, []);
 
-  // Unmount is a hard stop: no poll may outlive the view.
+  // Unmount is a hard stop: no poll may outlive the view. The map must not keep
+  // claiming progress nobody is watching, so a batch still being produced becomes
+  // an unconfirmed publication instead of an eternal "en proceso".
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       fenceJob(true);
+      const current = getJobProgress();
+      if (current.kind === 'processing') reportJobProgress('unconfirmed', current.zone);
     };
   }, [fenceJob]);
 
@@ -150,6 +191,9 @@ export function JobsView() {
         lastZoneRef.current = zone;
         fenceJob(false);
         setJob(null);
+        // The progress belonged to the previous zone's job: nothing is being
+        // produced for the new selection.
+        reportJobProgress('idle', '');
       }),
     [fenceJob],
   );
@@ -169,6 +213,7 @@ export function JobsView() {
         setScenarioId('');
         setScenarioNote(DEFAULT_SCENARIO_NOTE);
         setRequesting(false);
+        reportJobProgress('idle', '');
       }),
     [fenceJob],
   );
@@ -234,22 +279,30 @@ export function JobsView() {
       }
       attemptsRef.current = 0;
       patchJob({ status: DEADLINE_EXPIRED });
+      reportJobProgress('unconfirmed', zone);
     }, timing.pollDeadlineMs);
   }
 
-  function applyFailure(failure: Failure, action: string): void {
+  function applyFailure(failure: Failure, action: string, zone: string): void {
     const copy = failureCopy(failure, action);
-    if (copy !== null) patchJob({ status: copy });
+    if (copy === null) return;
+    patchJob({ status: copy });
+    reportJobProgress('failed', zone);
   }
 
   function renderJob(fetched: Job): void {
     currentJobIdRef.current = fetched.id;
     const scenario = typeof fetched.scenario_id === 'string' && fetched.scenario_id !== '' ? ` · escenario ${fetched.scenario_id}` : '';
+    // The map is told which batch is being produced, not only what this panel
+    // says: that is what keeps "todavía se está procesando" from reading as "no
+    // hay datos" on the other view.
+    const progress = jobProgressKind(fetched.state);
+    reportJobProgress(progress, progress === 'idle' ? '' : fetched.zone_id);
     patchJob({
       status:
         fetched.state === 'published' && typeof fetched.batch_id === 'string' && fetched.batch_id !== ''
           ? `Trabajo publicado · lote ${fetched.batch_id}${scenario}`
-          : `Trabajo ${fetched.state}${scenario}; el servidor controla su procesamiento.`,
+          : jobStateCopy(fetched.state, scenario),
       state: fetched.state,
       id: fetched.id,
       requested:
@@ -276,18 +329,28 @@ export function JobsView() {
     const zone = zoneRef.current;
     if (deadlineRef.current === null) armDeadline(sequence, zone);
     const attempt = (attemptsRef.current += 1);
-    patchJob({ status: 'Consultando estado del trabajo…' });
+    // A cycle that has not read a published batch is still the acceptance in
+    // progress, so the confirmation stays on screen instead of flipping to a
+    // bare poll; a published job being re-read is not "in process" and says so.
+    setJob(previous =>
+      previous === null
+        ? previous
+        : { ...previous, status: previous.state === 'published' ? POLLING_STATUS : ACCEPTED_POLLING_STATUS },
+    );
     const outcome = await readJob(id, controller.signal);
     if (!ownsJob(sequence, zone) || attempt !== attemptsRef.current) return;
     if (!outcome.ok) {
       stopDeadline();
-      applyFailure(outcome.failure, 'consultar el trabajo');
+      applyFailure(outcome.failure, 'consultar el trabajo', zone);
       return;
     }
     const fetched = outcome.data;
     if (fetched.id !== id || fetched.zone_id !== zone) {
       stopDeadline();
       patchJob({ status: OTHER_JOB });
+      // The answer belongs to another job: this page cannot state anything about
+      // the batch it requested, so the map stops claiming a confirmed progress.
+      reportJobProgress('unconfirmed', zone);
       return;
     }
     await followJob(fetched, sequence, zone);
@@ -313,12 +376,16 @@ export function JobsView() {
       if (confirmed) {
         stopDeadline();
         patchJob({ status: `Trabajo publicado · lote ${fetched.batch_id} verificado en último lote e historial.` });
+        // Published: nothing is being produced any more, so the map stops saying
+        // that it is.
+        reportJobProgress('idle', '');
         return;
       }
     }
     if (attemptsRef.current >= timing.maxPollAttempts) {
       stopDeadline();
       patchJob({ status: POLL_EXHAUSTED });
+      reportJobProgress('unconfirmed', zone);
       return;
     }
     timerRef.current = setTimeout(() => {
@@ -335,6 +402,9 @@ export function JobsView() {
     const scenario = scenarioId;
     fenceJob(true);
     const sequence = sequenceRef.current;
+    // The map learns that a batch is being produced from this request, before the
+    // server has answered: a request in flight is progress, not an absence.
+    reportJobProgress('processing', zone);
     setJob({ status: 'Solicitando trabajo a la API…', state: 'Sin solicitud', id: '—', requested: '—', known: false });
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -356,13 +426,14 @@ export function JobsView() {
         if (!ownsJob(sequence, zone)) return;
         if (!outcome.ok) {
           stopDeadline();
-          applyFailure(outcome.failure, 'solicitar el trabajo');
+          applyFailure(outcome.failure, 'solicitar el trabajo', zone);
           return;
         }
         const created = outcome.data;
         if (created.zone_id !== zone || created.id === '') {
           stopDeadline();
           patchJob({ status: OTHER_JOB });
+          reportJobProgress('failed', zone);
           return;
         }
         if (created.state === 'published') await followJob(created, sequence, zone);
