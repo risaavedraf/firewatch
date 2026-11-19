@@ -129,3 +129,6 @@ jobs:
       # above and stops there, because this file does not exist yet.
       - name: Offline CD contract
         run: sh backend/deploy/k8s/tests/pitch-cd-contract.sh
+
+      - name: Offline Pages CD contract
+        run: sh backend/deploy/k8s/tests/pitch-pages-contract.sh

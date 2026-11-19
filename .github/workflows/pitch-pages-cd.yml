@@ -1,0 +1,179 @@
+# Pitch Pages CD: publish the frontend of the SHA the pitch VM just deployed.
+#
+# DORMANT BY DEFAULT. The repository variable PITCH_PAGES_CD_ENABLE opts in; with it
+# unset every run is skipped and nothing reaches Cloudflare.
+#
+# Why a workflow of its own: `pitch-vm-cd.yml` deploys the VM and nothing else, and
+# its contract (backend/deploy/k8s/tests/pitch-cd-contract.sh) keeps Pages out of it
+# on purpose. This one follows it instead of joining it, so the VM deploy stays
+# exactly as reviewed and the Cloudflare token never shares a job with the SSH key.
+#
+# Two paths, one rule: publish exactly one SHA, and only one that is still main's tip
+# with a green aggregate.
+#   - Automatic: when a run of "Pitch VM CD" completes **successfully** for main in
+#     this repository, publish that run's head SHA. A skipped VM run (the VM CD is
+#     dormant) or a failed one publishes nothing, so the page never moves ahead of
+#     the API it talks to.
+#   - Manual: workflow_dispatch on main publishes the run's own SHA, for a
+#     frontend-only republish (for example after changing a build variable).
+#
+# The gate is the VM CD's own, reused rather than copied: `gate.sh fresh` refuses if
+# main has moved past the SHA, and `gate.sh wait` requires exactly one successful run
+# of `pitch-main-ci.yml` for it. A newer main means a newer VM run, which triggers a
+# newer publish; this one deploys nothing and says so.
+#
+# It does not: run on a PR, roll back, touch the VM, or read the SSH key. After the
+# upload it checks that the production URL serves the index.html this run built.
+name: Pitch Pages CD
+
+on:
+  # A completed VM deploy. `workflow_run` runs the workflow file from the default
+  # branch, and the `if` below accepts only a successful main run of this repository.
+  workflow_run:
+    workflows: [Pitch VM CD]
+    types: [completed]
+  # The manual path. No inputs, on purpose: it publishes the SHA the run was made for.
+  workflow_dispatch:
+
+# Read-only floor; the job restates it and adds actions: read for the gate.
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish that SHA to Cloudflare Pages
+    if: >-
+      github.repository == 'risaavedraf/firewatch-dev' &&
+      github.server_url == 'https://github.com' &&
+      vars.PITCH_PAGES_CD_ENABLE == 'true' &&
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == 'risaavedraf/firewatch-dev'))
+    runs-on: ubuntu-24.04
+    # npm ci, a Vite build and one upload: minutes at most.
+    timeout-minutes: 20
+    # Its own environment: the Cloudflare token lives here, apart from the VM's
+    # SSH key in `pitch-cd`.
+    environment:
+      name: pitch-pages
+    # One publish at a time; a publish in progress is never cancelled.
+    concurrency:
+      group: pitch-pages-cd
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+    env:
+      CD_API_URL: ${{ github.api_url }}
+      # Pinned canonical identity, as in the VM CD.
+      CD_REPOSITORY: risaavedraf/firewatch-dev
+      # The VM run's head SHA on the automatic path, the run's own SHA otherwise.
+      CD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      CD_WORKFLOW_PATH: .github/workflows/pitch-main-ci.yml
+      PITCH_PAGES_PROJECT: ${{ vars.PITCH_PAGES_PROJECT }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      # Public build values: Vite inlines every VITE_* into the bundle, so none of
+      # these may ever be a credential.
+      VITE_GATEWAY_ORIGIN: ${{ vars.PITCH_PAGES_GATEWAY_ORIGIN }}
+      VITE_ISSUER: ${{ vars.PITCH_PAGES_ISSUER }}
+      VITE_REDIRECT_URI: ${{ vars.PITCH_PAGES_REDIRECT_URI }}
+      VITE_GOOGLE_LOGIN: ${{ vars.PITCH_PAGES_GOOGLE_LOGIN }}
+    steps:
+      - name: Refuse to run without the operator's configuration
+        env:
+          HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for name in PITCH_PAGES_PROJECT CLOUDFLARE_ACCOUNT_ID VITE_GATEWAY_ORIGIN \
+                      VITE_ISSUER VITE_REDIRECT_URI; do
+            [ -n "${!name:-}" ] || missing="$missing $name"
+          done
+          [ "$HAS_TOKEN" = "true" ] || missing="$missing CLOUDFLARE_API_TOKEN(secret)"
+          if [ -n "$missing" ]; then
+            echo "::error::missing configuration:$missing." \
+              "backend/deploy/k8s/overlays/pitch/CD.md (Frontend en Cloudflare Pages) lists" \
+              "where each value comes from. Nothing was published."
+            exit 1
+          fi
+          echo "configured: project=$PITCH_PAGES_PROJECT sha=$CD_SHA google=${VITE_GOOGLE_LOGIN:-false}"
+
+      - name: Check out the SHA to publish
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.CD_SHA }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: The SHA must still be main's tip with a green aggregate
+        env:
+          CD_TOKEN: ${{ github.token }}
+          CD_MAX_SECONDS: '600'
+          CD_POLL_SECONDS: '15'
+        run: |
+          set -euo pipefail
+          sh backend/deploy/k8s/overlays/pitch/cd/gate.sh fresh
+          sh backend/deploy/k8s/overlays/pitch/cd/gate.sh wait
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+
+      - name: Build the Pages bundle
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci
+          # `build` refuses a missing origin and `pages-headers.mjs` writes the CSP for
+          # these origins into dist/_headers.
+          npm run build:pages
+          test -f dist/index.html
+          test -f dist/_headers
+
+      - name: Upload to Cloudflare Pages
+        working-directory: frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          # An exact wrangler version, so the upload tool cannot change under a run.
+          npx --yes wrangler@4.157.0 pages deploy dist \
+            --project-name "$PITCH_PAGES_PROJECT" \
+            --branch main \
+            --commit-hash "$CD_SHA" \
+            --commit-message "pitch-pages-cd $CD_SHA" \
+            --commit-dirty=false
+
+      - name: The production URL must serve this build
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          # The page's own origin is the redirect URI's origin. Its index.html names the
+          # hashed bundle, so an identical file is what this build serves.
+          origin=$(printf '%s' "$VITE_REDIRECT_URI" | sed -E 's#^(https://[^/]+).*#\1#')
+          want=$(sha256sum dist/index.html | cut -d' ' -f1)
+          got=""
+          for _ in $(seq 1 12); do
+            got=$(curl -fsS --max-time 15 -H 'Cache-Control: no-cache' "$origin/" | sha256sum | cut -d' ' -f1 || true)
+            [ "$got" = "$want" ] && break
+            sleep 10
+          done
+          if [ "$got" != "$want" ]; then
+            echo "::error::$origin/ does not serve the index.html this run built (want $want," \
+              "got ${got:-nothing}). The upload may have landed on a preview or the custom" \
+              "domain points elsewhere. Nothing is rolled back."
+            exit 1
+          fi
+          echo "$origin/ serves this build ($want)"
+
+      - name: Record what this run published
+        run: |
+          {
+            echo "### Pitch Pages CD"
+            echo ""
+            echo "- SHA: \`$CD_SHA\`"
+            echo "- Project: \`$PITCH_PAGES_PROJECT\` (branch main, production)"
+            echo "- Google button: \`${VITE_GOOGLE_LOGIN:-false}\`"
+          } >>"$GITHUB_STEP_SUMMARY"
