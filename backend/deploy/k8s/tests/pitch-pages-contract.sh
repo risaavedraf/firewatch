@@ -7,9 +7,12 @@
 # followed; the dormant switch; one environment of its own; no write scope and no
 # artifact; actions and wrangler pinned exactly; the checkout and the gate both
 # bound to the SHA being published; the Cloudflare token expanded only for the
-# upload; and that the publish is verified against the production URL. It also
-# checks that the VM CD still keeps Pages out (its own contract says so) and still
-# carries the name this workflow follows.
+# upload; that the upload names its Pages project from PITCH_PAGES_PROJECT with a
+# declared-clean tree, the only place that destination can come from; and that the
+# publish is verified against the production URL with redirects followed and the
+# status read apart from the hashed body. It also checks that the VM CD still
+# keeps Pages out (its own contract says so) and still carries the name this
+# workflow follows.
 #
 # What it does not: run the workflow, reach Cloudflare or prove the upload. Those
 # are observed on a real run (CD.md, Frontend en Cloudflare Pages).
@@ -102,6 +105,20 @@ grep -q 'gate.sh wait' "$wf" || fail "the publish must require a green aggregate
 grep -q -- '--commit-hash "\$CD_SHA"' "$wf" || fail "the upload must record the SHA it publishes"
 grep -q -- '--branch main' "$wf" || fail "the upload must target the production branch"
 
+# ── The upload's destination ────────────────────────────────────────────────
+# There is no frontend/wrangler.toml, so --project-name is the only thing naming the
+# Cloudflare Pages project: without it the upload has no destination, and a literal
+# would publish into a project no variable configures.
+if grep -qE -- '--project-name [^"$]' "$wf"; then
+	fail "a literal --project-name would publish into a project no variable configures"
+fi
+grep -q -- '--project-name "\$PITCH_PAGES_PROJECT"' "$wf" ||
+	fail "the upload must take its Pages project from PITCH_PAGES_PROJECT: with no wrangler config naming one, its absence leaves the upload without a destination"
+grep -q 'PITCH_PAGES_PROJECT: \${{ vars.PITCH_PAGES_PROJECT }}' "$wf" ||
+	fail "the job env must read PITCH_PAGES_PROJECT from the repository variables, or the upload names no operator-configured project"
+grep -q -- '--commit-dirty=false' "$wf" ||
+	fail "the upload must declare --commit-dirty=false: a dirty tree would otherwise be recorded against the SHA being published"
+
 # ── Secrets ─────────────────────────────────────────────────────────────────
 [ "$(count 'secrets\.CLOUDFLARE_API_TOKEN \}\}' "$wf")" -eq 1 ] ||
 	fail "the Cloudflare token must be expanded exactly once, for the upload"
@@ -115,6 +132,22 @@ grep -q 'npm ci' "$wf" || fail "dependencies must come from the lockfile"
 grep -q 'npm run build:pages' "$wf" || fail "the bundle must be the Pages build, with its _headers"
 grep -q 'test -f dist/_headers' "$wf" || fail "the CSP headers file must exist before the upload"
 grep -q 'sha256sum dist/index.html' "$wf" || fail "the publish must be verified against the production URL"
+
+# ── The production URL check ────────────────────────────────────────────────
+# A redirect (apex -> www, "Always Use HTTPS", a custom domain) is not a wrong build:
+# the status is read separately and must be 200, while the bytes that are hashed are
+# the response body only, never the status line nor a redirect page.
+if ! grep -qE 'curl -[a-zA-Z]*L|curl --location' "$wf"; then
+	fail "the production URL check must follow redirects (-L): a 301/302 from an apex, www or HTTPS rule is not a body mismatch"
+fi
+grep -q '%{http_code}' "$wf" ||
+	fail "the production URL check must report the HTTP status, so a non-200 names its own cause instead of blaming the body"
+grep -q -- '-o "\$body"' "$wf" || fail "the URL check must write the response body to a file of its own"
+grep -q 'sha256sum "\$body"' "$wf" ||
+	fail "the URL check must hash that file, keeping the status out of the hashed bytes"
+if grep -qE 'curl [^|]*\| *(sha256sum|tee)' "$wf"; then
+	fail "piping the response into sha256sum hashes whatever came back, a redirect or an error page included"
+fi
 
 # ── Neighbours ──────────────────────────────────────────────────────────────
 if grep -qiE 'wrangler|pages deploy|build:pages' "$vm"; then
@@ -143,4 +176,4 @@ for block in "$tmp"/*.sh; do
 done
 [ "$blocks" -ge 5 ] || fail "expected at least 5 run blocks in $wf, found $blocks"
 
-printf 'PASS: the Pages CD follows only a successful main VM deploy (or a manual main dispatch), is dormant without PITCH_PAGES_CD_ENABLE, publishes the exact SHA through the same fresh/wait gate, keeps its token in its own environment apart from the SSH key, pins its actions and wrangler, and verifies the production URL serves the build; the VM CD still keeps Pages out\n'
+printf 'PASS: the Pages CD follows only a successful main VM deploy (or a manual main dispatch), is dormant without PITCH_PAGES_CD_ENABLE, publishes the exact SHA through the same fresh/wait gate, keeps its token in its own environment apart from the SSH key, pins its actions and wrangler, names its Pages project from PITCH_PAGES_PROJECT with a declared-clean tree, and verifies the production URL serves the build by following redirects and reading the status apart from the hashed body; the VM CD still keeps Pages out\n'
