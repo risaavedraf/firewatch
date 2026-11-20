@@ -6,6 +6,26 @@
 
 **Counted result:** the active token file declares **27** CSS custom properties — **14 palette**, **10 level**, **3 structure**. No other token file or `@theme` block exists in the active frontend.
 
+## Aerial prototype palette — experimental, not shipped
+
+These design-only roles apply to `design/firewatch-v1-vuelo/01-vista-aerea.html` in dark and light modes. They do not replace the active-source values below. The base terrain and structures are deliberately muted so the risk overlay can use distinct color, a labeled marker and a pattern for missing readings.
+
+| Role | Dark | Light |
+| --- | --- | --- |
+| Water | `#152934` | `#b9d2d9` |
+| Panel | `#17222b` | `#f5f3ee` |
+| Raised panel | `#243341` | `#e5e9e8` |
+| Primary text | `#f4f1eb` | `#1d2c35` |
+| Secondary text | `#b8c8d2` | `#475b65` |
+| Border | `#647b8a` | `#637985` |
+| Accent and focus | `#94dfda` | `#125650` |
+| Terrain low/high | `#46575a` / `#738077` | `#859e93` / `#d4d0b8` |
+| Roof and wall | `#aeb7b8` / `#3f4b52` | `#f2ede0` / `#7d8888` |
+| Coast and roads | `#829a9d` | `#506c70` |
+| High / medium / low risk tint | `#d97962` / `#d7b16a` / `#72b1a1` | `#a74434` / `#88621d` / `#176a60` |
+| Risk marker text | `#121c22` | `#ffffff` |
+| Missing readings | `#c4cbd1` | `#42525e` |
+
 ## Sources
 
 Only the active frontend was read. Paths are relative to the repository root.
