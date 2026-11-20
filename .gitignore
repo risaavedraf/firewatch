@@ -70,3 +70,12 @@ tmp/
 .playwright-mcp/
 .opencode/
 .agents/
+
+# Guard, not a fix: a Windows child process whose environment lacks SYSTEMDRIVE
+# resolves `%SystemDrive%\ProgramData\Microsoft\Windows\Caches` with the token left
+# literal, and creates that tree relative to its own cwd. The pitch CD contract now
+# hands the gate a complete environment (`controlled_environment` in
+# backend/deploy/k8s/tests/pitch_cd_contract_test.py), so it no longer lands here on
+# its own; this line keeps an already-incomplete caller environment, or any future
+# child, from turning it into something committable by accident.
+%SystemDrive%/
