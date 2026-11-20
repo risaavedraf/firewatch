@@ -48,6 +48,7 @@ import {
   presentBatch,
   validityLabel,
   type ActiveModel,
+  type FactorBar,
 } from '../domain';
 import type { RiskBatch, ZoneCollection, ZoneFeature } from '../types/api';
 
@@ -65,6 +66,21 @@ const LOADING_STATUS = 'Consultando el último lote…';
 const DEMO_BATCH_STATUS =
   'Entradas de demostración sintéticas: no representan riesgo real observado. La publicación no acredita frescura de observaciones. Clasificación por regla propia no oficial.';
 const READ_BATCH_STATUS = 'Lote recibido de la API · clasificación calculada por una regla propia no oficial.';
+
+// PM-02 — the five inputs the frozen rule reads, in the rule's own order and
+// vocabulary. The panel names all of them, so a variable without a reading is
+// visible instead of silently absent from the list. A name outside this list is
+// an extra factor the batch carried and is preserved after these five.
+const CANONICAL_FACTORS: readonly string[] = [
+  'temperatura',
+  'humedad_relativa',
+  'viento',
+  'cobertura_vegetal',
+  'incendios_historicos',
+];
+const CANONICAL_FACTOR_SET = new Set(CANONICAL_FACTORS);
+const NO_READING = 'sin lectura';
+const NOT_INFORMED_BY_BATCH = 'no informada en el lote';
 
 type CatalogueState = { kind: 'ready'; collection: ZoneCollection } | { kind: 'error' };
 type CataloguePhase = 'idle' | 'loading' | 'ready' | 'error' | 'cleared';
@@ -143,6 +159,53 @@ interface RiskCopy {
   pill: string;
   level: string;
   status: string;
+}
+
+// One rendered factor row. The text is the row's whole visible and announced
+// content: a measured factor keeps its value, contribution and note, while an
+// unknown or absent one says it has no reading and is never assigned a number.
+// `widthPercent` is null whenever no bar may be drawn.
+interface FactorRow {
+  key: string;
+  text: string;
+  widthPercent: number | null;
+}
+
+function factorRowText(bar: FactorBar): string {
+  const { factor } = bar;
+  if (factor.known !== true) {
+    return `${factor.name}: ${NO_READING}${isNonEmpty(factor.note) ? ` · ${factor.note}` : ''}`;
+  }
+  return `${factor.name}: ${factor.value} · contribución ${factor.contribution} · ${factor.note}`;
+}
+
+function factorRow(bar: FactorBar, key: string): FactorRow {
+  return { key, text: factorRowText(bar), widthPercent: bar.widthPercent };
+}
+
+// The five canonical rows first, then any extra factor, so the panel always
+// answers which of the rule's inputs lacked a reading. With no usable factor
+// entry at all the list stays empty: an unavailable batch is not filled in with
+// five invented rows. A duplicate canonical name is preserved as an extra row
+// rather than dropped, so no reading the batch carried disappears.
+function overviewFactorRows(bars: FactorBar[]): FactorRow[] {
+  if (bars.length === 0) return [];
+  const canonical = new Map<string, FactorBar>();
+  const extras: FactorRow[] = [];
+  bars.forEach((bar, index) => {
+    if (CANONICAL_FACTOR_SET.has(bar.factor.name) && !canonical.has(bar.factor.name)) {
+      canonical.set(bar.factor.name, bar);
+      return;
+    }
+    extras.push(factorRow(bar, `extra-${index}`));
+  });
+  const rows = CANONICAL_FACTORS.map((name): FactorRow => {
+    const bar = canonical.get(name);
+    return bar === undefined
+      ? { key: `canonical-${name}`, text: `${name}: ${NO_READING} · ${NOT_INFORMED_BY_BATCH}`, widthPercent: null }
+      : factorRow(bar, `canonical-${name}`);
+  });
+  return [...rows, ...extras];
 }
 
 function riskCopy(batch: BatchState, session: SessionState): RiskCopy {
@@ -439,6 +502,7 @@ export function OverviewView() {
   const batchData = currentBatch.kind === 'batch' ? currentBatch.batch : null;
   const presentation = batchData === null ? null : presentBatch(batchData);
   const factorBars = batchData === null ? [] : computeFactorBars(batchData);
+  const factorRows = overviewFactorRows(factorBars);
   const showFactorOmission = presentation !== null && presentation.omissions.includes('factores');
   const originText = batchData === null ? 'Sin consultar' : batchData.demo === true ? DEMO_ORIGIN : DISCREPANT_ORIGIN;
   const noticeText =
@@ -611,14 +675,12 @@ export function OverviewView() {
           <StatusCopy id="batch-validity">{validityText}</StatusCopy>
           <h4>Factores</h4>
           <ul id="risk-factors">
-            {factorBars.map((bar, index) => (
-              <li key={`${bar.factor.name}-${index}`}>
-                {bar.factor.known
-                  ? `${bar.factor.name}: ${bar.factor.value} · contribución ${bar.factor.contribution} · ${bar.factor.note}`
-                  : `${bar.factor.name}: desconocido · ${bar.factor.note}`}
-                {bar.widthPercent !== null ? (
+            {factorRows.map((row) => (
+              <li key={row.key}>
+                {row.text}
+                {row.widthPercent !== null ? (
                   <div className="factor-track">
-                    <span style={{ width: `${bar.widthPercent}%` }} />
+                    <span style={{ width: `${row.widthPercent}%` }} />
                   </div>
                 ) : null}
               </li>
