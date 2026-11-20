@@ -487,7 +487,14 @@ test('synthetic warning independent of notice; unknown factor never displays zer
   expect(textOf('batch-notice')).toMatch(/ausente o inválido/);
   // The rationale is reproduced as text, never interpreted as markup.
   expect(textOf('risk-rationale')).toBe('<img onerror=evil>');
-  expect(element('risk-factors').children[0].textContent).not.toMatch(/0/);
+  // The unknown entry is found by name, not by position: the row list names the
+  // five canonical inputs in a fixed order (PM-02).
+  const unknownViento = Array.from(element('risk-factors').children).find((row) =>
+    (row.textContent ?? '').startsWith('viento:'),
+  );
+  expect(unknownViento).toBeDefined();
+  expect(unknownViento?.textContent).not.toMatch(/0/);
+  expect(unknownViento?.querySelector('.factor-track')).toBeNull();
 });
 
 test.each([
@@ -520,13 +527,105 @@ test('factor bars use the real contribution and a factor without data draws no b
     [batch('05101')],
   );
 
-  const items = element('risk-factors').children;
-  expect(items).toHaveLength(3);
-  const trackOf = (item: Element): HTMLElement | null => item.querySelector('.factor-track');
-  const widthOf = (item: Element): string => (trackOf(item)?.firstElementChild as HTMLElement).style.width;
-  expect(widthOf(items[0])).toBe('100%');
-  expect(widthOf(items[1])).toBe('50%');
-  expect(trackOf(items[2])).toBeNull();
+  // The five canonical inputs are named first, then the extra factor the batch
+  // carried; rows are looked up by name so the bar contract does not depend on
+  // enumeration order. `humedad` is not a canonical name and must survive.
+  const items = Array.from(element('risk-factors').children);
+  expect(items).toHaveLength(6);
+  const rowOf = (name: string): Element => {
+    const matches = items.filter((item) => (item.textContent ?? '').startsWith(`${name}:`));
+    expect(matches, `row ${name}`).toHaveLength(1);
+    return matches[0];
+  };
+  const trackOf = (name: string): HTMLElement | null => rowOf(name).querySelector('.factor-track');
+  const widthOf = (name: string): string => (trackOf(name)?.firstElementChild as HTMLElement).style.width;
+  expect(widthOf('temperatura')).toBe('100%');
+  expect(widthOf('humedad')).toBe('50%');
+  expect(trackOf('viento')).toBeNull();
+});
+
+// PM-02 — the panel names the five inputs the frozen rule reads, so a variable
+// without a reading is stated instead of disappearing from the list. One entry
+// is explicitly unknown (the service's zero sentinels) and another is missing
+// from the payload; neither may become a zero or a bar. The measured inputs keep
+// their real value, contribution, note and proportional bar, and a batch with no
+// usable factor entry still renders no rows at all.
+test('the factor list names the five canonical inputs and states every missing reading without inventing a value (PM-02)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+  await serveZone(
+    '05101',
+    batch('05101', 'b', 'j', {
+      factors: [
+        { name: 'temperatura', known: true, value: 31, contribution: 0.4, note: 'máxima del día' },
+        { name: 'humedad_relativa', known: false, value: 0, contribution: 0, note: 'dato ausente' },
+        { name: 'cobertura_vegetal', known: true, value: 62, contribution: 0.2, note: 'estimada' },
+        { name: 'incendios_historicos', known: true, value: 4, contribution: 0.1, note: 'últimos 5 años' },
+      ],
+    }),
+    200,
+    [batch('05101')],
+  );
+
+  const rows = Array.from(element('risk-factors').children);
+  expect(rows).toHaveLength(5);
+  const names = rows.map((row) => (row.textContent ?? '').split(':')[0]);
+  expect(names).toEqual([
+    'temperatura',
+    'humedad_relativa',
+    'viento',
+    'cobertura_vegetal',
+    'incendios_historicos',
+  ]);
+  const rowOf = (name: string): Element => {
+    const matches = rows.filter((row) => (row.textContent ?? '').startsWith(`${name}:`));
+    expect(matches, `row ${name}`).toHaveLength(1);
+    return matches[0];
+  };
+  const widthOf = (name: string): string | null => {
+    const track = rowOf(name).querySelector('.factor-track');
+    return track === null ? null : (track.firstElementChild as HTMLElement).style.width;
+  };
+
+  // Measured inputs keep their actual value, contribution, note and bar.
+  expect(rowOf('temperatura').textContent).toContain('temperatura: 31');
+  expect(rowOf('temperatura').textContent).toContain('contribución 0.4');
+  expect(rowOf('temperatura').textContent).toContain('máxima del día');
+  expect(widthOf('temperatura')).toBe('100%');
+  expect(rowOf('cobertura_vegetal').textContent).toContain('cobertura_vegetal: 62');
+  expect(widthOf('cobertura_vegetal')).toBe('50%');
+  expect(rowOf('incendios_historicos').textContent).toContain('incendios_historicos: 4');
+  expect(widthOf('incendios_historicos')).toBe('25%');
+
+  // Explicitly unknown: a readable status and the service's own note, never the
+  // zero sentinel it was sent with, never a contribution, never a bar.
+  const unknown = rowOf('humedad_relativa');
+  expect(unknown.textContent).toMatch(/sin lectura/);
+  expect(unknown.textContent).toContain('dato ausente');
+  expect(unknown.textContent).not.toMatch(/0/);
+  expect(unknown.textContent).not.toMatch(/contribución/);
+  expect(unknown.querySelector('.factor-track')).toBeNull();
+
+  // Absent from the payload: the same no-reading status, exposed as real text so
+  // it is announced, and equally free of an invented number or bar.
+  const absent = rowOf('viento');
+  expect(absent.textContent).toMatch(/sin lectura/);
+  expect(absent.textContent).not.toMatch(/\d/);
+  expect(absent.querySelector('.factor-track')).toBeNull();
+  expect(screen.getByText(/^viento: sin lectura/)).toBeInTheDocument();
+
+  // A batch with no usable factor entry stays explicitly unavailable: the only
+  // list entry is the pre-existing omission notice, never a fabricated canonical
+  // row, a number or a bar.
+  await choose('05102');
+  await serveZone('05102', batch('05102', 'b2', 'j2', { factors: [] }), 200, []);
+  expect(textOf('risk-pill')).toBe('NO DISPONIBLE');
+  expect(textOf('risk-status')).toMatch(/Lote incompleto/);
+  expect(textOf('risk-level')).not.toMatch(/BAJO|MEDIO|ALTO/);
+  const unavailableRows = Array.from(element('risk-factors').children);
+  expect(unavailableRows).toHaveLength(1);
+  expect(unavailableRows[0].textContent).toMatch(/Factores ausentes o inválidos/);
+  expect(unavailableRows[0].querySelector('.factor-track')).toBeNull();
 });
 
 test('superseded /v1/risk/zones after a 401 reset cannot repopulate map, count, selector or risk status', async () => {
