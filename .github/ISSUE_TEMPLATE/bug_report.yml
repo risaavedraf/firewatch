@@ -1,0 +1,70 @@
+name: Reporte de falla
+description: Reporta una falla en FireWatch con lo necesario para reproducirla.
+title: "[Falla]: "
+labels:
+  - "type:bug"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Antes de abrir este issue
+
+        - **Busca un issue existente.** Revisa los issues abiertos y cerrados antes de escribir. Si la falla ya está reportada, comenta en ese issue en lugar de abrir uno nuevo.
+        - **La aprobación se revisa, no se declara.** Un mantenedor revisa el reporte y aplica `status:approved` cuando queda claro y acotado. Este issue nace sin esa etiqueta.
+        - **El PR llega después.** Según `odd/PR-CONVENTIONS.md`, el PR que implemente este issue debe enlazarlo y el issue debe llevar `status:approved` antes de abrir el PR.
+        - **Esta plantilla no automatiza nada.** No busca duplicados, no aplica etiquetas de estado ni impide crear el issue; solo deja el flujo escrito.
+
+        Describe la falla con lo mínimo que permita reproducirla. No publiques credenciales, datos personales ni rutas internas.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área afectada
+      description: ¿Qué parte de FireWatch muestra la falla?
+      options:
+        - Frontend
+        - API
+        - Datos o modelo
+        - Despliegue
+        - Documentación
+        - Otro
+    validations:
+      required: true
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción de la falla
+      description: ¿Qué ocurrió? Incluye la zona, el lote o la pantalla si aplica.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Pasos para reproducir
+      description: Enumera los pasos, del primero al último, y lo que se ve en cada uno. Si la falla no es constante, dilo.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Comportamiento esperado
+      description: ¿Qué debería haber ocurrido? Si esperabas un dato que no aparece, nómbralo.
+    validations:
+      required: true
+  - type: textarea
+    id: real
+    attributes:
+      label: Comportamiento observado
+      description: ¿Qué ocurrió en su lugar? Copia el mensaje de error o el texto visible si lo hay.
+    validations:
+      required: true
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto adicional
+      description: "Opcional: versión, navegador, endpoint, variable o cualquier dato que ayude a ubicar la falla."
+    validations:
+      required: false
