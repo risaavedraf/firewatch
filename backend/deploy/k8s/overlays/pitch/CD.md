@@ -461,7 +461,9 @@ remedio.
   `--force`. No limpia: se niega, porque limpiar destruiría el estado de alguien más.
 - **El firewall y el API de Kubernetes**: no se abren puertos ni se publica el API;
   `kubectl` habla con `--context kind-firewatch` y solo lee.
-- **Cloudflare Pages del frontend**: el CD del frontend no es parte de esta unidad.
+- **Cloudflare Pages del frontend**: no es parte de este workflow. Lo publica un
+  workflow aparte, `pitch-pages-cd.yml`, que sigue a este (§Frontend en Cloudflare
+  Pages).
 - **`main`, los PRs y las ramas del compañero**: este workflow no escribe en el
   repositorio, no abre PRs y no hace `git push`.
 - **Un rollback**: no lo hay, y una corrida roja no significa que la VM quedó como
@@ -507,6 +509,73 @@ que cubre el agregado y los ocho cuerpos. La rebanada del CD agrega su propio pa
 en el contrato de CI y suma las del CD. Los dos son shell de biblioteca estándar
 (grep, awk, sed, `python3`): no necesitan `kubectl`, ni PyYAML, ni red, así que no
 agregan dependencias al runner.
+
+## Frontend en Cloudflare Pages: `pitch-pages-cd.yml`
+
+La página vive en Cloudflare Pages, no en la VM. `pitch-vm-cd.yml` no la toca (su
+contrato lo prohíbe), así que la publica un workflow aparte que **sigue** al de la VM:
+
+| Camino | Cuándo | Qué SHA publica |
+| --- | --- | --- |
+| Automático | una corrida de *Pitch VM CD* termina en **success** para `main` de este repositorio | el `head_sha` de esa corrida: el mismo que quedó en la VM |
+| Manual | *Pitch Pages CD → Run workflow* sobre `main` | el SHA de la corrida, para republicar solo la página |
+
+Una corrida de la VM **skipped** (CD dormido) o fallida no publica nada: la página nunca
+se adelanta a la API con la que habla. Antes de subir, repite la compuerta del CD de la
+VM con el mismo `gate.sh`: `fresh` se niega si `main` ya avanzó (la corrida de la VM del
+SHA nuevo disparará su propia publicación) y `wait` exige la corrida verde de
+`pitch-main-ci.yml` para ese SHA. Después construye con `npm ci` y `npm run
+build:pages` (que escribe `dist/_headers` con la CSP), sube con `wrangler` en una
+versión exacta a la rama `main` del proyecto (producción) y comprueba que la URL de la
+página sirva el mismo `index.html` que construyó.
+
+El token de Cloudflare vive en un entorno propio, **`pitch-pages`**, separado de
+`pitch-cd`: el job de Pages nunca puede leer la clave SSH de la VM, y el de la VM nunca
+ve el token. Su contrato es `backend/deploy/k8s/tests/pitch-pages-contract.sh`, que el
+agregado corre en cada push a `main`.
+
+### Configurarlo
+
+Los nombres son los que lee el workflow; lo que cambia es **dónde vive cada uno**. Las
+variables de repositorio se cargan en *Settings → Secrets and variables → Actions →
+Variables*, y el secreto en *Settings → Environments → `pitch-pages`*:
+
+| Nombre | Dónde | Tipo | Valor |
+| --- | --- | --- | --- |
+| `PITCH_PAGES_CD_ENABLE` | repositorio | variable | `true` |
+| `CLOUDFLARE_ACCOUNT_ID` | repositorio | variable | el ID de la cuenta de Cloudflare (el panel lo muestra; `frontend/.wrangler` lo guarda tras un `wrangler` local) |
+| `PITCH_PAGES_PROJECT` | repositorio | variable | el nombre del proyecto de Pages, por ejemplo `firewatch-pitch` |
+| `PITCH_PAGES_GATEWAY_ORIGIN` | repositorio | variable | `https://api.<ip-con-guiones>.sslip.io` |
+| `PITCH_PAGES_ISSUER` | repositorio | variable | `https://auth.<ip-con-guiones>.sslip.io/realms/firewatch` |
+| `PITCH_PAGES_REDIRECT_URI` | repositorio | variable | la URL de la página con barra final, por ejemplo `https://firewatch-pitch.pages.dev/` |
+| `PITCH_PAGES_GOOGLE_LOGIN` | repositorio | variable, opcional | `true` para mostrar "Continuar con Google" |
+| `CLOUDFLARE_API_TOKEN` | entorno `pitch-pages` | secreto | un token de API de Cloudflare con solo **Account → Cloudflare Pages → Edit** |
+
+El criterio es uno: una variable vive en un entorno cuando cambia de un entorno a otro o
+necesita reglas de protección; vive en el repositorio cuando tiene un solo valor, el
+mismo para cualquier entorno. Las seis de la tabla que no son el interruptor cumplen lo
+segundo, y el interruptor también. Además, GitHub inyecta las variables de un entorno en
+el runner **después** de que el job arranca, así que no están en el contexto `vars`
+cuando el workflow se define, y este workflow las lee ahí dos veces: en el interruptor de
+`jobs.publish.if` y en el bloque `env` del job. Con las variables en el entorno, el
+interruptor no ve `PITCH_PAGES_CD_ENABLE` y **cada corrida queda en `skipped` en
+silencio**, y las otras cinco hacen fallar el paso *Refuse to run without the operator's
+configuration* como si no se hubiera configurado nada.
+
+El entorno `pitch-pages` se queda como está: existe para que el token tenga reglas de
+protección, y el token es lo único que guarda.
+
+Los tres orígenes son los mismos de `frontend/.env.production` y **no son secretos**:
+Vite los incrusta en el bundle público. Ninguna variable `VITE_*` puede ser una
+credencial.
+
+Sin el interruptor en `true`, cada corrida queda en `skipped`. Primero una corrida
+manual; si la URL sirve el build, el camino automático ya queda activo, porque solo
+depende de que el CD de la VM termine en verde.
+
+Lo que no se ha ejecutado de esta parte: ninguna corrida de *Pitch Pages CD*. La
+primera manual es su primera prueba real (token, ID de cuenta, nombre del proyecto y la
+comprobación de la URL).
 
 ## Lo que no se ha ejecutado
 
