@@ -50,6 +50,12 @@ import {
   type ActiveModel,
   type FactorBar,
 } from '../domain';
+import {
+  DIRECT_OBSERVATION,
+  planRecommendations,
+  SYNTHETIC_ENVIRONMENT_NOTICE,
+  type RecommendationPlan,
+} from '../domain/recommendations';
 import type { RiskBatch, ZoneCollection, ZoneFeature } from '../types/api';
 
 // Copy reproduced from the retired page. The operational-validity label and the
@@ -57,7 +63,9 @@ import type { RiskBatch, ZoneCollection, ZoneFeature } from '../types/api';
 // is not observation freshness, and only the first one may say "Vigente".
 const DEMO_ORIGIN = 'Sintético · Synthetic';
 const DISCREPANT_ORIGIN = 'Procedencia discrepante con este entorno sintético';
-const SYNTHETIC_NOTICE = 'Entorno sintético: no riesgo real observado.';
+// The synthetic notice is the catalogue's own constant: the recommendation panel
+// marks the same batch with the same literal, so the two can never drift.
+const SYNTHETIC_NOTICE = SYNTHETIC_ENVIRONMENT_NOTICE;
 const MISSING_NOTICE = 'Aviso de la API ausente o inválido.';
 const WRONG_ZONE_STATUS = 'La API devolvió un lote de otra zona; se descartó.';
 const NO_BATCH_STATUS = 'La API no informa lotes publicados para esta zona.';
@@ -276,6 +284,36 @@ function batchFrom(zone: string, result: Outcome<RiskBatch | null>): BatchState 
 
 function historyFrom(result: Outcome<RiskBatch[]>): HistoryState {
   return result.ok ? { kind: 'ready', count: result.data.length } : { kind: 'failed' };
+}
+
+// PM-18 — what the recommendation panel states when there is nothing to compose.
+// The catalogue is derived from the last published batch, so a read that is
+// absent, still in flight or failed has no suggestions to offer: the panel names
+// that state instead of presenting a suggestion as if a zone had been read.
+function recommendationStatus(
+  batch: BatchState,
+  session: SessionState,
+  plan: RecommendationPlan | null,
+): string {
+  switch (batch.kind) {
+    case 'idle':
+      return session.status === 'signed-in'
+        ? 'Selecciona una zona para ver las recomendaciones de prevención.'
+        : idleCopy(session, 'ver las recomendaciones de prevención');
+    case 'loading':
+      return 'Esperando el último lote: las sugerencias se derivan de su nivel y de sus factores.';
+    case 'none':
+      return 'Sin lote publicado: no hay nivel ni factores de los que derivar sugerencias.';
+    case 'failed':
+      return `${batch.message} Sin lote disponible, la ficha no deriva sugerencias.`;
+    case 'batch':
+      // An unclassified level keeps the base pair only; saying that out loud is
+      // the difference between a shorter list and a list ordered on a severity the
+      // rule refused to state.
+      return plan !== null && (plan.level === '' || plan.level === 'desconocido')
+        ? 'Sin nivel clasificado, la ficha no ordena sugerencias por aporte de variables.'
+        : 'Sugerencias compuestas desde el nivel informado y desde los factores con lectura del último lote.';
+  }
 }
 
 // Operational validity is a property of the batch window. The label is computed
@@ -504,6 +542,22 @@ export function OverviewView() {
   const factorBars = batchData === null ? [] : computeFactorBars(batchData);
   const factorRows = overviewFactorRows(factorBars);
   const showFactorOmission = presentation !== null && presentation.omissions.includes('factores');
+
+  // PM-18 — the catalogue composes from the payload the card already accepted. A
+  // batch the fail-closed guard rejected has no validated level, so the catalogue
+  // is told exactly that: it falls back to the closed pair and names the level as
+  // unclassified, never reusing a severity this page refuses to display.
+  const recommendationPlan =
+    batchData === null
+      ? null
+      : planRecommendations({
+          risk_level: presentation !== null && presentation.valid ? batchData.risk_level : null,
+          factors: batchData.factors,
+          demo: batchData.demo,
+        });
+  const recommendationStateText = recommendationStatus(currentBatch, session, recommendationPlan);
+  const recommendationBadge = recommendationPlan === null ? risk.pill : recommendationPlan.levelLabel;
+
   const originText = batchData === null ? 'Sin consultar' : batchData.demo === true ? DEMO_ORIGIN : DISCREPANT_ORIGIN;
   const noticeText =
     batchData === null
@@ -705,6 +759,59 @@ export function OverviewView() {
           </UnimplementedNote>
         </article>
       </section>
+
+      {/*
+        PM-18 — the zone card suggests from the written catalogue. The list is
+        composed by a pure rule from the batch already shown; it creates no action,
+        issues no request and stores nothing, so the only control here is reading.
+      */}
+      <article className="panel" id="recommendation-panel" aria-labelledby="recommendation-title">
+        <PanelHeading
+          eyebrow="PREVENCIÓN"
+          titleId="recommendation-title"
+          title="Recomendaciones preventivas"
+          badge={
+            <span className="neutral-tag" id="recommendation-level">
+              {recommendationBadge}
+            </span>
+          }
+        />
+        <StatusCopy id="recommendation-status">{recommendationStateText}</StatusCopy>
+        {/*
+          Both lists are always rendered, exactly as `#risk-factors` is: an empty
+          list in a state that has nothing to compose is the honest shape, and a
+          missing element would read as a panel that failed to load.
+        */}
+        <ul id="recommendation-notices" aria-label="Avisos de las recomendaciones">
+          {(recommendationPlan?.notices ?? []).map(notice => (
+            <li key={notice.kind}>{notice.text}</li>
+          ))}
+        </ul>
+        <ul id="recommendation-list" aria-label="Sugerencias de prevención">
+          {(recommendationPlan?.items ?? []).map(entry => (
+            <li key={entry.id}>
+              <span className="neutral-tag">{entry.source === 'factor' ? 'FACTOR' : 'NIVEL'}</span>{' '}
+              {entry.text}
+            </li>
+          ))}
+        </ul>
+        {recommendationPlan !== null ? (
+          <div id="recommendation-reference">
+            <h4>Ítem de observación directa</h4>
+            <p id="recommendation-reference-text">{DIRECT_OBSERVATION.text}</p>
+            <p className="panel-note">
+              Es un ítem consultable y no es un hallazgo de esta zona: el sistema no sabe si aquí hay vegetación en
+              contacto con líneas eléctricas, así que no lo incluye en la lista.
+            </p>
+          </div>
+        ) : null}
+        <p className="panel-note" id="recommendation-panel-note">
+          Texto de prevención general, no una predicción: la ficha muestra el catálogo escrito y no crea acciones, no
+          envía notificaciones y no pide nada nuevo a la API. Las medidas parafrasean guías públicas de SENAPRED y
+          MINVU; el mapeo de cada medida a nuestros niveles y variables es una decisión de FireWatch, y ninguna de las
+          dos instituciones revisó ni valida esa correspondencia.
+        </p>
+      </article>
     </section>
   );
 }

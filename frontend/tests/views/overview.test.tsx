@@ -1028,3 +1028,212 @@ test('the map stops claiming a batch in process once the jobs view reports none'
   await settle();
   expect(document.getElementById('map-job-progress')).toBeNull();
 });
+
+// --- PM-18: the preventive-recommendation catalogue ------------------------
+//
+// The zone card suggests from the written catalogue in
+// `odd/plan-produccion/catalogo-recomendaciones-preventivas.md`. The composition
+// itself is pinned by `tests/domain/recommendations.test.ts`; these tests pin what
+// the card renders, the states it must not suggest in, and the public interface
+// fact that showing suggestions creates nothing.
+
+function listTexts(id: string): string[] {
+  return Array.from(element(id).children).map(row => row.textContent ?? '');
+}
+
+test('the zone card suggests from the catalogue with exact text, source and limits (PM-18)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone(
+    '05101',
+    batch('05101', 'b', 'j', {
+      risk_level: 'alto',
+      factors: [
+        { name: 'temperatura', known: true, value: 30, contribution: 0.18, note: '' },
+        { name: 'humedad_relativa', known: true, value: 20, contribution: 0, note: '' },
+        { name: 'viento', known: true, value: 40, contribution: 0.216, note: '' },
+        { name: 'cobertura_vegetal', known: false, value: 0, contribution: 0, note: 'sin dato' },
+        { name: 'incendios_historicos', known: true, value: 3, contribution: 0.05, note: '' },
+      ],
+    }),
+    200,
+    [batch('05101')],
+  );
+
+  // The level the composition used is the level the card informed, never a
+  // re-classification.
+  expect(textOf('recommendation-level')).toBe('ALTO');
+
+  // Two factor items in contribution order, then the level's base pair, each one
+  // with the side of the composition it came from and the document's own text.
+  expect(listTexts('recommendation-list')).toEqual([
+    'FACTOR Con viento, no hagas fogatas ni quemas y no uses herramientas que produzcan chispas.',
+    'FACTOR En días calurosos, evita herramientas y trabajos que generen chispas al aire libre, sobre todo cerca de vegetación.',
+    'NIVEL Restringe fogatas, parrillas, quema de desechos y otras fuentes de calor cerca de vegetación.',
+    'NIVEL Coordina con la municipalidad o la junta de vecinos una revisión del entorno y de las vías de salida.',
+  ]);
+
+  const notices = listTexts('recommendation-notices').join(' ');
+  expect(notices).toMatch(/Sin lectura: cobertura_vegetal\./);
+  expect(notices).toMatch(/no son una alerta oficial, ni una clasificación oficial de riesgo, ni una orden/i);
+  expect(notices).toMatch(/autoridad/i);
+
+  // Provenance and the no-action statement, in the card's own words.
+  expect(textOf('recommendation-panel-note')).toMatch(/SENAPRED/);
+  expect(textOf('recommendation-panel-note')).toMatch(/MINVU/);
+  expect(textOf('recommendation-panel-note')).toMatch(/decisión de FireWatch/);
+  expect(textOf('recommendation-panel-note')).toMatch(/no crea acciones/);
+  expect(textOf('recommendation-panel-note')).toMatch(/no pide nada nuevo a la API/);
+
+  // The list is a real list and a real heading: semantic, not styled divs.
+  expect(screen.getByRole('heading', { name: 'Recomendaciones preventivas', level: 3 })).toBeInTheDocument();
+  expect(element('recommendation-list').tagName).toBe('UL');
+  expect(element('recommendation-list').querySelectorAll('li')).toHaveLength(4);
+  // Both lists are named, so a screen reader reaches them by their meaning.
+  expect(screen.getByRole('list', { name: 'Sugerencias de prevención' })).toBe(element('recommendation-list'));
+  expect(screen.getByRole('list', { name: 'Avisos de las recomendaciones' })).toBe(element('recommendation-notices'));
+});
+
+test('a level the rule did not classify suggests only the fallback pair (PM-18)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+  await serveZone(
+    '05101',
+    batch('05101', 'b', 'j', {
+      risk_level: 'desconocido',
+      factors: [{ name: 'viento', known: true, value: 40, contribution: 0.9, note: '' }],
+    }),
+    200,
+    [batch('05101')],
+  );
+
+  expect(textOf('recommendation-level')).toBe('INFORMACIÓN INSUFICIENTE');
+  expect(listTexts('recommendation-list')).toEqual([
+    'NIVEL Retira la vegetación seca y los desechos acumulados alrededor de la vivienda.',
+    'NIVEL Mantén despejadas, con anticipación, las vías de salida y los accesos que usarías ante una emergencia.',
+  ]);
+  expect(textOf('recommendation-notices')).toMatch(
+    /Nivel no clasificado: el sistema no tiene una evaluación validada de esta zona\./,
+  );
+  // A positive contribution on an unclassified batch does not become a factor
+  // item, and it is not discussed as a reading either.
+  expect(textOf('recommendation-list')).not.toMatch(/Con viento/);
+  expect(textOf('recommendation-notices')).not.toMatch(/Sin lectura/);
+
+  // An out-of-set level is not remapped to a similar severity: the card fails
+  // closed on its own label while the batch stays explicitly unavailable.
+  await choose('05102');
+  await serveZone('05102', batch('05102', 'b2', 'j2', { risk_level: 'critico' }), 200, [batch('05102')]);
+  expect(textOf('recommendation-level')).toBe('SIN CLASIFICAR');
+  expect(textOf('risk-pill')).toBe('NO DISPONIBLE');
+  expect(listTexts('recommendation-list')).toHaveLength(2);
+  expect(textOf('recommendation-list')).not.toMatch(/ALTO|MEDIO|BAJO/);
+});
+
+test('without a published batch the panel states it instead of suggesting from nothing (PM-18)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+
+  // The read is still in flight: no item and no guessed level.
+  expect(listTexts('recommendation-list')).toEqual([]);
+  expect(textOf('recommendation-level')).toBe('SIN CONSULTAR');
+  expect(textOf('recommendation-status')).toMatch(/Esperando el último lote/);
+
+  // A 404 is an absence, not a low risk to suggest from.
+  await serveZone('05101', null, 404, []);
+  expect(listTexts('recommendation-list')).toEqual([]);
+  expect(textOf('recommendation-level')).toBe('SIN LOTE');
+  expect(textOf('recommendation-status')).toMatch(/Sin lote publicado/);
+
+  // A failed read keeps its own message and adds no suggestion.
+  await choose('05102');
+  fetchStub.answer(latestUrl('05102'), { code: 'storage_unavailable' }, 500);
+  fetchStub.answer(historyUrl('05102'), []);
+  await settle();
+  expect(listTexts('recommendation-list')).toEqual([]);
+  expect(textOf('recommendation-level')).toBe('NO DISPONIBLE');
+  expect(textOf('recommendation-status')).toMatch(/No se pudo consultar el lote \(HTTP 500\)/);
+
+  // A new selection clears the previous list while the read is in flight, as the
+  // rest of the card does, and does not keep a stale batch's suggestions.
+  await choose('05101');
+  expect(listTexts('recommendation-list')).toEqual([]);
+  await serveZone('05101', batch('05101', 'b3', 'j3', { risk_level: 'medio' }), 200, [batch('05101')]);
+  expect(listTexts('recommendation-list').length).toBeGreaterThan(0);
+  await choose('05102');
+  expect(listTexts('recommendation-list')).toEqual([]);
+  await serveZone('05102', batch('05102', 'b4', 'j4', { risk_level: 'medio' }), 200, [batch('05102')]);
+
+  // Closing the session drops the list and the state it described.
+  await logOut();
+  expect(listTexts('recommendation-list')).toEqual([]);
+  expect(textOf('recommendation-level')).toBe('SIN CONSULTAR');
+  expect(textOf('recommendation-status')).toMatch(/Conecta un token autorizado para ver las recomendaciones/);
+});
+
+test('a synthetic batch is marked and an unverified one is not called synthetic (PM-18)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+  await serveZone('05101', batch('05101', 'b', 'j', { demo: true }), 200, [batch('05101')]);
+
+  expect(textOf('recommendation-notices')).toMatch(/Entorno sintético: no riesgo real observado\./);
+  expect(listTexts('recommendation-list').length).toBeGreaterThan(0);
+
+  await choose('05102');
+  await serveZone(
+    '05102',
+    batch('05102', 'b2', 'j2', { demo: false, risk_level: 'medio' }),
+    200,
+    [batch('05102')],
+  );
+  // An undeclared synthetic origin is not a claim of real data either: the panel
+  // repeats only what the payload declared.
+  expect(textOf('recommendation-notices')).not.toMatch(/Entorno sintético/);
+  expect(textOf('batch-origin')).toMatch(/discrepante/);
+  expect(listTexts('recommendation-list').length).toBeGreaterThan(0);
+});
+
+test('R-05 is offered as a consultable item, never as a finding of the zone (PM-18)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', batch('05101'), 200, [batch('05101')]);
+
+  const reference =
+    'Si ves vegetación en contacto con líneas eléctricas, avisa a la empresa distribuidora; no intervengas tú esa vegetación.';
+  expect(textOf('recommendation-reference-text')).toBe(reference);
+  expect(textOf('recommendation-reference')).toMatch(/no es un hallazgo/i);
+  // It is outside the composition list and never displaces one of its items.
+  expect(textOf('recommendation-list')).not.toContain(reference);
+  expect(listTexts('recommendation-list')).toEqual([
+    'FACTOR En días calurosos, evita herramientas y trabajos que generen chispas al aire libre, sobre todo cerca de vegetación.',
+    'NIVEL Restringe fogatas, parrillas, quema de desechos y otras fuentes de calor cerca de vegetación.',
+    'NIVEL Coordina con la municipalidad o la junta de vecinos una revisión del entorno y de las vías de salida.',
+  ]);
+});
+
+test('suggesting creates nothing: no mutating request and no prevention read (PM-18)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+  await serveZone('05101', batch('05101'), 200, [batch('05101')]);
+  expect(listTexts('recommendation-list').length).toBeGreaterThan(0);
+
+  const before = fetchStub.calls.length;
+
+  // The only trigger is the reader's own selection.
+  await choose('05102');
+  await serveZone('05102', batch('05102', 'b2', 'j2', { risk_level: 'medio' }), 200, [batch('05102')]);
+  expect(listTexts('recommendation-list').length).toBeGreaterThan(0);
+
+  const issued = fetchStub.calls.slice(before);
+  expect(issued.length).toBe(2);
+  expect(issued.map(call => call.url)).toEqual([latestUrl('05102'), historyUrl('05102')]);
+  for (const call of issued) {
+    expect((call.init.method ?? 'GET').toUpperCase()).toMatch(/^(GET|HEAD)$/);
+    expect(call.url).not.toMatch(/\/v1\/prevention/);
+    expect(call.url).not.toMatch(/actions/);
+  }
+  // Nothing anywhere in the session was written: every request was a read.
+  for (const call of fetchStub.calls) {
+    expect((call.init.method ?? 'GET').toUpperCase()).toMatch(/^(GET|HEAD)$/);
+  }
+});
