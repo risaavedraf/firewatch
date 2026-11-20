@@ -62,6 +62,28 @@ def run_module(*args, stdin_text=None):
     )
 
 
+# Names the gate reads and names that carry a caller's credential. Everything else is
+# inherited, because an environment is not a place to substitute values: on Windows a
+# child whose environment lacks SYSTEMDRIVE makes the app-compat/StateRepository path
+# resolution expand `%SystemDrive%\ProgramData\Microsoft\Windows\Caches` with the token
+# left literal. That result is not an absolute path, so the child creates it relative to
+# its own cwd -- which for this contract is the checkout. Pin the gate's inputs; never
+# replace the environment that tells the platform where its own files are.
+DROPPED_PREFIXES = ("CD_",)
+DROPPED_NAMES = ("CURL", "GITHUB_TOKEN", "GH_TOKEN")
+
+
+def controlled_environment(**pinned):
+    env = {
+        name: value
+        for name, value in os.environ.items()
+        if name.upper() not in DROPPED_NAMES
+        and not name.upper().startswith(DROPPED_PREFIXES)
+    }
+    env.update(pinned)
+    return env
+
+
 def run_object(**over):
     data = {
         "id": 1,
@@ -353,9 +375,8 @@ class TestGateWiring(unittest.TestCase):
     def status(self, name, code):
         (self.dir / name).write_text(str(code), encoding="utf-8")
 
-    def gate(self, mode, **env):
+    def gate(self, mode, cwd=None, **env):
         base = {
-            "PATH": os.environ["PATH"],
             "CURL": str(self.stub),
             "STUB_CALLS": str(self.calls),
             "STUB_DIR": str(self.dir),
@@ -372,9 +393,36 @@ class TestGateWiring(unittest.TestCase):
             ["sh", str(GATE), mode],
             capture_output=True,
             text=True,
-            env=base,
-            cwd=str(REPO),
+            env=controlled_environment(**base),
+            cwd=str(cwd or REPO),
         )
+
+    def test_the_gate_environment_is_the_callers_plus_the_pinned_inputs(self):
+        pinned = {"CD_TOKEN": "not-a-real-token", "CD_SHA": SHA}
+        env = controlled_environment(**pinned)
+        for name, value in pinned.items():
+            self.assertEqual(env[name], value, name)
+        # The platform keeps the variables it needs to resolve its own paths.
+        for name in ("PATH", "SYSTEMDRIVE", "SYSTEMROOT", "TEMP"):
+            if name in os.environ:
+                self.assertEqual(env[name], os.environ[name], name)
+        # A caller's gate inputs and credentials never reach the gate.
+        for name in ("CD_SHA", "CD_REPOSITORY", "GITHUB_TOKEN", "GH_TOKEN"):
+            if name in os.environ:
+                self.assertNotIn(name, env, name)
+
+    def test_driving_the_gate_creates_nothing_in_the_directory_it_runs_in(self):
+        # The gate's Python children inherit the environment the caller gives the gate.
+        # Whatever such a child resolves for the platform's own cache directories must
+        # land where the platform put them, never in a relative `%SystemDrive%` tree in
+        # the process's cwd -- which is why the run is observed in a cwd this test owns
+        # instead of the checkout, where an earlier unfixed run can leave the tree behind.
+        work = Path(self.tmp.name) / "cwd"
+        work.mkdir()
+        self.fixture("last.json", runs_payload(run_object()))
+        result = self.gate("wait", cwd=work)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(sorted(p.name for p in work.iterdir()), [])
 
     def test_tip_prints_the_sha_from_the_ref_api(self):
         self.fixture(
