@@ -42,7 +42,7 @@ permissions:
 jobs:
   publish:
     name: Publish that SHA to Cloudflare Pages
-    if: >-
+    if: >- # Repository variable: `vars` cannot see an environment variable at job-definition time.
       github.repository == 'risaavedraf/firewatch-dev' &&
       github.server_url == 'https://github.com' &&
       vars.PITCH_PAGES_CD_ENABLE == 'true' &&
@@ -65,6 +65,11 @@ jobs:
     permissions:
       contents: read
       actions: read
+    # Repository variables, never environment variables: GitHub injects an environment's
+    # variables into the runner only after the job starts, so they are not in the `vars`
+    # context when this job is defined, which is when this block is evaluated. Read from
+    # `pitch-pages` instead, they would all be empty and the guard step below would fail
+    # as though the operator had configured nothing.
     env:
       CD_API_URL: ${{ github.api_url }}
       # Pinned canonical identity, as in the VM CD.

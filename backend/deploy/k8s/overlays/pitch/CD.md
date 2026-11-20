@@ -536,26 +536,42 @@ agregado corre en cada push a `main`.
 
 ### Configurarlo
 
-En el entorno `pitch-pages` (Settings → Environments):
+Los nombres son los que lee el workflow; lo que cambia es **dónde vive cada uno**. Las
+variables de repositorio se cargan en *Settings → Secrets and variables → Actions →
+Variables*, y el secreto en *Settings → Environments → `pitch-pages`*:
 
-| Nombre | Tipo | Valor |
-| --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | secreto | un token de API de Cloudflare con solo **Account → Cloudflare Pages → Edit** |
-| `CLOUDFLARE_ACCOUNT_ID` | variable | el ID de la cuenta de Cloudflare (el panel lo muestra; `frontend/.wrangler` lo guarda tras un `wrangler` local) |
-| `PITCH_PAGES_PROJECT` | variable | el nombre del proyecto de Pages, por ejemplo `firewatch-pitch` |
-| `PITCH_PAGES_GATEWAY_ORIGIN` | variable | `https://api.<ip-con-guiones>.sslip.io` |
-| `PITCH_PAGES_ISSUER` | variable | `https://auth.<ip-con-guiones>.sslip.io/realms/firewatch` |
-| `PITCH_PAGES_REDIRECT_URI` | variable | la URL de la página con barra final, por ejemplo `https://firewatch-pitch.pages.dev/` |
-| `PITCH_PAGES_GOOGLE_LOGIN` | variable, opcional | `true` para mostrar "Continuar con Google" |
+| Nombre | Dónde | Tipo | Valor |
+| --- | --- | --- | --- |
+| `PITCH_PAGES_CD_ENABLE` | repositorio | variable | `true` |
+| `CLOUDFLARE_ACCOUNT_ID` | repositorio | variable | el ID de la cuenta de Cloudflare (el panel lo muestra; `frontend/.wrangler` lo guarda tras un `wrangler` local) |
+| `PITCH_PAGES_PROJECT` | repositorio | variable | el nombre del proyecto de Pages, por ejemplo `firewatch-pitch` |
+| `PITCH_PAGES_GATEWAY_ORIGIN` | repositorio | variable | `https://api.<ip-con-guiones>.sslip.io` |
+| `PITCH_PAGES_ISSUER` | repositorio | variable | `https://auth.<ip-con-guiones>.sslip.io/realms/firewatch` |
+| `PITCH_PAGES_REDIRECT_URI` | repositorio | variable | la URL de la página con barra final, por ejemplo `https://firewatch-pitch.pages.dev/` |
+| `PITCH_PAGES_GOOGLE_LOGIN` | repositorio | variable, opcional | `true` para mostrar "Continuar con Google" |
+| `CLOUDFLARE_API_TOKEN` | entorno `pitch-pages` | secreto | un token de API de Cloudflare con solo **Account → Cloudflare Pages → Edit** |
+
+El criterio es uno: una variable vive en un entorno cuando cambia de un entorno a otro o
+necesita reglas de protección; vive en el repositorio cuando tiene un solo valor, el
+mismo para cualquier entorno. Las seis de la tabla que no son el interruptor cumplen lo
+segundo, y el interruptor también. Además, GitHub inyecta las variables de un entorno en
+el runner **después** de que el job arranca, así que no están en el contexto `vars`
+cuando el workflow se define, y este workflow las lee ahí dos veces: en el interruptor de
+`jobs.publish.if` y en el bloque `env` del job. Con las variables en el entorno, el
+interruptor no ve `PITCH_PAGES_CD_ENABLE` y **cada corrida queda en `skipped` en
+silencio**, y las otras cinco hacen fallar el paso *Refuse to run without the operator's
+configuration* como si no se hubiera configurado nada.
+
+El entorno `pitch-pages` se queda como está: existe para que el token tenga reglas de
+protección, y el token es lo único que guarda.
 
 Los tres orígenes son los mismos de `frontend/.env.production` y **no son secretos**:
 Vite los incrusta en el bundle público. Ninguna variable `VITE_*` puede ser una
 credencial.
 
-Y a nivel de repositorio, el interruptor: `PITCH_PAGES_CD_ENABLE = true`. Sin él, cada
-corrida queda en `skipped`. Primero una corrida manual; si la URL sirve el build, el
-camino automático ya queda activo, porque solo depende de que el CD de la VM termine en
-verde.
+Sin el interruptor en `true`, cada corrida queda en `skipped`. Primero una corrida
+manual; si la URL sirve el build, el camino automático ya queda activo, porque solo
+depende de que el CD de la VM termine en verde.
 
 Lo que no se ha ejecutado de esta parte: ninguna corrida de *Pitch Pages CD*. La
 primera manual es su primera prueba real (token, ID de cuenta, nombre del proyecto y la
