@@ -20,7 +20,7 @@ single-file, framework-free page; the reasons and the parity obligations are rec
 | `src/components/map/` | Territorial map projection and level colouring |
 | `src/core/api.ts` | Transport: one function per consumed route, absolute gateway URLs, sequence fences, deadlines |
 | `src/core/session.ts` | OIDC PKCE, the in-memory token, the unverified role claim, logout |
-| `src/domain/` | Pure rules: validity, level mapping, fail-closed batch and provenance acceptance, readiness, history filters |
+| `src/domain/` | Pure rules: validity, level mapping, fail-closed batch and provenance acceptance, readiness, history filters, the PM-18 recommendation catalogue |
 | `src/views/` | The eight views |
 | `src/styles/` | `tokens.css` (palette, level colours, type), `app.css` (layout, components, responsive) and `auth.css` (the sign-in screen) |
 | `scripts/serve.mjs` | Static server for the build output: explicit allowlist, CSP, no directory listing, no SPA fallback |
@@ -137,6 +137,36 @@ and refuse a reassessment that claims `causal_proof: true`.
 
 The backend rules are documented in
 [`backend/docs/preventive-evidence.md`](../backend/docs/preventive-evidence.md).
+
+## Preventive recommendations on the zone card (PM-18)
+
+The zone card suggests from the written catalogue in
+[`odd/plan-produccion/catalogo-recomendaciones-preventivas.md`](../odd/plan-produccion/catalogo-recomendaciones-preventivas.md).
+The composition is a pure rule in `src/domain/recommendations.ts`, not view logic:
+
+- The canonical level picks a base pair (R-01/R-02 for `bajo`, R-01/R-03 for `medio`,
+  R-03/R-04 for `alto`). Up to two of the five canonical variables with `known: true`
+  and `contribution > 0` add one item each, ordered by contribution and tie-broken by
+  the canonical variable order the contract already fixes.
+- An identifier appears once and the gap a duplicate leaves is **not** filled, so a list
+  of three is shown as three. Four is the presentation budget, not a risk threshold.
+- `desconocido`, `null` and any value outside the four identifiers take the same closed
+  branch: only R-01 and R-02, the level labelled `INFORMACIÓN INSUFICIENTE` or
+  `SIN CLASIFICAR`, and no factor item even when a contribution is positive. Variables
+  without a reading are named (`Sin lectura: …`); a batch with none says so. `data_status`
+  never changes the catalogue — the card states freshness on its own side.
+- R-05 is rendered as a consultable item outside the composition, never as a finding:
+  the system does not know whether vegetation touches power lines where the card points.
+
+The panel states its own state when there is nothing to compose from (no zone selected, a
+read in flight, no published batch, a failed or rejected read, a closed session). Showing
+suggestions issues no request, writes nothing and creates no action — creating one remains
+item 11 — and the copy says that the measures paraphrase public SENAPRED and MINVU guidance,
+that mapping each measure to our levels and variables is FireWatch's own decision, and that
+no item is an official alert, an official risk classification or an order. The composition
+and its fallbacks are pinned by `tests/domain/recommendations.test.ts`; the rendered list,
+its states and the no-mutating-request assertion by the PM-18 cases in
+`tests/views/overview.test.tsx`.
 
 ## Quality gates
 
