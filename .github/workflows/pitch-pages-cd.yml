@@ -164,20 +164,36 @@ jobs:
           got=""
           status=""
           final_url=""
+          rc=1
           for _ in $(seq 1 12); do
             : >"$body"
-            # `|| true` keeps a transport error inside the loop: it leaves an empty or 000
-            # status, which fails closed below, instead of ending the step on curl's exit.
-            reply=$(curl -sSL --max-time 15 -H 'Cache-Control: no-cache' \
-              -w '%{http_code} %{url_effective}' -o "$body" "$origin/" || true)
+            # curl's exit code is kept, not swallowed: a transfer cut short by --max-time
+            # can deliver a prefix that equals this build byte for byte when the served
+            # resource is larger (a CDN-injected script after the closing tag, say), so a
+            # 200 plus a matching hash alone does not prove the read completed. The `if`
+            # captures that status into rc without `set -e` ending the step on it.
+            if reply=$(curl -sSL --max-time 15 -H 'Cache-Control: no-cache' \
+              -w '%{http_code} %{url_effective}' -o "$body" "$origin/"); then
+              rc=0
+            else
+              rc=$?
+            fi
             status=${reply%% *}
             final_url=${reply#* }
             got=$(sha256sum "$body" | cut -d' ' -f1)
-            [ "$status" = "200" ] && [ "$got" = "$want" ] && break
+            [ "$rc" -eq 0 ] && [ "$status" = "200" ] && [ "$got" = "$want" ] && break
             sleep 10
           done
-          # Two failures, named apart: the URL never answered 200, or it answered 200
-          # with an index.html that is not this build. Both leave the upload in place.
+          # Three failures, named apart: a request that failed or was cut short, a
+          # non-200 answer, or a 200 whose body is not this build. All leave the upload
+          # in place, and none of them is reported as one of the others.
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::the request to $origin/ failed or was cut short (curl exit code" \
+              "$rc, last HTTP status ${status:-none} at ${final_url:-none}). An incomplete" \
+              "read is not a wrong build: it can match this build byte for byte while the" \
+              "served resource is still larger. Nothing is rolled back."
+            exit 1
+          fi
           if [ "$status" != "200" ]; then
             echo "::error::$origin/ answered HTTP ${status:-no response} instead of 200 after" \
               "following redirects (final URL: ${final_url:-none}). The upload may not have" \

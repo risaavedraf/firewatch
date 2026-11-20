@@ -9,10 +9,10 @@
 # bound to the SHA being published; the Cloudflare token expanded only for the
 # upload; that the upload names its Pages project from PITCH_PAGES_PROJECT with a
 # declared-clean tree, the only place that destination can come from; and that the
-# publish is verified against the production URL with redirects followed and the
-# status read apart from the hashed body. It also checks that the VM CD still
-# keeps Pages out (its own contract says so) and still carries the name this
-# workflow follows.
+# publish is verified against the production URL with redirects followed, the status
+# read apart from the hashed body, and curl's exit status kept so an incomplete read
+# cannot pass. It also checks that the VM CD still keeps Pages out (its own contract
+# says so) and still carries the name this workflow follows.
 #
 # What it does not: run the workflow, reach Cloudflare or prove the upload. Those
 # are observed on a real run (CD.md, Frontend en Cloudflare Pages).
@@ -145,6 +145,22 @@ grep -q '%{http_code}' "$wf" ||
 grep -q -- '-o "\$body"' "$wf" || fail "the URL check must write the response body to a file of its own"
 grep -q 'sha256sum "\$body"' "$wf" ||
 	fail "the URL check must hash that file, keeping the status out of the hashed bytes"
+# The exit status is part of the check, not a detail to swallow: a read cut short by
+# --max-time can equal the build byte for byte when the served resource is larger, so
+# status 200 plus a matching hash does not prove the read finished.
+grep -q 'if reply=\$(curl ' "$wf" ||
+	fail "the URL check must capture curl's exit code (if reply=\$(curl ...); then rc=0; else rc=\$?; fi): a read cut short can equal this build byte for byte"
+grep -q 'rc=\$?' "$wf" ||
+	fail "the URL check must keep curl's exit code in rc instead of discarding it"
+grep -qE '\[ "\$rc" -eq 0 \] && \[ "\$status" = "200" \] && \[ "\$got" = "\$want" \]' "$wf" ||
+	fail "an attempt may pass only when curl exited 0, the answer was 200 and the body matches: any one of those alone is not proof"
+grep -qE '\[ "\$rc" -ne 0 \]' "$wf" ||
+	fail "an incomplete transfer must fail as itself, ahead of the non-200 and body checks, or the operator is sent to the wrong cause"
+grep -q 'curl exit code' "$wf" ||
+	fail "the incomplete-transfer error must name curl's exit code"
+if grep -q '|| true' "$wf"; then
+	fail "a swallowed exit status (|| true) would let a truncated read pass as this build"
+fi
 if grep -qE 'curl [^|]*\| *(sha256sum|tee)' "$wf"; then
 	fail "piping the response into sha256sum hashes whatever came back, a redirect or an error page included"
 fi
@@ -176,4 +192,4 @@ for block in "$tmp"/*.sh; do
 done
 [ "$blocks" -ge 5 ] || fail "expected at least 5 run blocks in $wf, found $blocks"
 
-printf 'PASS: the Pages CD follows only a successful main VM deploy (or a manual main dispatch), is dormant without PITCH_PAGES_CD_ENABLE, publishes the exact SHA through the same fresh/wait gate, keeps its token in its own environment apart from the SSH key, pins its actions and wrangler, names its Pages project from PITCH_PAGES_PROJECT with a declared-clean tree, and verifies the production URL serves the build by following redirects and reading the status apart from the hashed body; the VM CD still keeps Pages out\n'
+printf 'PASS: the Pages CD follows only a successful main VM deploy (or a manual main dispatch), is dormant without PITCH_PAGES_CD_ENABLE, publishes the exact SHA through the same fresh/wait gate, keeps its token in its own environment apart from the SSH key, pins its actions and wrangler, names its Pages project from PITCH_PAGES_PROJECT with a declared-clean tree, and verifies the production URL serves the build by following redirects, reading the status apart from the hashed body, and requiring the transfer to complete; the VM CD still keeps Pages out\n'
