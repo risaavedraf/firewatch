@@ -1,6 +1,6 @@
 # odd/ — mapa de la documentación
 
-**Propósito:** un solo punto de entrada. Cada carpeta responde una pregunta distinta; este archivo dice cuál abrir y cuál no leer como estado vigente. Última revisión: **2026-10-20**.
+**Propósito:** un solo punto de entrada. Cada carpeta responde una pregunta distinta; este archivo dice cuál abrir y cuál no leer como estado vigente. Última revisión: **2026-11-18**.
 
 ## Empieza por aquí
 
@@ -8,7 +8,8 @@
 |---|---|---|
 | Preparar la reunión con el mandante | [`presentacion-mandante.md`](presentacion-mandante.md) | Guion en lenguaje simple: qué funciona, qué falta, qué se puede y qué no se puede decir |
 | Saber cuánto falta de los 132 requisitos | [`estado-requerimientos-cliente.md`](estado-requerimientos-cliente.md) | Corte del 2026-10-20: 60 parciales, 66 bloqueados, 5 pendientes, 1 propuesto, 0 cerrados, y qué artefacto falta por dominio |
-| Saber qué construir y en qué orden | [`plan-produccion/README.md`](plan-produccion/README.md) | 15 frentes hacia producción, un archivo por frente; el estado consolidado está en su §10 |
+| Saber qué pidió el mandante como **producto** | [`requerimientos-producto-mandante.md`](requerimientos-producto-mandante.md) | Las veinte funcionalidades de producto, transcritas literales, con su corte verificado del 2026-11-18: 10 ausentes, 9 parciales, 1 implementada, y qué las desbloquea |
+| Saber qué construir y en qué orden | [`plan-produccion/README.md`](plan-produccion/README.md) | 16 frentes hacia producción, un archivo por frente; el estado consolidado está en su §10 |
 | Saber qué se ejecutó y qué se verificó | [`tasks/README.md`](tasks/README.md) | Índice por área, con estado, qué está entregado y qué falta en cada entrega |
 | Leer el pedido original del cliente | [`../Referencias/tareas_verificacion_implementacion_IA.md`](../Referencias/tareas_verificacion_implementacion_IA.md) | Los 132 IDs (72 de implementación, 60 de verificación) con su criterio de aprobación |
 | Hacer un cambio en el repositorio | [`PR-CONVENTIONS.md`](PR-CONVENTIONS.md) | Flujo issue-first, etiquetas, plantilla y nombres de rama |
@@ -18,7 +19,7 @@
 
 | Carpeta | Qué es | Fecha y estado | Entrada |
 |---|---|---|---|
-| [`plan-produccion/`](plan-produccion/) | Plan hacia la versión de producción: 15 frentes, cada uno con su spec, tareas y log. Es el «qué falta y en qué orden» | Vivo; el estado consolidado es su §10 (actualizado el 2026-10-18) | [`README.md`](plan-produccion/README.md) |
+| [`plan-produccion/`](plan-produccion/) | Plan hacia la versión de producción: 16 frentes, cada uno con su spec, tareas y log. Es el «qué falta y en qué orden» | Vivo; el estado consolidado es su §10 (actualizado el 2026-11-18) | [`README.md`](plan-produccion/README.md) |
 | [`tasks/`](tasks/) | Registros de ejecución ODD: qué se planificó, qué se hizo y con qué evidencia. Es el historial, no el plan | Vivo; se actualiza al cerrar cada entrega | [`README.md`](tasks/README.md) |
 | [`urgent/`](urgent/) | Cola de planificación del 2026-10-14 para la reunión con el jefe de proyecto: cinco unidades U1–U5 que reparten los 132 IDs | **Foto histórica**, corregida el 2026-10-20; el corte vigente es `estado-requerimientos-cliente.md` | [`README.md`](urgent/README.md) |
 | [`tools/`](tools/) | Scripts de verificación. Hoy solo el verificador de enlaces | Vivo | [`check_md_links.py`](tools/check_md_links.py) |
@@ -28,11 +29,16 @@
 ```text
 Referencias/  →  estado-requerimientos-cliente  →  urgent/  →  plan-produccion/  →  tasks/  →  presentacion-mandante
 (el pedido)      (el corte de hoy)                 (unidades)   (frentes y orden)    (ejecución)  (comunicación)
+
+requerimientos-producto-mandante  →  plan-produccion/16-producto-mandante  →  tasks/
+(las 20 del mandante)                (un frente, 18 tareas)                  (ejecución)
 ```
 
 Cada eslabón responde una pregunta distinta y **no reemplaza al anterior**. Si dos documentos discrepan, gana el más específico: para un ID, su fila en `backend/docs/checklist-evidence-u*.md`; para un frente, `plan-produccion/README.md` §10; para una entrega, el `## Log` de su documento en `tasks/`.
 
-**`plan-produccion/` no es el checklist del mandante.** Los 132 IDs de `Referencias/` son los criterios de aceptación; `plan-produccion/` es el orden de ingeniería para llegar a producción. Cita esos IDs, pero además incluye trabajo que el checklist no pide (firma y promoción de imágenes, motor de datos, DIFROL, hardening) y deja explícitamente fuera la fuente real y el modelo entrenado. Por eso ejecutar los 15 frentes no marca por sí solo un ID, y cerrar los 132 tampoco equivale a terminar el plan.
+**`plan-produccion/` no es el checklist del mandante.** Los 132 IDs de `Referencias/` son los criterios de aceptación; `plan-produccion/` es el orden de ingeniería para llegar a producción. Cita esos IDs, pero además incluye trabajo que el checklist no pide (firma y promoción de imágenes, motor de datos, DIFROL, hardening) y deja explícitamente fuera la fuente real y el modelo entrenado. Por eso ejecutar los 16 frentes no marca por sí solo un ID, y cerrar los 132 tampoco equivale a terminar el plan.
+
+**Hay dos familias de pedido y este mapa las separa.** La primera son los **132 IDs** de `Referencias/`: criterios de aceptación de IA, datos, modelo, operación y gobierno, con su corte en [`estado-requerimientos-cliente.md`](estado-requerimientos-cliente.md). La segunda son las **20 funcionalidades de producto** que el mandante pidió y que llegaron sin documento: viven en [`requerimientos-producto-mandante.md`](requerimientos-producto-mandante.md) y su trabajo en el frente 16. Ninguna cierra a la otra —un panel ejecutivo perfecto no aporta evidencia de sesgo, y un `MET-V1` cerrado no le sirve al mandante frente a la pantalla— y por eso tienen documentos separados con reglas de cierre distintas. El frente 16 **entra completo** en la condición de cierre de `v1.0-produccion` desde el 2026-11-20: S5 quedó resuelta y sus 18 tareas se distribuyen en los grupos existentes de [`tasks/v1-produccion.md`](tasks/v1-produccion.md).
 
 ## Qué es histórico y no debe leerse como estado
 

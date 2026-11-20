@@ -1,7 +1,7 @@
 # v1.0 producción — condiciones de cierre de la versión 1.0 de FireWatch
 
-**Qué es:** documento ODD que define qué falta para llamar `v1.0-produccion` a esta aplicación: diseño web terminado, usuarios y asignación de trabajos, modelo de datos, los doce frentes de producción abiertos, el hardening pendiente, la interfaz declarada no implementada y el cierre documental.
-**Estado:** abierto y en ejecución — 32 tareas abiertas y 14 cerradas (`V1-F-05`, `V1-C-01`…`V1-C-05`, `V1-H-02`, `V1-M-01`, `V1-M-02`, `V1-M-03`, `V1-M-04`, `V1-U-01`, `V1-U-02` y `V1-U-03`); el modelo real queda fuera de este cierre por S2.
+**Qué es:** documento ODD que define qué falta para llamar `v1.0-produccion` a esta aplicación: diseño web terminado, usuarios y asignación de trabajos, modelo de datos, los trece frentes de producción abiertos —incluido el 16, producto del mandante—, el hardening pendiente, la interfaz declarada no implementada y el cierre documental.
+**Estado:** abierto y en ejecución — **64 filas y 62 unidades de trabajo** (46 filas `V1-*` y 18 filas `PM-*`; `PM-04`/`V1-P-04` y `PM-10`/`V1-P-07` son una unidad cada par): **48 unidades abiertas y 14 cerradas**. Cerradas: `V1-F-05`, `V1-C-01`…`V1-C-05`, `V1-H-02`, `V1-M-01`, `V1-M-02`, `V1-M-03`, `V1-M-04`, `V1-U-01`, `V1-U-02` y `V1-U-03`; el modelo real queda fuera de este cierre por S2 y el frente 16 entra completo por S5.
 **Acta:** [`odd/entrega/acta-cierre.md`](../entrega/acta-cierre.md) §5 (corrección del responsable) y §6 (alcance de la versión 1.0).
 
 ## Specs
@@ -33,9 +33,17 @@ La autoridad es `backend/training/ANALYSIS-delivered-data.md` §4 (`:513-529`), 
 
 **S4 — El tag `v1.0-produccion` no se emite hasta cerrar este documento.** `../entrega/acta-cierre.md` §5 (`:73-93`) establece que el tag queda bloqueado hasta cerrar las tareas abiertas de `odd/` y las capacidades faltantes, y que la entrega anterior no se llama `v1.0-produccion`; E4 (`:25-27`) se conserva como historia, no como decisión vigente. El §6 (`:94-106`) fija el alcance: la versión 1.0 se computa sobre el diseño web terminado, los usuarios y la asignación de trabajos, el modelo de datos, los doce frentes abiertos y las unidades de hardening pendientes.
 
+**S5 — El frente 16 entra completo en la condición de cierre de v1.0.** Decisión del responsable del proyecto, registrada en L18: las veinte funcionalidades de producto del mandante —transcritas en [`../requerimientos-producto-mandante.md`](../requerimientos-producto-mandante.md) §1, con su corte verificado del 2026-11-18 sobre `d4afba7` (10 ausentes, 9 parciales, 1 implementada)— y las 18 filas `PM-*` de su plan ([`../plan-produccion/16-producto-mandante.md`](../plan-produccion/16-producto-mandante.md)) entran **todas** en el alcance, incluidas las bloqueadas: su bloqueo es la compuerta que las mantiene abiertas, no una razón para dejarlas fuera.
+
+La decisión **no abre un grupo paralelo**. Las 18 filas `PM-*` se distribuyen por la capa del sistema que tocan en los grupos existentes —G1, superficie web (10); G2, usuarios e identidad (2); G3, modelo de datos (5); G5, hardening (1)—, y su criterio de cierre, su dependencia y su ola siguen en el frente 16, que es el punto de referencia. No se abre un grupo `V1-R` ni una fila `V1-*` nueva. Las veinte filas del §1 quedan cubiertas por las 18 `PM-*` —PM-11 reúne los ítems 2 y 12— y por `V1-U-04` (ítem 11).
+
+El alcance se suma al cómputo **sin duplicar trabajo**: `PM-04` absorbe `V1-P-04` y `PM-10` absorbe `V1-P-07`, así que cada par cuenta como una unidad y las dos filas `V1-P` conservan su criterio y su estado; `PM-11` es complementaria de `V1-P-02` —entidades y pesos frente a regla y ficha— y no la reemplaza; el ítem 11 no tiene fila `PM-*` porque su unidad es `V1-U-04`, que **sigue diferida por L12** y no se adelanta. Añadir alcance **no cierra nada**: las 18 filas `PM-*` quedan abiertas y ninguna cambia de estado, y D-A, D-B, D-C y D-D siguen abiertas con las compuertas que el frente 16 declara.
+
+El acta no se reescribe: S4 conserva el alcance que fijó su §6 —los doce frentes abiertos— y esta Specs le suma el 16, que es lo que hace que el conteo vigente de frentes abiertos sea trece.
+
 ## Tasks
 
-Ninguna tarea de esta tabla está cerrada salvo `V1-F-05`, `V1-C-01`…`V1-C-05`, `V1-H-02`, `V1-M-01`, `V1-M-02`, `V1-M-03`, `V1-M-04`, `V1-U-01`, `V1-U-02` y `V1-U-03`, y las demás no acreditan implementación. Rutas: **inline** = trabajo documental o acotado que ejecuta quien mantiene este documento; **worker** = implementación delegada con superficie declarada; **bloqueado** = no puede empezar hasta que exista el insumo que se nombra en la misma celda.
+Ninguna tarea `V1-*` de este documento está cerrada salvo `V1-F-05`, `V1-C-01`…`V1-C-05`, `V1-H-02`, `V1-M-01`, `V1-M-02`, `V1-M-03`, `V1-M-04`, `V1-U-01`, `V1-U-02` y `V1-U-03`, y las demás no acreditan implementación; las 18 filas `PM-*` del frente 16 tampoco están cerradas: `PM-02` tiene una entrega parcial fusionada (L19) y `PM-18` una entrega de solo lectura en el árbol de trabajo, sin fusión (L20). Rutas: **inline** = trabajo documental o acotado que ejecuta quien mantiene este documento; **worker** = implementación delegada con superficie declarada; **bloqueado** = no puede empezar hasta que exista el insumo que se nombra en la misma celda.
 
 ### G1 — Diseño web (V1-D)
 
@@ -52,6 +60,21 @@ El límite de accesibilidad está declarado por la propia entrega (`../../fronte
 | V1-D-03 | Restilizar cada vista según lo que marque la auditoría, sin cambiar comportamiento ni los identificadores que las pruebas fijan. | S1 | Cada desviación de V1-D-02 está cerrada en la vista que la declaró, o justificada por escrito con su razón, y la suite de pruebas de frontend sigue en verde. | worker |
 | V1-D-04 | Accesibilidad con WCAG AA como meta medible. | S1 | Un informe registrado evalúa los criterios WCAG AA aplicables a las ocho vistas, con herramienta, versión y fecha declaradas, y cada criterio tiene resultado pasa/falla; los fallos quedan corregidos. | worker |
 | V1-D-05 | Verificación visual con evidencia antes/después. | S1 | Por cada una de las ocho vistas existe una captura de antes y otra de después en el mismo navegador y viewport, con fecha y con su ruta registrada. | inline |
+
+**Producto del mandante que ejecuta este grupo (frente 16):** diez filas `PM-*`. El criterio de cierre, la dependencia y la ola de cada una viven en [`../plan-produccion/16-producto-mandante.md`](../plan-produccion/16-producto-mandante.md), que es el punto de referencia; aquí se registra el encaje y la relación con las tareas de arriba, sin duplicar el criterio.
+
+| PM | Tarea | Relación con este grupo |
+| --- | --- | --- |
+| PM-01 | Panel ejecutivo agregado (ítem 1). | Vista y agregado en el servidor; «alertas activas» espera la entidad de PM-07 y no cambia el diseño de las ocho vistas de V1-D. |
+| PM-02 | Presentación de la explicación (ítem 3). | Ficha de zona sobre `factors` ya publicado. El PR #104 —fusionado el 2026-11-20 con merge `cbc2aa8` sobre el origen `414b538`— hace que la ficha nombre siempre las cinco variables canónicas: las medidas muestran valor, contribución y nota; las desconocidas explícitas y las ausentes del lote dicen «sin lectura», sin valor, contribución ni barra inventados; un lote sin factores usables conserva solo el aviso de omisión. El PR registra 393 pruebas de frontend y 39 spot checks en local, y dos comprobaciones de CI en verde. El cambio es de presentación: no toca la clasificación ni el contrato. **Sigue abierta**: el rótulo de D-D y la prueba que lo fija no existen. |
+| PM-03 | Simulador contrafactual (ítem 4). | Página y endpoint de solo cálculo; no escribe lote (R4). |
+| PM-04 | Evolución temporal e historial agregado (ítem 7). | **Absorbe `V1-P-04`**: una sola unidad de trabajo. Aporta la granularidad por horas, días y semanas; ver G6. |
+| PM-05 | Comparador de zonas (ítem 8). | Vista multi-zona; la prioridad se suma cuando exista PM-11. |
+| PM-08 | Centro de notificaciones (ítem 18). | Vista sobre la entidad de PM-07 (G3); no aporta dato propio. |
+| PM-13 | Exportación de datos (ítem 15). | Página y endpoint; el archivo declara zona, fecha y si el dato es sintético. |
+| PM-14 | Ficha PDF por zona (ítem 14). | Documento y vista; depende de PM-02 (causas), PM-11 (mapa) y PM-18 (recomendaciones), y lleva la marca de R3. |
+| PM-16 | Tablero de estado de servicios (ítem 19). | Vista única; no replica el scrape del frente 5 (`V1-F-05`). |
+| PM-18 | Catálogo de recomendaciones preventivas (ítem 5). | Contenido que la ficha muestra; no crea acciones — el registro sigue siendo del ítem 11. La ficha de solo lectura existe en el árbol de trabajo desde el 2026-11-20: `frontend/src/domain/recommendations.ts` compone desde el lote ya publicado, con los cuatro niveles, las cinco variables canónicas, orden determinista y salida cerrada ante un nivel no clasificado; 29 pruebas de dominio y 6 casos de vista lo fijan, incluido que sugerir no emite peticiones de escritura ni toca `prevention`. **Sigue abierta**: la entrega no está fusionada ni revisada por una persona y R6 no tiene disposición formal. |
 
 ### G2 — Usuarios y asignación (V1-U)
 
@@ -72,6 +95,15 @@ El realm declara dos roles, `viewer` y `admin` (`backend/deploy/local/firewatch-
 | V1-U-03 | Asignar una acción preventiva a una persona del directorio. | S1 | `POST /v1/prevention/actions` acepta el identificador de un usuario del directorio, lo persiste y lo devuelve en la lectura; una prueba cubre la asignación, el identificador inexistente y la acción sin asignar. | worker |
 | V1-U-04 | Vista para elegir y ver el responsable de una acción preventiva. | S1 | La vista de acciones permite elegir un usuario del directorio al crear una acción y muestra el responsable de cada una; su prueba cubre sin asignar, asignada y error del servidor. | worker |
 
+**Producto del mandante que ejecuta este grupo (frente 16):** dos filas `PM-*`, más el ítem 11, cuya unidad ya es `V1-U-04`. El criterio de cierre, la dependencia y la ola viven en el frente 16.
+
+| PM | Tarea | Relación con este grupo |
+| --- | --- | --- |
+| PM-06 | Evaluación con actor (ítem 9). | El actor es el sujeto verificado del token y nunca uno enviado por el cliente; exige migración nueva, sujeta a la regla de `V1-M-04`. |
+| PM-15 | Rol `analista` (ítem 16). | Toca el realm y la matriz de acceso; bloqueada por D-C, y `viewer`/`admin` conservan el comportamiento ya probado. |
+
+**Ítem 11 — sin fila `PM-*`.** Su unidad de producto es `V1-U-04`, la vista del responsable, que sigue **diferida por L12** y se ejecuta con G1. Entrar en el alcance de v1.0 no la adelanta ni la cierra.
+
 ### G3 — Modelo de datos (V1-M)
 
 No existe ERD ni documento de esquema de dominio: el esquema vive solo como SQL en `backend/services/{risk,jobs,prevention}/migrations/`.
@@ -89,9 +121,21 @@ D1 —motor de datos productivo, backups y SLA— quedó resuelta el 2026-11-09,
 | V1-M-03 | D1 — motor de datos productivo, backups y SLA. | S1 | El acta registra el motor elegido, su impacto en migraciones y persistencia, la política de backups y el SLA, con responsable y fecha. | cerrada — L13; acta §7, con el sustrato enmendado en §7.3 |
 | V1-M-04 | Regla de versiones del ledger compartido de migraciones. | S1 | La regla está escrita junto al migrador, con el rango de versiones que usa cada servicio, y una prueba falla cuando dos servicios reclaman la misma versión, como el guard existente; la versión de la próxima migración de `prevention` queda determinada por esa regla. | inline |
 
+**Producto del mandante que ejecuta este grupo (frente 16):** cinco filas `PM-*`, todas con migración o capa nueva. El criterio de cierre, la dependencia y la ola viven en el frente 16; cada migración que introduzcan queda sujeta a la regla de `V1-M-04`.
+
+| PM | Tarea | Relación con este grupo |
+| --- | --- | --- |
+| PM-07 | Alertas por cambio de nivel (ítem 6). | Entidad de alerta con zona, nivel anterior, nivel nuevo, umbral y fecha; origen de PM-08. |
+| PM-09 | Incidentes preventivos (ítem 10). | Entidad de observación de campo con tipo cerrado; origen del vínculo de PM-10. |
+| PM-10 | Bitácora de decisiones (ítem 17). | **Absorbe `V1-P-07`**: una sola unidad de trabajo. Amplía `GET /v1/audit` y registra consultas, no solo mutaciones. |
+| PM-11 | Infraestructura crítica y priorización (ítems 12 y 2). | Entidades expuestas y pesos de priorización; **complementa `V1-P-02`** —regla y ficha— sin reemplazarla; bloqueada por D-A. |
+| PM-12 | Capa de vegetación / NDVI (ítem 13). | Capa nueva, distinta de la variable escalar; su ingesta corresponde al frente 1 (`V1-F-01`, G4); bloqueada por D-A. |
+
+El inventario y el ERD cerrados (`V1-M-01`, `V1-M-02`) describen el esquema de su corte: las tablas nuevas de estas filas no reabren esas tareas ni se declaran inventariadas por estar planificadas.
+
 ### G4 — Frentes de producción abiertos (V1-F)
 
-De los quince frentes de `../plan-produccion/README.md`, tres están cerrados (3, 4 y 10) y doce siguen abiertos: 1, 2, 5, 6, 7, 8, 9, 11, 12, 13, 14 y 15 (`:258-289` de ese documento). Esos doce frentes concentran 65 de las 78 tareas de frente; los tres cerrados aportan las 13 restantes.
+De los dieciséis frentes de `../plan-produccion/README.md`, tres están cerrados (3, 4 y 10) y trece siguen abiertos: 1, 2, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15 y 16. Los quince frentes originales aportan 78 filas de tarea —65 en los doce abiertos y 13 en los tres cerrados— y el frente 16 aporta sus 18 filas `PM-*`: **96 filas de frente, 83 abiertas y 13 cerradas**. Esta tabla representa doce frentes con una fila `V1-F-*` cada uno; el frente 16 no recibe fila `V1-F` porque sus 18 filas se distribuyen en G1, G2, G3 y G5 por S5, y su criterio sigue en el frente. Esa distribución no infla el cómputo de este documento: `PM-04` y `V1-P-04` son una unidad y `PM-10` y `V1-P-07` otra, así que hay **64 filas y 62 unidades de trabajo: 48 abiertas y 14 cerradas**.
 
 El frente 2 no condiciona el cierre de la versión 1.0: entra aquí solo como el frente diferido que describe S3, y su fila lo declara.
 
@@ -128,6 +172,12 @@ Cada fila cierra con lo que su propio documento pide. Este documento no adelanta
 | V1-H-11 | BH-11 — seguridad de despliegue verificada (`security/backend-hardening/11-deployment-security-verification.md`). | S1 | Los controles de BH-04, BH-05 y BH-06 se verifican sobre el despliegue elegido, non-root, sistema de archivos de solo lectura y capabilities quedan registrados con sus excepciones, y el reporte de exposición de secretos es sanizado. | worker |
 | V1-H-12 | BH-12 — errores centralizados (`security/backend-hardening/12-centralized-error-handling.md`). | S1 | La activación explícita está registrada y, después, las categorías de error y su mapeo de estado son iguales entre servicios, `request_id` se propaga igual y ningún error interno llega crudo al cliente, con contract tests y documentación actualizados. | bloqueado — por activación explícita |
 
+**Producto del mandante que ejecuta este grupo (frente 16):** una fila `PM-*`. El criterio de cierre, la dependencia y la ola viven en el frente 16.
+
+| PM | Tarea | Relación con este grupo |
+| --- | --- | --- |
+| PM-17 | Asistente IA explicativo (ítem 20). | No es una unidad BH: entra aquí porque su compuerta es de seguridad —`GRD-I1` y `GRD-I2` resueltos antes de abrirla (R7)—, no de interfaz. |
+
 ### G6 — Interfaz declarada no implementada (V1-P)
 
 `frontend/src/views/PendingView.tsx:22-65` declara siete capacidades que el backend no respalda y las rotula «Aún no implementado». La lista se exporta y una prueba fija su número de filas contra el contenido renderizado (`frontend/tests/views/pending.test.tsx:35`).
@@ -143,6 +193,8 @@ Cada fila cierra cuando la capacidad existe en el contrato o en el backend y en 
 | V1-P-05 | `Revisar e incorporar registros, y hallazgos de calidad`. | S1 | Revisar e incorporar registros tiene una acción autenticada y probada, existe un catálogo de hallazgos de calidad con su endpoint y su vista, y la entrada sale de `NOT_IMPLEMENTED`. | worker |
 | V1-P-06 | `Publicar lote, avance manual y reevaluación`. | S1 | Las tres acciones existen como endpoints autenticados con autorización por rol, una prueba cubre el rechazo por rol y el estado resultante, la página las ofrece, y la entrada sale de `NOT_IMPLEMENTED`. | worker |
 | V1-P-07 | `Nombre del actor, detalle libre e id de evento`. | S1 | `GET /v1/audit` devuelve nombre del actor, detalle libre e identificador de evento por fila, documentado en el contrato con contract test, la vista de auditoría los muestra, y la entrada sale de `NOT_IMPLEMENTED`. | inline |
+
+**Cruces con el frente 16, sin duplicar la unidad.** `PM-04` absorbe `V1-P-04` y `PM-10` absorbe `V1-P-07`: cada par es una sola unidad de trabajo y estas dos filas conservan su criterio y su estado, que no cambia por S5. `PM-11` es complementaria de `V1-P-02` —aporta las entidades y los pesos de la priorización, mientras esta fila aporta la regla y la ficha— y no la reemplaza. Ninguna fila de esta tabla se cierra ni se adelanta por la decisión de alcance.
 
 ### G7 — Cierre documental (V1-C)
 
@@ -163,6 +215,40 @@ El corte documental del cierre incluye regenerar `../presentacion-mandante.md` �
 | V1-C-07 | Actualizar el acta de cierre con el estado de v1.0. | S4 | `../entrega/acta-cierre.md` registra la fecha de cierre de este documento, el commit sobre el que se emite `v1.0-produccion` y el estado del tag, y su §5 deja de bloquearlo. | inline |
 
 ## Log
+
+- **L20 (2026-11-20) — PM-18 entrega la ficha de solo lectura en el árbol de trabajo y sigue abierta.** La composición del catálogo y su panel existen sin fusión ni revisión humana: [`../../frontend/src/domain/recommendations.ts`](../../frontend/src/domain/recommendations.ts) (función pura), el panel `#recommendation-panel` de [`../../frontend/src/views/OverviewView.tsx`](../../frontend/src/views/OverviewView.tsx), 29 pruebas en [`../../frontend/tests/domain/recommendations.test.ts`](../../frontend/tests/domain/recommendations.test.ts) y 6 casos PM-18 en [`../../frontend/tests/views/overview.test.tsx`](../../frontend/tests/views/overview.test.tsx) (40 en el archivo).
+  - **Qué cubre.** Los cuatro niveles y las cinco variables canónicas; pareja base por nivel; hasta dos factores por aporte con desempate por el orden canónico; máximo cuatro ítems sin relleno; `desconocido`, `null`, ausente o fuera del conjunto fallan cerrado con R-01 y R-02 y ningún ítem de factor; R-05 es consultable y no un hallazgo; `demo: true` antepone la marca sintética y `data_status` no altera la lista.
+  - **Qué no toca.** Ni contrato, ni endpoint, ni `frontend/src/core/api.ts`, ni `classify`, ni `batches`, ni `prevention`. La prueba de vista verifica que toda petición de la sesión sea `GET`/`HEAD` y que las emitidas al cambiar de zona no vayan a `/v1/prevention` ni a `actions`; crear una acción sigue siendo del ítem 11.
+  - **Evidencia y límites.** La corrida `npm run verify` del árbol de trabajo terminó con código 0 e incluyó 428 pruebas de unidad e integración (frontend); 69 pruebas dirigidas se confirmaron. No se ejecutó compilación de producción —la que exige variables `VITE_*`— ni hubo evidencia manual de navegador, visual, `axe` o lector de pantalla. Este registro no re-ejecutó la corrida.
+  - **Lo que falta.** La revisión humana de la entrega y la disposición formal de **R6**. Como PM-18 no abre endpoint ni cambia contrato, no hay capa de contrato nueva que acreditar; este registro **no declara R6 satisfecho** ni inventa un requisito de API. El rótulo de D-D sigue siendo de PM-02.
+  - **Dónde quedó escrito.** La fila de `PM-18` en G1 y el preámbulo de Tasks de este documento; el estado del frente y su registro, en [`../plan-produccion/16-producto-mandante.md`](../plan-produccion/16-producto-mandante.md) L6; el detalle de la composición y de lo que falta, en [`../plan-produccion/catalogo-recomendaciones-preventivas.md`](../plan-produccion/catalogo-recomendaciones-preventivas.md) §8. Los conteos no cambian: 64 filas, 62 unidades, 48 abiertas y 14 cerradas.
+
+- **L19 (2026-11-20) — PM-02 acredita el PR #104 y sigue abierta por D-D.** El PR #104 «fix(frontend): show missing risk factor readings» quedó fusionado el 2026-11-20T20:36:41Z con merge commit `cbc2aa8f3cd13f8a755376165eb024b01e19bff7` sobre el commit origen `414b538` ([PR #104](https://github.com/risaavedraf/firewatch-dev/pull/104), issue [#103](https://github.com/risaavedraf/firewatch-dev/issues/103)). Cambia solo el cliente: `frontend/src/views/OverviewView.tsx` y `frontend/tests/views/overview.test.tsx`.
+  - **Qué acredita.** La ficha de zona nombra siempre las cinco variables canónicas de la regla —`temperatura`, `humedad_relativa`, `viento`, `cobertura_vegetal` e `incendios_historicos`—: las que tienen lectura muestran valor, contribución y nota; las desconocidas explícitas y las que el lote no trae dicen «sin lectura», sin valor, contribución ni barra inventados; un factor extra del lote se conserva; y un lote sin factores usables no se rellena con filas inventadas, así que mantiene solo el aviso de omisión.
+  - **Evidencia de la entrega.** 393 pruebas de frontend y 39 spot checks en local, y dos comprobaciones de CI en verde, registradas en el PR. No hubo compilación de producción ni prueba manual de la página; este registro no las ejecutó: lee el código y la prueba fusionados y toma las cifras del PR.
+  - **Lo que no cambió.** Ni la clasificación ni el contrato de `factors`: el cambio es de presentación en el cliente sobre un lote ya publicado. L18 se conserva como historia; su escaneo estático describía el estado previo a esta fusión.
+  - **Qué falta para cerrar PM-02.** El rótulo de **D-D** —la decisión que R2 fija y que sigue abierta— y la prueba que lo fija. La prueba fusionada ya fija la lista de las cinco variables y las filas sin lectura, que era la otra mitad del criterio. Por eso PM-02 **no se cierra** y su fila se actualiza en G1.
+  - **Dónde quedó escrito.** La fila de `PM-02` en G1 y el preámbulo de Tasks de este documento, que ya no afirma que ninguna fila `PM-*` esté ejecutada; el estado del frente y su registro, en [`../plan-produccion/16-producto-mandante.md`](../plan-produccion/16-producto-mandante.md) L4. Los conteos de este documento no cambian: 64 filas, 62 unidades, 48 abiertas y 14 cerradas.
+
+- **L18 (2026-11-20) — S5 resuelta: el frente 16 entra completo en v1.0 y se distribuye en los grupos existentes.** Pedido del responsable, textual:
+  > «claro, añadelas al v1-produccion quizás no un apartado nuevoa, añadirla a las distintas partes que tiene el plan, en donde mejor sea colocarlas»
+
+  La decisión previa del responsable fija el alcance: **incluir todo el frente 16 en v1.0**. Este registro ejecuta el pedido sobre el documento, no sobre el producto: no se ejecuta código, no se levanta el stack y no cambia el estado de ninguna tarea.
+  - **Qué cambió en S5.** Deja de ser una decisión abierta y pasa a fijar el alcance: las veinte funcionalidades y las 18 filas `PM-*` entran en la condición de cierre, incluidas las bloqueadas, cuyo bloqueo es la compuerta que las mantiene abiertas. Sigue sin abrirse un grupo `V1-R`.
+  - **Dónde quedó cada fila.** Se distribuyen por la capa del sistema que tocan, con el criterio, la dependencia y la ola en el frente 16: **G1** (superficie web) `PM-01`, `PM-02`, `PM-03`, `PM-04`, `PM-05`, `PM-08`, `PM-13`, `PM-14`, `PM-16` y `PM-18` (10); **G2** (usuarios e identidad) `PM-06` y `PM-15` (2); **G3** (modelo de datos) `PM-07`, `PM-09`, `PM-10`, `PM-11` y `PM-12` (5); **G5** (hardening) `PM-17` (1). Total: 18 filas, ninguna fuera de grupo y ninguna en un grupo nuevo.
+  - **El cómputo, separado por lo que cuenta.** Filas del plan de frentes: **96** = 78 de los quince frentes originales (65 abiertas, 13 cerradas) + 18 del frente 16 (todas abiertas) → **83 abiertas y 13 cerradas**. Filas de este documento: **64** = 46 `V1-*` + 18 `PM-*`; unidades de trabajo: **62 (48 abiertas, 14 cerradas)**, porque `PM-04` absorbe `V1-P-04` y `PM-10` absorbe `V1-P-07` y cada par cuenta una vez. `PM-11` no se resta: complementa `V1-P-02` —entidades y pesos frente a regla y ficha— y no la duplica.
+  - **El ítem 11 no se adelanta.** Su unidad es `V1-U-04`, la vista del responsable, que sigue diferida por L12 y se ejecuta con G1. Entrar en alcance no la programa antes de su compuerta ni la cierra.
+  - **Lo que no se movió.** Ninguna fila `V1-*` cambió de texto, estado ni ruta; las compuertas de las filas bloqueadas siguen siendo las que el frente 16 declara; D-A, D-B, D-C y D-D siguen abiertas. No se cierra ninguna de las veinte funcionalidades, ningún ID de los 132 y no cambia el conteo de [`../estado-requerimientos-cliente.md`](../estado-requerimientos-cliente.md).
+  - **Sobre PM-02, sin inflarlo.** Un escaneo estático del árbol confirmó que la ficha ya muestra `value`, `contribution` y `note` cuando la variable está conocida y cuando llega como desconocida explícita, y un aviso genérico cuando la entrada está ausente; no se observó cambio en las clasificaciones. Eso no la cierra: su criterio sigue pidiendo el rótulo de R2 y la prueba que fija el rótulo y las cinco variables.
+  - **Dónde quedó escrito.** El alcance y la distribución, aquí; el estado activo del frente, en [`../plan-produccion/16-producto-mandante.md`](../plan-produccion/16-producto-mandante.md) L3; la frase de alcance del mapa de `odd/`, en [`../README.md`](../README.md); y el conteo del índice de entregas, en [`README.md`](README.md). No se tocó [`../requerimientos-producto-mandante.md`](../requerimientos-producto-mandante.md): su transcripción y su corte no cambian.
+
+- **L17 (2026-11-18) — Se abre S5: el pedido de producto del mandante existe por escrito, y su alcance en v1.0 queda como decisión abierta.** El responsable entregó veinte funcionalidades de producto que ningún documento del repositorio contenía: la búsqueda por sus cadenas distintivas en `Referencias/` y `odd/` no devolvió ninguna lista, así que el pedido se transcribió literal en [`../requerimientos-producto-mandante.md`](../requerimientos-producto-mandante.md) §1 y se verificó contra `d4afba7`.
+  - **El corte, y lo que lo hace defendible.** 10 ausentes, 9 parciales, 1 implementada, ninguna cerrada. Cada fila lleva un anclaje `archivo:línea` leído del árbol; no se levantó el stack ni se ejecutó prueba funcional, y eso está escrito en el documento.
+  - **Tres correcciones que la lectura del código impuso y que cambian el orden del trabajo.** (a) La explicación del riesgo **no hay que inventarla**: `Factor{name, known, value, contribution, note}` se calcula en [`../../backend/services/risk/internal/classify/academic_rule.go:222-246`](../../backend/services/risk/internal/classify/academic_rule.go), se persiste en `batches.factors` y **el contrato la exige con `contribution`** en [`../../backend/contracts/openapi/firewatch-v1.yaml:1793`](../../backend/contracts/openapi/firewatch-v1.yaml); las cinco variables canónicas de [`../../backend/contracts/gen/observations/v1/observations.go:160-166`](../../backend/contracts/gen/observations/v1/observations.go) son exactamente las que el mandante nombró. (b) El simulador no está bloqueado por falta de modelo: la regla es una función pura con parámetros congelados por hash, así que el contrafactual se puede probar con valores dorados. (c) La comparación entre zonas no está bloqueada por «una sola zona»: la migración [`../../backend/services/risk/migrations/005_zone_reference.sql:24`](../../backend/services/risk/migrations/005_zone_reference.sql) retiró el `CHECK` que congelaba `valparaiso-demo`.
+  - **El hallazgo que conecta las dos familias de pedido.** Tres de las veinte filas —contexto y prioridad por sector, historial de todas las zonas, nombre del actor con detalle e id de evento— son casi textuales a tres entradas de `NOT_IMPLEMENTED` de [`../../frontend/src/views/PendingView.tsx`](../../frontend/src/views/PendingView.tsx) y ya tienen tarea aquí: `V1-P-02`, `V1-P-04` y `V1-P-07`. Estaban abiertas y nadie las había relacionado con el mandante.
+  - **Por qué esto entra como `S5` y no como un grupo nuevo de tareas.** Sumar 18 tareas al cómputo de v1.0 afirmaría un alcance que nadie acordó. Este documento registra la decisión abierta con su dueño, deja el frente 16 con su spec y su log en [`../plan-produccion/16-producto-mandante.md`](../plan-produccion/16-producto-mandante.md), y mantiene intacto el cómputo de los doce frentes abiertos. Se actualizaron el conteo de frentes en [`README.md`](README.md), en [`../README.md`](../README.md) y en [`../plan-produccion/README.md`](../plan-produccion/README.md), y la entrada del §10 de ese último.
+  - **Cuatro decisiones que quedan asentadas como ajenas a este documento:** procedencia de los datos de exposición (D-A), definición de «zona crítica» (D-B), alta del rol `analista` (D-C) y rótulo de la explicación (D-D), en el §7 de [`../requerimientos-producto-mandante.md`](../requerimientos-producto-mandante.md).
+  - **Lo que este registro no hace.** No cierra ninguna de las veinte funcionalidades, no cierra ningún ID de los 132 y no cambia el conteo de [`../estado-requerimientos-cliente.md`](../estado-requerimientos-cliente.md). No se ejecutó prueba, stack ni página: la verificación es lectura de archivo y búsqueda en el árbol.
 
 - **L1 (2026-11-09) — Corrección del responsable del proyecto, textual:**
   > «con esto estoy dando por hecho de que la app NO está terminada, aún nos falta terminar el diseño de la pagina web, tener el modelo funcionando, agregar los usuarios para designarles los trabajos, el modelo de datos que necesitamos para que funcione la app, aún queda e, con esto listo no terminamos el trabajo, hay un monton de tasks no cerradas en odd que tenemos que cerrar antes de llamar a esta version el tav 1.0 produccion»
