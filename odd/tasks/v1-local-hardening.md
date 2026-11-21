@@ -1,0 +1,70 @@
+# v1 local — hardening verificable en local (Docker Desktop)
+
+**Qué es:** documento ODD de sesión que acota las unidades del frente 11 —[`../plan-produccion/11-hardening-bh.md`](../plan-produccion/11-hardening-bh.md)— a lo que se puede ejecutar y verificar **al 100 % en local**, sin VM ni Kubernetes.
+**Estado:** abierto — tres unidades en alcance (`T1`…`T3`); **ninguna se marca cerrada en este documento**, porque su criterio de aceptación es el de su propia unidad y aquí no se reescribe.
+
+## Specs
+
+**S1 — El plan que manda es el hardening de v1, tal como lo recoge el frente 11.** Pedido del responsable del proyecto, textual:
+
+> «que onda bro, podemos hacer en esta sesión todo lo que tiene que ver con el hardening segun el plan del v1 profa»
+
+Consecuencia: la fuente de criterio es la tabla G5 de [`v1-produccion.md`](v1-produccion.md) (`:159-179`), las filas del frente 11 (`../plan-produccion/11-hardening-bh.md:26-37`) y, para cada unidad, el documento que la define. Este documento **no añade, no reescribe y no adelanta** ningún criterio de aceptación: cada `T#` se acepta o no contra la checklist de su unidad, que es la que se enlaza en Tasks.
+
+**S2 — Alcance: solo lo que se puede hacer y verificar al 100 % en local.** Refinamiento del responsable del proyecto, textual:
+
+> «es que en la vm ya gestionamos el kubernetes que utilizaremos, pero si hay cosas que podemos hacer y verificar 100% en local pues más que mejor, ya estoy encargandome de g1 y g6 en otra sesión así que esas no las hagamos»
+
+Consecuencia, sin rodeos: entran las unidades cuyo tramo pendiente se cierra con Docker Desktop en este host, y **solo esas**. Quedan **fuera** de esta sesión, por decisión y no por olvido:
+
+- **G1** (diseño web, `V1-D-*`) y **G6** (interfaz declarada no implementada, `V1-P-*`), que el responsable está trabajando en otra sesión (`v1-produccion.md:181`).
+- **La verificación en el despliegue objetivo de BH-04, BH-05, BH-06 y BH-11**, porque su parte abierta es exactamente el entorno: el broker del despliegue (`../plan-produccion/11-hardening-bh.md:29`), el runtime del clúster (`:30`), la decisión de entorno del egress (`:31`) y el ensamblado que depende de BH-02/04/05/06 (`:36`).
+- **BH-12**, diferida por activación explícita (`../plan-produccion/11-hardening-bh.md:37`; `security/backend-hardening.md:28`).
+- **Cualquier operación sobre la VM o el clúster de Kubernetes.** Esta sesión no toca manifiestos, ni despliegues, ni el motor de datos del entorno objetivo.
+
+**S3 — El daemon de Docker está disponible.** Última actualización del responsable del proyecto, textual:
+
+> «docker abierto»
+
+Consecuencia: las tres unidades en alcance tenían su compuerta declarada en un daemon alcanzable (`security/backend-hardening/02-vulnerability-scans.md:5`; `security/backend-hardening/07-job-recovery.md:67,75`; `security/backend-hardening/10-concurrent-idempotency.md:3`). Sigue siendo una **declaración del responsable**, no una comprobación medida por quien abrió este tracker: **la apertura de este documento no ejecutó ningún comando de Docker**, ni build, ni scan, ni contenedor. La corrida de Docker que sí ocurrió en esta sesión —la de `T1`— la ejecutó el padre de la tarea y está registrada en L3 con su árbol, sus tags y su resultado.
+
+## Tasks
+
+Rutas: **inline** = trabajo acotado que ejecuta quien mantiene este documento; **worker** = implementación delegada con superficie declarada; **bloqueado** = no puede empezar hasta que exista el insumo nombrado en la fila. La columna **Aceptación** enlaza la checklist que ya existe en la unidad; **no** la resume ni la sustituye. Ninguna fila se marca cerrada desde aquí: cerrar una unidad es actualizar su documento, su fila en `../plan-produccion/11-hardening-bh.md`, `security/backend-hardening.md` y `README.md`, y ese trabajo no lo hace este documento.
+
+| ID | Tarea | S# | Aceptación (pre-existente) | Ruta | Commit |
+| --- | --- | --- | --- | --- | --- |
+| T1 | BH-02 — registrar la evidencia del rebuild que la unidad deja abierta y reconciliar sus roll-ups contradictorios. | S1, S2, S3 | [`02-vulnerability-scans.md:150-159`](security/backend-hardening/02-vulnerability-scans.md) aceptación; remanente histórico en `:163` y `:196`, cerrado por la corrida del 2026-11-20 (L3). Roll-ups ya reconciliados en L3: unidad `done` (`:3`), `../plan-produccion/11-hardening-bh.md:27` **Cerrada**, `security/backend-hardening.md:18` `done`, `README.md:67` **Cerrada** — los cuatro coinciden. | inline | `pendiente` |
+| T2 | BH-07 — evidencia end-to-end de recuperación, y registro **separado** de la evidencia de replay solo-PostgreSQL que ya pasó. | S1, S2, S3 | [`07-job-recovery.md:56-62`](security/backend-hardening/07-job-recovery.md) aceptación; escenario definido en `:63`; lo ya observado en `:67`; lo que la unidad dice que la mantiene sin satisfacer, en `:77`. | worker | `pendiente` |
+| T3 | BH-10 — idempotencia concurrente como prueba de integración. | S1, S2, S3 | [`10-concurrent-idempotency.md:11-16`](security/backend-hardening/10-concurrent-idempotency.md) aceptación; verificación exigida en `:20`. | worker | `pendiente` |
+
+**Sobre `T2`, y por qué se registra aparte.** La unidad ya tiene una corrida de CI en verde que ejecutó las reglas del lado de la base —las que saltan en local sin `TEST_DATABASE_URL`—, y su documento lo dice con la corrida nombrada (`07-job-recovery.md:67`). Eso **no es** el escenario end-to-end que su verificación pide (`:63`), que interrumpe PostgreSQL durante consumo válido, agota reintentos, restaura y reinicia consumidores. Se registran como dos evidencias distintas, con su fecha y su origen cada una, y ninguna sustituye a la otra. Esta sesión **no re-ejecutó** ninguna de las dos.
+
+## Log
+
+- **L1 (2026-11-20) — Se abre el tracker de la sesión de hardening local; sin primera escritura de fuente.** Pedido original del responsable del proyecto, textual:
+  > «que onda bro, podemos hacer en esta sesión todo lo que tiene que ver con el hardening segun el plan del v1 profa»
+
+  - **Qué se crea y qué no.** Solo este documento: en esa primera escritura no se escribió fuente, ni configuración, ni manifiesto, ni se ejecutó build, suite de pruebas, comandos de Docker ni operación de Git que no sea el diff de esta edición. Quien integra escribe el commit; el árbol queda limpio antes de la creación de este archivo. La corrida de Docker de `T1` es posterior y se registra en L3: la hizo el padre, no esta escritura.
+  - **Qué queda en alcance.** Tres unidades, las tres ya nombradas en el frente 11 y en G5 de [`v1-produccion.md`](v1-produccion.md): `T1` = BH-02, `T2` = BH-07, `T3` = BH-10.
+  - **Qué queda fuera de alcance, y por qué.** Decisión del responsable, registrada en S2: G1 y G6 en otra sesión, y todo lo que exige la VM o el clúster —BH-04, BH-05, BH-06 y BH-11 en su tramo de entorno objetivo, más BH-12 por activación explícita—.
+  - **Lo que este documento no afirma.** No declara ninguna unidad cerrada, no reemplaza la checklist de ninguna unidad, y no fija fecha de ejecución de `T1`…`T3`. El estado de cada fila sigue siendo el que su unidad declare.
+
+- **L2 (2026-11-20) — Refinamiento de alcance y disponibilidad de Docker, textuales.** Dos dichos del responsable, en este orden:
+
+  > «es que en la vm ya gestionamos el kubernetes que utilizaremos, pero si hay cosas que podemos hacer y verificar 100% en local pues más que mejor, ya estoy encargandome de g1 y g6 en otra sesión así que esas no las hagamos»
+
+  Y, al confirmar el estado del host:
+
+  > «docker abierto»
+
+  - **Primera consecuencia.** El alcance deja de leerse como «todo el hardening» y pasa a leerse como «lo que cierra 100 % en local». Eso es lo que reduce la lista de doce unidades a tres: las demás o ya están implementadas y solo esperan entorno, o están diferidas por decisión. La reducción se argumenta en S2, fila por fila, contra el frente 11 — no por estimación de esfuerzo.
+  - **Segunda consecuencia.** La compuerta que las tres unidades nombraban —un daemon alcanzable— deja de ser la razón para no empezar. En ese momento las tres seguían sin ejecutarse: la declaración describe el host, no una verificación hecha por quien escribe esto, y este documento no convierte una frase del responsable en evidencia medida. Después de L2, `T1` sí ejecutó Docker —build y scan—, y esa corrida, hecha por el padre, se registra en L3.
+  - **Lo que se mantiene igual.** Ninguna unidad cambia de estado por estas dos frases. Al cerrar L2, `T1` seguía con su evidencia de rebuild pendiente, `T2` con su escenario end-to-end sin correr y `T3` con su checklist completa sin marcar; L3 registra lo que cambió después. Ninguna fila de [`v1-produccion.md`](v1-produccion.md), de `../plan-produccion/11-hardening-bh.md` ni de `security/backend-hardening.md` se editó en L1/L2: sus roll-ups encontrados se citan en `T1` y se dejan para quien cierre la unidad.
+
+- **L3 (2026-11-20) — `T1` ejecutado: las tres imágenes `migrate` reconstruidas y escaneadas desde HEAD, y BH-02 reconciliada a cerrada.** Evidencia **observada por el padre** de la tarea en esta sesión; quien escribe esto no la re-ejecutó. Árbol `4acbad7d0271943cb9fd376581963569f3b2ec00`; entrada de build `git archive "$head:backend" | docker --context desktop-linux build --platform linux/amd64 --progress plain -f services/<svc>/Dockerfile -t <ref> -`; tags locales `firewatch-{jobs,risk,prevention}-migrate:bh02-4acbad7-20261120221808-1775`; ids `sha256:` jobs `e824d5127bf452e31948e827996bfb6e3fd752470265f8e07320428bee6db9ea`, risk `6973cf6e8e2c767b5e4259ff41d4fdc03b36c9b7d6a1c1fd833d5e690d2c3b94`, prevention `4b561cd6c60413579d2f56a685ba8a27998d56beaf151b886f7dd68d445d14c4`. Scan sin socket de Docker: `docker save` y luego `trivy image --input <tar> --cache-dir … --scanners vuln --severity HIGH,CRITICAL --exit-code 23 --no-progress`, con el digest que fija CI (`aquasec/trivy:0.69.3@sha256:bcc376de8d77…`, `_go-service.yml:62`). **Resultado:** tres builds exitosos, tres scans con exit 0, `0` HIGH y `0` CRITICAL en `debian 12.15` y en el binario Go de cada target, sin error del scanner; base de datos `v2`, actualizada `2026-11-20T18:59:53.336130625Z`, descargada `22:19:18` UTC. Sin push ni digest de registro, y sin contenedor de migración ejecutado.
+
+  - **Qué se reclasifica.** BH-02 pasa a cerrada en su documento (estado `:3`, checklist `:150-159`) y en los roll-ups: `../plan-produccion/11-hardening-bh.md:4,27` **Cerrada**, `README.md:67` **Cerrada**; `security/backend-hardening.md:18` ya decía `done` y no se tocó. La reclasificación se apoya en la evidencia combinada —2026-10-16 para los cuatro módulos, 2026-11-09 para las cinco imágenes de servicio y 2026-11-20 para las tres `migrate`—, no en una corrida nueva de todo.
+  - **Alcance de la evidencia nueva, dicho sin adornos.** Es de **tres** imágenes `migrate` en un árbol **nuevo** (`4acbad7d`, no `3772fc8`). Las cinco imágenes de servicio y los cuatro `govulncheck` **no** se re-ejecutaron; sus filas siguen fechadas al 9 y 16 de noviembre según corresponda, y el documento de la unidad lo deja escrito, incluido que el builder del árbol nuevo fija `golang:1.27.4-bookworm` y que el `--exit-code` usado fue `23`, no el `1` de CI.
+  - **Corrección de alcance de este tracker.** S3, L1 y L2 se redactaron cuando la única ejecución de Docker atribuible a este tracker era ninguna; el padre **sí** ejecutó Docker —builds y scans— en esta sesión. Por eso esas frases ahora dicen que lo que no ejecutó Docker fue la apertura de este documento, y L3 registra lo que sí se ejecutó. Ninguna cita textual del responsable se modificó.
+  - **Qué no se afirma.** Nada sobre `T2` (BH-07) ni `T3` (BH-10): siguen `pendiente` y ni el escenario end-to-end ni la prueba de concurrencia se ejecutaron. Nada sobre la VM, el clúster, el despliegue objetivo, G1/G6, ni sobre la decisión de `postgis`, que queda en otro responsable y fuera del cierre de la unidad. El commit de `T1` sigue `pendiente`: lo escribe quien integra.
