@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="es" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FireWatch · Vista aérea · Acciones rápidas</title>
+<style>
+:root {
+  color-scheme: dark;
+  --water: #152934; --panel: #17222b; --raised: #243341; --ink: #f4f1eb;
+  --muted: #b8c8d2; --border: #647b8a; --focus: #94dfda; --terrain-low: #46575a;
+  --terrain-high: #738077; --roof: #aeb7b8; --wall: #3f4b52; --coast: #829a9d;
+  --high: #d97962; --medium: #d7b16a; --low: #72b1a1; --label: #121c22; --unknown: #c4cbd1;
+}
+[data-theme="day"] {
+  color-scheme: light;
+  --water: #b9d2d9; --panel: #f5f3ee; --raised: #e5e9e8; --ink: #1d2c35;
+  --muted: #475b65; --border: #637985; --focus: #125650; --terrain-low: #859e93;
+  --terrain-high: #d4d0b8; --roof: #f2ede0; --wall: #7d8888; --coast: #506c70;
+  --high: #a74434; --medium: #88621d; --low: #176a60; --label: #ffffff; --unknown: #42525e;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--water); color: var(--ink); font: 400 14px/1.45 system-ui, sans-serif; }
+canvas { position: fixed; inset: 0; width: 100vw; height: 100dvh; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+header, .controls, .info, .legend, .note { position: fixed; z-index: 1; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
+header { inset: 14px 14px auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+.brand { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.mark { width: 34px; height: 34px; flex: none; color: var(--focus); }
+small, .muted { color: var(--muted); }
+h1, h2, p { margin: 0; }
+h1 { font-size: clamp(16px, 2.3vw, 22px); line-height: 1.15; letter-spacing: -.025em; }
+h2 { font-size: 19px; line-height: 1.24; }
+.product { color: var(--focus); font-size: 11px; font-weight: 720; letter-spacing: .12em; text-transform: uppercase; }
+button { border: 1px solid var(--border); border-radius: 8px; background: var(--raised); color: var(--ink); font: inherit; font-weight: 650; min-height: 40px; min-width: 40px; padding: 6px 10px; cursor: pointer; }
+button:hover, button[aria-pressed="true"] { border-color: var(--focus); color: var(--focus); }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.controls { top: 88px; right: 14px; display: grid; gap: 8px; padding: 8px; }
+.controls [role="group"] { display: flex; justify-content: space-between; gap: 6px; }
+.info { inset: auto auto 37px 14px; width: min(375px, calc(100vw - 28px)); padding: 14px; display: grid; gap: 11px; }
+.cutrow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 9px; }
+input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
+.sectors { display: flex; flex-wrap: wrap; gap: 5px; }
+.sectors button { font-size: 12px; padding: 4px 8px; min-height: 36px; }
+#details { padding-top: 10px; border-top: 1px solid var(--border); }
+#details p { margin-top: 4px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 760; }
+.tag::before { content: '◆'; margin-inline-end: 5px; }
+.legend { right: 14px; bottom: 37px; padding: 8px 11px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.high { background: var(--high); } .medium { background: var(--medium); } .low { background: var(--low); }
+.unknown { border: 1px dashed var(--unknown); }
+.note { bottom: 0; left: 0; right: 0; padding: 5px 14px; background: var(--panel); color: var(--muted); font-size: 12px; }
+[hidden] { display: none !important; }
+@media (max-width: 600px) {
+  header { inset: 7px 7px auto; padding: 6px 9px; }
+  .mark { width: 27px; height: 27px; }
+  .controls { top: 67px; right: 7px; gap: 5px; padding: 5px; }
+  .controls button { font-size: 12px; min-height: 36px; }
+  .info { inset: auto 7px 34px; width: auto; padding: 10px; gap: 6px; max-height: 44dvh; overflow-y: auto; }
+  .legend { inset: auto 7px calc(34px + min(44dvh, 287px) + 6px); font-size: 11px; padding: 4px 8px; width: fit-content; max-width: calc(100vw - 14px); }
+  .note { font-size: 10px; padding: 4px 8px; }
+}
+/* Acciones rápidas: misma paleta, misma cámara; solo se agrega la tarjeta. */
+.quick { position: fixed; z-index: 2; display: grid; gap: 9px; padding: 12px 13px; width: min(340px, calc(100vw - 24px)); max-height: calc(100dvh - 118px); overflow-y: auto; overscroll-behavior: contain; }
+.quick[data-dock="float"] { left: var(--qx, 12px); top: var(--qy, 96px); }
+.q-head { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+.q-head h2 { font-size: 18px; }
+.q-eyebrow { color: var(--focus); font-size: 10px; font-weight: 760; letter-spacing: .11em; text-transform: uppercase; }
+.quick .q-close { min-height: 36px; min-width: 36px; padding: 2px 7px; font-size: 14px; line-height: 1.2; border-radius: 7px; }
+.q-level { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 730; }
+.tone-high { --tone: var(--high); } .tone-medium { --tone: var(--medium); }
+.tone-low { --tone: var(--low); } .tone-none { --tone: transparent; }
+.q-dot { width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--tone); }
+.tone-none .q-dot { border: 1.5px dashed var(--unknown); border-radius: 3px; }
+.q-caveat { border-left: 3px solid var(--border); padding-left: 8px; }
+.q-cutoff, .q-switch { display: none; gap: 3px; }
+.q-menu { display: grid; gap: 6px; }
+.q-menu button { min-height: 40px; font-size: 13px; }
+.q-primary { border-color: var(--focus); color: var(--focus); }
+.q-primary:hover { background: var(--raised); border-color: var(--focus); }
+.q-form { display: grid; gap: 9px; }
+.q-form label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+.q-form .q-row { display: grid; gap: 2px; }
+.q-form input[type=text], .q-form select, .q-switch select { width: 100%; min-height: 38px; padding: 6px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--raised); color: var(--ink); font: inherit; }
+.q-form input[type=text][aria-invalid="true"], .q-form select[aria-invalid="true"] { border-color: var(--ink); border-width: 2px; }
+.q-form input[type=text]:focus-visible, .q-form select:focus-visible, .q-switch select:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.q-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.q-actions button { flex: 1 1 118px; font-size: 13px; }
+.q-pending { margin: 0; padding-left: 16px; font-size: 12px; display: grid; gap: 2px; }
+.q-status { font-size: 12px; line-height: 1.5; min-height: 1.5em; }
+.q-status[data-tone="error"] { font-weight: 660; }
+.q-drafts { border-top: 1px solid var(--border); padding-top: 8px; display: grid; gap: 3px; font-size: 12px; }
+.q-drafts ul { margin: 0; padding-left: 16px; display: grid; gap: 2px; }
+.quick button:disabled { cursor: not-allowed; border-color: var(--border); color: var(--muted); background: transparent; }
+.quick button:disabled:hover { border-color: var(--border); color: var(--muted); }
+.q-mock { font-size: 11px; padding-top: 6px; border-top: 1px solid var(--border); }
+@media (max-width: 600px) {
+  .quick[data-dock="sheet"] { inset: auto 7px 34px; width: auto; max-height: min(78dvh, 620px); padding: 10px 11px; }
+  .quick[data-dock="sheet"] .q-cutoff, .quick[data-dock="sheet"] .q-switch { display: grid; }
+  body[data-card] .info, body[data-card] .legend { display: none; }
+}
+</style>
+</head>
+<body>
+<main aria-label="Explorador territorial aéreo">
+  <canvas id="terrain" role="img" aria-label="Mapa esquemático inclinado de Valparaíso. Los controles y la lista permiten explorar el mismo territorio sin usar el mapa."></canvas>
+  <header class="panel">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="currentColor"/><path d="M6 23l7-12 4 5 4-9 5 16z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>
+      <div><p class="product">FireWatch / Territorio</p><h1>Valparaíso desde el aire</h1></div>
+    </div>
+    <button id="expand" type="button" aria-pressed="false">Expandir mapa</button>
+  </header>
+  <nav class="controls panel" aria-label="Controles del mapa">
+    <div role="group" aria-label="Perspectiva">
+      <button id="aerial" type="button" aria-pressed="true">Vista aérea</button>
+      <button id="top" type="button" aria-pressed="false">Vista cenital</button>
+    </div>
+    <div role="group" aria-label="Giro y zoom">
+      <button id="left" type="button" aria-label="Girar a la izquierda">↶</button>
+      <button id="right" type="button" aria-label="Girar a la derecha">↷</button>
+      <button id="zoom-out" type="button" aria-label="Alejar">−</button>
+      <button id="zoom-in" type="button" aria-label="Acercar">+</button>
+    </div>
+    <div role="group" aria-label="Capas y apariencia">
+      <button id="risk" type="button" aria-pressed="true" aria-label="Ocultar capa de riesgo">Riesgo</button>
+      <button id="theme" type="button" aria-label="Cambiar a tema claro">Claro</button>
+      <button id="reset" type="button" aria-label="Restablecer cámara">Centrar</button>
+    </div>
+  </nav>
+  <section class="info panel" id="info" aria-label="Corte temporal y sectores a revisar">
+    <div>
+      <div class="cutrow"><label for="cutoff"><strong>Fecha de corte</strong></label><output class="muted" id="cutoff-label" for="cutoff"></output></div>
+      <input id="cutoff" type="range" min="0" max="1" value="1" aria-describedby="cutoff-help">
+      <p id="cutoff-help" class="muted">Último lote disponible por sector hasta esta fecha.</p>
+    </div>
+    <div class="sectors" role="group" aria-label="Seleccionar sector">
+      <button type="button" data-sector="east" aria-pressed="true">Quebrada del Este</button>
+      <button type="button" data-sector="shore" aria-pressed="false">Borde costero</button>
+      <button type="button" data-sector="inland" aria-pressed="false">Interior sin lectura</button>
+    </div>
+    <div id="details" role="status" aria-live="polite" aria-atomic="true">
+      <span class="tag" id="level"></span>
+      <h2 id="name"></h2>
+      <p id="places" class="muted"></p>
+      <p id="lot"></p>
+      <p id="factors" class="muted"></p>
+    </div>
+  </section>
+  <section class="quick panel" id="quick" aria-label="Acciones rápidas del sector" hidden>
+    <div class="q-head">
+      <div>
+        <p class="q-eyebrow">Sector seleccionado</p>
+        <h2 id="q-name"></h2>
+      </div>
+      <button type="button" class="q-close" id="q-close" aria-label="Cerrar acciones rápidas">✕</button>
+    </div>
+    <p class="q-level tone-none" id="q-level-row"><i class="q-dot" aria-hidden="true"></i><span id="q-level">Sin evaluación</span></p>
+    <p class="muted" id="q-reading"></p>
+    <p class="muted q-caveat" id="q-none" hidden>Sin evaluación no significa riesgo bajo: no hay lectura publicada para este corte. Aun así puedes preparar una acción preventiva de muestra.</p>
+    <div class="q-cutoff">
+      <div class="cutrow"><label for="q-cutoff"><strong>Fecha de corte</strong></label><span class="muted" id="q-cutoff-label" aria-hidden="true"></span></div>
+      <input id="q-cutoff" type="range" min="0" max="1" value="1" aria-describedby="q-cutoff-help">
+      <p id="q-cutoff-help" class="muted">Cambia la lectura del sector; la acción no modifica el lote.</p>
+    </div>
+    <div class="q-switch">
+      <label for="q-sector">Sector</label>
+      <select id="q-sector" aria-describedby="q-sector-help">
+        <option value="east">Quebrada del Este</option>
+        <option value="shore">Borde costero</option>
+        <option value="inland">Interior sin lectura</option>
+      </select>
+      <p id="q-sector-help" class="muted">Al cambiar de sector se descartan el título y el responsable escritos.</p>
+    </div>
+    <div class="q-menu" id="q-menu" role="group" aria-label="Acciones disponibles">
+      <button type="button" class="q-primary" id="q-create">Crear acción</button>
+      <button type="button" id="q-assign" aria-describedby="q-assign-note">Asignar existente</button>
+    </div>
+    <p class="muted" id="q-assign-note"></p>
+    <div id="q-form"></div>
+    <p class="q-status" id="q-status" role="status" aria-live="polite" aria-atomic="true"></p>
+    <div class="q-drafts" id="q-drafts-wrap" hidden>
+      <p class="q-eyebrow" id="q-drafts-sector"></p>
+      <ul id="q-drafts"></ul>
+      <p class="muted">Solo en memoria: no se guarda en el sistema y se pierde al recargar.</p>
+    </div>
+    <p class="muted q-mock">Maqueta: crear y asignar no guardan nada ni envían solicitudes.</p>
+  </section>
+  <aside id="legend" class="legend panel" aria-label="Leyenda de riesgo">
+    <span><i class="swatch high" aria-hidden="true"></i> Alto</span>
+    <span><i class="swatch medium" aria-hidden="true"></i> Medio</span>
+    <span><i class="swatch low" aria-hidden="true"></i> Bajo</span>
+    <span><i class="swatch unknown" aria-hidden="true"></i> Sin evaluación</span>
+  </aside>
+  <footer class="note">Prototipo · Relieve, edificios, límites y lecturas son ilustrativos; las acciones rápidas son una maqueta sin guardado.</footer>
+</main>
+<script>
+'use strict';
+const el = id => document.getElementById(id);
+const terrain = el('terrain');
+const ctx = terrain.getContext('2d');
+const root = document.documentElement;
+const cutoff = el('cutoff');
+const quick = el('quick');
+const cameraStart = { bearing: -.34, pitch: .96, zoom: 1, x: 0, y: 0 };
+const camera = { ...cameraStart };
+let size, selected = 'east', layer = true, expanded = false, markers = [], drag = null;
+let hits = [], opener = null, dock = 'float', narrowView = false;
+const snapshots = [
+  { cutoff: '18 nov 2026 · 18:00', time: '2026-11-18T18:00:00-03:00' },
+  { cutoff: '21 nov 2026 · 18:00', time: '2026-11-21T18:00:00-03:00' }
+];
+const areas = {
+  east: {
+    name: 'Foco Quebrada del Este', short: 'Quebrada del Este', places: 'Valparaíso · Viña del Mar · Quilpué', x: .59, y: .43, rx: .182, ry: .135,
+    lots: [
+      { level: 'Medio', color: 'medium', time: '2026-11-18T14:20:00-03:00', label: '18 nov 2026 · 14:20', factors: 'Vegetación seca y baja humedad observadas en el escenario.' },
+      { level: 'Alto', color: 'high', time: '2026-11-20T16:05:00-03:00', label: '20 nov 2026 · 16:05', factors: 'Vegetación seca, ladera y mayor viento en el escenario.' }
+    ]
+  },
+  shore: {
+    name: 'Borde costero', short: 'Borde costero', places: 'Valparaíso · Viña del Mar', x: .32, y: .66, rx: .103, ry: .105,
+    lots: [{ level: 'Bajo', color: 'low', time: '2026-11-18T14:20:00-03:00', label: '18 nov 2026 · 14:20', factors: 'Menor continuidad de vegetación en el escenario.' }]
+  },
+  inland: { name: 'Interior sin lectura', short: 'Interior', places: 'Quilpué', x: .79, y: .55, rx: .095, ry: .09, lots: [] }
+};
+const keys = Object.keys(areas);
+const responsibles = [
+  { id: 'camila', name: 'Camila Rojas' },
+  { id: 'diego', name: 'Diego Salinas' },
+  { id: 'fernanda', name: 'Fernanda Urrutia' }
+];
+const sampleActions = {
+  east: [{ code: 'AC-2041', title: 'Revisar camino de acceso y despeje en la quebrada' }],
+  shore: [],
+  inland: []
+};
+const drafts = { east: [], shore: [], inland: [] };
+const assignedHere = new Set();
+const sin = Math.sin, cos = Math.cos;
+function coast(y) { return .20 + .16 * (1 - y) + .05 * sin(y * 9) - .075 * Math.exp(-((y - .62) ** 2) / .017); }
+function elevation(x,y) {
+  if (x < coast(y)) return 0;
+  const inland = Math.min(1, (x - coast(y)) * 8);
+  const hill = (a,b,w) => Math.exp(-((x-a)**2 + (y-b)**2) / w);
+  return inland * (.045 + .22 * hill(.51,.34,.022) + .17 * hill(.63,.67,.020) + .19 * hill(.84,.34,.036)
+    + .045 * (1 + sin(x * 27 + y * 13) * cos(y * 34))) * .9;
+}
+function age(cutTime,lotTime) {
+  const minutes = Math.round((Date.parse(cutTime) - Date.parse(lotTime)) / 60000);
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+function reading(a) {
+  const time = Date.parse(snapshots[cutoff.value].time);
+  return a.lots.findLast(lot => Date.parse(lot.time) <= time);
+}
+function project(x,y,z) {
+  const dx=x-.55, dy=y-.48;
+  const xx=dx*cos(camera.bearing) - dy*sin(camera.bearing);
+  const yy=dx*sin(camera.bearing) + dy*cos(camera.bearing);
+  const scale=size.scale * camera.zoom;
+  return [size.cx+camera.x+scale*xx, size.cy+camera.y + scale*(yy*cos(camera.pitch)-z*sin(camera.pitch)), yy*sin(camera.pitch)+z*cos(camera.pitch)];
+}
+function path(points, fill, stroke) {
+  ctx.beginPath();
+  points.forEach(([x,y],i)=> i ? ctx.lineTo(x,y) : ctx.moveTo(x,y));
+  if (fill) { ctx.closePath(); ctx.fillStyle=fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle=stroke; ctx.stroke(); }
+}
+const land = [];
+const cells = 40;
+for (let row=0; row<cells; row++) {
+  for (let col=0; col<cells; col++) {
+    const y=row/cells, x=coast(y) + (1 - coast(y))*col/cells;
+    const y1=(row+1)/cells;
+    const x1=coast(y)+(1-coast(y))*(col+1)/cells;
+    const nextX=coast(y1)+(1-coast(y1))*col/cells;
+    const nextX1=coast(y1)+(1-coast(y1))*(col+1)/cells;
+    const a=[x,y,elevation(x,y)], b=[x1,y,elevation(x1,y)];
+    const c=[nextX1,y1,elevation(nextX1,y1)], d=[nextX,y1,elevation(nextX,y1)];
+    land.push([a,b,c],[a,c,d]);
+  }
+}
+const buildings = [];
+for (let r=0;r<18;r++) {
+  for(let c=0;c<9;c++) {
+    const y=.18+r*.034;
+    const x=coast(y)+.027+c*.018+sin(r*3+c)*.006;
+    if (((c*5+r*3)%11)>8 || elevation(x,y)>.24) continue;
+    buildings.push({x,y,w:.006+c%3*.002,d:.007+r%3*.002,h:.009+((r+c)%5)*.004});
+  }
+}
+function palette() {
+  const c = getComputedStyle(root);
+  return name=>c.getPropertyValue('--'+name).trim();
+}
+function mixed(a,b,t) {
+  const rgb = hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+  const start=rgb(a), end=rgb(b);
+  return `#${start.map((v,i)=>Math.round(v+(end[i]-v)*t).toString(16).padStart(2,'0')).join('')}`;
+}
+function areaAt(x,y) {
+  return keys.find(k=>{
+    const a=areas[k];
+    return ((x-a.x)/a.rx)**2+((y-a.y)/a.ry)**2 < 1 + .16*sin(x*33+y*29);
+  });
+}
+function draw() {
+  const col=palette();
+  ctx.fillStyle=col('water'); ctx.fillRect(0,0,size.w,size.h);
+  hits=[];
+  const projected = land.map(p=>({p, q:p.map(v=>project(...v))}));
+  projected.sort((a,b)=>depth(a.q)-depth(b.q));
+  const risks = Object.fromEntries(keys.map(k=>[k,reading(areas[k])?.color]));
+  for (const {p,q} of projected) {
+    const x=p.reduce((v,t)=>v+t[0]/3,0), y=p.reduce((v,t)=>v+t[1]/3,0), z=p.reduce((v,t)=>v+t[2]/3,0);
+    const slope=(p[2][2]-p[0][2])*8+(p[1][2]-p[0][2])*5;
+    const shade=Math.max(0,Math.min(1,z*1.9 +.17 - slope));
+    const base = mixed(col('terrain-low'),col('terrain-high'),shade);
+    const k = layer && areaAt(x,y);
+    let paint = base;
+    if (k && risks[k]) paint = mixed(base,col(risks[k]),selected===k ? .78 : .64);
+    else if (k && Math.round((x+y)*58)%4===0) paint = mixed(base,col('unknown'),.68);
+    if (k) hits.push({ key:k, q });
+    ctx.lineWidth=.55;
+    path(q,paint,paint);
+  }
+  const onGround=(x,y)=>project(x,y,elevation(x,y)+.002);
+  const line=(curve)=>Array.from({length:81},(_,i)=>curve(i/80));
+  ctx.lineWidth=1.5;
+  path(line(y=>onGround(coast(y)+.001,y)),null,col('coast'));
+  ctx.lineWidth=1;
+  [ .05,.12,.20 ].forEach((offset,n)=>{
+    path(line(y=>onGround(coast(y)+offset+.012*sin(y*13+n),y)),null,col('coast'));
+  });
+  ctx.setLineDash([5,5]);
+  ctx.lineWidth=1.3;
+  [ .39,.59 ].forEach((boundary,i)=>{
+    path(line(t=>{const x=.36+.55*t,y=boundary+(i===0 ? .07 : -.27)*t+.03*sin(t*7);return onGround(x,y);}),null,col('ink'));
+  });
+  ctx.setLineDash([]);
+  const blocks=buildings.map(b=>{
+    const {x,y,w,d,h}=b, z=elevation(x,y);
+    const corners=[[x,y],[x+w,y],[x+w,y+d],[x,y+d]];
+    const below=corners.map(v=>project(...v,z));
+    const above=corners.map(v=>project(...v,z+h));
+    return { below,above };
+  });
+  blocks.sort((a,b)=>depth(a.below)-depth(b.below));
+  for (const {below,above} of blocks) {
+    const walls=below.map((v,i)=>[v,below[(i+1)%4],above[(i+1)%4],above[i]]);
+    walls.sort((a,b)=>depth(a)-depth(b));
+    walls.slice(-2).forEach(wall=>path(wall,col('wall')));
+    path(above,col('roof'));
+  }
+  markers=keys.map(k=>{
+    const a=areas[k], p=onGround(a.x,a.y);
+    return {key:k,x:p[0],y:p[1], label:k===selected?a.short:reading(a)?.level||'Sin evaluación'};
+  });
+  if (layer) markers.forEach(m=>marker(m,col));
+  ctx.fillStyle=col('ink'); ctx.font='600 12px system-ui, sans-serif';
+  const ocean=project(.10,.46,0);
+  ctx.fillText('PACÍFICO',ocean[0],ocean[1]);
+}
+function depth(points) { return points.reduce((v,t)=>v+t[2],0)/points.length; }
+function marker(m,col) {
+  const active=m.key===selected;
+  const tone=col(reading(areas[m.key])?.color || 'unknown');
+  ctx.font=`${active?'700':'600'} 12px system-ui, sans-serif`;
+  const w=ctx.measureText(m.label).width+18;
+  m.bounds=[m.x-w/2,m.y-34,w,24];
+  ctx.beginPath(); ctx.arc(m.x,m.y,active?6:4,0,Math.PI*2);
+  ctx.fillStyle=tone; ctx.fill(); ctx.strokeStyle=col('panel'); ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(...m.bounds,6);
+  ctx.fillStyle=active?col('panel'):tone; ctx.fill();
+  ctx.lineWidth=1.5; ctx.strokeStyle=active?col('focus'):col('panel'); ctx.stroke();
+  ctx.fillStyle=active?col('ink'):col('label'); ctx.fillText(m.label,m.bounds[0]+9,m.bounds[1]+16);
+}
+function refresh() {
+  const snap=snapshots[cutoff.value], a=areas[selected], lot=reading(a);
+  el('cutoff-label').textContent=snap.cutoff;
+  cutoff.setAttribute('aria-valuetext',snap.cutoff);
+  el('level').textContent=lot?.level||'Sin evaluación';
+  el('name').textContent=a.name;
+  el('places').textContent=a.places;
+  el('lot').textContent=lot?`Lote del ${lot.label} · ${age(snap.time,lot.time)} antes del corte`:'Sin lote publicado hasta este corte.';
+  el('factors').textContent=lot?.factors||'No hay factores disponibles para este sector.';
+  document.querySelectorAll('[data-sector]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sector===selected)));
+  draw();
+  if (!quick.hidden) renderCard();
+}
+function resize() {
+  const rect=terrain.getBoundingClientRect(), narrow=rect.width<=600;
+  narrowView=narrow;
+  const dpr=Math.min(devicePixelRatio||1,2);
+  size={w:rect.width,h:rect.height,cx:rect.width*(narrow?.49:.55),cy:rect.height*(narrow?.46:.52),scale:Math.min(rect.width*(narrow?1.45:1.08),rect.height*(narrow?1.0:1.45))};
+  terrain.width=Math.round(size.w*dpr); terrain.height=Math.round(size.h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  refresh();
+  if (!quick.hidden) { applyDock(); placeCard(); }
+}
+function pose(pitch) {
+  camera.pitch=pitch;
+  el('aerial').setAttribute('aria-pressed',String(pitch===cameraStart.pitch));
+  el('top').setAttribute('aria-pressed',String(pitch===0));
+  draw();
+}
+function zoom(step) {
+  camera.zoom=Math.max(.7,Math.min(2.4,camera.zoom*step));
+  draw();
+}
+/* --- Selección de sector: marcador o triángulo pintado del propio lienzo --- */
+function pointInTriangle(x,y,a,b,c) {
+  const d1=(x-b[0])*(a[1]-b[1])-(a[0]-b[0])*(y-b[1]);
+  const d2=(x-c[0])*(b[1]-c[1])-(b[0]-c[0])*(y-c[1]);
+  const d3=(x-a[0])*(c[1]-a[1])-(c[0]-a[0])*(y-a[1]);
+  const neg=d1<0||d2<0||d3<0, pos=d1>0||d2>0||d3>0;
+  return !(neg&&pos);
+}
+function sectorAt(x,y) {
+  for (let i=hits.length-1;i>=0;i--) {
+    const [a,b,c]=hits[i].q;
+    if (pointInTriangle(x,y,a,b,c)) return hits[i].key;
+  }
+  return null;
+}
+function markerAt(x,y) {
+  for (let i=markers.length-1;i>=0;i--) {
+    const m=markers[i], [bx,by,bw,bh]=m.bounds;
+    if (Math.hypot(x-m.x,y-m.y)<14 || (x>=bx&&x<=bx+bw&&y>=by&&y<=by+bh)) return m;
+  }
+  return null;
+}
+function sectorButton(key) { return document.querySelector(`[data-sector="${key}"]`); }
+function selectSector(key, options) {
+  if (!areas[key]) return;
+  const opts=options||{}, wasOpen=!quick.hidden, changed=key!==selected;
+  selected=key;
+  refresh();
+  if (!wasOpen) {
+    opener=opts.from||sectorButton(key);
+    showCard();
+    return;
+  }
+  opener=opts.from||sectorButton(key);
+  if (changed) resetForm();
+  renderCard();
+  placeCard();
+  if (!opts.keepFocus) el('q-close').focus({preventScroll:true});
+}
+function showCard() {
+  quick.hidden=false;
+  document.body.dataset.card='open';
+  applyDock();
+  renderCard();
+  placeCard();
+  el('q-close').focus({preventScroll:true});
+}
+function closeCard() {
+  if (quick.hidden) return;
+  quick.hidden=true;
+  delete document.body.dataset.card;
+  resetForm();
+  const back=opener&&document.contains(opener)?opener:sectorButton(selected);
+  if (back) back.focus({preventScroll:true});
+}
+function applyDock() {
+  dock=narrowView?'sheet':'float';
+  quick.dataset.dock=dock;
+}
+function placeCard() {
+  if (quick.hidden||dock!=='float') return;
+  const m=markers.find(x=>x.key===selected);
+  const w=quick.offsetWidth, h=quick.offsetHeight;
+  const mx=m?m.x:size.w/2, my=m?m.y:size.h/2;
+  let left=mx>innerWidth*.55?mx-w-22:mx+22;
+  left=Math.max(12,Math.min(left,innerWidth-w-12));
+  const top=Math.max(86,Math.min(my-46,innerHeight-h-44));
+  quick.style.setProperty('--qx',`${left}px`);
+  quick.style.setProperty('--qy',`${top}px`);
+}
+function unassigned(key) { return (sampleActions[key]||[]).filter(a=>!assignedHere.has(a.code)); }
+function assignNote() {
+  const pending=unassigned(selected);
+  if (pending.length) return `${pending.length} acción de ejemplo sin responsable en este sector.`;
+  if ((sampleActions[selected]||[]).length) return 'La acción de ejemplo de este sector ya fue asignada en esta sesión.';
+  return 'Este sector no tiene acciones sin responsable en la maqueta, así que no hay nada que asignar.';
+}
+function renderCard() {
+  const a=areas[selected], lot=reading(a), snap=snapshots[cutoff.value];
+  el('q-name').textContent=a.name;
+  el('q-level-row').className=`q-level ${lot?'tone-'+lot.color:'tone-none'}`;
+  el('q-level').textContent=lot?lot.level:'Sin evaluación';
+  el('q-reading').textContent=lot
+    ? `Lectura del ${lot.label} · ${age(snap.time,lot.time)} antes del corte`
+    : `Corte ${snap.cutoff} · sin lote publicado hasta esta fecha.`;
+  el('q-none').hidden=!!lot;
+  el('q-cutoff-label').textContent=snap.cutoff;
+  el('q-cutoff').value=cutoff.value;
+  el('q-cutoff').setAttribute('aria-valuetext',snap.cutoff);
+  el('q-sector').value=selected;
+  el('q-assign').disabled=unassigned(selected).length===0;
+  el('q-assign-note').textContent=assignNote();
+  renderDrafts();
+}
+function renderDrafts() {
+  const items=drafts[selected];
+  el('q-drafts-wrap').hidden=items.length===0;
+  el('q-drafts-sector').textContent=`Borradores de esta sesión · ${areas[selected].short}`;
+  const list=el('q-drafts');
+  list.textContent='';
+  items.forEach(item=>{
+    const li=document.createElement('li');
+    li.textContent=item.summary;
+    list.append(li);
+  });
+}
+function setStatus(text,tone) {
+  const status=el('q-status');
+  status.textContent=text;
+  status.dataset.tone=tone||'';
+}
+function build(tag,attrs,...children) {
+  const node=document.createElement(tag);
+  for (const [key,value] of Object.entries(attrs||{})) {
+    if (key==='class') node.className=value;
+    else if (key==='text') node.textContent=value;
+    else if (key==='for') node.htmlFor=value;
+    else if (key==='value') node.value=value;
+    else if (key==='required'||key==='disabled') node[key]=value;
+    else node.setAttribute(key,value);
+  }
+  for (const child of children.flat()) if (child!=null) node.append(child);
+  return node;
+}
+function responsibleSelect(id,name,placeholder,helpId) {
+  const select=build('select',{ id, name },
+    build('option',{ value:'' },placeholder),
+    responsibles.map(p=>build('option',{ value:p.id },p.name)));
+  if (helpId) select.setAttribute('aria-describedby',helpId);
+  select.required=id==='assign-person';
+  return select;
+}
+function formActions(submitLabel) {
+  return build('div',{ class:'q-actions' },
+    build('button',{ type:'submit', class:'q-primary', text:submitLabel }),
+    build('button',{ type:'button', 'data-cancel':'', text:'Cancelar' }));
+}
+function openCreate() {
+  const name=areas[selected].name;
+  resetForm();
+  el('q-menu').hidden=true;
+  const form=build('form',{ class:'q-form', 'data-kind':'create', 'aria-label':`Crear acción en ${name}` },
+    build('p',{ class:'muted' },'Sector fijado: ',build('strong',{ text:name })),
+    build('div',{ class:'q-row' },
+      build('label',{ for:'action-title', text:'Título de la acción' }),
+      build('input',{ id:'action-title', name:'title', type:'text', autocomplete:'off', required:true, 'aria-describedby':'title-help' }),
+      build('p',{ class:'muted', id:'title-help', text:'Obligatorio. El corte solo informa la lectura: la acción no cambia el lote publicado ni se fecha en el pasado.' })),
+    build('div',{ class:'q-row' },
+      build('label',{ for:'action-owner', text:'Responsable' }),
+      responsibleSelect('action-owner','owner','Sin asignar')),
+    formActions('Probar creación'));
+  form.noValidate=true;
+  el('q-form').append(form);
+  el('action-title').focus({preventScroll:true});
+}
+function openAssign() {
+  const pending=unassigned(selected), name=areas[selected].name;
+  if (!pending.length) { setStatus(`No se puede asignar: ${assignNote()}`,'error'); return; }
+  resetForm();
+  el('q-menu').hidden=true;
+  const form=build('form',{ class:'q-form', 'data-kind':'assign', 'aria-label':`Asignar acción existente en ${name}` },
+    build('p',{ class:'muted', text:'Solo acciones sin responsable de este sector:' }),
+    build('ul',{ class:'q-pending' },
+      build('li',{},build('strong',{ text:pending[0].code }),` ${pending[0].title}`)),
+    build('div',{ class:'q-row' },
+      build('label',{ for:'assign-person', text:'Responsable' }),
+      responsibleSelect('assign-person','person','Selecciona una persona','assign-person-help'),
+      build('p',{ class:'muted', id:'assign-person-help', text:`Sin persona no se puede asignar. La acción de ejemplo solo existe en la maqueta de ${name}.` })),
+    formActions('Probar asignación'));
+  form.noValidate=true;
+  el('q-form').append(form);
+  el('assign-person').focus({preventScroll:true});
+}
+function resetForm() {
+  el('q-form').textContent='';
+  el('q-menu').hidden=false;
+  setStatus('','');
+}
+function closeForm() {
+  el('q-form').textContent='';
+  el('q-menu').hidden=false;
+}
+function submitCreate(form) {
+  const title=form.querySelector('[name="title"]'), owner=form.querySelector('[name="owner"]');
+  const value=title.value.trim();
+  if (!value) {
+    title.setAttribute('aria-invalid','true');
+    setStatus('Falta un dato: escribe un título para la acción antes de probarla.','error');
+    title.focus({preventScroll:true});
+    return;
+  }
+  title.removeAttribute('aria-invalid');
+  const person=responsibles.find(p=>p.id===owner.value);
+  const sector=areas[selected].name;
+  drafts[selected].push({ summary: `${value} · ${person?person.name:'Sin asignar'} · preparada ahora, sin fecha de publicación` });
+  renderDrafts();
+  setStatus(`Listo en la maqueta: «${value}» en ${sector}. Responsable: ${person?person.name:'Sin asignar'}. No se guardó nada en el sistema ni se envió ninguna solicitud.`,'ok');
+}
+function submitAssign(form) {
+  const personSelect=form.querySelector('[name="person"]');
+  const action=unassigned(selected)[0];
+  if (!action) { setStatus(`No se puede asignar: ${assignNote()}`,'error'); closeForm(); renderCard(); return; }
+  const person=responsibles.find(p=>p.id===personSelect.value);
+  if (!person) {
+    personSelect.setAttribute('aria-invalid','true');
+    setStatus('Selecciona un responsable para continuar. Sin persona no se puede asignar.','error');
+    personSelect.focus({preventScroll:true});
+    return;
+  }
+  assignedHere.add(action.code);
+  drafts[selected].push({ summary: `${action.code} · ${action.title} · asignada a ${person.name}` });
+  setStatus(`Listo en la maqueta: «${action.code} · ${action.title}» en ${areas[selected].name} asignada a ${person.name}. No se guardó nada en el sistema ni se envió ninguna solicitud.`,'ok');
+  closeForm();
+  renderCard();
+}
+function click(id,handler) { el(id).addEventListener('click',handler); }
+click('aerial',()=>pose(cameraStart.pitch)); click('top',()=>pose(0));
+click('left',()=>{camera.bearing-=.23;draw();}); click('right',()=>{camera.bearing+=.23;draw();});
+click('zoom-in',()=>zoom(1.2)); click('zoom-out',()=>zoom(1/1.2));
+click('reset',()=>{Object.assign(camera,cameraStart);pose(cameraStart.pitch);});
+click('risk',()=>{
+  layer=!layer; el('risk').setAttribute('aria-pressed',String(layer));
+  el('risk').setAttribute('aria-label',layer?'Ocultar capa de riesgo':'Mostrar capa de riesgo');
+  el('legend').hidden=!layer||expanded; draw();
+});
+click('theme',()=>{
+  const day=root.dataset.theme!=='day'; root.dataset.theme=day?'day':'night';
+  el('theme').textContent=day?'Oscuro':'Claro';
+  el('theme').setAttribute('aria-label',day?'Cambiar a tema oscuro':'Cambiar a tema claro'); draw();
+});
+click('expand',()=>{
+  expanded=!expanded;
+  el('info').hidden=expanded; el('legend').hidden=expanded||!layer;
+  el('expand').textContent=expanded?'Mostrar paneles':'Expandir mapa';
+  el('expand').setAttribute('aria-pressed',String(expanded));
+});
+click('q-close',closeCard);
+click('q-create',openCreate);
+click('q-assign',openAssign);
+el('q-form').addEventListener('submit',e=>{
+  e.preventDefault();
+  if (!(e.target instanceof HTMLFormElement)) return;
+  if (e.target.dataset.kind==='create') submitCreate(e.target);
+  else submitAssign(e.target);
+});
+el('q-form').addEventListener('click',e=>{
+  if (e.target.closest('[data-cancel]')) { resetForm(); el('q-create').focus({preventScroll:true}); }
+});
+el('q-cutoff').addEventListener('input',e=>{ cutoff.value=e.target.value; refresh(); });
+el('q-sector').addEventListener('change',e=>selectSector(e.target.value,{ keepFocus:true }));
+document.addEventListener('keydown',e=>{
+  if (e.key==='Escape'&&!quick.hidden) { e.preventDefault(); closeCard(); }
+});
+cutoff.addEventListener('input',refresh);
+document.querySelectorAll('[data-sector]').forEach(button=>button.addEventListener('click',()=>selectSector(button.dataset.sector,{ from:button })));
+terrain.addEventListener('pointerdown',e=>{
+  if (e.button!==0) return;
+  drag={id:e.pointerId,px:e.clientX,py:e.clientY,x:camera.x,y:camera.y,moved:false};
+  terrain.setPointerCapture(e.pointerId);
+});
+terrain.addEventListener('pointermove',e=>{
+  if (!drag || drag.id!==e.pointerId) return;
+  const dx=e.clientX-drag.px,dy=e.clientY-drag.py;
+  if (!drag.moved && Math.hypot(dx,dy)<5) return;
+  drag.moved=true;
+  camera.x=Math.max(-size.w*.65,Math.min(size.w*.65,drag.x+dx));
+  camera.y=Math.max(-size.h*.65,Math.min(size.h*.65,drag.y+dy)); draw();
+});
+terrain.addEventListener('pointerup',e=>{
+  if (!drag || drag.id!==e.pointerId) return;
+  const rect=terrain.getBoundingClientRect();
+  const px=e.clientX-rect.left, py=e.clientY-rect.top;
+  if (!drag.moved && layer) {
+    const target=markerAt(px,py);
+    const key=target?.key||sectorAt(px,py);
+    if (key) selectSector(key);
+  }
+  drag=null;
+});
+terrain.addEventListener('pointercancel',()=>{drag=null;});
+terrain.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY>0?1/1.13:1.13);},{passive:false});
+window.addEventListener('resize',resize);
+resize();
+</script>
+</body>
+</html>

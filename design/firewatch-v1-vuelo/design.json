@@ -16,6 +16,13 @@
       "tradeoff": "Mapa continental basado en el contorno regional simplificado, con Rapa Nui y Juan Fernández en recuadros. La huella urbana agrupada se lee mejor con zoom; los contornos dejan ver el relieve y el relleno ayuda a localizar el foco. Uso interno, pendiente de revisión cartográfica.",
       "width": 1440,
       "height": 900
+    },
+    {
+      "file": "03-acciones-en-el-mapa.html",
+      "title": "Vista aérea · Acciones rápidas",
+      "tradeoff": "Conserva el mapa aéreo aprobado y abre una tarjeta compacta junto al sector elegido, por clic dentro del área dibujada o desde la lista. Gana actuar sin salir del mapa; la tarjeta cubre parte del terreno mientras está abierta y en móvil reemplaza el panel inferior. Crear y asignar son de maqueta y no guardan nada.",
+      "width": 1440,
+      "height": 900
     }
   ]
 }
