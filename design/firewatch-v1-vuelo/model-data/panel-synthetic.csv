@@ -1,0 +1,37 @@
+cut,comuna,comuna_unresolved,provincia,region,local_date,fire_today,fire_count,burned_ha,meteorology_readings,temp_max,temp_min,humidity_rel,wind_speed,wind_dir,precip_sum,radiation_sol
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-09,0,0,0,0,23.5,13.5,64,6.67,235,0,310
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-10,0,0,0,0,21.5,13.5,78,5.56,215,0,235
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-11,0,0,0,0,19.5,12.5,86,5,205,0,200
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-12,0,0,0,0,19.5,12.5,90,4.72,200,0,180
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-13,1,1,2.4,0,29.5,14.5,48,8.61,110,0,370
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-14,0,0,0,0,25.5,12.5,56,7.5,140,0,345
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-15,0,0,0,0,18.5,10.5,94,9.44,315,3.6,130
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-16,0,0,0,0,20.5,8.5,80,6.11,260,3.6,
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-17,0,0,0,0,24.5,11.5,66,7.78,190,,335
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-18,1,2,,0,28.5,14.5,52,,,,365
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-19,0,0,0,0,30.5,15.5,,8.06,100,,375
+05101,Valparaíso,,Valparaíso,Valparaiso,2026-11-20,0,0,0,0,31.5,16.5,42,7.5,95,,380
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-09,0,0,0,0,24,14,62,6.11,240,0,315
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-10,0,0,0,0,22,14,76,5,220,0,240
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-11,0,0,0,0,20,13,84,4.44,210,0,205
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-12,0,0,0,0,20,13,88,4.17,205,0,185
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-13,0,0,0,0,30,15,46,8.06,115,0,375
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-14,0,0,0,0,26,13,,6.94,145,0,350
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-15,0,0,0,0,19,11,92,8.89,320,0,135
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-16,0,0,0,0,21,9,78,0,,0,290
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-17,0,0,0,0,25,12,64,7.22,195,0,340
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-18,0,0,0,0,29,15,50,8.33,125,0,370
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-19,0,0,0,0,31,16,44,7.5,105,0,380
+05109,Viña del Mar,,Valparaíso,Valparaiso,2026-11-20,1,1,6.4,0,32,17,,6.94,100,0,
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-09,0,0,0,0,27,12,53,4.72,230,0,335
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-10,0,0,0,0,25,12,67,3.61,210,0,260
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-11,0,0,0,0,23,11,75,,,0,225
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-12,0,0,0,0,,,79,2.78,195,0,205
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-13,0,0,0,0,33,13,37,6.67,105,0,395
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-14,0,0,0,0,29,11,45,5.56,135,0,370
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-15,0,0,0,0,22,9,83,7.5,310,11.8,155
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-16,0,0,0,0,24,7,69,4.17,255,11.8,310
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-17,1,2,128.75,0,,,55,5.83,185,11.8,360
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-18,0,0,0,0,32,13,41,6.94,115,11.8,390
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-19,0,0,0,0,34,14,35,6.11,95,11.8,400
+05801,Quilpué,,Marga Marga,Valparaiso,2026-11-20,0,0,0,0,35,15,31,5.56,90,11.8,405
