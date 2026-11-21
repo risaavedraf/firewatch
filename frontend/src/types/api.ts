@@ -221,6 +221,46 @@ export interface PreventiveEvidenceReview {
   reviewed_at?: string;
 }
 
+// ── Field observations (PM-09) ──────────────────────────────────────────────
+//
+// The frozen seam is `GET|POST /v1/prevention/observations` and
+// `GET /v1/prevention/observations/zones`. The type is a closed catalogue on the
+// wire: the labels are the Spanish words of S2/S3 and the values are what the
+// server accepts. `created_by` is the verified token `sub`; the client never
+// sends it and never invents one.
+
+export type ObservationType = 'vegetacion_seca' | 'microbasural' | 'quema' | 'acceso_bloqueado' | 'otro';
+
+export const OBSERVATION_TYPES: readonly ObservationType[] = [
+  'vegetacion_seca',
+  'microbasural',
+  'quema',
+  'acceso_bloqueado',
+  'otro',
+];
+
+export interface Observation {
+  id: string;
+  // The closed catalogue of PM-09. The transport refuses a served value outside
+  // it as a contract change, so the Spanish label map always covers the type.
+  type: ObservationType;
+  zone_id: string;
+  // Nullable on the wire: a catalog zone without a name answers `null`.
+  zone_name: string | null;
+  // `YYYY-MM-DD`; the observation's own date, not its creation instant.
+  observed_on: string;
+  description: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface ObservationZone {
+  // `code` is the catalogue key the creation posts as `zone_id`.
+  code: string;
+  name: string;
+  province: string | null;
+}
+
 export interface PreventiveReassessment {
   id?: number;
   action_id?: string;

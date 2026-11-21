@@ -86,6 +86,11 @@ export const routes = {
   // are reached through the gateway, the only origin the page's `connect-src`
   // allows besides the identity provider.
   preventiveActions: '/v1/prevention/actions',
+  // PM-09 field observations. Both routes are served by the prevention service
+  // through the gateway; the zones read is the REAL catalogue, including zones
+  // without map geometry, so the form never invents a sector.
+  observations: '/v1/prevention/observations',
+  observationZones: '/v1/prevention/observations/zones',
   models: '/v1/models',
 } as const;
 

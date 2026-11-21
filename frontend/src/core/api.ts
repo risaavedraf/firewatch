@@ -19,6 +19,9 @@ import type {
   AuditEntry,
   BatchCollection,
   Job,
+  Observation,
+  ObservationType,
+  ObservationZone,
   PreventiveAction,
   PreventiveActionDetail,
   PreventiveEvidence,
@@ -30,6 +33,9 @@ import type {
   SourceProvenance,
   ZoneCollection,
 } from '../types/api';
+// The closed type catalogue is a runtime value: the guards compare the served
+// wire spelling against it, so it cannot travel through `import type`.
+import { OBSERVATION_TYPES } from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -73,6 +79,9 @@ type RequestKind =
   | 'recordPreventiveEvidence'
   | 'reviewPreventiveEvidence'
   | 'linkPreventiveReassessment'
+  | 'observations'
+  | 'observationZones'
+  | 'createObservation'
   | 'models';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
@@ -851,6 +860,115 @@ export async function linkPreventiveReassessment(
   }
   if (result.body.action_id !== undefined && result.body.action_id !== id) {
     return failureOutcome(failureSpec('malformed', 'action_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
+}
+
+// --- Field observations (PM-09) --------------------------------------------
+//
+// The observation is authored by the server: `created_by` is the verified token
+// `sub`, and the creation body carries exactly `zone_id`, `type`, `observed_on`
+// and `description`. The type is a closed catalogue the server validates; this
+// transport proves the shape the view can use and passes the served list through
+// in the order the service returned it (newest first).
+
+function isObservationType(value: unknown): boolean {
+  return typeof value === 'string' && OBSERVATION_TYPES.includes(value as ObservationType);
+}
+
+function isObservation(value: unknown): value is Observation {
+  if (!record(value)) return false;
+  if (!nonempty(value.id) || !nonempty(value.zone_id)) return false;
+  // A served type outside the closed catalogue is a contract change: the list is
+  // refused instead of rendering a row this page cannot label or resubmit.
+  if (!isObservationType(value.type)) return false;
+  if (!nullableString(value.zone_name)) return false;
+  if (!nonempty(value.observed_on) || !nonempty(value.description)) return false;
+  // The author and the instant are server facts; a row without them is refused
+  // rather than rendered with an invented attribution.
+  if (!nonempty(value.created_by) || !nonempty(value.created_at)) return false;
+  return true;
+}
+
+function isObservationZone(value: unknown): value is ObservationZone {
+  return record(value) && nonempty(value.code) && nonempty(value.name) && nullableString(value.province);
+}
+
+// The full list read is validated element by element: a partially valid answer
+// is refused wholesale, exactly like the preventive-action list.
+function observationList(value: unknown): Observation[] | null {
+  if (!Array.isArray(value)) return null;
+  const entries: Observation[] = [];
+  for (const entry of value) {
+    if (!isObservation(entry)) return null;
+    entries.push(entry);
+  }
+  return entries;
+}
+
+export async function observations(
+  filter: { type?: string } = {},
+  signal?: AbortSignal,
+): Promise<Outcome<Observation[]>> {
+  const query = new URLSearchParams();
+  if (nonempty(filter.type)) query.set('type', filter.type.trim());
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  const result = await requestJson(
+    'observations',
+    `${gatewayOrigin}${routes.observations}${suffix}`,
+    { authenticated: true },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<Observation[]>(result);
+  const entries = observationList(result.body);
+  if (entries === null) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  // The empty list is data: it is passed through, never replaced by an idle state.
+  return { ok: true, data: entries };
+}
+
+export async function observationZones(signal?: AbortSignal): Promise<Outcome<ObservationZone[]>> {
+  const result = await requestJson('observationZones', `${gatewayOrigin}${routes.observationZones}`, { authenticated: true }, signal);
+  if (result.state !== 'ok') return resultFailure<ObservationZone[]>(result);
+  if (!Array.isArray(result.body) || !result.body.every(isObservationZone)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
+}
+
+export interface ObservationInput {
+  readonly zoneId: string;
+  readonly type: string;
+  readonly observedOn: string;
+  readonly description: string;
+}
+
+// The body names the four documented fields. No author travels: reproducing one
+// here would present a client-supplied identity as server-verified authorship.
+export async function createObservation(input: ObservationInput, signal?: AbortSignal): Promise<Outcome<Observation>> {
+  const result = await requestJson(
+    'createObservation',
+    `${gatewayOrigin}${routes.observations}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        zone_id: input.zoneId,
+        type: input.type,
+        observed_on: input.observedOn,
+        description: input.description,
+      }),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<Observation>(result);
+  if (!isObservation(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (result.body.zone_id !== input.zoneId) {
+    return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
   }
   return { ok: true, data: result.body };
 }

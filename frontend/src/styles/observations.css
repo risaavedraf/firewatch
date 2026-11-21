@@ -1,0 +1,217 @@
+/* PM-09 field observations.
+
+   Presentation only: the form, the applied filter and the persisted list of the
+   observation screen. The panel padding lives in `app.css` next to every other
+   `panel <modifier>` (the layout gate reads that file), and this sheet adds the
+   two-column form/list layout, the item rows and the narrow-view collapse. Every
+   colour is a token; nothing here decides what the server said. */
+
+.observations-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.observations-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.observations-form .field,
+.observations-toolbar .field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.observations-form .field label,
+.observations-toolbar .field label {
+  color: var(--forest-700);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.observations-form .field select,
+.observations-form .field input,
+.observations-form .field textarea,
+.observations-toolbar .field select {
+  max-width: 100%;
+}
+
+.observations-form textarea {
+  min-height: 68px;
+  resize: vertical;
+}
+
+.observations-form .field-note,
+.observations-form .field-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.observations-form .field-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.observations-form .author-note {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.observations-form .author-note p {
+  margin: 0;
+}
+
+.observations-form .author-note strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--forest-700);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.observations-form .form-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.observations-form .form-actions .panel-note {
+  margin: 0;
+}
+
+.observations-form #observation-feedback:empty {
+  display: none;
+}
+
+.observations-toolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.observations-toolbar .field {
+  flex: 1 1 200px;
+  max-width: 280px;
+}
+
+.observation-list {
+  display: grid;
+  gap: 0;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.observation-list:empty {
+  margin: 0;
+}
+
+.observation-item {
+  padding: 11px 0;
+  border-bottom: 1px solid #eef1ee;
+}
+
+.observation-item:last-child {
+  border-bottom: 0;
+}
+
+.observation-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.observation-item-head strong {
+  font-size: 11px;
+}
+
+.observation-date {
+  color: var(--muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.observation-zone {
+  margin: 2px 0 4px;
+  color: var(--forest-700);
+  font-size: 9px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.observation-description {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.observation-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+  overflow-wrap: anywhere;
+}
+
+.observations-list-panel .empty-state {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+}
+
+.observations-list-panel .empty-state button {
+  margin-top: 4px;
+}
+
+/* AA: the shared neutral tag keeps its palette everywhere else, but the badge
+   here is 8 px, so its colour is darkened until it clears 4.5:1 on its own
+   background — the same correction `#actions` applies. */
+#observations .neutral-tag {
+  color: var(--ink);
+  background: #edf1f2;
+}
+
+#observation-zones-retry {
+  margin-bottom: 4px;
+}
+
+@media (max-width: 1000px) {
+  .observations-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .observations-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .observations-toolbar .field {
+    max-width: none;
+  }
+
+  .observations-form .form-actions,
+  .observations-form .form-actions .primary-button {
+    justify-items: stretch;
+    justify-self: stretch;
+  }
+}

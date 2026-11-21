@@ -45,13 +45,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the eight views are declared once, with the two merged pairs and no duplicate hash', () => {
+test('the nine views are declared once, with the two merged pairs and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
   // (Acceso) and the sidebar order is the declared order. `#actions` joins
-  // Prevención beside the territory and the batch history (T12).
-  expect(ids).toEqual(['overview', 'history', 'actions', 'sources', 'jobs', 'pending', 'session', 'audit']);
+  // Prevención beside the territory and the batch history (T12), and
+  // `#observations` follows it as the PM-09 field-observation page.
+  expect(ids).toEqual(['overview', 'history', 'actions', 'observations', 'sources', 'jobs', 'pending', 'session', 'audit']);
   expect(new Set(ids).size).toBe(ids.length);
   // `#session` carries the permissions matrix and `#sources` carries the pipeline
   // status: the two merged pairs must not survive as their own routes, or the
