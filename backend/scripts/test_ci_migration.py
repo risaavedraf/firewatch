@@ -294,6 +294,19 @@ class TestProfileDependencyTest(unittest.TestCase):
                 f"{service} must keep waiting for {migrator} to complete successfully",
             )
 
+    def test_prevention_tests_wait_for_the_risk_zone_catalogue(self):
+        for manifest in (COMPOSE, ROOT / "docker-compose.prod.yml"):
+            with self.subTest(manifest=manifest.name):
+                compose_text = read(manifest)
+                self.assertIn(
+                    "      prevention-test-migrate: {condition: service_completed_successfully}",
+                    service_block(compose_text, "prevention-test").splitlines(),
+                )
+                self.assertIn(
+                    "      risk-test-migrate: {condition: service_completed_successfully}",
+                    service_block(compose_text, "prevention-test-migrate").splitlines(),
+                )
+
     def test_test_migrators_depend_on_postgres_health(self):
         compose_text = read(COMPOSE)
         for migrator in TEST_PROFILE_MIGRATORS:

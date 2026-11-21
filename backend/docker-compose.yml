@@ -374,6 +374,8 @@ services:
       APP_ENV: development
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?required}@postgres:5432/risk_test?sslmode=disable
     depends_on:
+      # Serialize migrations on risk_test and seed the zone catalog first.
+      risk-test-migrate: {condition: service_completed_successfully}
       postgres: {condition: service_healthy}
 
 networks:

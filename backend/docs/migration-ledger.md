@@ -15,11 +15,11 @@ this one, so its versions cannot collide with the two below.
 | Module | Versions in the shared ledger | Source |
 | --- | --- | --- |
 | `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13 | [risk embed.go](../services/risk/migrations/embed.go):62-76 |
-| `prevention` | 9, 11, 14 | [prevention embed.go](../services/prevention/migrations/embed.go):39-45 |
+| `prevention` | 9, 11, 14, 15 | [prevention embed.go](../services/prevention/migrations/embed.go):42-49 |
 | `jobs` | 1, 2, 3, 4 | own database, not in this ledger |
 
-The gaps are deliberate: 9, 11 and 14 belong to `prevention`, and nothing may be
-inserted into a gap to "tidy" the sequence.
+The gaps are deliberate: 9, 11, 14 and 15 belong to `prevention`, and nothing may
+be inserted into a gap to "tidy" the sequence.
 
 ## The rule
 
@@ -35,20 +35,21 @@ inserted into a gap to "tidy" the sequence.
 5. A collision is a test failure, not a review comment. The guard below already
    exists; a reviewer does not need to spot the overlap by eye.
 
-## Next free version = 15
+## Next free version = 16
 
-The highest version in use is **14**, claimed by
-`backend/services/prevention/migrations/014_action_assignee.sql`, so the next
-free integer across both services is **15**. Prevention's next migration must
-take version 15, not 12 and not the next integer in its own list: `risk` holds 12
-(`012_readings.sql`) and 13, and 9, 11 and 14 are already recorded as prevention's
-own rows. This paragraph is the determination V1-M-04 asks for — prevention's
-next migration version is 15 by this rule.
+The highest version in use is **15**, claimed by
+`backend/services/prevention/migrations/015_field_observations.sql` (PM-09's
+field observations), so the next free integer across both services is **16**.
+Prevention's next migration must take version 16, not 12 and not the next integer
+in its own list: `risk` holds 12 (`012_readings.sql`) and 13, and 9, 11, 14 and 15
+are already recorded as prevention's own rows. This paragraph is the
+determination V1-M-04 asks for — prevention's next migration version is 16 by
+this rule.
 
-The previous determination said 14, and prevention's assignment migration took
-it. That is the rule working, not an exception: a determination is consumed when
-its version is claimed, and this section is updated with the claim so it never
-names a version someone already owns.
+The previous determination said 15, and PM-09's observation migration took it.
+That is the rule working, not an exception: a determination is consumed when its
+version is claimed, and this section is updated with the claim so it never names
+a version someone already owns.
 
 ## Enforcement
 

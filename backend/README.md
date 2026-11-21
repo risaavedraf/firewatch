@@ -77,6 +77,9 @@ Use the demo script or an API client to obtain a token from Keycloak's `/realms/
 | `GET /v1/prevention/actions/{id}` | viewer/admin | Action detail with its history |
 | `POST /v1/prevention/actions` | admin | Creates a preventive action in `propuesta` |
 | `POST /v1/prevention/actions/{id}/transitions` | admin | Applies a valid state transition and appends history |
+| `GET /v1/prevention/observations?type=` | viewer/admin | PM-09 field observations, newest first, at most 200 rows; `type` is an optional member of the closed catalogue |
+| `POST /v1/prevention/observations` | admin | Records one field observation: `zone_id` from the zone catalogue, closed `type`, calendar `observed_on`, `description`; the author is the verified token subject and is never sent by the client |
+| `GET /v1/prevention/observations/zones` | viewer/admin | Zone options for the observation form, read from the authoritative `zones` catalogue (name then code), including zones without geometry |
 | `GET /v1/audit` | admin | Last 100 administrative/publication records |
 
 Send `Authorization: Bearer <access_token>`. No cookies are used in this backend slice. Unknown or invalid JWTs produce `401`; insufficient roles produce `403`. Full definitions: [`contracts/openapi/firewatch-v1.yaml`](contracts/openapi/firewatch-v1.yaml).

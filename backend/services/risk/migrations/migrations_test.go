@@ -36,10 +36,11 @@ func migrationFor(t *testing.T, version int) Migration {
 // TestMigrationsAreOrderedByUniqueVersion guards the list's shape. Versions must
 // start at 1 and increase strictly, but NOT contiguously: this service shares the
 // database's schema_migrations ledger with the prevention service, which owns
-// versions 9 and 11 (009_preventive_actions.sql, 011_preventive_evidence.sql). A
-// version is therefore reserved against the integrated tree, not against this
-// module alone; a decrease or a duplicate would still make a migration run out of
-// order or skip in silence.
+// versions 9, 11, 14 and 15 (009_preventive_actions.sql,
+// 011_preventive_evidence.sql, 014_action_assignee.sql and
+// 015_field_observations.sql). A version is therefore reserved against the
+// integrated tree, not against this module alone; a decrease or a duplicate would
+// still make a migration run out of order or skip in silence.
 func TestMigrationsAreOrderedByUniqueVersion(t *testing.T) {
 	all := All()
 	if len(all) == 0 {

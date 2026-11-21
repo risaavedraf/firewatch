@@ -55,7 +55,7 @@ type Migration struct {
 // Adding a migration means adding one file under this directory plus one entry
 // here. The numbering is global across the services that share this ledger, not
 // per module: this service claims 1-8, 10, 12 and 13, the prevention service
-// claims 9, 11 and 14, and the next free number is 15. The rule, the current
+// claims 9, 11, 14 and 15, and the next free number is 16. The rule, the current
 // claims and the guard are in backend/docs/migration-ledger.md. The runner
 // applies whatever is still pending in schema_migrations and does nothing on a
 // database that is already up to date.

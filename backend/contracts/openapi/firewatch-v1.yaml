@@ -1268,6 +1268,151 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/prevention/observations:
+    get:
+      operationId: listPreventionObservations
+      description: >-
+        Viewer/admin. PM-09 field observations, newest first, capped at 200
+        rows. `type` is the only query parameter and is an optional filter: an
+        omitted or empty one narrows nothing, and an empty result is a valid
+        answer rather than an error. A repeated parameter, a parameter this
+        operation does not define, or a type outside the closed catalogue is
+        refused 422 invalid_query before anything is read, because an
+        unrecognised type would otherwise read as "no such observations"
+        instead of "no such type". `zone_name` is read from the zone catalogue
+        by the same query, never stored as a second copy of the name.
+      parameters:
+        - in: query
+          name: type
+          required: false
+          schema: {$ref: '#/components/schemas/PreventiveObservationType'}
+      responses:
+        '200':
+          description: >-
+            Observations matching the filter, newest first by observation date
+            and then creation; [] when none matches.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PreventiveObservation'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422':
+          description: Invalid query; nothing was read.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                properties:
+                  code: {type: string, enum: [invalid_query]}
+                  request_id: {type: string, format: uuid}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+    post:
+      operationId: createPreventionObservation
+      description: >-
+        Admin only; a viewer is refused 403. Records one field observation. The
+        author is the verified token subject: the body has no author field, and
+        an unknown field — including a client-sent created_by, author, id or
+        zone_name — is refused rather than ignored. The type must be a member of
+        the closed catalogue; there is no free-text type. zone_id must be a code
+        the authoritative zone catalogue holds: the insert selects the zone from
+        that catalogue, so a code it does not hold is refused 422 zone_not_found
+        and nothing is written. observed_on is a calendar date, not an instant.
+        Observations are append-only: PM-09 publishes no detail, update or
+        delete route, so the answer is the created representation and no
+        Location header names a URI this contract does not serve.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PreventiveObservationCreate'}
+      responses:
+        '201':
+          description: The created observation, with its zone name from the catalogue.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PreventiveObservation'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '415':
+          description: JSON content type required.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                properties:
+                  code: {type: string, enum: [json_required]}
+                  request_id: {type: string, format: uuid}
+        '422':
+          description: >-
+            Invalid input; nothing was written. A missing or blank field, a type
+            outside the closed catalogue, an observed_on that is not a calendar
+            date, a description longer than 240 characters, an unknown field, or
+            a body that is not one JSON document is refused as
+            invalid_observation_request. A zone_id the zone catalogue does not
+            hold is refused as zone_not_found. In both cases no row is added.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                properties:
+                  code:
+                    type: string
+                    enum: [invalid_observation_request, zone_not_found]
+                  request_id: {type: string, format: uuid}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/prevention/observations/zones:
+    get:
+      operationId: listPreventionObservationZones
+      description: >-
+        Viewer/admin. The zone options the observation form offers, read from the
+        authoritative zone catalogue — the `zones` table the risk migrations
+        create and seed — and ordered by name then code. Every catalogue zone is
+        listed, including the zones that carry no geometry and are therefore
+        absent from the GeoJSON map layer, because a registration form must be
+        able to name every zone the catalogue holds. The page must populate its
+        select from this route instead of a literal list.
+      responses:
+        '200':
+          description: >-
+            The zone catalogue in display order; [] only when the catalogue
+            really is empty.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PreventiveObservationZone'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
   /v1/users:
     get:
       operationId: listRealmUsers
@@ -2285,3 +2430,103 @@ components:
             The server-produced job whose published batch is the reassessment.
             The batch, version, risk level and synthetic flag are never accepted
             from the client.
+    PreventiveObservationType:
+      type: string
+      description: >-
+        PM-09's closed observation catalogue. A value outside it is refused 422
+        and nothing is written; there is no free-text type. The Spanish labels
+        the page renders are presentation, not wire values: vegetacion_seca =
+        "Vegetación seca", microbasural = "Microbasural", quema = "Quema",
+        acceso_bloqueado = "Acceso bloqueado", otro = "Otro".
+      enum:
+        - vegetacion_seca
+        - microbasural
+        - quema
+        - acceso_bloqueado
+        - otro
+    PreventiveObservation:
+      type: object
+      description: >-
+        One append-only field observation. There is no update and no delete: the
+        row is the record of what an operator saw on a day.
+      required:
+        - id
+        - type
+        - zone_id
+        - zone_name
+        - observed_on
+        - description
+        - created_by
+        - created_at
+      properties:
+        id: {type: string, format: uuid}
+        type: {$ref: '#/components/schemas/PreventiveObservationType'}
+        zone_id:
+          type: string
+          description: >-
+            Code of the catalogue zone the observation was recorded in. The
+            accepted set is the zone catalogue, served by the observation zones
+            route; it is deliberately not an enum, because an enum would drift
+            from the table.
+        zone_name:
+          type: string
+          nullable: true
+          description: >-
+            The name the zone catalogue reports for zone_id, read by the same
+            query. Null means the catalogue no longer holds the code: the
+            observation is historical, so its record is kept and the missing
+            name is reported instead of invented.
+        observed_on:
+          type: string
+          description: >-
+            Calendar date (YYYY-MM-DD) of the observation, not an instant. No
+            calendar bound is imposed: the design's sample range is a mock
+            artefact and is not part of this contract.
+        description:
+          type: string
+          description: >-
+            What was seen, as sent. Non-blank and at most 240 characters, the
+            size the design states for the field.
+        created_by:
+          type: string
+          description: >-
+            The author: verified token subject of the admin who recorded the
+            observation. Never a client-supplied identity.
+        created_at: {type: string, format: date-time}
+    PreventiveObservationCreate:
+      type: object
+      additionalProperties: false
+      required: [zone_id, type, observed_on, description]
+      properties:
+        zone_id:
+          type: string
+          description: >-
+            Catalogue zone code. It must exist in the zone catalogue; a code it
+            does not hold is refused 422 zone_not_found and nothing is written.
+        type: {$ref: '#/components/schemas/PreventiveObservationType'}
+        observed_on:
+          type: string
+          description: >-
+            Calendar date (YYYY-MM-DD); a date-time is refused. There is no
+            accepted range: any real calendar date is valid.
+        description:
+          type: string
+          maxLength: 240
+          description: Non-blank, at most 240 characters.
+    PreventiveObservationZone:
+      type: object
+      description: >-
+        One zone option of the observation form, read from the authoritative
+        catalogue. This projection carries no geometry, so the zones the map
+        layer omits are still offered here.
+      required: [code, name, province]
+      properties:
+        code: {type: string}
+        name: {type: string}
+        province:
+          type: string
+          nullable: true
+          description: >-
+            Province the catalogue records, or null when it records none. The
+            empty string is not substituted, because "no province recorded" and
+            "a province with an empty name" are different facts.
