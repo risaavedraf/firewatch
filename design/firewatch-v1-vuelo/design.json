@@ -18,6 +18,13 @@
       "height": 900
     },
     {
+      "file": "21-lecturas-por-sector.html",
+      "title": "Lecturas por sector",
+      "tradeoff": "Compara tres sectores con cobertura completa, parcial y sin lectura. Explica los faltantes sin saturar el mapa aprobado; las lecturas y el terreno candidato son solo sintéticos.",
+      "width": 1440,
+      "height": 900
+    },
+    {
       "file": "05-historial-de-lotes.html",
       "title": "Historial de lotes",
       "tradeoff": "Lista solo los lotes publicados de la zona elegida y los filtra en memoria por texto y estado. Gana trazabilidad por corte; la tabla exige desplazamiento y no hay paginación de servidor. Las filas y fechas son sintéticas.",
@@ -91,6 +98,13 @@
       "file": "15-fuentes-y-servicios.html",
       "title": "Fuentes y servicios",
       "tradeoff": "Declara alcance, procedencia, restricciones e integridad, y revisa registros con hallazgos de calidad. Deja explícito qué no está verificado; los valores de hash y de servicio son ilustrativos y no se comprueban.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "20-datos-del-modelo.html",
+      "title": "Datos del modelo",
+      "tradeoff": "Reúne variables, unidades, ventanas y acceso a las fuentes históricas; da más detalle que el tablero de servicios sin confundir la muestra sintética con un modelo validado.",
       "width": 1440,
       "height": 900
     },

@@ -4,6 +4,12 @@
 
 **Datos de maqueta:** los datos, las operaciones, las exportaciones y las señales de sesión son ilustrativos. Ningún tablero llama a la red, escribe almacenamiento, descarga archivos ni modifica `frontend/`. El artboard `19` muestra el estado transitorio «Aún no implementado», no funcionalidad del producto.
 
+## Datos del modelo
+
+[Datos del modelo](20-datos-del-modelo.html), junto a Fuentes y servicios, describe las siete variables y la investigación de acceso histórico. [Lecturas por sector](21-lecturas-por-sector.html), junto a Cobertura, muestra un sector completo, uno parcial y uno sin lecturas. Ninguno calcula riesgo.
+
+El [paquete de datos sintéticos](model-data/README.md) incluye el CSV comuna-día y el JSON de sectores. El lienzo conserva una copia de este JSON en el bloque `sector-fixture` del tablero `21` para abrirlo sin red; si el ejemplo cambia, actualiza ese bloque y compruébalo con `--check`.
+
 ## Artboards generados
 
 Los `04`–`19` se generan desde los cuatro tableros fuente, que se conservan intactos:
@@ -24,4 +30,4 @@ node design/firewatch-v1-vuelo/build-artboards.mjs
 node design/firewatch-v1-vuelo/build-artboards.mjs --check
 ```
 
-El generador no usa dependencias, instalación ni red. `--check` es de solo lectura: verifica los 16 artefactos, sin considerar diferencias entre LF y CRLF, y comprueba las 19 entradas ordenadas en `design.json`. El modo de escritura verifica todos los destinos antes de escribir: si encuentra un archivo ajeno o enlazado, se detiene sin cambiar nada. Los mapas `01`–`03` y los cuatro tableros fuente quedan fuera de su alcance.
+El generador no usa dependencias, instalación ni red. `--check` es de solo lectura: verifica los 16 artefactos, sin considerar diferencias entre LF y CRLF, comprueba las 21 entradas ordenadas en `design.json` y valida que el JSON de sectores coincida con el que muestra el lienzo. El modo de escritura verifica todos los destinos antes de escribir: si encuentra un archivo ajeno o enlazado, se detiene sin cambiar nada. Los mapas `01`–`03` y los cuatro tableros fuente quedan fuera de su alcance.
