@@ -1,0 +1,14 @@
+{
+  "title": "FireWatch v1 · Decisiones y trabajo de campo",
+  "brief": "Destinos y flujos nuevos del v1 con los temas claro y oscuro de FireWatch. Las lecturas, alertas y operaciones se identifican como ilustrativas.",
+  "feature": "odd/tasks/v1-gentle-design.md",
+  "artboards": [
+    {
+      "file": "01-decisiones.html",
+      "title": "Decisiones y alertas",
+      "tradeoff": "Panel ejecutivo, comparador de sectores y notificaciones. Los recuentos se simplifican para decidir dónde mirar, sin tratar el escenario sintético como un servicio activo.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}
