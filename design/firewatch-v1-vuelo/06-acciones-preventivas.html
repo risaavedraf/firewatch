@@ -1,0 +1,2137 @@
+<!doctype html>
+<!-- Generado por design/firewatch-v1-vuelo/build-artboards.mjs desde firewatch-v1-recorrido/01-prevencion-territorial.html (vista acciones). No editar: se regenera con `node build-artboards.mjs`. -->
+<html lang="es" data-theme="night">
+<head>
+<meta charset="utf-8" />
+<meta name="generator" content="design/firewatch-v1-vuelo/build-artboards.mjs" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FireWatch · Prevención territorial · Prototipo G6 (maqueta)</title>
+<style>
+:root {
+  color-scheme: dark;
+  --forest-950: #102c2d;
+  --forest-900: #173c3b;
+  --forest-700: #285e56;
+  --forest-500: #638579;
+  --canvas: #f5f5ef;
+  --paper: #fffefa;
+  --ink: #233b39;
+  --muted: #5c6c65;
+  --line: #dde3da;
+  --soft: #eef1e9;
+  --terracotta: #a74d34;
+  --terracotta-soft: #f7e9e2;
+  --gold: #85691e;
+  --gold-soft: #f7f0d9;
+  --level-low-fill: #84ab8e;
+  --level-low-line: #5c8467;
+  --level-medium-fill: #d0b756;
+  --level-medium-line: #a99850;
+  --level-high-fill: #c77454;
+  --level-high-line: #b36647;
+  --level-unknown-fill: #c3cbcd;
+  --level-unknown-line: #6b7a80;
+  --level-neutral-fill: #e6ecea;
+  --level-neutral-line: #9fb3ab;
+  --radius: 12px;
+  --shadow: 0 3px 14px rgb(24 52 40 / 3%);
+  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --aerial-water: #152934;
+  --aerial-panel: #17222b;
+  --aerial-raised: #243341;
+  --aerial-ink: #f4f1eb;
+  --aerial-muted: #b8c8d2;
+  --aerial-border: #647b8a;
+  --aerial-focus: #94dfda;
+  --aerial-terrain-low: #46575a;
+  --aerial-terrain-high: #738077;
+  --aerial-roof: #aeb7b8;
+  --aerial-wall: #3f4b52;
+  --aerial-coast: #829a9d;
+  --aerial-high: #d97962;
+  --aerial-medium: #d7b16a;
+  --aerial-low: #72b1a1;
+  --aerial-label: #121c22;
+  --aerial-unknown: #c4cbd1;
+}
+
+[data-theme="day"] {
+  color-scheme: light;
+  --aerial-water: #b9d2d9;
+  --aerial-panel: #f5f3ee;
+  --aerial-raised: #e5e9e8;
+  --aerial-ink: #1d2c35;
+  --aerial-muted: #475b65;
+  --aerial-border: #637985;
+  --aerial-focus: #125650;
+  --aerial-terrain-low: #859e93;
+  --aerial-terrain-high: #d4d0b8;
+  --aerial-roof: #f2ede0;
+  --aerial-wall: #7d8888;
+  --aerial-coast: #506c70;
+  --aerial-high: #a74434;
+  --aerial-medium: #88621d;
+  --aerial-low: #176a60;
+  --aerial-label: #ffffff;
+  --aerial-unknown: #42525e;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--aerial-water); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--aerial-water);
+  color: var(--aerial-ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p, dl, dd, ol, ul, figure { margin-top: 0; }
+h1, h2, h3, h4 { line-height: 1.2; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--aerial-focus); outline-offset: 3px; }
+.topbar :focus-visible,
+.map-stage :focus-visible,
+.cutoff-box :focus-visible,
+.selected-brief :focus-visible,
+.demo-strip :focus-visible,
+.detail-head :focus-visible { outline-color: var(--aerial-focus); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.skip-link {
+  position: fixed;
+  top: -90px;
+  left: 16px;
+  z-index: 50;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+  font-weight: 750;
+  box-shadow: var(--shadow);
+}
+.skip-link:focus { top: 12px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+main { flex: 1; min-width: 0; padding: 22px 32px 30px; }
+.view { max-width: 1376px; margin: 0 auto; min-width: 0; }
+
+.topbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px 24px;
+  align-items: start;
+  padding: 16px 32px 0;
+  border-bottom: 4px solid var(--aerial-coast);
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+}
+.brand { display: flex; align-items: center; gap: 11px; }
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--aerial-focus);
+  color: var(--aerial-panel);
+  font-family: Georgia, serif;
+  font-size: 23px;
+  font-style: italic;
+}
+.brand-copy strong { display: block; color: var(--aerial-panel); font-size: 17px; font-weight: 650; letter-spacing: -.4px; }
+.brand-copy small { display: block; color: var(--aerial-muted); font-size: 9px; font-weight: 750; letter-spacing: 1.4px; text-transform: uppercase; }
+.title-block { min-width: 0; }
+.eyebrow { margin: 0 0 5px; color: var(--aerial-focus); font-size: 9.5px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; }
+.title-block .eyebrow { color: var(--aerial-focus); }
+h1 { margin: 2px 0 0; color: var(--aerial-panel); font-size: clamp(24px, 2.4vw, 34px); font-weight: 600; letter-spacing: -1.1px; }
+.sub { margin: 3px 0 0; color: var(--aerial-muted); font-size: 11px; line-height: 1.45; }
+.stamp {
+  min-width: 264px;
+  padding: 10px 12px;
+  border: 1px solid var(--aerial-border);
+  border-radius: 9px;
+  background: var(--aerial-raised);
+}
+.stamp-label { margin: 0 0 4px; color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.stamp-line { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.big-level { margin: 0; color: var(--aerial-panel); font-size: 22px; font-weight: 650; letter-spacing: -.8px; }
+.stamp-meta { margin: 3px 0 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+.stamp-meta time { color: var(--aerial-ink); font-weight: 650; }
+
+.local-nav {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin-top: 10px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--aerial-border);
+}
+.nav-label { margin: 0; color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: 1.35px; text-transform: uppercase; }
+.local-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--aerial-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.local-nav a:hover { background: var(--aerial-raised); color: var(--aerial-panel); }
+.local-nav a[aria-current="page"] { border-color: var(--aerial-raised); background: var(--aerial-raised); color: var(--aerial-panel); }
+.nav-index { max-width: 560px; margin: 0 0 0 auto; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+
+.demo-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 9px 32px;
+  border-bottom: 1px solid var(--aerial-border);
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.demo-strip strong { font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.g6-tag {
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px dashed var(--aerial-muted);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+}
+
+.view-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 16px;
+}
+.view-head h2 { margin: 2px 0 4px; color: var(--aerial-raised); font-size: clamp(27px, 2.6vw, 36px); font-weight: 600; letter-spacing: -1.2px; }
+.view-head h2:focus-visible { outline-offset: 6px; }
+.view-lede { max-width: 82ch; margin: 0; color: var(--aerial-ink); font-size: 12px; line-height: 1.6; }
+.view-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.g6-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px dashed var(--aerial-muted);
+  border-radius: 6px;
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.context-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.territory-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(310px, .8fr); gap: 16px; align-items: start; }
+.map-stage {
+  padding: 16px;
+  border: 1px solid var(--aerial-focus);
+  border-radius: var(--radius);
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+  box-shadow: var(--shadow);
+}
+.stage-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.stage-head .eyebrow { color: var(--aerial-focus); }
+.stage-head h3 { margin: 0; color: var(--aerial-panel); font-size: 20px; font-weight: 600; letter-spacing: -.5px; }
+.stage-note { max-width: 80ch; margin: 6px 0 0; color: var(--aerial-muted); font-size: 11px; line-height: 1.55; }
+.proto-badge {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.cutoff-box { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); }
+.cutoff-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.cutoff-head label { color: var(--aerial-panel); font-size: 11px; font-weight: 750; }
+.cutoff-head output { color: var(--aerial-focus); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; font-weight: 650; }
+.cutoff-box input[type="range"] { display: block; width: 100%; height: 32px; margin: 3px 0 0; accent-color: var(--aerial-focus); cursor: pointer; }
+.cutoff-ticks { display: flex; justify-content: space-between; gap: 12px; color: var(--aerial-muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9px; }
+.cutoff-note { margin: 6px 0 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+
+.map-figure { margin: 12px 0 0; padding: 8px; border: 1px solid var(--aerial-border); border-radius: 9px; background: var(--aerial-water); color: var(--aerial-ink); }
+.map-canvas { position: relative; }
+.map-canvas > svg { display: block; width: 100%; height: auto; }
+.map-controls { position: absolute; inset: 0; pointer-events: none; }
+.map-focus {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  display: grid;
+  gap: 1px;
+  max-width: 190px;
+  min-height: 44px;
+  padding: 7px 9px;
+  border: 1px solid var(--aerial-border);
+  border-radius: 6px;
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+.map-focus:hover { background: var(--aerial-raised); }
+.map-focus[aria-pressed="true"] { border: 3px solid var(--aerial-raised); background: var(--aerial-panel); }
+.map-focus:focus-visible { outline-color: var(--aerial-raised); }
+.mf-name { font-size: 10.5px; font-weight: 750; line-height: 1.25; }
+.mf-level { color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .03em; }
+.map-focus.mf-foco { left: 50%; top: 41%; }
+.map-focus.mf-borde { left: 17%; top: 76%; }
+.map-focus.mf-sin { left: 82%; top: 69%; }
+figcaption { padding: 7px 2px 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--aerial-border); color: var(--aerial-ink); font-size: 9.5px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.swatch { width: 12px; height: 12px; flex: none; border: 1px solid var(--aerial-unknown); border-radius: 3px; }
+.swatch-high { background: var(--aerial-high); border-color: var(--aerial-label); }
+.swatch-medium { background: var(--aerial-medium); border-color: var(--aerial-label); }
+.swatch-low { background: var(--aerial-low); border-color: var(--aerial-label); }
+.swatch-no-data { background: var(--aerial-raised); border: 2px dashed var(--aerial-unknown); }
+.swatch-boundary { width: 18px; height: 0; border: 0; border-top: 2px dashed var(--aerial-coast); border-radius: 0; }
+
+.focus-rail { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--aerial-border); border-radius: var(--radius); background: var(--aerial-panel); box-shadow: var(--shadow); }
+.rail-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.rail-head h3 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.35px; }
+.count-pill { padding: 3px 8px; border-radius: 999px; background: var(--aerial-raised); color: var(--aerial-ink); font-size: 10px; font-weight: 750; }
+.rail-note { margin: 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+.focus-list { display: grid; gap: 7px; }
+.focus-btn {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 66px;
+  padding: 9px 11px;
+  border: 1px solid var(--aerial-border);
+  border-radius: 8px;
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+  text-align: left;
+}
+.focus-btn:hover { background: var(--aerial-raised); }
+.focus-btn[aria-pressed="true"] { border-color: var(--aerial-raised); background: var(--aerial-raised); box-shadow: inset 3px 0 0 var(--aerial-raised); }
+.focus-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.focus-name { font-size: 11.5px; font-weight: 750; line-height: 1.3; }
+.focus-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--aerial-muted); font-size: 9.5px; line-height: 1.4; }
+.focus-meta strong { color: var(--aerial-ink); font-weight: 750; }
+
+.selected-brief { padding: 12px; border-radius: 9px; background: var(--aerial-raised); color: var(--aerial-panel); }
+.selected-brief .eyebrow { color: var(--aerial-focus); }
+.selected-brief h3 { margin: 2px 0 6px; color: var(--aerial-panel); font-size: 18px; font-weight: 600; letter-spacing: -.4px; }
+.selected-brief h3:focus-visible { outline-offset: 5px; }
+.brief-level { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0 0 7px; }
+.selected-brief .micro { color: var(--aerial-muted); font-size: 9.5px; line-height: 1.45; }
+#focus-summary { margin: 0 0 8px; color: var(--aerial-muted); font-size: 11px; line-height: 1.55; }
+.brief-facts { display: grid; gap: 6px; margin: 8px 0; padding: 8px 0; border-top: 1px solid var(--aerial-border); border-bottom: 1px solid var(--aerial-border); }
+.brief-facts div { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 8px; }
+.brief-facts dt { color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.brief-facts dd { margin: 0; color: var(--aerial-ink); font-size: 10px; line-height: 1.4; }
+.brief-priority { margin: 0 0 9px; color: var(--aerial-ink); font-size: 10.5px; line-height: 1.5; }
+.brief-priority strong { color: var(--aerial-focus); }
+.brief-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 9px; }
+.primary-button, .secondary-button, .ghost-light, .cta-gold {
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+.primary-button { border: 1px solid var(--aerial-panel); background: var(--aerial-panel); color: var(--aerial-label); }
+.primary-button:hover { border-color: var(--aerial-focus); background: var(--aerial-focus); }
+.secondary-button { border: 1px solid var(--aerial-border); background: var(--aerial-panel); color: var(--aerial-focus); }
+.secondary-button:hover { background: var(--aerial-raised); }
+.ghost-light { border: 1px solid var(--aerial-border); background: transparent; color: var(--aerial-ink); }
+.ghost-light:hover { background: var(--aerial-raised); }
+.cta-gold { border: 1px solid var(--aerial-focus); background: transparent; color: var(--aerial-focus); }
+.cta-gold:hover { background: var(--aerial-focus); color: var(--aerial-raised); }
+.cta-gold:focus-visible, .ghost-light:focus-visible { outline-color: var(--aerial-focus); }
+
+.panel { overflow: hidden; border: 1px solid var(--aerial-border); border-radius: var(--radius); background: var(--aerial-panel); box-shadow: var(--shadow); }
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px 12px; border-bottom: 1px solid var(--aerial-border); }
+.panel-head h3 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.35px; }
+.panel-body { padding: 14px 16px 16px; }
+.panel-body > :last-child { margin-bottom: 0; }
+.panel-note { margin: 10px 0 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.6; }
+.sector-panel { margin-top: 16px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+caption { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+th {
+  padding: 9px 10px;
+  border-top: 1px solid var(--aerial-border);
+  border-bottom: 1px solid var(--aerial-border);
+  background: var(--aerial-raised);
+  color: var(--aerial-muted);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-align: left;
+  text-transform: uppercase;
+}
+td { padding: 10px; border-bottom: 1px solid var(--aerial-border); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--aerial-raised); }
+.cell-value { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.cell-sub { display: block; width: 100%; color: var(--aerial-muted); font-size: 9px; line-height: 1.4; }
+.cell-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9.5px; }
+.table-focus {
+  min-height: 32px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--aerial-focus);
+  font-size: 11px;
+  font-weight: 750;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.table-focus:hover { color: var(--aerial-raised); }
+.territory-detail { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 16px; margin-top: 16px; }
+.reading-list { display: grid; gap: 10px; margin: 0; }
+.reading-list div { padding-bottom: 9px; border-bottom: 1px solid var(--aerial-border); }
+.reading-list div:last-child { padding-bottom: 0; border-bottom: 0; }
+.reading-list dt { color: var(--aerial-focus); font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.reading-list dd { margin: 3px 0 0; color: var(--aerial-ink); font-size: 11px; line-height: 1.55; }
+.state-key { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.state-key li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--aerial-ink); font-size: 10.5px; line-height: 1.5; }
+.state-key .swatch { margin-top: 2px; }
+
+.history-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 10px; }
+.history-toolbar .field { flex: 1 1 190px; max-width: 270px; }
+.scope-cell { flex: 1 1 270px; }
+.toolbar-label { margin: 0 0 4px; color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.segmented { display: flex; flex-wrap: wrap; gap: 4px; width: max-content; max-width: 100%; padding: 4px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); }
+.segmented button { min-height: 40px; padding: 7px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--aerial-ink); font-size: 10.5px; font-weight: 750; line-height: 1.3; }
+.segmented button[aria-pressed="true"] { background: var(--aerial-panel); color: var(--aerial-panel); }
+.g6-inline-tag { color: var(--aerial-coast); font-size: 8px; font-weight: 850; letter-spacing: .05em; }
+.segmented button[aria-pressed="true"] .g6-inline-tag { color: var(--aerial-focus); }
+.field { display: grid; gap: 4px; color: var(--aerial-muted); font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid var(--aerial-border);
+  border-radius: 6px;
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.field textarea { min-height: 78px; resize: vertical; line-height: 1.5; }
+.field input::placeholder, .field textarea::placeholder { color: var(--aerial-muted); opacity: 1; }
+.field select:disabled, .field input:disabled { background: var(--aerial-raised); color: var(--aerial-muted); }
+.cutoff-readout { margin: 0 0 8px; color: var(--aerial-muted); font-size: 10px; line-height: 1.55; }
+.cutoff-readout strong { color: var(--aerial-ink); }
+.status-line { min-height: 17px; margin: 0 0 8px; color: var(--aerial-focus); font-size: 10.5px; font-weight: 650; line-height: 1.5; }
+.g6-inline { margin: 0 0 12px; padding: 8px 10px; border: 1px dashed var(--aerial-border); border-radius: 6px; background: var(--aerial-raised); color: var(--aerial-muted); font-size: 10px; line-height: 1.55; }
+.timeline { margin: 10px 0 14px; padding: 10px 12px 9px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); }
+.timeline-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; color: var(--aerial-muted); font-size: 9.5px; }
+.timeline-head p { margin: 0; }
+.timeline-track { position: relative; height: 66px; margin: 8px 2px 0; }
+.timeline-track::before { content: ""; position: absolute; left: 0; right: 0; top: 30px; border-top: 2px solid var(--aerial-border); }
+.tl-cutoff { position: absolute; top: 8px; bottom: 20px; width: 0; border-left: 2px dashed var(--aerial-coast); }
+.tl-dot { position: absolute; top: 25px; width: 11px; height: 11px; border-radius: 50%; border: 1px solid; transform: translateX(-50%); }
+.tl-alto { background: var(--aerial-high); border-color: var(--aerial-label); }
+.tl-medio { background: var(--aerial-medium); border-color: var(--aerial-label); }
+.tl-bajo { background: var(--aerial-low); border-color: var(--aerial-label); }
+.tl-axis { position: absolute; bottom: 0; color: var(--aerial-muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 8.5px; }
+.tl-axis-start { left: 0; }
+.tl-axis-end { right: 0; }
+.timeline-caption { margin: 2px 0 0; color: var(--aerial-muted); font-size: 9.5px; line-height: 1.5; }
+.timeline-caption strong { color: var(--aerial-ink); }
+.empty-state { margin-top: 10px; padding: 13px 14px; border: 1px dashed var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); color: var(--aerial-muted); font-size: 10.5px; line-height: 1.55; }
+.empty-state strong { display: block; margin-bottom: 3px; color: var(--aerial-ink); font-size: 11.5px; }
+.empty-state p { margin: 0 0 8px; }
+.task-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+.actions-layout { display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, .98fr); gap: 16px; align-items: start; }
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 8px; }
+.action-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.action-list li[hidden] { display: none; }
+.action-btn { display: grid; gap: 4px; width: 100%; min-height: 68px; padding: 9px 11px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-panel); color: var(--aerial-ink); text-align: left; }
+.action-btn:hover { background: var(--aerial-raised); }
+.action-btn[aria-current="true"] { border-color: var(--aerial-panel); background: var(--aerial-raised); box-shadow: inset 4px 0 0 var(--aerial-panel); }
+.action-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.action-title { margin: 0; font-size: 11.5px; font-weight: 700; line-height: 1.35; }
+.action-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; color: var(--aerial-muted); font-size: 9.5px; line-height: 1.4; }
+.action-meta strong { color: var(--aerial-ink); font-weight: 700; }
+.status-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 4px; font-size: 8.5px; font-weight: 800; letter-spacing: .04em; line-height: 1.2; text-transform: uppercase; white-space: nowrap; }
+.status-chip::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.chip-propuesta { background: var(--aerial-raised); color: var(--aerial-ink); }
+.chip-asignada { background: var(--aerial-raised); color: var(--aerial-focus); }
+.chip-en-curso { background: var(--aerial-raised); color: var(--aerial-focus); }
+.chip-bloqueada { background: var(--aerial-raised); color: var(--aerial-label); }
+.chip-candidate { background: var(--aerial-raised); color: var(--aerial-focus); }
+.chip-revisada { background: var(--aerial-raised); color: var(--aerial-focus); }
+.chip-cerrada { background: var(--aerial-raised); color: var(--aerial-ink); }
+
+.action-detail { min-width: 0; }
+.detail-head { padding: 12px 14px; background: var(--aerial-panel); color: var(--aerial-panel); }
+.detail-head .eyebrow { color: var(--aerial-focus); }
+.detail-head h3 { margin: 0 0 4px; color: var(--aerial-panel); font-size: 16px; font-weight: 600; letter-spacing: -.35px; }
+.detail-head .status-line { margin: 0; color: var(--aerial-muted); font-size: 9.5px; font-weight: 500; }
+.detail-body { padding: 12px 14px 14px; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0 0 10px; }
+.detail-grid div { min-width: 0; }
+.detail-grid dt { color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.detail-grid dd { margin: 2px 0 0; color: var(--aerial-ink); font-size: 10.5px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
+.assignee-box { margin: 10px 0; padding: 9px 10px; border: 1px solid var(--aerial-border); border-radius: 7px; background: var(--aerial-raised); }
+.assignee-box.is-unassigned { border-color: var(--aerial-border); background: var(--aerial-raised); }
+.assignee-box .label, .label { display: block; margin: 0 0 2px; color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.assignee-name { margin: 0; color: var(--aerial-ink); font-size: 12px; font-weight: 750; }
+.assignee-role { margin: 1px 0 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.45; }
+.copy-small { margin: 0 0 10px; color: var(--aerial-ink); font-size: 10.5px; line-height: 1.55; }
+
+.g6-panel { margin-top: 16px; border-color: var(--aerial-border); }
+.g6-panel .panel-head { background: var(--aerial-raised); border-bottom-color: var(--aerial-border); }
+.g6-panel .panel-head h3 { color: var(--aerial-ink); }
+.g6-states { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 10px; }
+.g6-state-btn { display: grid; gap: 2px; min-height: 48px; padding: 8px 10px; border: 1px solid var(--aerial-border); border-radius: 7px; background: var(--aerial-panel); color: var(--aerial-ink); font-size: 10.5px; font-weight: 750; text-align: left; }
+.g6-state-btn code { color: var(--aerial-muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9px; font-weight: 500; }
+.g6-state-btn[aria-pressed="true"] { border-color: var(--aerial-raised); background: var(--aerial-raised); box-shadow: inset 3px 0 0 var(--aerial-raised); }
+.g6-preview { padding: 10px 12px; border: 1px dashed var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); }
+.g6-preview-line { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0 0 4px; }
+.g6-preview-line code { color: var(--aerial-ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9.5px; }
+.g6-preview .copy-small { margin-bottom: 4px; color: var(--aerial-ink); }
+.g6-preview .panel-note { margin-top: 4px; color: var(--aerial-muted); }
+
+.create-panel { margin-top: 16px; border-top: 3px solid var(--aerial-coast); }
+.form-grid { display: grid; gap: 10px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.case-switch { padding: 9px; border: 1px solid var(--aerial-border); border-radius: 7px; background: var(--aerial-raised); }
+.case-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.case-btn { min-height: 40px; padding: 6px 9px; border: 1px solid var(--aerial-border); border-radius: 6px; background: var(--aerial-panel); color: var(--aerial-ink); font-size: 10px; font-weight: 750; line-height: 1.3; }
+.case-btn[aria-pressed="true"] { border-color: var(--aerial-panel); background: var(--aerial-panel); color: var(--aerial-panel); }
+.assignee-hint { margin: 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+.directory-failure { padding: 9px 10px; border: 1px solid var(--aerial-border); border-radius: 7px; background: var(--aerial-raised); color: var(--aerial-muted); font-size: 10px; line-height: 1.55; }
+.directory-failure strong { display: block; color: var(--aerial-ink); font-size: 11px; }
+.directory-failure .secondary-button { margin-top: 7px; }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.form-actions .micro { max-width: 240px; margin: 0; color: var(--aerial-muted); font-size: 9.5px; line-height: 1.5; }
+.feedback { padding: 10px 12px; border: 1px solid var(--aerial-border); border-radius: 7px; background: var(--aerial-raised); color: var(--aerial-ink); font-size: 10.5px; line-height: 1.55; }
+.feedback strong { display: block; color: var(--aerial-focus); font-size: 11.5px; }
+.feedback:focus-visible { outline-offset: 2px; }
+
+.footer { display: grid; gap: 6px; padding: 14px 32px 18px; border-top: 1px solid var(--aerial-border); background: var(--aerial-panel); color: var(--aerial-muted); font-size: 10px; line-height: 1.6; }
+.footer p { margin: 0; max-width: 118ch; }
+.footer strong { color: var(--aerial-ink); }
+
+@media (max-width: 1100px) {
+  .territory-grid { grid-template-columns: 1fr; }
+  .focus-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .focus-btn { height: 100%; }
+  .territory-detail { grid-template-columns: 1fr; }
+  .actions-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .topbar { grid-template-columns: auto minmax(0, 1fr); padding: 14px 20px 0; }
+  .stamp { grid-column: 1 / -1; min-width: 0; }
+  .nav-index { flex-basis: 100%; margin-left: 0; }
+  main { padding: 18px 20px 24px; }
+  .demo-strip { padding: 9px 20px; }
+  .focus-list { grid-template-columns: 1fr; }
+  .footer { padding: 12px 20px 16px; }
+}
+@media (max-width: 760px) {
+  .map-controls { display: none; }
+  .map-canvas > svg text { display: none; }
+}
+@media (max-width: 680px) {
+  .view-head h2 { letter-spacing: -.8px; }
+  .focus-list { grid-template-columns: 1fr; }
+  .responsive-table thead { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .responsive-table tbody, .responsive-table tr { display: block; }
+  .responsive-table tr { padding: 10px 0; border-bottom: 1px solid var(--aerial-border); }
+  .responsive-table tbody tr:last-child { border-bottom: 0; }
+  .responsive-table td { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px; padding: 3px 0; border: 0; }
+  .responsive-table td::before { content: attr(data-label); color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .responsive-table td .cell-value { display: flex; }
+  .filters, .form-row, .detail-grid { grid-template-columns: 1fr; }
+  .brief-facts div { grid-template-columns: 1fr; gap: 1px; }
+  .history-toolbar .field, .scope-cell { flex-basis: 100%; max-width: none; }
+  .segmented { width: 100%; }
+  .segmented button { flex: 1 1 130px; }
+}
+@media (max-width: 620px) {
+  h1 { font-size: 24px; letter-spacing: -.7px; }
+  .topbar { gap: 10px 12px; padding: 12px 14px 0; }
+  .brand-mark { width: 38px; height: 38px; font-size: 21px; }
+  .brand-copy strong { font-size: 16px; }
+  .stage-head { flex-direction: column; gap: 7px; }
+  .stage-head h3 { font-size: 18px; }
+  .cutoff-head { display: grid; gap: 3px; }
+  .demo-strip { padding: 8px 14px; }
+  .g6-tag { margin-left: 0; }
+  main { padding: 14px 14px 22px; }
+  .map-stage { padding: 13px; }
+  .panel-head { padding: 12px 13px 10px; }
+  .panel-body { padding: 12px 13px 14px; }
+  .selected-brief { padding: 11px; }
+  .brief-facts { gap: 7px; }
+  .brief-actions .primary-button, .brief-actions .ghost-light { width: 100%; }
+  .footer { padding: 12px 14px 16px; }
+}
+
+/* Aerial expansion: the source-backed tokens above stay declared as the baseline;
+   this board reads only these theme roles for its surfaces, text, borders and focus. */
+:focus-visible { outline: 3px solid var(--aerial-focus); outline-offset: 3px; }
+.topbar :focus-visible,
+.map-stage :focus-visible,
+.cutoff-box :focus-visible,
+.selected-brief :focus-visible,
+.demo-strip :focus-visible,
+.detail-head :focus-visible { outline-color: var(--aerial-focus); }
+
+.topbar { border-bottom: 1px solid var(--aerial-border); }
+.brand-mark { width: 42px; height: 42px; padding: 4px; border-radius: 8px; background: transparent; color: var(--aerial-focus); font: inherit; }
+.brand-copy strong, h1, .big-level, .stage-head h3, .detail-head h3 { color: var(--aerial-ink); }
+.title-block .eyebrow, .stage-head .eyebrow, .detail-head .eyebrow { color: var(--aerial-focus); }
+.stamp { border-color: var(--aerial-border); background: var(--aerial-raised); }
+.stamp-label, .stamp-meta, .cutoff-note, .cutoff-ticks, .stage-note, .sub { color: var(--aerial-muted); }
+.stamp-meta time { color: var(--aerial-ink); }
+.cutoff-head label { color: var(--aerial-ink); }
+.cutoff-head output { color: var(--aerial-focus); }
+
+.local-nav { grid-column: auto; flex: 1 1 620px; margin-top: 0; padding: 0; border-top: 0; }
+.topbar-tools { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-top: 10px; padding: 10px 0 12px; border-top: 1px solid var(--aerial-border); }
+.local-nav a { color: var(--aerial-muted); }
+.local-nav a:hover { background: var(--aerial-raised); color: var(--aerial-ink); }
+.local-nav a[aria-current="page"] { border-color: var(--aerial-focus); background: var(--aerial-raised); color: var(--aerial-focus); }
+.theme-control { display: flex; align-items: center; gap: 7px; margin-left: auto; }
+.theme-control .nav-label { margin: 0; }
+.theme-toggle { min-height: 40px; padding: 6px 12px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); color: var(--aerial-ink); font-size: 11px; font-weight: 750; }
+.theme-toggle:hover { border-color: var(--aerial-focus); color: var(--aerial-focus); }
+
+.demo-strip { border-bottom-color: var(--aerial-border); background: var(--aerial-raised); color: var(--aerial-ink); }
+.g6-tag { border-color: var(--aerial-focus); color: var(--aerial-focus); }
+.view-head h2 { color: var(--aerial-ink); }
+.g6-badge { border-color: var(--aerial-focus); background: var(--aerial-raised); color: var(--aerial-focus); }
+.context-tag, .proto-badge, .count-pill { background: var(--aerial-raised); color: var(--aerial-ink); }
+.map-stage { border-color: var(--aerial-border); background: var(--aerial-panel); }
+.cutoff-box { background: var(--aerial-raised); }
+.map-figure { background: var(--aerial-water); color: var(--aerial-ink); }
+.map-focus { background: var(--aerial-panel); color: var(--aerial-ink); }
+.map-focus:hover { background: var(--aerial-raised); }
+.map-focus[aria-pressed="true"] { border: 3px solid var(--aerial-focus); background: var(--aerial-raised); }
+.map-focus:focus-visible { outline-color: var(--aerial-focus); }
+.mf-level, figcaption, .legend { color: var(--aerial-muted); }
+.focus-btn:hover { background: var(--aerial-raised); }
+.focus-btn[aria-pressed="true"] { border-color: var(--aerial-focus); background: var(--aerial-raised); box-shadow: inset 3px 0 0 var(--aerial-focus); }
+.selected-brief { color: var(--aerial-ink); border: 1px solid var(--aerial-border); background: var(--aerial-raised); }
+.selected-brief h3 { color: var(--aerial-ink); }
+.brief-priority { color: var(--aerial-ink); }
+.brief-priority strong { color: var(--aerial-focus); }
+
+.primary-button { border-color: var(--aerial-focus); background: var(--aerial-focus); color: var(--aerial-label); }
+.primary-button:hover { border-color: var(--aerial-ink); background: var(--aerial-ink); color: var(--aerial-label); }
+.secondary-button { border-color: var(--aerial-border); background: var(--aerial-panel); color: var(--aerial-ink); }
+.secondary-button:hover { background: var(--aerial-raised); color: var(--aerial-focus); }
+.ghost-light { border-color: var(--aerial-border); color: var(--aerial-ink); }
+.ghost-light:hover { background: var(--aerial-raised); color: var(--aerial-focus); }
+.cta-gold { border-color: var(--aerial-focus); color: var(--aerial-focus); }
+.cta-gold:hover { background: var(--aerial-focus); color: var(--aerial-label); }
+.cta-gold:focus-visible, .ghost-light:focus-visible { outline-color: var(--aerial-focus); }
+
+.panel { background: var(--aerial-panel); }
+.panel-head h3 { color: var(--aerial-ink); }
+th { background: var(--aerial-raised); color: var(--aerial-muted); }
+td { border-bottom-color: var(--aerial-border); }
+tbody tr:hover { background: var(--aerial-raised); }
+.table-focus { color: var(--aerial-focus); }
+.table-focus:hover { color: var(--aerial-ink); }
+.reading-list dt { color: var(--aerial-focus); }
+.reading-list dd, .state-key li { color: var(--aerial-ink); }
+
+.segmented button[aria-pressed="true"] { background: var(--aerial-focus); color: var(--aerial-label); }
+.segmented button[aria-pressed="true"] .g6-inline-tag { color: var(--aerial-label); }
+.g6-inline-tag { color: var(--aerial-focus); }
+.g6-inline { border-color: var(--aerial-border); background: var(--aerial-raised); color: var(--aerial-muted); }
+.timeline { background: var(--aerial-raised); }
+.tl-cutoff { border-left-color: var(--aerial-focus); }
+.empty-state { border-color: var(--aerial-border); background: var(--aerial-raised); color: var(--aerial-muted); }
+.empty-state strong { color: var(--aerial-ink); }
+
+.action-btn[aria-current="true"] { border-color: var(--aerial-focus); background: var(--aerial-raised); box-shadow: inset 4px 0 0 var(--aerial-focus); }
+.detail-head { border-bottom: 1px solid var(--aerial-border); background: var(--aerial-raised); color: var(--aerial-ink); }
+.detail-head .status-line { color: var(--aerial-muted); }
+.assignee-box { background: var(--aerial-raised); }
+.assignee-box.is-unassigned { border: 1px dashed var(--aerial-focus); background: var(--aerial-raised); }
+.g6-panel .panel-head { background: var(--aerial-raised); }
+.g6-state-btn[aria-pressed="true"] { border-color: var(--aerial-focus); background: var(--aerial-raised); box-shadow: inset 3px 0 0 var(--aerial-focus); }
+.g6-preview { border-color: var(--aerial-border); background: var(--aerial-raised); }
+.create-panel { border-top: 3px solid var(--aerial-focus); }
+.case-btn[aria-pressed="true"] { border-color: var(--aerial-focus); background: var(--aerial-focus); color: var(--aerial-label); }
+.directory-failure { border-left: 3px solid var(--aerial-focus); background: var(--aerial-raised); color: var(--aerial-muted); }
+.feedback { border-color: var(--aerial-border); background: var(--aerial-raised); color: var(--aerial-ink); }
+.feedback strong { color: var(--aerial-focus); }
+
+.level { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 5px; font-size: 8.5px; font-weight: 800; letter-spacing: .05em; line-height: 1.2; }
+.level::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.level-alto { border: 1px solid var(--aerial-label); background: var(--aerial-high); color: var(--aerial-label); }
+.level-medio { border: 1px solid var(--aerial-label); background: var(--aerial-medium); color: var(--aerial-label); }
+.level-bajo { border: 1px solid var(--aerial-label); background: var(--aerial-low); color: var(--aerial-label); }
+.level-neutral { border: 1px dashed var(--aerial-unknown); background: var(--aerial-raised); color: var(--aerial-ink); }
+.level-on-dark { border: 1px solid var(--aerial-border); background: var(--aerial-raised); color: var(--aerial-ink); }
+.status-chip { border: 1px solid var(--aerial-border); }
+.chip-propuesta { background: var(--aerial-raised); color: var(--aerial-ink); }
+.chip-asignada { border-color: var(--aerial-focus); background: var(--aerial-raised); color: var(--aerial-focus); }
+.chip-en-curso { border-style: dashed; border-color: var(--aerial-focus); background: var(--aerial-raised); color: var(--aerial-focus); }
+.chip-bloqueada { border-style: dashed; background: var(--aerial-raised); color: var(--aerial-muted); }
+.chip-candidate { border-color: var(--aerial-focus); background: var(--aerial-raised); color: var(--aerial-ink); }
+.chip-revisada { border-color: var(--aerial-focus); background: var(--aerial-raised); color: var(--aerial-focus); }
+.chip-cerrada { background: var(--aerial-raised); color: var(--aerial-muted); }
+
+@media (max-width: 900px) {
+  .theme-control { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Saltar al contenido principal</a>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="currentColor"></rect><path d="M6 23l7-12 4 5 4-9 5 16z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"></path></svg>
+      <span class="brand-copy">
+        <strong>FireWatch</strong>
+        <small>Prevención municipal</small>
+      </span>
+    </div>
+    <div class="title-block">
+      <p class="eyebrow">PREVENCIÓN · PROTOTIPO G6 · ESCENARIO ILUSTRATIVO</p>
+      <h1>Prevención territorial</h1>
+      <p class="sub">Foco Quebrada del Este · Valparaíso / Viña del Mar / Quilpué</p>
+    </div>
+    <div class="stamp" aria-label="Foco seleccionado en la maqueta">
+      <p class="stamp-label">FOCO SELECCIONADO · MAQUETA</p>
+      <div class="stamp-line">
+        <p class="big-level" id="stamp-level">ALTO</p>
+        <span class="level level-on-dark" id="stamp-level-label">NIVEL INFORMADO</span>
+      </div>
+      <p class="stamp-meta">Último lote ≤ corte <time id="stamp-lot">18 nov 2026 · 14:20</time><br />Corte compartido <time id="stamp-cutoff">18 nov 2026 · 18:00</time></p>
+    </div>
+    <div class="topbar-tools">
+      <nav class="local-nav" aria-label="Vistas de prevención territorial">
+        <p class="nav-label">VISTAS DE ESTA MAQUETA</p>
+        <a href="#territorio" data-nav="territorio">Territorio</a>
+        <a href="#historial" data-nav="historial">Historial de lotes</a>
+        <a href="#acciones" data-nav="acciones" aria-current="page">Acciones preventivas</a>
+        <p class="nav-index">Otras áreas del producto, fuera de este tablero: Fuentes y servicios · Procesamiento · Sesión y permisos · Registro de actividad.</p>
+      </nav>
+      <div class="theme-control">
+        <span class="nav-label" id="theme-label">TEMA</span>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Cambiar a tema claro">Claro</button>
+        <span class="sr-only" role="status" aria-live="polite" id="theme-status"></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="demo-strip" role="note">
+    <strong>MAQUETA INTERACTIVA · ESCENARIO SINTÉTICO</strong>
+    <span>Foco, lotes, personas y cifras inventados. Nada se guarda, se envía ni se persiste.</span>
+    <span class="g6-tag">PROTOTIPO G6 · V1-P-01 / V1-P-02 / V1-P-03 / V1-P-04</span>
+  </div>
+
+  <main id="main" tabindex="-1">
+    <section class="view" id="territorio" data-view="territorio" hidden aria-labelledby="territorio-title">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">01 · LECTURA TERRITORIAL · CORTE COMPARTIDO</p>
+          <h2 id="territorio-title" tabindex="-1">Territorio</h2>
+          <p class="view-lede">Un foco continuo entre Valparaíso, Viña del Mar y Quilpué. El corte compartido decide qué lote se lee; el mapa y la lista conservan el foco seleccionado.</p>
+        </div>
+        <div class="view-badges">
+          <span class="g6-badge">Prototipo G6 · V1-P-01 / V1-P-02</span>
+          <span class="context-tag">Datos ilustrativos</span>
+        </div>
+      </div>
+
+      <div class="territory-grid">
+        <section class="map-stage" aria-labelledby="map-title">
+          <div class="stage-head">
+            <div>
+              <p class="eyebrow">LECTURA TERRITORIAL · CORTE COMPARTIDO</p>
+              <h3 id="map-title">Un foco continuo entre municipios</h3>
+            </div>
+            <span class="proto-badge">Foco + corte · prototipo G6</span>
+          </div>
+          <p class="stage-note">El área de riesgo es un foco continuo que cruza tres municipios. Las líneas municipales son contexto de navegación, no la unidad de esta lectura. Esquema ilustrativo: sin geometrías reales ni evaluación del terreno.</p>
+
+          <div class="cutoff-box">
+            <div class="cutoff-head">
+              <label for="cutoff">Corte compartido del territorio</label>
+              <output id="cutoff-value" for="cutoff">18 nov 2026 · 18:00</output>
+            </div>
+            <input id="cutoff" type="range" min="0" max="1" step="1" value="0" aria-describedby="cutoff-note" />
+            <div class="cutoff-ticks" aria-hidden="true"><span>18 nov · 18:00</span><span>21 nov · 18:00</span></div>
+            <p class="cutoff-note" id="cutoff-note">Para cada foco se muestra el último lote publicado en o antes de este corte. Cambiar el corte conserva el foco seleccionado.</p>
+            <p class="sr-only" role="status" id="cutoff-live"></p>
+          </div>
+
+          <figure class="map-figure">
+            <div class="map-canvas">
+              <svg viewBox="0 0 760 420" role="img" aria-labelledby="map-svg-title map-svg-desc">
+                <title id="map-svg-title">Esquema de un foco de riesgo que cruza tres municipios</title>
+                <desc id="map-svg-desc">Figura esquemática sin geometrías reales. Un foco continuo de nivel alto cruza Valparaíso, Viña del Mar y Quilpué; un borde costero cercano aparece en nivel bajo; un interior sin lectura aparece sin evaluación. Las líneas municipales son contexto y no dividen el foco. Los controles accesibles están en los botones sobre el mapa y en la lista sincronizada.</desc>
+                <rect width="760" height="420" fill="var(--aerial-water)"></rect>
+                <path d="M0 0 H120 C150 74 140 154 116 230 C96 300 106 364 132 420 H0 Z" fill="var(--aerial-raised)" stroke="var(--aerial-unknown)" stroke-width="1.5"></path>
+                <text x="22" y="200" transform="rotate(-90 22 200)" fill="var(--aerial-ink)" font-family="Inter, sans-serif" font-size="10" letter-spacing="1.1">OCÉANO PACÍFICO · ESQUEMA</text>
+
+                <g fill="none" stroke="var(--aerial-border)" stroke-width="1.3">
+                  <path d="M160 54 C260 28 370 48 470 32 S630 30 720 62"></path>
+                  <path d="M154 108 C262 76 366 102 472 82 S636 82 734 116"></path>
+                  <path d="M150 174 C260 140 370 166 478 144 S646 148 744 182"></path>
+                  <path d="M150 252 C268 218 380 244 492 222 S654 226 752 262"></path>
+                  <path d="M154 334 C274 300 390 326 506 304 S664 310 760 344"></path>
+                </g>
+
+                <g fill="none" stroke="var(--aerial-coast)" stroke-width="2" stroke-dasharray="8 6">
+                  <path d="M118 156 C250 136 390 162 640 122"></path>
+                  <path d="M430 0 C438 126 462 258 500 420"></path>
+                  <path d="M566 0 C548 102 610 202 760 246"></path>
+                </g>
+
+                <path id="map-shape-foco-quebrada-este" data-map-shape="foco-quebrada-este" d="M236 132 C292 78 402 68 486 96 C560 120 622 168 592 234 C566 292 470 322 380 312 C296 304 232 268 214 210 C202 172 210 150 236 132 Z" fill="var(--aerial-high)" stroke="var(--aerial-label)" stroke-width="2.5"></path>
+                <g fill="none" stroke="var(--aerial-label)" stroke-width="1.4" stroke-dasharray="4 5">
+                  <path d="M264 156 C316 112 410 104 478 128 C538 150 576 184 558 228 C538 276 454 294 386 286 C320 278 264 250 250 210 C242 188 248 170 264 156 Z"></path>
+                  <path d="M292 178 C334 146 408 138 462 156 C508 172 534 196 522 226 C506 258 442 270 390 264 C344 258 302 238 292 212 C286 200 286 188 292 178 Z"></path>
+                  <path d="M322 198 C356 176 410 170 448 182 C478 192 492 208 484 226 C472 246 426 252 392 248 C360 244 332 230 326 214 C322 206 320 202 322 198 Z"></path>
+                </g>
+
+                <path id="map-shape-borde-costero-norte" data-map-shape="borde-costero-norte" d="M104 280 C160 258 216 286 236 334 C248 368 222 398 168 404 C122 408 96 380 94 342 C92 318 96 292 104 280 Z" fill="var(--aerial-raised)" stroke="var(--aerial-unknown)" stroke-width="2.5" stroke-dasharray="8 5"></path>
+
+                <path id="map-shape-interior-sin-lectura" data-map-shape="interior-sin-lectura" d="M594 270 L704 258 L728 338 L676 396 L588 382 L566 330 Z" fill="var(--aerial-raised)" stroke="var(--aerial-unknown)" stroke-width="2.5" stroke-dasharray="8 5"></path>
+                <g fill="none" stroke="var(--aerial-border)" stroke-width="1.2">
+                  <path d="M604 300 L642 340"></path>
+                  <path d="M638 286 L680 330"></path>
+                  <path d="M670 294 L700 326"></path>
+                </g>
+
+                <g>
+                  <rect x="250" y="24" width="108" height="22" rx="3" fill="var(--aerial-panel)" stroke="var(--aerial-border)"></rect>
+                  <text x="258" y="39" fill="var(--aerial-ink)" font-family="Inter, sans-serif" font-size="9" font-weight="800" letter-spacing=".6">VIÑA DEL MAR</text>
+                </g>
+                <g>
+                  <rect x="132" y="368" width="102" height="22" rx="3" fill="var(--aerial-panel)" stroke="var(--aerial-border)"></rect>
+                  <text x="140" y="383" fill="var(--aerial-ink)" font-family="Inter, sans-serif" font-size="9" font-weight="800" letter-spacing=".6">VALPARAÍSO</text>
+                </g>
+                <g>
+                  <rect x="640" y="34" width="88" height="22" rx="3" fill="var(--aerial-panel)" stroke="var(--aerial-border)"></rect>
+                  <text x="648" y="49" fill="var(--aerial-ink)" font-family="Inter, sans-serif" font-size="9" font-weight="800" letter-spacing=".6">QUILPUÉ</text>
+                </g>
+
+                <path d="M300 26 C326 112 306 194 266 256 C236 302 210 360 198 420" fill="none" stroke="var(--aerial-focus)" stroke-width="3.5"></path>
+                <path d="M300 26 C326 112 306 194 266 256 C236 302 210 360 198 420" fill="none" stroke="var(--aerial-coast)" stroke-width="1.1" stroke-dasharray="5 6"></path>
+                <text x="240" y="300" transform="rotate(-64 240 300)" fill="var(--aerial-ink)" font-family="Inter, sans-serif" font-size="8" font-weight="700">AV. ALEMANIA · ESQUEMA</text>
+
+                <g transform="translate(712 376)">
+                  <circle r="16" fill="var(--aerial-panel)" stroke="var(--aerial-border)"></circle>
+                  <path d="M0 -8 L5 6 L0 3 L-5 6 Z" fill="var(--aerial-ink)"></path>
+                  <text x="0" y="15" text-anchor="middle" fill="var(--aerial-ink)" font-family="Inter, sans-serif" font-size="7" font-weight="700">N</text>
+                </g>
+                <g transform="translate(24 386)">
+                  <rect width="92" height="20" rx="3" fill="var(--aerial-panel)" stroke="var(--aerial-border)"></rect>
+                  <path d="M8 10 H36" stroke="var(--aerial-ink)" stroke-width="2"></path>
+                  <path d="M8 7 V13 M36 7 V13" stroke="var(--aerial-ink)" stroke-width="2"></path>
+                  <text x="44" y="13" fill="var(--aerial-ink)" font-family="Inter, sans-serif" font-size="8">1 km · esquema</text>
+                </g>
+              </svg>
+              <div class="map-controls" role="group" aria-label="Seleccionar foco en el mapa, sincronizado con la lista">
+                <button type="button" class="map-focus mf-foco" data-map-focus="foco-quebrada-este" aria-pressed="true">
+                  <span class="mf-name">Foco Quebrada del Este</span>
+                  <strong class="mf-level"><span id="map-level-foco-quebrada-este">ALTO</span> · concentración</strong>
+                </button>
+                <button type="button" class="map-focus mf-borde" data-map-focus="borde-costero-norte" aria-pressed="false">
+                  <span class="mf-name">Borde costero de Viña del Mar</span>
+                  <strong class="mf-level"><span id="map-level-borde-costero-norte">SIN EVALUACIÓN</span> · sin lectura</strong>
+                </button>
+                <button type="button" class="map-focus mf-sin" data-map-focus="interior-sin-lectura" aria-pressed="false">
+                  <span class="mf-name">Interior de Quilpué</span>
+                  <strong class="mf-level"><span id="map-level-interior-sin-lectura">SIN EVALUACIÓN</span> · sin lectura</strong>
+                </button>
+              </div>
+            </div>
+            <figcaption>Esquema territorial ilustrativo: el foco, el borde y el interior son áreas inventadas; no son geometrías exactas, riesgo observado ni una evaluación del terreno. Las líneas municipales son contexto. En pantallas angostas se ocultan los controles sobre el mapa: la lista sincronizada conserva la selección.</figcaption>
+            <div class="legend" aria-label="Leyenda de la lectura territorial">
+              <span><i class="swatch swatch-high"></i>ALTO · lote publicado</span>
+              <span><i class="swatch swatch-medium"></i>MEDIO · lote publicado</span>
+              <span><i class="swatch swatch-low"></i>BAJO · lote publicado</span>
+              <span><i class="swatch swatch-no-data"></i>SIN EVALUACIÓN · sin lote al corte</span>
+              <span><i class="swatch swatch-boundary"></i>LÍMITE MUNICIPAL · contexto</span>
+            </div>
+          </figure>
+        </section>
+
+        <aside class="focus-rail" aria-label="Focos del territorio y ficha seleccionada">
+          <div class="rail-head">
+            <h3 id="focus-list-title">Focos del territorio</h3>
+            <span class="count-pill">3</span>
+          </div>
+          <p class="rail-note">Selección sincronizada con el mapa. El corte compartido se aplica a los tres. La cobertura y la prioridad son prototipo G6.</p>
+          <div id="focus-list" class="focus-list" aria-labelledby="focus-list-title">
+            <button type="button" class="focus-btn" data-focus="foco-quebrada-este" aria-pressed="true">
+              <span class="focus-row"><span class="focus-name">Foco Quebrada del Este</span><span class="level level-alto js-list-level">ALTO</span></span>
+              <span class="focus-meta"><span class="js-list-lot">Lote 18 nov 2026 · 14:20</span><span class="js-list-coverage">Cobertura 100 % · prototipo</span></span>
+              <span class="focus-meta">Prioridad contextual <strong class="js-list-priority">ALTA</strong> · prototipo</span>
+            </button>
+            <button type="button" class="focus-btn" data-focus="borde-costero-norte" aria-pressed="false">
+              <span class="focus-row"><span class="focus-name">Borde costero de Viña del Mar</span><span class="level level-neutral js-list-level">SIN EVALUACIÓN</span></span>
+              <span class="focus-meta"><span class="js-list-lot">Sin lote ≤ corte</span><span class="js-list-coverage">Cobertura 0 % · prototipo</span></span>
+              <span class="focus-meta">Prioridad contextual <strong class="js-list-priority">MEDIA</strong> · prototipo</span>
+            </button>
+            <button type="button" class="focus-btn" data-focus="interior-sin-lectura" aria-pressed="false">
+              <span class="focus-row"><span class="focus-name">Interior de Quilpué</span><span class="level level-neutral js-list-level">SIN EVALUACIÓN</span></span>
+              <span class="focus-meta"><span class="js-list-lot">Sin lote ≤ corte</span><span class="js-list-coverage">Cobertura 0 % · prototipo</span></span>
+              <span class="focus-meta">Prioridad contextual <strong class="js-list-priority">SIN PRIORIDAD</strong> · prototipo</span>
+            </button>
+          </div>
+
+          <div class="selected-brief" aria-labelledby="focus-name">
+            <p class="eyebrow">FOCO SELECCIONADO · DATOS DE MAQUETA</p>
+            <h3 id="focus-name" tabindex="-1">Foco Quebrada del Este</h3>
+            <p class="brief-level"><span id="focus-level" class="level level-alto">ALTO</span><span class="micro" id="focus-cutoff-tag">Corte 18 nov 2026 · 18:00</span></p>
+            <p id="focus-summary">Área continua de vegetación seca y viviendas en ladera que cruza tres municipios; los límites administrativos no separan el combustible.</p>
+            <dl class="brief-facts">
+              <div><dt>Último lote ≤ corte</dt><dd id="focus-lot">18 nov 2026 · 14:20</dd></div>
+              <div><dt>Antigüedad al corte</dt><dd id="focus-age">3 h 40 min</dd></div>
+              <div><dt>Corte compartido</dt><dd id="focus-cutoff">18 nov 2026 · 18:00</dd></div>
+              <div><dt>Municipios</dt><dd id="focus-municipalities">Valparaíso · Viña del Mar · Quilpué</dd></div>
+              <div><dt>Cobertura de lectura</dt><dd id="focus-coverage">100 % · prototipo V1-P-01</dd></div>
+              <div><dt>Entorno</dt><dd id="focus-environment">Vegetación seca de ladera · interfaz urbano-forestal</dd></div>
+            </dl>
+            <p class="brief-priority" id="focus-priority">Prioridad contextual <strong>ALTA</strong> · prototipo V1-P-02. Sin puntaje: no es el nivel de riesgo.</p>
+            <div class="brief-actions">
+              <button type="button" class="ghost-light" id="focus-to-history">Ver historial de este foco →</button>
+              <button type="button" class="cta-gold" id="focus-to-actions">Preparar acción preventiva →</button>
+            </div>
+            <p class="micro">Cobertura, entorno y prioridad son hipótesis de producto del prototipo G6; no existen en el servicio actual ni definen contrato o validación científica.</p>
+            <p class="sr-only" role="status" id="focus-live"></p>
+          </div>
+        </aside>
+      </div>
+
+      <article class="panel sector-panel" aria-labelledby="sector-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">PROTOTIPO G6 · COBERTURA, ENTORNO Y PRIORIDAD</p>
+            <h3 id="sector-title">Tabla de sectores al corte</h3>
+          </div>
+          <span class="g6-badge">V1-P-01 / V1-P-02</span>
+        </div>
+        <div class="panel-body">
+          <p class="panel-note">La cobertura y el entorno por sector son el prototipo V1-P-01; la prioridad contextual es V1-P-02. Ninguna columna es el nivel de riesgo y la prioridad no tiene puntaje. Los datos son ilustrativos.</p>
+          <div class="table-wrap">
+            <table id="sector-table" class="responsive-table">
+              <caption>Tabla de sectores con cobertura de lectura, entorno y prioridad contextual ilustrativos. No es una tabla de niveles de riesgo.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Sector</th>
+                  <th scope="col">Municipios</th>
+                  <th scope="col">Cobertura de lectura</th>
+                  <th scope="col">Entorno</th>
+                  <th scope="col">Prioridad contextual</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-sector-row="foco-quebrada-este">
+                  <td data-label="Sector"><span class="cell-value"><button type="button" class="table-focus" data-table-focus="foco-quebrada-este">Foco Quebrada del Este</button> <span class="sector-level level level-alto">ALTO</span></span></td>
+                  <td data-label="Municipios"><span class="cell-value">Valparaíso · Viña del Mar · Quilpué</span></td>
+                  <td data-label="Cobertura de lectura"><span class="cell-value"><span class="sector-coverage">100 %</span></span></td>
+                  <td data-label="Entorno"><span class="cell-value"><span class="sector-environment">Vegetación seca de ladera · interfaz urbano-forestal</span></span></td>
+                  <td data-label="Prioridad contextual"><span class="cell-value"><span class="sector-priority">ALTA · prototipo</span></span></td>
+                </tr>
+                <tr data-sector-row="borde-costero-norte">
+                  <td data-label="Sector"><span class="cell-value"><button type="button" class="table-focus" data-table-focus="borde-costero-norte">Borde costero de Viña del Mar</button> <span class="sector-level level level-neutral">SIN EVALUACIÓN</span></span></td>
+                  <td data-label="Municipios"><span class="cell-value">Viña del Mar</span></td>
+                  <td data-label="Cobertura de lectura"><span class="cell-value"><span class="sector-coverage">0 %</span></span></td>
+                  <td data-label="Entorno"><span class="cell-value"><span class="sector-environment">Matorral costero bajo · quebradas con acceso amplio</span></span></td>
+                  <td data-label="Prioridad contextual"><span class="cell-value"><span class="sector-priority">MEDIA · prototipo</span></span></td>
+                </tr>
+                <tr data-sector-row="interior-sin-lectura">
+                  <td data-label="Sector"><span class="cell-value"><button type="button" class="table-focus" data-table-focus="interior-sin-lectura">Interior de Quilpué</button> <span class="sector-level level level-neutral">SIN EVALUACIÓN</span></span></td>
+                  <td data-label="Municipios"><span class="cell-value">Quilpué</span></td>
+                  <td data-label="Cobertura de lectura"><span class="cell-value"><span class="sector-coverage">0 %</span></span></td>
+                  <td data-label="Entorno"><span class="cell-value"><span class="sector-environment">Interior de valle · sin levantamiento de terreno</span></span></td>
+                  <td data-label="Prioridad contextual"><span class="cell-value"><span class="sector-priority">SIN PRIORIDAD · prototipo</span></span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <div class="territory-detail">
+        <article class="panel" aria-labelledby="reading-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">CÓMO LEER EL CORTE</p>
+              <h3 id="reading-title">Riesgo, cobertura y prioridad son cosas distintas</h3>
+            </div>
+            <span class="level level-neutral">SIN EVALUACIÓN ≠ BAJO</span>
+          </div>
+          <div class="panel-body">
+            <dl class="reading-list">
+              <div><dt>Nivel de riesgo</dt><dd>Lo informa el lote publicado en o antes del corte. Si no hay lote, se muestra <strong>SIN EVALUACIÓN</strong>: no es un nivel bajo ni un cero.</dd></div>
+              <div><dt>Cobertura de lectura</dt><dd>Porcentaje ilustrativo de cuánto del foco tiene lectura al corte; es una hipótesis de V1-P-01, no una métrica publicada.</dd></div>
+              <div><dt>Prioridad contextual</dt><dd>Una etiqueta cualitativa de V1-P-02, sin puntaje. No se deriva del nivel de riesgo y no define una regla de negocio.</dd></div>
+              <div><dt>Entorno</dt><dd>Una descripción cualitativa del terreno del sector; es ilustrativa y no reemplaza un levantamiento real.</dd></div>
+            </dl>
+            <p class="panel-note">La causa de los niveles bajos del modelo actual no se prueba en esta maqueta. La agregación por comuna no se declara como causa.</p>
+          </div>
+        </article>
+        <article class="panel" aria-labelledby="maps-key-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">LEYENDA Y ESTADOS</p>
+              <h3 id="maps-key-title">Qué significa cada marca</h3>
+            </div>
+          </div>
+          <div class="panel-body">
+            <ul class="state-key">
+              <li><span class="swatch swatch-high"></span><span><strong>ALTO</strong> · lote publicado con nivel alto. Chip y texto, nunca solo color.</span></li>
+              <li><span class="swatch swatch-medium"></span><span><strong>MEDIO</strong> · lote publicado con nivel medio.</span></li>
+              <li><span class="swatch swatch-low"></span><span><strong>BAJO</strong> · lote publicado con nivel bajo; no es ausencia de datos.</span></li>
+              <li><span class="swatch swatch-no-data"></span><span><strong>SIN EVALUACIÓN</strong> · sin lote en o antes del corte; el área se dibuja con relleno neutro y borde discontinuo.</span></li>
+              <li><span class="swatch swatch-boundary"></span><span><strong>LÍMITE MUNICIPAL</strong> · contexto de navegación; no divide el foco ni el cálculo.</span></li>
+            </ul>
+            <p class="panel-note">El mapa es un esquema plano, sin geometrías reales ni fotorrealismo. No es una alerta oficial.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" id="historial" data-view="historial" hidden aria-labelledby="historial-title">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">02 · TRAZABILIDAD · CORTE COMPARTIDO</p>
+          <h2 id="historial-title" tabindex="-1">Historial de lotes</h2>
+          <p class="view-lede">Una zona o todas las zonas del escenario. Los lotes posteriores al corte no se presentan como vigentes y la ausencia de datos no se convierte en un nivel bajo.</p>
+        </div>
+        <div class="view-badges">
+          <span class="g6-badge">Prototipo G6 · V1-P-04</span>
+          <span class="context-tag">Datos ilustrativos</span>
+        </div>
+      </div>
+
+      <article class="panel" aria-labelledby="history-table-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">REGISTROS DE MAQUETA</p>
+            <h3 id="history-table-title">Lotes y evaluación al corte</h3>
+          </div>
+          <span class="count-pill" id="history-count">4 lotes</span>
+        </div>
+        <div class="panel-body">
+          <div class="history-toolbar">
+            <div class="scope-cell">
+              <p class="toolbar-label" id="scope-label">Alcance</p>
+              <div class="segmented" role="group" aria-labelledby="scope-label">
+                <button type="button" id="history-scope-one" data-scope="one" aria-pressed="true">Una zona</button>
+                <button type="button" id="history-scope-all" data-scope="all" aria-pressed="false">Todas las zonas <span class="g6-inline-tag">G6</span></button>
+              </div>
+            </div>
+            <label class="field" for="history-zone">Zona
+              <select id="history-zone">
+                <option value="foco-quebrada-este">Foco Quebrada del Este</option>
+                <option value="borde-costero-norte">Borde costero de Viña del Mar</option>
+                <option value="interior-sin-lectura">Interior de Quilpué</option>
+              </select>
+            </label>
+            <label class="field" for="history-range">Rango
+              <select id="history-range">
+                <option value="all">Todo el periodo</option>
+                <option value="24h">Últimas 24 h al corte</option>
+                <option value="72h">Últimas 72 h al corte</option>
+              </select>
+            </label>
+          </div>
+
+          <p class="cutoff-readout">Corte compartido: <strong id="history-cutoff">18 nov 2026 · 18:00</strong> · el mismo corte de Territorio.</p>
+          <p class="status-line" id="history-status" role="status" aria-live="polite"></p>
+          <p class="g6-inline" id="history-g6-note">Prototipo G6 · V1-P-04: el endpoint agregado sin zone_id no existe; /v1/risk/history exige zone_id. Esta tabla es una muestra ilustrativa, no una promesa de consulta.</p>
+
+          <div class="timeline" aria-labelledby="timeline-title">
+            <div class="timeline-head">
+              <p id="timeline-title">Línea de lotes del escenario</p>
+              <p>14–22 nov 2026</p>
+            </div>
+            <div class="timeline-track" id="timeline-track" aria-hidden="true">
+              <span class="tl-cutoff" id="timeline-cutoff"></span>
+              <span class="tl-axis tl-axis-start">14 nov</span>
+              <span class="tl-axis tl-axis-end">22 nov</span>
+            </div>
+            <p class="timeline-caption">Corte compartido: <strong id="timeline-cutoff-label">18 nov 2026 · 18:00</strong> · <span>línea vertical = corte; puntos = lotes</span></p>
+            <p class="sr-only" id="timeline-summary" role="status"></p>
+          </div>
+
+          <div class="table-wrap">
+            <table id="history-table" class="responsive-table">
+              <caption>Lotes ilustrativos del escenario, con su relación con el corte seleccionado.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Sector</th>
+                  <th scope="col">Lote</th>
+                  <th scope="col">Fecha del lote</th>
+                  <th scope="col">Nivel</th>
+                  <th scope="col">Relación con el corte</th>
+                </tr>
+              </thead>
+              <tbody id="history-rows"></tbody>
+            </table>
+          </div>
+
+          <div class="empty-state" id="history-empty" hidden>
+            <strong id="history-empty-title">No hay lotes en este rango.</strong>
+            <p id="history-empty-body">La ausencia de datos no es un nivel bajo. Cambia el rango o revisa otra zona.</p>
+            <button type="button" class="secondary-button" id="history-reset">Ver todo el periodo</button>
+          </div>
+
+          <div class="task-links">
+            <button type="button" class="secondary-button" id="history-to-territory">Volver al territorio</button>
+            <button type="button" class="primary-button" id="history-to-actions">Preparar acción para esta zona</button>
+          </div>
+          <p class="panel-note">Los lotes posteriores al corte se marcan como <strong>Posterior al corte</strong> y no alimentan la lectura vigente. El corte es el mismo de Territorio.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="view" id="acciones" data-view="acciones" aria-labelledby="acciones-title">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">03 · OPERACIÓN · RESPONSABLE Y ESTADOS</p>
+          <h2 id="acciones-title" tabindex="-1">Acciones preventivas</h2>
+          <p class="view-lede">Lista y ficha del flujo que el servicio ya expone. La selección de responsable es V1-U-04; los cuatro estados planificados se muestran aparte como prototipo G6.</p>
+        </div>
+        <div class="view-badges">
+          <span class="g6-badge">V1-U-04 · Prototipo G6 V1-P-03</span>
+          <span class="context-tag">Sin autenticación simulada</span>
+        </div>
+      </div>
+
+      <div class="actions-layout">
+        <article class="panel" aria-labelledby="actions-list-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">COLA DE TRABAJO · MAQUETA</p>
+              <h3 id="actions-list-title">Acciones del escenario</h3>
+            </div>
+            <span class="count-pill" id="actions-count">4 de 4</span>
+          </div>
+          <div class="panel-body">
+            <div class="filters">
+              <label class="field" for="action-status-filter">Estado actual
+                <select id="action-status-filter">
+                  <option value="">Todos los estados</option>
+                  <option value="propuesta">Propuesta</option>
+                  <option value="asignada">Asignada</option>
+                  <option value="en_curso">En curso</option>
+                  <option value="bloqueada">Bloqueada</option>
+                </select>
+              </label>
+              <label class="field" for="action-focus-filter">Foco
+                <select id="action-focus-filter">
+                  <option value="">Todos los focos</option>
+                  <option value="foco-quebrada-este">Foco Quebrada del Este</option>
+                  <option value="borde-costero-norte">Borde costero de Viña del Mar</option>
+                  <option value="interior-sin-lectura">Interior de Quilpué</option>
+                </select>
+              </label>
+            </div>
+            <p class="status-line" id="action-filter-status" role="status" aria-live="polite"></p>
+            <ul class="action-list" id="action-list" aria-label="Acciones preventivas del escenario">
+              <li>
+                <button type="button" class="action-btn" data-action="acc-1042" aria-current="true">
+                  <span class="action-top"><span class="action-title">Despeje de vegetación seca en el borde del foco Quebrada del Este</span><span class="status-chip chip-asignada">Asignada</span></span>
+                  <span class="action-meta"><span>ACC-1042</span><span>Foco <strong>Quebrada del Este</strong></span><span>Prioridad <strong>Alta</strong></span></span>
+                  <span class="action-meta"><span>Responsable <strong>Camila Rojas Fuentes</strong></span><span>Vence 27 nov 2026</span></span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="action-btn" data-action="acc-1043">
+                  <span class="action-top"><span class="action-title">Revisión de vías de evacuación en el cruce Valparaíso–Viña del Mar</span><span class="status-chip chip-en-curso">En curso</span></span>
+                  <span class="action-meta"><span>ACC-1043</span><span>Foco <strong>Quebrada del Este</strong></span><span>Prioridad <strong>Alta</strong></span></span>
+                  <span class="action-meta"><span>Responsable <strong>Jorge Muñoz Salinas</strong></span><span>Vence 24 nov 2026</span></span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="action-btn" data-action="acc-1044">
+                  <span class="action-top"><span class="action-title">Difusión de la restricción de fogatas en ferias de Viña del Mar</span><span class="status-chip chip-propuesta">Propuesta</span></span>
+                  <span class="action-meta"><span>ACC-1044</span><span>Foco <strong>Borde costero</strong></span><span>Prioridad <strong>Media</strong></span></span>
+                  <span class="action-meta"><span>Responsable <strong>Sin asignar</strong></span><span>Vence 2 dic 2026</span></span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="action-btn" data-action="acc-1045">
+                  <span class="action-top"><span class="action-title">Inspección de conexiones eléctricas informales en el interior de Quilpué</span><span class="status-chip chip-bloqueada">Bloqueada</span></span>
+                  <span class="action-meta"><span>ACC-1045</span><span>Foco <strong>Interior de Quilpué</strong></span><span>Prioridad <strong>Alta</strong></span></span>
+                  <span class="action-meta"><span>Responsable <strong>Valentina Díaz Paredes</strong></span><span>Vence 22 nov 2026</span></span>
+                </button>
+              </li>
+            </ul>
+            <div class="empty-state" id="actions-empty" hidden>
+              <strong>No hay acciones que coincidan con este filtro.</strong>
+              <p>El filtro no cambió los datos: son cuatro acciones de ejemplo.</p>
+              <button type="button" class="secondary-button" id="clear-action-filters">Limpiar filtros</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel action-detail" id="action-detail" aria-labelledby="detail-title">
+          <div class="detail-head">
+            <p class="eyebrow">ACCIÓN SELECCIONADA · MAQUETA</p>
+            <h3 id="detail-title">Despeje de vegetación seca en el borde del foco Quebrada del Este</h3>
+            <p class="status-line" id="detail-live" role="status" aria-live="polite"></p>
+          </div>
+          <div class="detail-body">
+            <dl class="detail-grid">
+              <div><dt>Código</dt><dd id="detail-code">ACC-1042</dd></div>
+              <div><dt>Estado actual</dt><dd><span class="status-chip chip-asignada" id="detail-status">Asignada</span></dd></div>
+              <div><dt>Foco</dt><dd id="detail-focus">Foco Quebrada del Este</dd></div>
+              <div><dt>Municipios del foco</dt><dd id="detail-municipalities">Valparaíso · Viña del Mar · Quilpué</dd></div>
+              <div><dt>Vence</dt><dd id="detail-due">27 nov 2026</dd></div>
+              <div><dt>Prioridad (texto libre)</dt><dd id="detail-priority">Alta</dd></div>
+            </dl>
+            <p class="g6-inline" id="detail-context">Prioridad contextual ALTA · Prototipo G6 · V1-P-02. Sin puntaje; no es el nivel de riesgo.</p>
+            <div class="assignee-box" id="detail-assignee-box">
+              <span class="label">Responsable</span>
+              <p class="assignee-name" id="detail-assignee-name">Camila Rojas Fuentes</p>
+              <p class="assignee-role" id="detail-assignee-role">Dirección de Aseo y Ornato · identificador u-8f3a</p>
+            </div>
+            <span class="label">Evidencia y suficiencia</span>
+            <p class="copy-small" id="detail-evidence">2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.</p>
+            <div class="task-links">
+              <button type="button" class="secondary-button" id="view-action-focus">Ver este foco en el territorio</button>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel g6-panel" id="g6-panel" aria-labelledby="g6-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">DEMOSTRACIÓN VISUAL · NO ES UN FLUJO ACTIVO</p>
+            <h3 id="g6-title">Cuatro estados planificados</h3>
+          </div>
+          <span class="g6-badge">Prototipo G6 · V1-P-03</span>
+        </div>
+        <div class="panel-body">
+          <p class="status-line" id="g6-summary">candidate, in_progress, reviewed y closed no existen todavía en el contrato ni en la persistencia. La fuente de verdad es la fila V1-P-03 de odd/tasks/v1-produccion.md; esta maqueta no define transiciones ni política de rol.</p>
+          <div class="g6-states" role="group" aria-label="Vista previa de estados planificados">
+            <button type="button" class="g6-state-btn" data-g6-state="candidate" aria-pressed="true">Candidata <code>candidate</code></button>
+            <button type="button" class="g6-state-btn" data-g6-state="in_progress" aria-pressed="false">En curso <code>in_progress</code></button>
+            <button type="button" class="g6-state-btn" data-g6-state="reviewed" aria-pressed="false">Revisada <code>reviewed</code></button>
+            <button type="button" class="g6-state-btn" data-g6-state="closed" aria-pressed="false">Cerrada <code>closed</code></button>
+          </div>
+          <div class="g6-preview">
+            <p class="g6-preview-line"><span class="status-chip chip-candidate" id="g6-chip">Candidata</span> <code id="g6-machine">candidate</code></p>
+            <p class="copy-small" id="g6-desc">Acción propuesta que aún no fue asignada ni iniciada.</p>
+            <p class="panel-note" id="g6-note">Demostración visual. No cambia el estado de ACC-1042 ni guarda nada.</p>
+          </div>
+          <p class="panel-note">No hay mapeo aprobado entre el flujo actual (Propuesta, Asignada, En curso, Bloqueada) y estos cuatro estados. La maqueta no inventa esa correspondencia; el servicio actual sigue siendo el único que acepta o rechaza una transición.</p>
+        </div>
+      </article>
+
+      <article class="panel create-panel" aria-labelledby="create-heading">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">V1-U-04 · RESPONSABLE EN LA MAQUETA</p>
+            <h3 id="create-heading">Nueva acción preventiva</h3>
+          </div>
+          <span class="g6-badge">Prototipo · sin escritura</span>
+        </div>
+        <div class="panel-body">
+          <p class="panel-note">La maqueta no inicia sesión, no elige rol y no simula autorización. En el producto real, el servidor verifica el rol y las reglas del contrato antes de guardar. Aquí no se llama a ningún servicio.</p>
+          <form id="create-form" class="form-grid" novalidate>
+            <div class="form-row">
+              <label class="field" for="create-community">Comunidad (CUT)
+                <input id="create-community" name="community" type="text" value="05101 · Valparaíso" readonly />
+              </label>
+              <label class="field" for="create-focus">Foco
+                <select id="create-focus" name="focus">
+                  <option value="foco-quebrada-este">Foco Quebrada del Este</option>
+                  <option value="borde-costero-norte">Borde costero de Viña del Mar</option>
+                  <option value="interior-sin-lectura">Interior de Quilpué</option>
+                </select>
+              </label>
+            </div>
+            <label class="field" for="create-title">Título
+              <input id="create-title" name="title" type="text" placeholder="Ej.: Despeje de vegetación seca en el foco" />
+            </label>
+            <label class="field" for="create-description">Descripción
+              <textarea id="create-description" name="description" placeholder="Describe el trabajo, el foco y la referencia de evidencia."></textarea>
+            </label>
+            <div class="form-row">
+              <label class="field" for="create-priority">Prioridad (texto libre)
+                <input id="create-priority" name="priority" type="text" value="Alta" />
+              </label>
+              <label class="field" for="create-due">Fecha límite
+                <input id="create-due" name="due" type="date" value="2026-11-27" />
+              </label>
+            </div>
+
+            <div class="case-switch">
+              <span class="toolbar-label" id="case-label">Casos del selector de responsable · maqueta</span>
+              <div class="case-buttons" role="group" aria-labelledby="case-label">
+                <button type="button" class="case-btn" id="case-assigned" data-case="assigned" aria-pressed="true">Con directorio</button>
+                <button type="button" class="case-btn" id="case-unassigned" data-case="unassigned" aria-pressed="false">Sin asignar</button>
+                <button type="button" class="case-btn" id="case-unavailable" data-case="unavailable" aria-pressed="false">Directorio no disponible</button>
+              </div>
+            </div>
+
+            <label class="field" for="assignee-select">Responsable
+              <select id="assignee-select" name="assignee">
+                <option value="">Sin asignar (se crea sin responsable)</option>
+                <option value="u-8f3a" selected>Camila Rojas Fuentes · Dirección de Aseo y Ornato</option>
+                <option value="u-2c91">Jorge Muñoz Salinas · Dirección de Gestión de Riesgo</option>
+                <option value="u-6d47">Valentina Díaz Paredes · Oficina de Emergencia</option>
+                <option value="u-9b02">Rodrigo Salinas Vega · Dirección de Obras Municipales</option>
+                <option value="u-4e18">Paula Herrera León · DIDECO · enlace vecinal</option>
+              </select>
+            </label>
+            <p class="assignee-hint" id="assignee-hint">Se asignaría a Camila Rojas Fuentes (u-8f3a). La lista es ficticia y no se consulta ningún directorio real.</p>
+
+            <div class="directory-failure" id="directory-failure" role="status" aria-live="polite" hidden>
+              <strong>No se pudo leer el directorio.</strong>
+              Respuesta simulada: 503 directory_unavailable. No se inventó una lista de personas. Puedes crear la acción sin responsable o reintentar la lectura.
+              <div><button type="button" class="secondary-button" id="directory-retry">Reintentar lectura (maqueta)</button></div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="primary-button" id="create-submit">Crear acción (simulacro)</button>
+              <p class="micro">No guarda nada: es una maqueta interactiva sin red ni persistencia.</p>
+            </div>
+            <div class="feedback" id="form-feedback" role="status" aria-live="polite" tabindex="-1" hidden>
+              <strong id="feedback-title"></strong>
+              <span id="feedback-body"></span>
+            </div>
+            <p class="sr-only" id="prefill-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p><strong>Estados de esta maqueta:</strong> «Sin evaluación» no es «Bajo»; cobertura, entorno y prioridad contextual (V1-P-01, V1-P-02), el historial agregado de todas las zonas (V1-P-04) y los estados candidate/in_progress/reviewed/closed (V1-P-03) son prototipo G6 y no existen en el servicio actual. El flujo de acciones que se muestra (Propuesta, Asignada, En curso, Bloqueada) reproduce la forma que el servicio ya expone y no se modifica.</p>
+    <p><strong>Sin escritura ni autenticación:</strong> no hay inicio de sesión, autorización, envío ni publicación en este tablero. La maqueta no inicia sesión ni elige rol; el servidor real sigue siendo la única autoridad. El envío de demostración no guarda, no llama a ningún servicio y no escribe almacenamiento.</p>
+    <p><strong>Sin contrato nuevo:</strong> focos, personas, lotes y cifras son inventados. Nada de lo mostrado define un contrato de backend, una política de rol ni una validación científica; la fuente de alcance sigue siendo odd/tasks/v1-produccion.md.</p>
+    <p><strong>Apariencia experimental:</strong> la paleta aérea (noche/día) es una expansión de diseño de este tablero; los 27 tokens base del sistema siguen declarados como referencia y no se cambian en producción. El interruptor de tema no guarda la preferencia.</p>
+    <p><strong>Red:</strong> este documento no carga fuentes, imágenes ni datos externos.</p>
+  </footer>
+  <p class="sr-only" role="status" aria-live="polite" id="view-status"></p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SNAPSHOTS = [
+    { id: 'corte-18', cutoff: '2026-11-18T18:00:00-03:00', label: '18 nov 2026 · 18:00' },
+    { id: 'corte-21', cutoff: '2026-11-21T18:00:00-03:00', label: '21 nov 2026 · 18:00' }
+  ];
+
+  var AREAS = {
+    'foco-quebrada-este': {
+      name: 'Foco Quebrada del Este',
+      municipalities: 'Valparaíso · Viña del Mar · Quilpué',
+      summary: 'Área continua de vegetación seca y viviendas en ladera que cruza tres municipios; los límites administrativos no separan el combustible.',
+      coveragePct: 100,
+      environment: 'Vegetación seca de ladera · interfaz urbano-forestal',
+      priority: 'ALTA',
+      lots: [
+        { date: '2026-11-15T09:40:00-03:00', dateLabel: '15 nov 2026 · 09:40', level: 'MEDIO', batch: 'b-b1e4c720' },
+        { date: '2026-11-18T14:20:00-03:00', dateLabel: '18 nov 2026 · 14:20', level: 'ALTO', batch: 'b-7f3c9a21' },
+        { date: '2026-11-20T16:05:00-03:00', dateLabel: '20 nov 2026 · 16:05', level: 'ALTO', batch: 'b-9c2d4e77' }
+      ]
+    },
+    'borde-costero-norte': {
+      name: 'Borde costero de Viña del Mar',
+      municipalities: 'Viña del Mar',
+      summary: 'Franja costera con menor continuidad de combustible y accesos más amplios; el corte decide si existe una lectura publicada.',
+      coveragePct: 96,
+      environment: 'Matorral costero bajo · quebradas con acceso amplio',
+      priority: 'MEDIA',
+      lots: [
+        { date: '2026-11-21T08:40:00-03:00', dateLabel: '21 nov 2026 · 08:40', level: 'BAJO', batch: 'b-8e5a1d40' }
+      ]
+    },
+    'interior-sin-lectura': {
+      name: 'Interior de Quilpué',
+      municipalities: 'Quilpué',
+      summary: 'Área interior sin lote publicado en o antes del corte. La ausencia de lectura no es un nivel bajo: no hay nivel, factores ni evidencia que describir.',
+      coveragePct: 0,
+      environment: 'Interior de valle · sin levantamiento de terreno',
+      priority: 'SIN PRIORIDAD',
+      lots: []
+    }
+  };
+
+  var ACTIONS = {
+    'acc-1042': {
+      title: 'Despeje de vegetación seca en el borde del foco Quebrada del Este',
+      code: 'ACC-1042',
+      status: 'Asignada',
+      statusClass: 'chip-asignada',
+      statusKey: 'asignada',
+      focus: 'foco-quebrada-este',
+      due: '27 nov 2026',
+      priority: 'Alta',
+      assigneeName: 'Camila Rojas Fuentes',
+      assigneeRole: 'Dirección de Aseo y Ornato · identificador u-8f3a',
+      evidence: '2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.'
+    },
+    'acc-1043': {
+      title: 'Revisión de vías de evacuación en el cruce Valparaíso–Viña del Mar',
+      code: 'ACC-1043',
+      status: 'En curso',
+      statusClass: 'chip-en-curso',
+      statusKey: 'en_curso',
+      focus: 'foco-quebrada-este',
+      due: '24 nov 2026',
+      priority: 'Alta',
+      assigneeName: 'Jorge Muñoz Salinas',
+      assigneeRole: 'Dirección de Gestión de Riesgo · identificador u-2c91',
+      evidence: 'Evidencia pendiente: la acción aún no registra una instantánea. Revisión de suficiencia: no iniciada.'
+    },
+    'acc-1044': {
+      title: 'Difusión de la restricción de fogatas en ferias de Viña del Mar',
+      code: 'ACC-1044',
+      status: 'Propuesta',
+      statusClass: 'chip-propuesta',
+      statusKey: 'propuesta',
+      focus: 'borde-costero-norte',
+      due: '2 dic 2026',
+      priority: 'Media',
+      assigneeName: 'Sin asignar',
+      assigneeRole: 'No hay responsable registrado. La acción puede asignarse después de crearla.',
+      evidence: 'Sin evidencia registrada. El criterio de suficiencia lo define una persona autorizada.'
+    },
+    'acc-1045': {
+      title: 'Inspección de conexiones eléctricas informales en el interior de Quilpué',
+      code: 'ACC-1045',
+      status: 'Bloqueada',
+      statusClass: 'chip-bloqueada',
+      statusKey: 'bloqueada',
+      focus: 'interior-sin-lectura',
+      due: '22 nov 2026',
+      priority: 'Alta',
+      assigneeName: 'Valentina Díaz Paredes',
+      assigneeRole: 'Oficina de Emergencia · identificador u-6d47',
+      evidence: '1 referencia · acta OE-2026-057. Bloqueada: falta la autorización de la empresa distribuidora en este escenario.'
+    }
+  };
+
+  var DIRECTORY = {
+    'u-8f3a': 'Camila Rojas Fuentes · Dirección de Aseo y Ornato',
+    'u-2c91': 'Jorge Muñoz Salinas · Dirección de Gestión de Riesgo',
+    'u-6d47': 'Valentina Díaz Paredes · Oficina de Emergencia',
+    'u-9b02': 'Rodrigo Salinas Vega · Dirección de Obras Municipales',
+    'u-4e18': 'Paula Herrera León · DIDECO · enlace vecinal'
+  };
+
+  var G6_STATES = {
+    candidate: { label: 'Candidata', machine: 'candidate', chipClass: 'chip-candidate', desc: 'Acción propuesta que aún no fue asignada ni iniciada.' },
+    in_progress: { label: 'En curso', machine: 'in_progress', chipClass: 'chip-en-curso', desc: 'Trabajo iniciado con responsable y fecha; el estado planificado todavía no existe en el servicio.' },
+    reviewed: { label: 'Revisada', machine: 'reviewed', chipClass: 'chip-revisada', desc: 'Resultado y evidencia revisados; el cierre todavía no se registró.' },
+    closed: { label: 'Cerrada', machine: 'closed', chipClass: 'chip-cerrada', desc: 'Cierre registrado; la acción queda como histórico.' }
+  };
+
+  var VIEWS = ['territorio', 'historial', 'acciones'];
+  var VIEW_TITLES = { territorio: 'Territorio', historial: 'Historial de lotes', acciones: 'Acciones preventivas' };
+  var state = {
+    view: 'territorio',
+    focus: 'foco-quebrada-este',
+    cutoff: 0,
+    historyScope: 'one',
+    historyZone: 'foco-quebrada-este',
+    historyRange: 'all',
+    action: 'acc-1042',
+    g6: 'candidate'
+  };
+
+  var focusButtons = Array.prototype.slice.call(document.querySelectorAll('[data-focus]'));
+  var mapFocusButtons = Array.prototype.slice.call(document.querySelectorAll('[data-map-focus]'));
+  var mapShapes = Array.prototype.slice.call(document.querySelectorAll('[data-map-shape]'));
+  var actionButtons = Array.prototype.slice.call(document.querySelectorAll('[data-action]'));
+  var cutoff = document.getElementById('cutoff');
+  var cutoffValue = document.getElementById('cutoff-value');
+  var cutoffLive = document.getElementById('cutoff-live');
+  var statusFilter = document.getElementById('action-status-filter');
+  var actionFocusFilter = document.getElementById('action-focus-filter');
+  var actionsCount = document.getElementById('actions-count');
+  var actionFilterStatus = document.getElementById('action-filter-status');
+  var actionsEmpty = document.getElementById('actions-empty');
+  var createForm = document.getElementById('create-form');
+  var createFocus = document.getElementById('create-focus');
+  var titleInput = document.getElementById('create-title');
+  var descriptionInput = document.getElementById('create-description');
+  var assigneeSelect = document.getElementById('assignee-select');
+  var assigneeHint = document.getElementById('assignee-hint');
+  var feedback = document.getElementById('form-feedback');
+  var feedbackTitle = document.getElementById('feedback-title');
+  var feedbackBody = document.getElementById('feedback-body');
+  var prefillStatus = document.getElementById('prefill-status');
+  var directoryFailure = document.getElementById('directory-failure');
+  var caseButtons = Array.prototype.slice.call(document.querySelectorAll('.case-btn'));
+  var g6Buttons = Array.prototype.slice.call(document.querySelectorAll('[data-g6-state]'));
+  var themeToggle = document.getElementById('theme-toggle');
+  var themeStatus = document.getElementById('theme-status');
+  var lastGoodAssignee = assigneeSelect.value || 'u-8f3a';
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function snapshot() {
+    return SNAPSHOTS[state.cutoff] || SNAPSHOTS[0];
+  }
+
+  function areaOf(id) {
+    return AREAS[id] || AREAS['foco-quebrada-este'];
+  }
+
+  function lotFor(area) {
+    var cutoffTime = new Date(snapshot().cutoff).getTime();
+    var eligible = area.lots.filter(function (lot) {
+      return new Date(lot.date).getTime() <= cutoffTime;
+    });
+    eligible.sort(function (left, right) {
+      return new Date(right.date).getTime() - new Date(left.date).getTime();
+    });
+    return eligible.length > 0 ? eligible[0] : null;
+  }
+
+  function ageLabel(lot) {
+    if (!lot) return 'No aplica: sin lote';
+    var ms = new Date(snapshot().cutoff).getTime() - new Date(lot.date).getTime();
+    var hours = Math.floor(ms / 3600000);
+    var minutes = Math.round((ms % 3600000) / 60000);
+    return hours + ' h ' + minutes + ' min';
+  }
+
+  function levelClassFor(level) {
+    if (level === 'ALTO') return 'level-alto';
+    if (level === 'MEDIO') return 'level-medio';
+    if (level === 'BAJO') return 'level-bajo';
+    return 'level-neutral';
+  }
+
+  function setLevel(el, level) {
+    el.className = 'level ' + levelClassFor(level);
+    el.textContent = level;
+  }
+
+  function fillFor(level) {
+    if (level === 'ALTO') return 'var(--aerial-high)';
+    if (level === 'MEDIO') return 'var(--aerial-medium)';
+    if (level === 'BAJO') return 'var(--aerial-low)';
+    return 'var(--aerial-raised)';
+  }
+
+  function lineFor(level) {
+    if (level === 'ALTO') return 'var(--aerial-label)';
+    if (level === 'MEDIO') return 'var(--aerial-label)';
+    if (level === 'BAJO') return 'var(--aerial-label)';
+    return 'var(--aerial-unknown)';
+  }
+
+  function renderFocusList() {
+    focusButtons.forEach(function (button) {
+      var id = button.getAttribute('data-focus');
+      var area = areaOf(id);
+      var lot = lotFor(area);
+      var level = lot ? lot.level : 'SIN EVALUACIÓN';
+      var levelEl = button.querySelector('.js-list-level');
+      var lotEl = button.querySelector('.js-list-lot');
+      var coverageEl = button.querySelector('.js-list-coverage');
+      var priorityEl = button.querySelector('.js-list-priority');
+      if (levelEl) {
+        levelEl.className = 'level ' + levelClassFor(level) + ' js-list-level';
+        levelEl.textContent = level;
+      }
+      if (lotEl) lotEl.textContent = lot ? 'Lote ' + lot.dateLabel : 'Sin lote ≤ corte';
+      if (coverageEl) coverageEl.textContent = 'Cobertura ' + (lot ? area.coveragePct : 0) + ' % · prototipo';
+      if (priorityEl) priorityEl.textContent = area.priority;
+      button.setAttribute('aria-pressed', String(id === state.focus));
+    });
+  }
+
+  function paintMap() {
+    mapShapes.forEach(function (shape) {
+      var id = shape.getAttribute('data-map-shape');
+      var area = AREAS[id];
+      var lot = area ? lotFor(area) : null;
+      var level = lot ? lot.level : 'SIN EVALUACIÓN';
+      var selected = id === state.focus;
+      shape.setAttribute('fill', fillFor(level));
+      shape.setAttribute('stroke', selected ? 'var(--aerial-ink)' : lineFor(level));
+      shape.setAttribute('stroke-width', selected ? '5' : '2.5');
+      shape.setAttribute('stroke-dasharray', selected ? '' : (lot ? '' : '8 5'));
+    });
+    mapFocusButtons.forEach(function (button) {
+      var id = button.getAttribute('data-map-focus');
+      var area = AREAS[id];
+      var lot = area ? lotFor(area) : null;
+      var level = lot ? lot.level : 'SIN EVALUACIÓN';
+      var label = document.getElementById('map-level-' + id);
+      if (label) label.textContent = level;
+      button.setAttribute('aria-pressed', String(id === state.focus));
+    });
+  }
+
+  function renderSelected() {
+    var area = areaOf(state.focus);
+    var lot = lotFor(area);
+    var level = lot ? lot.level : 'SIN EVALUACIÓN';
+    document.getElementById('focus-name').textContent = area.name;
+    setLevel(document.getElementById('focus-level'), level);
+    document.getElementById('focus-summary').textContent = area.summary;
+    document.getElementById('focus-lot').textContent = lot ? lot.dateLabel : 'Sin lote ≤ corte';
+    document.getElementById('focus-age').textContent = ageLabel(lot);
+    document.getElementById('focus-cutoff').textContent = snapshot().label;
+    document.getElementById('focus-cutoff-tag').textContent = 'Corte ' + snapshot().label;
+    document.getElementById('focus-municipalities').textContent = area.municipalities;
+    document.getElementById('focus-coverage').textContent = (lot ? area.coveragePct : 0) + ' % · prototipo V1-P-01';
+    document.getElementById('focus-environment').textContent = area.environment;
+    document.getElementById('focus-priority').textContent = 'Prioridad contextual ' + area.priority + ' · prototipo V1-P-02. Sin puntaje: no es el nivel de riesgo.';
+    document.getElementById('stamp-level').textContent = level;
+    document.getElementById('stamp-level-label').textContent = lot ? 'NIVEL INFORMADO' : 'SIN LECTURA';
+    document.getElementById('stamp-lot').textContent = lot ? lot.dateLabel : 'Sin lote ≤ corte';
+    document.getElementById('stamp-cutoff').textContent = snapshot().label;
+    cutoffValue.textContent = snapshot().label;
+  }
+
+  function renderSectorTable() {
+    Array.prototype.slice.call(document.querySelectorAll('[data-sector-row]')).forEach(function (row) {
+      var id = row.getAttribute('data-sector-row');
+      var area = areaOf(id);
+      var lot = lotFor(area);
+      var level = lot ? lot.level : 'SIN EVALUACIÓN';
+      var levelEl = row.querySelector('.sector-level');
+      var coverageEl = row.querySelector('.sector-coverage');
+      var priorityEl = row.querySelector('.sector-priority');
+      if (levelEl) {
+        levelEl.className = 'sector-level level ' + levelClassFor(level);
+        levelEl.textContent = level;
+      }
+      if (coverageEl) coverageEl.textContent = (lot ? area.coveragePct : 0) + ' %';
+      if (priorityEl) priorityEl.textContent = area.priority + ' · prototipo';
+    });
+  }
+
+  function relationFor(entry) {
+    if (!entry.lot) return 'Sin dato al corte';
+    var area = areaOf(entry.focus);
+    var latest = lotFor(area);
+    if (new Date(entry.lot.date).getTime() > new Date(snapshot().cutoff).getTime()) return 'Posterior al corte';
+    if (latest && latest.batch === entry.lot.batch) return 'Último al corte';
+    return 'Anterior al corte';
+  }
+
+  function historyRowsData() {
+    var cutoffTime = new Date(snapshot().cutoff).getTime();
+    var ids = state.historyScope === 'one' ? [state.historyZone] : Object.keys(AREAS);
+    var rows = [];
+    ids.forEach(function (id) {
+      var area = AREAS[id];
+      if (!area) return;
+      if (area.lots.length === 0) {
+        if (state.historyScope === 'all') rows.push({ focus: id, lot: null });
+        return;
+      }
+      area.lots.forEach(function (lot) {
+        var lotTime = new Date(lot.date).getTime();
+        if (state.historyRange !== 'all') {
+          var windowHours = state.historyRange === '24h' ? 24 : 72;
+          if (lotTime < cutoffTime - windowHours * 3600000 || lotTime > cutoffTime) return;
+        }
+        rows.push({ focus: id, lot: lot });
+      });
+    });
+    rows.sort(function (left, right) {
+      var leftTime = left.lot ? new Date(left.lot.date).getTime() : -Infinity;
+      var rightTime = right.lot ? new Date(right.lot.date).getTime() : -Infinity;
+      return rightTime - leftTime;
+    });
+    return rows;
+  }
+
+  function makeCell(tr, label, content) {
+    var td = document.createElement('td');
+    td.setAttribute('data-label', label);
+    var wrapper = document.createElement('span');
+    wrapper.className = 'cell-value';
+    if (typeof content === 'string') {
+      wrapper.textContent = content;
+    } else {
+      wrapper.appendChild(content);
+    }
+    td.appendChild(wrapper);
+    tr.appendChild(td);
+  }
+
+  function renderHistoryRows(rows) {
+    var tbody = document.getElementById('history-rows');
+    tbody.textContent = '';
+    rows.forEach(function (entry) {
+      var area = areaOf(entry.focus);
+      var lot = entry.lot;
+      var level = lot ? lot.level : 'SIN EVALUACIÓN';
+      var tr = document.createElement('tr');
+      if (!lot) tr.className = 'is-no-data';
+
+      var sector = document.createElement('span');
+      var sectorName = document.createElement('span');
+      sectorName.className = 'cell-strong';
+      sectorName.textContent = area.name;
+      var sectorMuni = document.createElement('span');
+      sectorMuni.className = 'cell-sub';
+      sectorMuni.textContent = area.municipalities;
+      sector.appendChild(sectorName);
+      sector.appendChild(sectorMuni);
+
+      var lotId = document.createElement('span');
+      lotId.className = 'cell-mono';
+      lotId.textContent = lot ? lot.batch : '—';
+
+      var levelChip = document.createElement('span');
+      levelChip.className = 'level ' + levelClassFor(level);
+      levelChip.textContent = level;
+
+      makeCell(tr, 'Sector', sector);
+      makeCell(tr, 'Lote', lotId);
+      makeCell(tr, 'Fecha del lote', lot ? lot.dateLabel : 'Sin lote registrado');
+      makeCell(tr, 'Nivel', levelChip);
+      makeCell(tr, 'Relación con el corte', relationFor(entry));
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderTimeline(rows) {
+    var track = document.getElementById('timeline-track');
+    Array.prototype.slice.call(track.querySelectorAll('.tl-dot')).forEach(function (dot) {
+      dot.parentNode.removeChild(dot);
+    });
+    var start = new Date('2026-11-14T00:00:00-03:00').getTime();
+    var end = new Date('2026-11-22T00:00:00-03:00').getTime();
+    var cutoffRatio = ((new Date(snapshot().cutoff).getTime() - start) / (end - start)) * 100;
+    cutoffRatio = Math.max(2, Math.min(98, cutoffRatio));
+    document.getElementById('timeline-cutoff').style.left = cutoffRatio + '%';
+    document.getElementById('timeline-cutoff-label').textContent = snapshot().label;
+    var lotRows = rows.filter(function (entry) { return entry.lot; });
+    lotRows.forEach(function (entry, index) {
+      var ratio = ((new Date(entry.lot.date).getTime() - start) / (end - start)) * 100;
+      ratio = Math.max(2, Math.min(98, ratio));
+      var dot = document.createElement('span');
+      dot.className = 'tl-dot tl-' + entry.lot.level.toLowerCase();
+      dot.style.left = ratio + '%';
+      dot.style.top = String(25 + (index % 2) * 8) + 'px';
+      dot.setAttribute('data-level', entry.lot.level);
+      dot.setAttribute('title', areaOf(entry.focus).name + ' · ' + entry.lot.dateLabel + ' · ' + entry.lot.level);
+      track.appendChild(dot);
+    });
+    var noData = rows.filter(function (entry) { return !entry.lot; }).length;
+    document.getElementById('timeline-summary').textContent = 'Línea de tiempo del 14 al 22 de noviembre de 2026. Corte ' + snapshot().label + '. ' + lotRows.length + ' lote(s) visibles' + (noData > 0 ? ' y ' + noData + ' sector(es) sin evaluación.' : '.');
+  }
+
+  function renderHistory() {
+    document.getElementById('history-scope-one').setAttribute('aria-pressed', String(state.historyScope === 'one'));
+    document.getElementById('history-scope-all').setAttribute('aria-pressed', String(state.historyScope === 'all'));
+    var zoneSelect = document.getElementById('history-zone');
+    zoneSelect.disabled = state.historyScope === 'all';
+    if (state.historyScope === 'one' && state.historyZone === '') state.historyZone = state.focus;
+    if (state.historyScope === 'one') zoneSelect.value = state.historyZone;
+    document.getElementById('history-range').value = state.historyRange;
+    document.getElementById('history-cutoff').textContent = snapshot().label;
+    document.getElementById('history-g6-note').textContent = state.historyScope === 'all'
+      ? 'Prototipo G6 · V1-P-04: el endpoint agregado sin zone_id no existe; /v1/risk/history exige zone_id. Esta tabla muestra todas las zonas como demostración, no como consulta disponible.'
+      : 'Prototipo G6 · V1-P-04: la consulta real exige zone_id y no existe un endpoint agregado de todas las zonas. La fila V1-P-04 de odd/tasks/v1-produccion.md es la fuente de alcance; aquí solo se ilustra.';
+
+    var rows = historyRowsData();
+    renderHistoryRows(rows);
+    renderTimeline(rows);
+    var lots = rows.filter(function (entry) { return entry.lot; }).length;
+    var noData = rows.filter(function (entry) { return !entry.lot; }).length;
+    document.getElementById('history-count').textContent = lots + (lots === 1 ? ' lote' : ' lotes') + (noData > 0 ? ' · ' + noData + ' sin evaluación' : '');
+    var scopeName = state.historyScope === 'one' ? areaOf(state.historyZone).name : 'todas las zonas';
+    document.getElementById('history-status').textContent = rows.length === 0
+      ? 'Sin lotes visibles para ' + scopeName + ' en este rango y corte.'
+      : lots + (lots === 1 ? ' lote visible' : ' lotes visibles') + ' para ' + scopeName + (noData > 0 ? '; ' + noData + ' sector(es) sin evaluación al corte.' : '.');
+    document.getElementById('history-empty').hidden = rows.length !== 0;
+    var emptyTitle = document.getElementById('history-empty-title');
+    var emptyBody = document.getElementById('history-empty-body');
+    if (rows.length === 0 && state.historyScope === 'one' && areaOf(state.historyZone).lots.length === 0) {
+      emptyTitle.textContent = 'Esta zona no tiene lotes ni evaluación al corte.';
+      emptyBody.textContent = 'La ausencia de datos no es un nivel bajo. Cambia de zona o revisa el corte compartido.';
+    } else {
+      emptyTitle.textContent = 'No hay lotes en este rango para la zona.';
+      emptyBody.textContent = 'La ausencia de datos no es un nivel bajo. Cambia el rango, el corte o la zona.';
+    }
+  }
+
+  function renderAction(id) {
+    var data = ACTIONS[id];
+    if (!data) return;
+    state.action = id;
+    var area = areaOf(data.focus);
+    var lot = lotFor(area);
+    actionButtons.forEach(function (button) {
+      if (button.getAttribute('data-action') === id) button.setAttribute('aria-current', 'true');
+      else button.removeAttribute('aria-current');
+    });
+    document.getElementById('detail-title').textContent = data.title;
+    document.getElementById('detail-code').textContent = data.code;
+    var status = document.getElementById('detail-status');
+    status.className = 'status-chip ' + data.statusClass;
+    status.textContent = data.status;
+    document.getElementById('detail-focus').textContent = area.name;
+    document.getElementById('detail-municipalities').textContent = area.municipalities;
+    document.getElementById('detail-due').textContent = data.due;
+    document.getElementById('detail-priority').textContent = data.priority;
+    document.getElementById('detail-context').textContent = 'Prioridad contextual ' + area.priority + ' · Prototipo G6 · V1-P-02. Sin puntaje; no es el nivel de riesgo. Nivel al corte: ' + (lot ? lot.level : 'SIN EVALUACIÓN') + '.';
+    document.getElementById('detail-assignee-name').textContent = data.assigneeName;
+    document.getElementById('detail-assignee-role').textContent = data.assigneeRole;
+    document.getElementById('detail-evidence').textContent = data.evidence;
+    document.getElementById('detail-assignee-box').classList.toggle('is-unassigned', data.assigneeName === 'Sin asignar');
+    document.getElementById('detail-live').textContent = 'Ficha de ' + data.code + ' actualizada.';
+  }
+
+  function renderActionsList() {
+    var status = statusFilter.value;
+    var focus = actionFocusFilter.value;
+    var visible = 0;
+    actionButtons.forEach(function (button) {
+      var data = ACTIONS[button.getAttribute('data-action')];
+      var show = (status === '' || data.statusKey === status) && (focus === '' || data.focus === focus);
+      var item = button.closest('li');
+      if (item) item.hidden = !show;
+      if (show) visible += 1;
+    });
+    actionsCount.textContent = visible + ' de 4';
+    actionsEmpty.hidden = visible !== 0;
+    actionFilterStatus.textContent = visible === 4
+      ? '4 acciones en el escenario.'
+      : visible + ' de 4 acciones con el filtro actual. La maqueta no consultó el servicio.';
+  }
+
+  function applyAssigneeCase(kind) {
+    caseButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-case') === kind));
+    });
+    if (kind === 'unavailable') {
+      assigneeSelect.disabled = true;
+      assigneeSelect.value = '';
+      directoryFailure.hidden = false;
+      assigneeHint.textContent = 'Directorio no disponible: el alta seguiría sin responsable. No se inventó una lista.';
+      return;
+    }
+    assigneeSelect.disabled = false;
+    directoryFailure.hidden = true;
+    assigneeSelect.value = kind === 'unassigned' ? '' : (lastGoodAssignee || 'u-8f3a');
+    updateAssigneeHint();
+  }
+
+  function updateAssigneeHint() {
+    var value = assigneeSelect.value;
+    if (!value) {
+      assigneeHint.textContent = 'Se crearía sin responsable. La acción puede asignarse después; el servidor real acepta omitir assignee_id.';
+      return;
+    }
+    assigneeHint.textContent = 'Se asignaría a ' + DIRECTORY[value] + ' (identificador ' + value + '). La lista es ficticia y no se consulta ningún directorio real.';
+  }
+
+  function applyG6(key) {
+    var stateData = G6_STATES[key];
+    if (!stateData) return;
+    state.g6 = key;
+    g6Buttons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-g6-state') === key));
+    });
+    var chip = document.getElementById('g6-chip');
+    chip.className = 'status-chip ' + stateData.chipClass;
+    chip.textContent = stateData.label;
+    document.getElementById('g6-machine').textContent = stateData.machine;
+    document.getElementById('g6-desc').textContent = stateData.desc;
+    document.getElementById('g6-note').textContent = 'Demostración visual. No cambia el estado de ' + ACTIONS[state.action].code + ' ni guarda nada.';
+  }
+
+  function showFeedback(title, body) {
+    feedbackTitle.textContent = title;
+    feedbackBody.textContent = body;
+    feedback.hidden = false;
+    feedback.focus();
+  }
+
+  function prepareActionFor(focusId) {
+    var area = areaOf(focusId);
+    var lot = lotFor(area);
+    state.focus = focusId;
+    if (state.historyScope === 'one') state.historyZone = focusId;
+    renderAll();
+    createFocus.value = focusId;
+    titleInput.value = 'Acción preventiva · ' + area.name;
+    descriptionInput.value = 'Preparada desde el foco ' + area.name + '. Nivel al corte: ' + (lot ? lot.level : 'SIN EVALUACIÓN') + '. Corte: ' + snapshot().label + '.';
+    feedback.hidden = true;
+    setView('acciones', false);
+    titleInput.scrollIntoView({ block: 'center', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+    titleInput.focus({ preventScroll: true });
+    prefillStatus.textContent = 'Formulario preparado desde el foco ' + area.name + '. Nada se ha guardado.';
+  }
+
+  function renderAll() {
+    renderFocusList();
+    paintMap();
+    renderSelected();
+    renderSectorTable();
+    renderHistory();
+    renderAction(state.action);
+    applyG6(state.g6);
+  }
+
+  function selectFocus(id) {
+    if (!AREAS[id]) return;
+    state.focus = id;
+    if (state.historyScope === 'one') state.historyZone = id;
+    renderAll();
+    var area = AREAS[id];
+    var lot = lotFor(area);
+    document.getElementById('focus-live').textContent = 'Foco seleccionado: ' + area.name + ', ' + (lot ? 'nivel ' + lot.level.toLowerCase() : 'sin evaluación al corte') + '.';
+  }
+
+  function setView(name, focusHeading) {
+    if (VIEWS.indexOf(name) === -1) name = 'acciones';
+    VIEWS.forEach(function (id) {
+      document.getElementById(id).hidden = id !== name;
+      var link = document.querySelector('[data-nav="' + id + '"]');
+      if (!link) return;
+      if (id === name) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+    state.view = name;
+    try {
+      if (window.location.hash !== '#' + name) window.history.replaceState(null, '', '#' + name);
+    } catch (error) {
+      // A file:// context may refuse history writes; navigation still works.
+    }
+    if (focusHeading) {
+      var heading = document.getElementById(name + '-title');
+      if (heading) heading.focus({ preventScroll: true });
+      window.scrollTo(0, 0);
+    }
+    document.getElementById('view-status').textContent = 'Vista: ' + VIEW_TITLES[name] + '.';
+  }
+
+  focusButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      selectFocus(button.getAttribute('data-focus'));
+    });
+  });
+  mapFocusButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      selectFocus(button.getAttribute('data-map-focus'));
+    });
+  });
+  Array.prototype.slice.call(document.querySelectorAll('[data-table-focus]')).forEach(function (button) {
+    button.addEventListener('click', function () {
+      selectFocus(button.getAttribute('data-table-focus'));
+    });
+  });
+  actionButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      renderAction(button.getAttribute('data-action'));
+    });
+  });
+  statusFilter.addEventListener('change', renderActionsList);
+  actionFocusFilter.addEventListener('change', renderActionsList);
+  document.getElementById('clear-action-filters').addEventListener('click', function () {
+    statusFilter.value = '';
+    actionFocusFilter.value = '';
+    renderActionsList();
+    statusFilter.focus();
+  });
+
+  cutoff.addEventListener('input', function () {
+    state.cutoff = Number(cutoff.value) === 1 ? 1 : 0;
+    renderAll();
+    cutoffLive.textContent = 'Corte ' + snapshot().label + '. Foco ' + areaOf(state.focus).name + ' conservado.';
+  });
+
+  document.getElementById('focus-to-history').addEventListener('click', function () {
+    state.historyScope = 'one';
+    state.historyZone = state.focus;
+    state.historyRange = 'all';
+    renderHistory();
+    setView('historial', true);
+  });
+  document.getElementById('focus-to-actions').addEventListener('click', function () {
+    prepareActionFor(state.focus);
+  });
+  document.getElementById('history-scope-one').addEventListener('click', function () {
+    state.historyScope = 'one';
+    if (!state.historyZone) state.historyZone = state.focus;
+    renderHistory();
+  });
+  document.getElementById('history-scope-all').addEventListener('click', function () {
+    state.historyScope = 'all';
+    renderHistory();
+  });
+  document.getElementById('history-zone').addEventListener('change', function () {
+    state.historyZone = this.value;
+    state.focus = this.value;
+    renderAll();
+  });
+  document.getElementById('history-range').addEventListener('change', function () {
+    state.historyRange = this.value;
+    renderHistory();
+  });
+  document.getElementById('history-reset').addEventListener('click', function () {
+    state.historyRange = 'all';
+    renderHistory();
+    document.getElementById('history-range').focus();
+  });
+  document.getElementById('history-to-territory').addEventListener('click', function () {
+    if (state.historyScope === 'one') state.focus = state.historyZone;
+    renderAll();
+    setView('territorio', false);
+    var target = document.getElementById('focus-name');
+    target.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  });
+  document.getElementById('history-to-actions').addEventListener('click', function () {
+    var focusId = state.historyScope === 'one' ? state.historyZone : state.focus;
+    prepareActionFor(focusId);
+  });
+  document.getElementById('view-action-focus').addEventListener('click', function () {
+    var data = ACTIONS[state.action];
+    state.focus = data.focus;
+    if (state.historyScope === 'one') state.historyZone = data.focus;
+    renderAll();
+    setView('territorio', false);
+    var target = document.getElementById('focus-name');
+    target.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  });
+
+  g6Buttons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      applyG6(button.getAttribute('data-g6-state'));
+    });
+  });
+  caseButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var kind = button.getAttribute('data-case');
+      applyAssigneeCase(kind);
+      if (kind !== 'unavailable') assigneeSelect.focus();
+    });
+  });
+  document.getElementById('directory-retry').addEventListener('click', function () {
+    applyAssigneeCase('assigned');
+    assigneeSelect.focus();
+  });
+  assigneeSelect.addEventListener('change', function () {
+    if (!assigneeSelect.disabled && assigneeSelect.value) lastGoodAssignee = assigneeSelect.value;
+    updateAssigneeHint();
+  });
+
+  createForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var title = titleInput.value.trim();
+    if (title === '') {
+      titleInput.setAttribute('aria-invalid', 'true');
+      showFeedback('Falta el título.', 'Escribe un título para continuar. La maqueta no guardó nada y no envió ninguna solicitud.');
+      titleInput.focus();
+      return;
+    }
+    titleInput.removeAttribute('aria-invalid');
+    var assignee = assigneeSelect.disabled || assigneeSelect.value === '' ? null : DIRECTORY[assigneeSelect.value];
+    var area = areaOf(createFocus.value);
+    showFeedback(
+      'Maqueta: no se guardó nada ni salió ninguna solicitud.',
+      'Se habría preparado «' + title + '» para ' + area.name + ' (' + area.municipalities + '), ' + (assignee ? 'con responsable ' + assignee : 'sin responsable') + '. Ninguna escritura llegó a un almacenamiento, cookie o servicio. En el producto real, el servidor verifica el rol, el directorio y las reglas antes de guardar.'
+    );
+    prefillStatus.textContent = 'Formulario de maqueta enviado. No se guardó ninguna acción.';
+  });
+
+  function setTheme(theme, announce) {
+    var day = theme === 'day';
+    document.documentElement.dataset.theme = day ? 'day' : 'night';
+    themeToggle.textContent = day ? 'Oscuro' : 'Claro';
+    themeToggle.setAttribute('aria-label', day ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro');
+    if (announce) themeStatus.textContent = day ? 'Tema claro activado.' : 'Tema oscuro activado.';
+  }
+  themeToggle.addEventListener('click', function () {
+    setTheme(document.documentElement.dataset.theme === 'day' ? 'night' : 'day', true);
+  });
+
+  Array.prototype.slice.call(document.querySelectorAll('[data-nav]')).forEach(function (link) {
+    link.addEventListener('click', function (event) {
+      event.preventDefault();
+      setView(link.getAttribute('data-nav'), true);
+    });
+  });
+  window.addEventListener('hashchange', function () {
+    var name = window.location.hash.replace('#', '');
+    if (VIEWS.indexOf(name) !== -1) setView(name, true);
+  });
+
+  setTheme(document.documentElement.dataset.theme === 'day' ? 'day' : 'night', false);
+  updateAssigneeHint();
+  renderAction('acc-1042');
+  applyG6('candidate');
+  renderAll();
+  var initialHash = window.location.hash.replace('#', '');
+  setView(VIEWS.indexOf(initialHash) !== -1 ? initialHash : 'acciones', false);
+})();
+</script>
+</body>
+</html>
