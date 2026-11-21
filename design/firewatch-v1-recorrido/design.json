@@ -1,0 +1,21 @@
+{
+  "title": "FireWatch v1 · Recorrido operativo",
+  "brief": "Extensión de Mapa operativo y Vista aérea a las pantallas existentes de G1 y a los siete casos G6, con temas oscuro y claro. Los datos y operaciones del recorrido son ilustrativos.",
+  "feature": "odd/tasks/v1-gentle-design.md",
+  "artboards": [
+    {
+      "file": "01-prevencion-territorial.html",
+      "title": "Prevención territorial",
+      "tradeoff": "Territorio, Historial y Acciones en un recorrido continuo. El mapa contextual compacto conserva el foco, el corte y la lista; la experiencia a pantalla completa se revisa en Vista aérea.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-control-y-acceso.html",
+      "title": "Control y acceso",
+      "tradeoff": "Agrupa las pantallas de acceso, servicios, procesamiento, sesión, auditoría y pendientes. Separa lo que la interfaz actual puede mostrar de las operaciones que G6 aún proyecta.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}
