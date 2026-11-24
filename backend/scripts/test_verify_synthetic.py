@@ -332,6 +332,28 @@ class KeycloakReadinessTests(unittest.TestCase):
         self.assertFalse(verify_synthetic.keycloak_ready(self.port, timeout=2))
 
 
+class QueryAuditProvisioningTests(unittest.TestCase):
+    def test_disposable_stack_provisions_a_separate_gateway_audit_role(self):
+        from unittest.mock import patch
+
+        harness = verify_synthetic.Harness(verify_synthetic.argparse.Namespace(timeout=30))
+        with patch.object(harness, '_start_container') as start, patch.object(
+            verify_synthetic, 'free_loopback_ports', return_value=(10001, 10002, 10003)
+        ):
+            harness.start_infrastructure()
+            harness.start_services()
+        by_alias = {call.kwargs['alias']: call.kwargs['env'] for call in start.call_args_list}
+        password = by_alias['postgres'].get('AUDIT_DB_PASSWORD')
+        self.assertIsNotNone(password)
+        self.assertIn(password, harness.redactions)
+        self.assertNotEqual(password, by_alias['postgres']['JOBS_DB_PASSWORD'])
+        self.assertEqual(
+            by_alias['gateway'].get('AUDIT_DATABASE_URL'),
+            f'postgres://audit_query_app:{password}@postgres:5432/jobs?sslmode=disable',
+        )
+        self.assertNotIn('DATABASE_URL', by_alias['gateway'])
+
+
 class ResourceOwnershipTests(unittest.TestCase):
     """Only resources this run successfully created may be removed."""
 

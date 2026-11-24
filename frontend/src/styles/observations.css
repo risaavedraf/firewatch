@@ -1,0 +1,344 @@
+/* PM-09 field observations.
+
+   Presentation only: the form, the applied filter and the persisted list of the
+   observation screen. The panel padding lives in `app.css` next to every other
+   `panel <modifier>` (the layout gate reads that file), and this sheet adds the
+   two-column form/list layout, the item rows and the narrow-view collapse. Every
+   colour is a token; nothing here decides what the server said. */
+
+.observations-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.observations-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.observations-form .field,
+.observations-toolbar .field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.observations-form .field label,
+.observations-toolbar .field label {
+  color: var(--forest-700);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.observations-form .field select,
+.observations-form .field input,
+.observations-form .field textarea,
+.observations-toolbar .field select {
+  max-width: 100%;
+}
+
+.observations-form textarea {
+  min-height: 68px;
+  resize: vertical;
+}
+
+.observations-form .field-note,
+.observations-form .field-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.observations-form .field-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.observations-form .author-note {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.observations-form .author-note p {
+  margin: 0;
+}
+
+.observations-form .author-note strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--forest-700);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.observations-form .form-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.observations-form .form-actions .panel-note {
+  margin: 0;
+}
+
+.observations-form #observation-feedback:empty {
+  display: none;
+}
+
+.observations-toolbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.observations-toolbar .field {
+  flex: 1 1 200px;
+  max-width: 280px;
+}
+
+.observation-list {
+  display: grid;
+  gap: 0;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.observation-list:empty {
+  margin: 0;
+}
+
+.observation-item {
+  padding: 11px 0;
+  border-bottom: 1px solid #eef1ee;
+}
+
+.observation-item:last-child {
+  border-bottom: 0;
+}
+
+.observation-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.observation-item-head strong {
+  font-size: 11px;
+}
+
+.observation-date {
+  color: var(--muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.observation-zone {
+  margin: 2px 0 4px;
+  color: var(--forest-700);
+  font-size: 9px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.observation-description {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.observation-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+  overflow-wrap: anywhere;
+}
+
+.observations-list-panel .empty-state {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+}
+
+.observations-list-panel .empty-state button {
+  margin-top: 4px;
+}
+
+/* AA: the shared neutral tag keeps its palette everywhere else, but the badge
+   here is 8 px, so its colour is darkened until it clears 4.5:1 on its own
+   background — the same correction `#actions` applies. */
+#observations .neutral-tag {
+  color: var(--ink);
+  background: #edf1f2;
+}
+
+#observation-zones-retry {
+  margin-bottom: 4px;
+}
+
+/* PM-10 / S4 — the adoption confirmation inside one observation row.
+
+   Presentation only. The panel groups the on-demand action picker, the explicit
+   confirmation sentence and the stored association; the disclosure control is a
+   text button so it reads as a secondary action of the row, not as a new page.
+   Every colour is a token, and the focused control keeps the page's native focus
+   ring (`app.css`), so no rule here changes what the server said. */
+
+.observation-adopt {
+  margin-top: 6px;
+  padding-left: 0;
+  color: var(--forest-700);
+  font-weight: 700;
+}
+
+.observation-adoption {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.observation-adoption-title {
+  margin: 0;
+  color: var(--forest-900);
+  font-size: 11px;
+}
+
+.observation-adoption-effect,
+.observation-adoption-candidates,
+.observation-adoption-result {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.observation-adoption-candidates,
+.observation-adoption-result {
+  color: var(--ink);
+}
+
+.observation-adoption .field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.observation-adoption .field label {
+  color: var(--forest-700);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.observation-adoption .field select {
+  max-width: 100%;
+}
+
+.observation-adoption .field-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.observation-adoption-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.observation-adoption-confirm input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.observation-adoption-confirm label {
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.observation-adoption-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* An empty live region says nothing and takes no room, exactly like the form
+   feedback it mirrors. */
+.observation-adoption .status-copy:empty,
+#observation-adoption-status:empty {
+  display: none;
+}
+
+.observation-adoption-link {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.observation-adoption-link p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.observation-adoption-link code {
+  font-size: 9px;
+}
+
+.observation-adoption-link .observation-adoption-link-note {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+@media (max-width: 1000px) {
+  .observations-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .observations-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .observations-toolbar .field {
+    max-width: none;
+  }
+
+  .observations-form .form-actions,
+  .observations-form .form-actions .primary-button {
+    justify-items: stretch;
+    justify-self: stretch;
+  }
+}

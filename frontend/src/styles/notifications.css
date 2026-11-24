@@ -1,0 +1,139 @@
+/* PM-08 notification centre.
+
+   Additive only: the screen is built from the existing panel, table, chip and
+   button primitives. These rules cover the parts the artboard defines that the
+   rest of the application does not already own — the pager row, the level bands
+   and the per-row provenance label — without changing any global surface. */
+
+#notifications .notification-controls {
+  align-items: flex-end;
+}
+
+#notifications .notification-panel .panel-heading {
+  padding: 0 0 14px;
+}
+
+#notifications .notification-controls .filter-label {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+#notifications .notification-controls select {
+  min-width: 220px;
+}
+
+#notifications .status-copy:focus-visible {
+  outline: 3px solid #cf7d4f;
+  outline-offset: 2px;
+}
+
+.notification-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.notification-page-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.notification-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.notification-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notification-level {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.notification-level-bajo {
+  background: #e7f0e6;
+  color: #396246;
+}
+
+.notification-level-medio {
+  background: var(--gold-soft);
+  color: #7f641e;
+}
+
+.notification-level-alto {
+  background: var(--terracotta-soft);
+  color: #9c472f;
+}
+
+.notification-demo,
+.notification-provenance {
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.notification-demo {
+  color: #755a22;
+}
+
+.notification-provenance {
+  color: var(--muted);
+}
+
+.notification-empty {
+  padding: 30px 18px;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  background: #f8faf7;
+  text-align: center;
+}
+
+.notification-empty .eyebrow {
+  margin-bottom: 5px;
+}
+
+.notification-empty h3 {
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.notification-empty p:last-child {
+  max-width: 640px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+@media (max-width: 720px) {
+  #notifications .notification-controls .filter-label,
+  #notifications .notification-controls select {
+    width: 100%;
+  }
+
+  .notification-pager {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .notification-page-label {
+    text-align: center;
+  }
+}

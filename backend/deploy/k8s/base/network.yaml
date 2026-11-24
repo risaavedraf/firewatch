@@ -46,6 +46,13 @@ spec:
         - podSelector:
             matchExpressions: [{key: app, operator: In, values: [prevention]}]
       ports: [{protocol: TCP, port: 8084}]
+    # PM-10 S3: the query recorder writes the selected business reads into the
+    # jobs database through its own insert-only role. This is the one database
+    # connection the gateway has, and it reaches postgres and nothing else.
+    - to:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: postgres}
+      ports: [{protocol: TCP, port: 5432}]
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -198,7 +205,10 @@ spec:
             matchExpressions:
               - key: app
                 operator: In
-                values: [jobs, risk, prevention, keycloak, migrate]
+                # `gateway` is here for the query recorder (PM-10 S3): it opens
+                # the jobs database directly with the insert-only role, and the
+                # destination has to admit it as well as its own egress.
+                values: [jobs, risk, prevention, keycloak, migrate, gateway]
       ports: [{protocol: TCP, port: 5432}]
 ---
 # The broker is reached by the two services that publish or consume; prevention

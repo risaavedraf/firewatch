@@ -62,6 +62,15 @@ func run() error {
 	if err := startupTransport(os.Getenv("APP_ENV")); err != nil {
 		return err
 	}
+	// PM-10 S3: the selected business reads are recorded through the narrow
+	// insert-only writer in the jobs database. The credential is required and its
+	// transport is guarded before any listener is bound, so this binary cannot start
+	// in a state where an audited success would be forwarded without a record.
+	auditStore, err := newQueryAuditStore(os.Getenv(auditDatabaseURLEnv), os.Getenv("APP_ENV"))
+	if err != nil {
+		return err
+	}
+	defer auditStore.Close()
 	// The listener's transport is decided before the server is built, so a
 	// deployment with no key pair stops here instead of binding a plaintext port
 	// nobody notices.
@@ -69,7 +78,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	srv := &http.Server{Addr: ":8080", Handler: handler.NewWithRootCAs(verifier, jobsURL, riskURL, preventionURL, webOrigin, rootCAs), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
+	srv := &http.Server{Addr: ":8080", Handler: handler.NewWithQueryRecorder(verifier, jobsURL, riskURL, preventionURL, webOrigin, rootCAs, auditStore), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16384}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
