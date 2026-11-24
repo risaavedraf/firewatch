@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { evaluatePipeline, evaluateServiceStatus } from '../../src/domain/readiness';
+import { evaluateGatewayProbe, evaluatePipeline, evaluateServiceStatus } from '../../src/domain/readiness';
 
 const NOW = Date.parse('2026-01-01T12:00:00.000Z');
 
@@ -186,5 +186,44 @@ describe('the verified branch needs unearned-claim evidence', () => {
       expect(jobs.label).toBe(verifiedLabel);
       expect(evaluatePipeline(risk, jobs).verified).toBe(true);
     }
+  });
+});
+
+// PM-16 — the gateway row is a LIVE probe, kept deliberately separate from the
+// authenticated status snapshots. A 204 proves the gateway process answered; it
+// never accredits the risk or jobs pipeline, and a failed probe is not a claim
+// that a service is down.
+describe('the gateway availability probe', () => {
+  test('an unexecuted probe says so instead of borrowing a state', () => {
+    const decision = evaluateGatewayProbe(null);
+
+    expect(decision.answered).toBe(false);
+    expect(decision.label).toMatch(/sin consultar/i);
+    expect(decision.label).not.toMatch(/verificado|disponible/i);
+  });
+
+  test('a gateway answer is only gateway availability and never accredits the pipeline', () => {
+    const decision = evaluateGatewayProbe({ ok: true });
+
+    expect(decision.answered).toBe(true);
+    expect(decision.label).toMatch(/204/);
+    expect(decision.label).toMatch(/no acredita el pipeline/i);
+  });
+
+  test('a failed probe names the HTTP status it observed', () => {
+    const decision = evaluateGatewayProbe({ ok: false, status: 502 });
+
+    expect(decision.answered).toBe(false);
+    expect(decision.label).toContain('502');
+    expect(decision.label).toMatch(/no acredita el pipeline/i);
+    expect(decision.label).not.toMatch(/ca[ií]do|down/i);
+  });
+
+  test('a transport failure without a status invents no code', () => {
+    const decision = evaluateGatewayProbe({ ok: false });
+
+    expect(decision.answered).toBe(false);
+    expect(decision.label).toMatch(/no respondió/i);
+    expect(decision.label).not.toMatch(/HTTP/);
   });
 });

@@ -19,6 +19,7 @@ import type {
   AuditEntry,
   BatchCollection,
   Job,
+  ModelRegistry,
   Observation,
   ObservationType,
   ObservationZone,
@@ -1043,4 +1044,19 @@ export async function modelVersions(signal?: AbortSignal): Promise<Outcome<unkno
     return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
   }
   return { ok: true, data: result.body.models };
+}
+
+// The FULL `/v1/models` envelope, additive beside `modelVersions` (which keeps
+// serving the overview panel unchanged). The registry list is still validated so
+// a broken envelope stays a malformed read, but the `effective` projection is
+// passed through UNTOUCHED: `core/active-rule.ts` owns the fail-closed identity
+// decision, and an absent or malformed projection is a truthful unknown rather
+// than a reason to discard the whole read.
+export async function modelRegistry(signal?: AbortSignal): Promise<Outcome<ModelRegistry>> {
+  const result = await requestJson('models', `${gatewayOrigin}${routes.models}`, { authenticated: true }, signal);
+  if (result.state !== 'ok') return resultFailure<ModelRegistry>(result);
+  if (!record(result.body) || !Array.isArray(result.body.models) || !result.body.models.every(record)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  return { ok: true, data: { models: result.body.models, effective: result.body.effective } };
 }
