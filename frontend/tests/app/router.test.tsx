@@ -45,13 +45,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the eight views are declared once, with the two merged pairs and no duplicate hash', () => {
+test('the nine views are declared once, with the two merged pairs and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
   // (Acceso) and the sidebar order is the declared order. `#actions` joins
-  // Prevención beside the territory and the batch history (T12).
-  expect(ids).toEqual(['overview', 'history', 'actions', 'sources', 'jobs', 'pending', 'session', 'audit']);
+  // Prevención beside the territory and the batch history (T12), and
+  // `#notifications` joins Coordinación beside the activity register (PM-08).
+  expect(ids).toEqual([
+    'overview',
+    'history',
+    'actions',
+    'sources',
+    'jobs',
+    'pending',
+    'session',
+    'notifications',
+    'audit',
+  ]);
   expect(new Set(ids).size).toBe(ids.length);
   // `#session` carries the permissions matrix and `#sources` carries the pipeline
   // status: the two merged pairs must not survive as their own routes, or the
@@ -104,4 +115,15 @@ test('the active navigation entry follows the opened view and marks nothing else
   const active = [...document.querySelectorAll('nav a[aria-current="true"]')];
   expect(active).toHaveLength(1);
   expect(active[0]).toHaveAttribute('href', '#audit');
+});
+
+test('the notification centre has its own hash and navigation entry', () => {
+  render(<App />);
+
+  navigate('#notifications');
+  expect(renderedViews()).toEqual(['notifications']);
+
+  const link = screen.getByRole('link', { name: /notificaciones/i });
+  expect(link).toHaveAttribute('href', '#notifications');
+  expect(link).toHaveAttribute('aria-current', 'true');
 });

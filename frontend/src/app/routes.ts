@@ -1,12 +1,14 @@
 import type { IconName } from '../components/ui';
 
-// The seven views of the application. The nine areas of the retired page are all
+// The nine views of the application. The nine areas of the retired page are all
 // still here: `#sources` also carries the dependent-services status and
 // `#session` also carries the permissions matrix, which is the grouping the user
 // chose (D1). `#pending` gained the navigation entry it never had (D2): the
 // "not implemented yet" inventory is exactly the kind of honesty statement that
-// must not depend on someone scrolling to the bottom of the page.
-export type ViewId = 'overview' | 'history' | 'actions' | 'sources' | 'jobs' | 'session' | 'pending' | 'audit';
+// must not depend on someone scrolling to the bottom of the page. `#notifications`
+// is PM-08's own route: the persisted PM-07 alerts are a destination, not a
+// panel hidden inside another view.
+export type ViewId = 'overview' | 'history' | 'actions' | 'sources' | 'jobs' | 'session' | 'notifications' | 'pending' | 'audit';
 
 export interface RouteDefinition {
   id: ViewId;
@@ -27,6 +29,7 @@ export const routes: readonly RouteDefinition[] = [
   { id: 'jobs', hash: '#jobs', label: 'Procesamiento', group: 'Información', icon: 'jobs', title: 'Procesamiento asíncrono' },
   { id: 'pending', hash: '#pending', label: 'Aún no implementado', group: 'Información', icon: 'pending', title: 'Aún no implementado' },
   { id: 'session', hash: '#session', label: 'Sesión y permisos', group: 'Acceso', icon: 'session', title: 'Sesión y permisos' },
+  { id: 'notifications', hash: '#notifications', label: 'Notificaciones', group: 'Coordinación', icon: 'attention', title: 'Notificaciones' },
   { id: 'audit', hash: '#audit', label: 'Registro de actividad', group: 'Coordinación', icon: 'audit', title: 'Registro de actividad' },
 ];
 

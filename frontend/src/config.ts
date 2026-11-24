@@ -78,6 +78,10 @@ export const routes = {
   // published batch of every zone that has one, answered in a single request.
   batches: '/v1/risk/batches',
   sources: '/v1/risk/sources',
+  // PM-08's frozen read: persisted PM-07 risk alerts, newest first by default,
+  // keyset-paginated through the opaque `cursor` the previous page returned.
+  // The server owns the default page size (50); the client sends no `limit`.
+  alerts: '/v1/risk/alerts',
   riskStatus: '/v1/risk/status',
   jobsStatus: '/v1/jobs/status',
   scenarios: '/v1/risk/synthetic-scenarios',
