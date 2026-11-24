@@ -542,7 +542,7 @@ This is the step the whole file exists for, and it must not run before Phase 3.
 kubectl apply -k backend/deploy/k8s/overlays/delivery
 ```
 
-**Expected:** the objects created or configured — namespace, ConfigMaps, StatefulSets, Deployments, Services, PodDisruptionBudgets, HPAs, NetworkPolicies, the Ingress, and the two Jobs `migrate-v14` and `broker-provision`. Kustomize renders a list and guarantees no order; `base/kustomization.yaml` lists the data plane first because the application cannot become ready before it, and that intent is honoured by the retries below, not by the apply.
+**Expected:** the objects created or configured — namespace, ConfigMaps, StatefulSets, Deployments, Services, PodDisruptionBudgets, HPAs, NetworkPolicies, the Ingress, and the two Jobs `migrate-v17` and `broker-provision`. Kustomize renders a list and guarantees no order; `base/kustomization.yaml` lists the data plane first because the application cannot become ready before it, and that intent is honoured by the retries below, not by the apply.
 
 **If it fails:** `violates PodSecurity "restricted"` means a field the base already satisfies was changed. `firewatch-tls not found` is not an apply failure — that is 4.3.
 
@@ -569,9 +569,9 @@ kubectl -n firewatch get statefulsets
 kubectl -n firewatch get jobs
 ```
 
-**Expected:** `migrate-v14` `Complete 1/1` and `broker-provision` `Complete 1/1`. The migration Job runs `migrate-risk`, then `migrate-prevention`, then `migrate-jobs` as one ordered unit (`base/jobs-migrate.yaml:89-178`), because the prevention schema takes the next versions of the risk database's ledger.
+**Expected:** `migrate-v17` `Complete 1/1` and `broker-provision` `Complete 1/1`. The migration Job runs `migrate-risk`, then `migrate-prevention`, then `migrate-jobs` as one ordered unit (`base/jobs-migrate.yaml:89-178`), because the prevention schema takes the next versions of the risk database's ledger.
 
-**If it fails:** `migrate-v14` backs off six times by design, because a cold cluster starts the Job before PostgreSQL answers; a `Failed` Job after that is a schema or credential problem a human reads. `broker-provision` failing means the broker topology was not provisioned and every service will fail its next reconnect.
+**If it fails:** `migrate-v17` backs off six times by design, because a cold cluster starts the Job before PostgreSQL answers; a `Failed` Job after that is a schema or credential problem a human reads. `broker-provision` failing means the broker topology was not provisioned and every service will fail its next reconnect.
 
 **Do not continue unless** both Jobs report `Complete 1/1`.
 

@@ -14,12 +14,15 @@ this one, so its versions cannot collide with the two below.
 
 | Module | Versions in the shared ledger | Source |
 | --- | --- | --- |
-| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13 | [risk embed.go](../services/risk/migrations/embed.go):62-76 |
+| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17 | [risk embed.go](../services/risk/migrations/embed.go):68-80 |
 | `prevention` | 9, 11, 14 | [prevention embed.go](../services/prevention/migrations/embed.go):39-45 |
 | `jobs` | 1, 2, 3, 4 | own database, not in this ledger |
 
 The gaps are deliberate: 9, 11 and 14 belong to `prevention`, and nothing may be
-inserted into a gap to "tidy" the sequence.
+inserted into a gap to "tidy" the sequence. Versions 15 and 16 are reserved by
+the registered sibling branches of PM-09 and PM-10, so no module in this tree
+claims them either: taking one of those numbers here would make the sibling's
+migration skip in silence once the branches are integrated.
 
 ## The rule
 
@@ -35,20 +38,22 @@ inserted into a gap to "tidy" the sequence.
 5. A collision is a test failure, not a review comment. The guard below already
    exists; a reviewer does not need to spot the overlap by eye.
 
-## Next free version = 15
+## Next free version = 18
 
-The highest version in use is **14**, claimed by
-`backend/services/prevention/migrations/014_action_assignee.sql`, so the next
-free integer across both services is **15**. Prevention's next migration must
-take version 15, not 12 and not the next integer in its own list: `risk` holds 12
-(`012_readings.sql`) and 13, and 9, 11 and 14 are already recorded as prevention's
-own rows. This paragraph is the determination V1-M-04 asks for — prevention's
-next migration version is 15 by this rule.
+The highest version claimed in this tree is **17**, `risk`'s
+`backend/services/risk/migrations/017_risk_alerts.sql`, so the next free integer
+across both services is **18**. Prevention's next migration must take version 18,
+not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13 and
+17, `prevention` holds 9, 11 and 14, and 15 and 16 are reserved by the sibling
+branches of PM-09 and PM-10. This paragraph is the determination the rule asks
+for: a migration is numbered against the integrated tree, never against its own
+module.
 
-The previous determination said 14, and prevention's assignment migration took
-it. That is the rule working, not an exception: a determination is consumed when
-its version is claimed, and this section is updated with the claim so it never
-names a version someone already owns.
+The previous determination said 15 and was consumed twice over by the PM-09 and
+PM-10 reservations before any file existed in this tree. That is the rule working,
+not an exception: a version is reserved when a registered branch claims it, and
+this section is updated with the claim so it never names a version someone already
+owns.
 
 ## Enforcement
 
@@ -73,6 +78,11 @@ guarantee — a green run in a split tree proves nothing about collisions, and t
 claim only holds where both modules were checked out together.
 
 ## History
+
+Version 17 is PM-07's alert table (`017_risk_alerts.sql`). It was claimed against
+the integrated tree after 15 and 16 were reserved by PM-09 and PM-10, and it is
+the first version this branch adds: risk's highest claim is no longer 13, so the
+ledger's claim table and the Job's name (`migrate-v17`) were updated with it.
 
 Version 11 was claimed twice: `risk`'s `ml_fixture_v1` and `prevention`'s
 `011_preventive_evidence.sql` both registered it, and the second migrator to run
