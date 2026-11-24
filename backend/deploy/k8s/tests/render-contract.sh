@@ -217,9 +217,13 @@ printf '%s\n' "$render" | grep -q 'name: broker-provision' ||
 # would silently skip them. This keeps the name honest with the tree.
 schema_version=$(ls ../../services/risk/migrations/*.sql ../../services/prevention/migrations/*.sql |
 	sed 's|.*/||' | grep -oE '^[0-9]+' | sort -n | tail -1 | sed 's/^0*//')
-[ -n "$schema_version" ] || fail "could not read the migration versions from the tree"
-printf '%s\n' "$render" | grep -q "^  name: migrate-v$schema_version$" ||
-	fail "the migrate Job is not named migrate-v$schema_version: a stale name is not re-run by apply and would skip the new migrations"
+jobs_schema_version=$(ls ../../services/jobs/migrations/*.sql |
+	sed 's|.*/||' | grep -oE '^[0-9]+' | sort -n | tail -1 | sed 's/^0*//')
+[ -n "$schema_version" ] && [ -n "$jobs_schema_version" ] ||
+	fail "could not read both migration ledgers from the tree"
+migration_job="migrate-v${schema_version}-j${jobs_schema_version}"
+printf '%s\n' "$render" | grep -q "^  name: $migration_job$" ||
+	fail "the migrate Job is not named $migration_job: a stale name is not re-run by apply and would skip new migrations"
 
 # --- migration order is a pod-level guarantee of the API server ----------------
 init_order=$(awk '/^      initContainers:/{f=1;next} /^      containers:/{f=0} f&&/^        - name:/{print $3}' base/jobs-migrate.yaml | tr '\n' ' ')
@@ -264,6 +268,29 @@ grep -q 'rabbitmq-topology:deploy/local/rabbitmq-topology.sh:rabbitmq-topology.s
 	fail "migrate-egress must reach postgres:5432"
 [ "$(awk '/name: broker-provision-egress/,/^---/' base/network.yaml | grep -c 'port: 15671')" = 1 ] ||
 	fail "broker-provision-egress must reach the management port"
+
+# --- the query recorder's edge (PM-10 S3) ------------------------------------
+# The gateway writes the selected business reads into the jobs database through
+# its own insert-only role, so it needs that one destination both ways: an egress
+# rule that only opens the source leaves the pod unable to dial, and an ingress
+# rule that omits the gateway leaves the destination shut (the defect L6 found in
+# the data plane). Nothing else about the gateway's network changes.
+[ "$(awk '/name: gateway-entry/,/^---/' base/network.yaml | grep -c 'port: 5432')" = 1 ] ||
+	fail "gateway-entry must open postgres:5432 for the query recorder"
+[ "$(awk '/name: postgres-entry/,/^---/' base/network.yaml | grep -c ', gateway]')" = 1 ] ||
+	fail "postgres-entry must admit the gateway's query recorder"
+[ "$(grep -c 'secretRef: {name: audit-runtime}' base/workloads.yaml)" = 1 ] ||
+	fail "the gateway Deployment must mount the audit-runtime Secret, and only it"
+printf '%s\n' "$render" | grep -q 'name: audit-runtime' ||
+	fail "the rendered gateway does not reference the audit-runtime Secret"
+grep -q 'AUDIT_DATABASE_URL=postgres://audit_query_app:' bootstrap-secrets.sh ||
+	fail "bootstrap-secrets.sh does not render the recorder's insert-only DSN into audit-runtime"
+grep -q '"AUDIT_DB_PASSWORD=' bootstrap-secrets.sh ||
+	fail "bootstrap-secrets.sh does not generate the recorder's credential"
+grep -q 'key: AUDIT_DB_PASSWORD' base/postgres.yaml ||
+	fail "the postgres StatefulSet does not pass the recorder credential to the init script"
+grep -q 'GRANT CONNECT ON DATABASE jobs TO audit_query_app' ../local/postgres-init.sh ||
+	fail "postgres-init.sh does not create a login path for the recorder role"
 
 # --- Pod Security "restricted" is declared, not assumed ----------------------
 for f in base/jobs-migrate.yaml base/broker-provision.yaml; do

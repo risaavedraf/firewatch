@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -47,8 +48,21 @@ func New(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin string) h
 
 // NewWithRootCAs is New with the internal CA the proxy trusts for its https
 // upstreams. A nil pool is the system roots, so every caller that has no
-// TLS_CA_FILE keeps the behaviour it had before this parameter existed.
+// TLS_CA_FILE keeps the behaviour it had before this parameter existed. Like New
+// it records no query: see NewWithQueryRecorder.
 func NewWithRootCAs(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin string, rootCAs *x509.CertPool) http.Handler {
+	return NewWithQueryRecorder(verifier, jobs, risk, prevention, webOrigin, rootCAs, unrecordedQueries{})
+}
+
+// NewWithQueryRecorder is the constructor a deployment uses: the recorder writes
+// one audit row per selected successful business read (see audit.go). A nil
+// recorder records nothing, which is the behaviour of the two constructors above
+// and never the behaviour of cmd/server.
+func NewWithQueryRecorder(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin string, rootCAs *x509.CertPool, recorder QueryRecorder) http.Handler {
+	return newGateway(verifier, jobs, risk, prevention, webOrigin, rootCAs, recorder)
+}
+
+func newGateway(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin string, rootCAs *x509.CertPool, recorder QueryRecorder) http.Handler {
 	mux := http.NewServeMux()
 	proxy := func(target *url.URL) http.Handler {
 		return &httputil.ReverseProxy{
@@ -67,10 +81,44 @@ func NewWithRootCAs(verifier Verifier, jobs, risk, prevention *url.URL, webOrigi
 			// gateway's own id as the only value of the header.
 			ModifyResponse: func(res *http.Response) error {
 				res.Header.Del("X-Request-ID")
+				// S3 (PM-10): a selected business read owes its audit row before its body
+				// reaches the caller. ReverseProxy runs this hook after the upstream status is
+				// known and before it copies a byte, so an error returned here answers below
+				// instead of forwarding a success nobody recorded. res.Request is the outbound
+				// request, which inherits the pending record from the inbound one.
+				if res.Request == nil {
+					return nil
+				}
+				pending, ok := pendingQueryFrom(res.Request.Context())
+				if !ok {
+					return nil
+				}
+				// Only a confirmed upstream success is a read that produced data. Every error
+				// answer is forwarded and left out of the trail, including the documented 404
+				// empty state of /v1/risk/latest: nothing was read, so nothing is recorded.
+				if res.StatusCode < 200 || res.StatusCode >= 300 {
+					return nil
+				}
+				if err := pending.flush(res.Request.Context()); err != nil {
+					// The record carries no URL, header or token, so naming the action and the
+					// correlation id here quotes only what the trail already holds.
+					slog.Error("query_audit_failed", "request_id", pending.record.TraceID, "action", pending.record.Action, "error", err)
+					return errQueryAuditUnavailable
+				}
 				return nil
 			},
-			Transport:    newUpstreamTransport(rootCAs),
-			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) { failure(w, 502, "upstream_unavailable") },
+			Transport: newUpstreamTransport(rootCAs),
+			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+				// The two failures are answered differently on purpose: an unreachable service
+				// is the documented 502 upstream_unavailable, while a read that happened but
+				// could not be recorded is a storage failure of this gateway and answers the
+				// documented 503 storage_unavailable, so no audited success is ever unlogged.
+				if errors.Is(err, errQueryAuditUnavailable) {
+					failure(w, http.StatusServiceUnavailable, "storage_unavailable")
+					return
+				}
+				failure(w, 502, "upstream_unavailable")
+			},
 		}
 	}
 	mux.Handle("/v1/jobs", proxy(jobs))
@@ -110,9 +158,11 @@ func NewWithRootCAs(verifier Verifier, jobs, risk, prevention *url.URL, webOrigi
 		start := time.Now()
 		// Every response of this chain, including the error and health answers, is
 		// timed and bucketed by class through one wrapper. The real writer stays
-		// reachable through Unwrap, so the proxy's flush still works.
-		recorder := &statusRecorder{ResponseWriter: w}
-		w = recorder
+		// reachable through Unwrap, so the proxy's flush still works. It is named
+		// observed rather than recorder because the query recorder is the other
+		// thing this handler carries, and the two must not be confused.
+		observed := &statusRecorder{ResponseWriter: w}
+		w = observed
 		// S4: one correlation id, one format. This is the canonical dashed UUID
 		// string the jobs and risk services emit: they parse the value forwarded
 		// here and write back id.String(), and the JSON error body, the exposed
@@ -132,7 +182,7 @@ func NewWithRootCAs(verifier Verifier, jobs, risk, prevention *url.URL, webOrigi
 			// Observed after the response is written, so a scrape never renders its
 			// own request inside the body it is producing; that sample lands in the
 			// next scrape, exactly like every other request.
-			status := recorder.status
+			status := observed.status
 			if status == 0 {
 				status = http.StatusOK
 			}
@@ -204,6 +254,15 @@ func NewWithRootCAs(verifier Verifier, jobs, risk, prevention *url.URL, webOrigi
 		if !subject.Allow(token.Subject) {
 			rateLimited(w)
 			return
+		}
+		// S3 (PM-10): after the bearer gate and both quota decisions, a request that is
+		// one of the selected business reads owes a record. It is attached here, before
+		// the proxy runs, and written only if the upstream confirms the read; the actor
+		// is the verified subject and the display claim the provider signed, and the
+		// trace id is the one this request already carries.
+		if route, ok := queryRouteFor(r.Method, r.URL.Path); ok && recorder != nil {
+			actorID, actorName := verifiedActor(token)
+			r = r.WithContext(withPendingQuery(r.Context(), recorder, QueryRecord{ActorID: actorID, ActorName: actorName, Action: route.Action, TraceID: id}))
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 8192)
 		mux.ServeHTTP(w, r)

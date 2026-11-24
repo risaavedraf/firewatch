@@ -14,6 +14,8 @@ python scripts/smoke.py
 
 `init_env.py` creates random local credentials and refuses to overwrite `.env`. On a previously initialized checkout, skip that command. The smoke script waits for identity startup, verifies permissions and input validation, submits a job, checks idempotency, waits for publication, queries history/audit and checks dead-letter routing. It reads local credentials without printing them.
 
+**Upgrading an existing local database:** add a new `AUDIT_DB_PASSWORD` (48 random hexadecimal characters) to your private Compose environment. Do not regenerate unrelated credentials or delete volumes. Run the jobs migration through version 006, then use an interactive `psql` session as the database operator: `\password audit_query_app`, enter the same private value, and run `ALTER ROLE audit_query_app LOGIN;`. On fresh volumes the init script handles the login setup. A standalone development gateway also needs `AUDIT_DATABASE_URL` for this role in the `jobs` database; do not reuse `jobs_app` credentials. Without a usable writer, a selected successful upstream read returns `503 storage_unavailable` instead of an unlogged success.
+
 **`docker compose up` brings up the API only.** The gateway no longer serves a web page: `GET /` returns `404`, and the former page assets were removed. The browser application lives in [`frontend/`](../frontend/README.md), is served on its own port and started separately. See [Browser login](#browser-login-local-demo).
 
 | Local endpoint | Purpose |
@@ -80,7 +82,8 @@ Use the demo script or an API client to obtain a token from Keycloak's `/realms/
 | `GET /v1/prevention/observations?type=` | viewer/admin | PM-09 field observations, newest first, at most 200 rows; `type` is an optional member of the closed catalogue |
 | `POST /v1/prevention/observations` | admin | Records one field observation: `zone_id` from the zone catalogue, closed `type`, calendar `observed_on`, `description`; the author is the verified token subject and is never sent by the client |
 | `GET /v1/prevention/observations/zones` | viewer/admin | Zone options for the observation form, read from the authoritative `zones` catalogue (name then code), including zones without geometry |
-| `GET /v1/audit` | admin | Last 100 administrative/publication records |
+| `POST /v1/prevention/observations/{id}/adoption` | admin | Confirms the selected existing action is needed and links the observation without assigning staff or changing the action's status |
+| `GET /v1/audit` | admin | Last 100 mutation and selected business-query events, with a durable event ID, verified actor, and detail |
 
 Send `Authorization: Bearer <access_token>`. No cookies are used in this backend slice. Unknown or invalid JWTs produce `401`; insufficient roles produce `403`. Full definitions: [`contracts/openapi/firewatch-v1.yaml`](contracts/openapi/firewatch-v1.yaml).
 

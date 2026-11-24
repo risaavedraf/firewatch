@@ -26,6 +26,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python scripts/init_env.py}
       JOBS_DB_PASSWORD: ${JOBS_DB_PASSWORD:?required}
       RISK_DB_PASSWORD: ${RISK_DB_PASSWORD:?required}
+      # The gateway's query-recorder credential (PM-10 S3). It belongs to the same
+      # secret block as the other role passwords, and postgres-init.sh only creates
+      # the role on a fresh volume: an existing volume needs the
+      # `ALTER ROLE audit_query_app LOGIN PASSWORD` step deploy/k8s/README.md
+      # documents, because the migration creates that role without a password.
+      AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD:?required}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -267,10 +273,24 @@ services:
       JOBS_URL: http://jobs:8080
       RISK_URL: http://risk:8080
       PREVENTION_URL: http://prevention:8084
+      # The narrow insert-only writer of the selected business reads (PM-10 S3).
+      # audit_query_app may execute one function in the jobs database and read
+      # nothing; the credential exists so the gateway can record a consulta, and
+      # the gateway refuses to start without it rather than answering audited reads
+      # 200 with no record.
+      AUDIT_DATABASE_URL: postgres://audit_query_app:${AUDIT_DB_PASSWORD:?required}@postgres:5432/jobs?sslmode=disable
       WEB_ORIGIN: http://localhost:4173
     ports: ['127.0.0.1:8080:8080']
     networks: [backend, edge]
-    depends_on: [jobs, risk, prevention, identity]
+    depends_on:
+      jobs: {condition: service_started}
+      risk: {condition: service_started}
+      prevention: {condition: service_started}
+      identity: {condition: service_started}
+      # The writer function the recorder calls is created by the jobs migrations,
+      # so the recorded reads would answer 503 until that job finished. Ordering it
+      # here keeps a cold start from serving a visible storage failure.
+      jobs-migrate: {condition: service_completed_successfully}
 
   prometheus:
     image: prom/prometheus:v3.2.1

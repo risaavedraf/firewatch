@@ -16,7 +16,13 @@ this one, so its versions cannot collide with the two below.
 | --- | --- | --- |
 | `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13 | [risk embed.go](../services/risk/migrations/embed.go):62-76 |
 | `prevention` | 9, 11, 14, 15, 16 | [prevention embed.go](../services/prevention/migrations/embed.go) |
-| `jobs` | 1, 2, 3, 4 | own database, not in this ledger |
+| `jobs` | 1, 2, 3, 4, 5, 6 | own database, not in this ledger |
+
+The `jobs` row is complete as of PM-10: `005_audit_event_metadata.sql` added the audit
+metadata and `006_query_audit_writer.sql` the gateway's insert-only query writer.
+Neither takes a number from the shared ledger above, and neither moves "next free
+version": the gateway writes into the jobs database, which has its own
+`schema_migrations` and its own migrator.
 
 The gaps in risk's sequence are deliberate: 9, 11, 14, 15 and 16 belong to
 `prevention`, and nothing may

@@ -29,3 +29,11 @@ var JobFailureState string
 //
 //go:embed 005_audit_event_metadata.sql
 var AuditEventMetadata string
+
+// QueryAuditWriter adds the narrow insert-only surface the gateway records
+// selected business reads through: a dedicated role, no DML on the trail, and one
+// SECURITY DEFINER function that fixes the event kind to 'query'. It is
+// forward-only and guarded, and it never stores a credential.
+//
+//go:embed 006_query_audit_writer.sql
+var QueryAuditWriter string
