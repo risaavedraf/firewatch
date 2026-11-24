@@ -56,46 +56,12 @@ func NewWithStatus(store Repository, verifier Verifier, check StatusCheck, provi
 func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner CycleRunner, providers ...DescriptorProvider) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/risk/status", statusHandler(check))
-	get := func(latest bool) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			zone := r.URL.Query().Get("zone_id")
-			// Exactly one zone_id parameter is required. A missing, repeated or
-			// empty parameter is a malformed request, not an unknown zone.
-			if zone == "" || len(r.URL.Query()) != 1 || len(r.URL.Query()["zone_id"]) != 1 {
-				fail(w, 400, "invalid_zone")
-				return
-			}
-			exists, err := store.ZoneExists(r.Context(), zone)
-			if err != nil {
-				fail(w, 503, "storage_unavailable")
-				return
-			}
-			if !exists {
-				fail(w, 400, "invalid_zone")
-				return
-			}
-			limit := 100
-			if latest {
-				limit = 1
-			}
-			batches, err := store.List(r.Context(), zone, limit)
-			if err != nil {
-				fail(w, 503, "storage_unavailable")
-				return
-			}
-			if latest {
-				if len(batches) == 0 {
-					respond(w, 404, map[string]string{"code": "no_published_batch", "data_status": "insufficient"})
-					return
-				}
-				respond(w, 200, batches[0])
-				return
-			}
-			respond(w, 200, batches)
-		}
-	}
-	mux.HandleFunc("GET /v1/risk/latest", get(true))
-	mux.HandleFunc("GET /v1/risk/history", get(false))
+	mux.HandleFunc("GET /v1/risk/latest", latestBatch(store))
+	mux.HandleFunc("GET /v1/risk/history", history(store))
+	// The export is registered as its own exact path next to the JSON read it
+	// mirrors: it is additive, and the pair shares one read (readHistory), one
+	// zone gate and one window, so neither representation can drift from the other.
+	mux.HandleFunc("GET /v1/risk/history.csv", historyCSV(store))
 	mux.HandleFunc("GET /v1/risk/batches", latestPerZone(store))
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
@@ -110,6 +76,87 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 	}
 	mux.HandleFunc("GET /v1/risk/sources", sourcesWithCycle(provider, runner))
 	return Authorize(verifier, mux)
+}
+
+// historyWindow is the bounded number of batches the per-zone history serves, in
+// the order storage returns them (descending request time). It is defined once
+// because the JSON read and the CSV export must answer the same window.
+const historyWindow = 100
+
+// zoneParam validates the one zone_id parameter every per-zone read accepts and
+// asks the catalogue for membership. On failure it has already written the
+// response and the caller only returns: a missing, repeated, empty or unknown
+// zone is a malformed request, never an empty answer.
+func zoneParam(w http.ResponseWriter, r *http.Request, store Repository) (string, bool) {
+	zone := r.URL.Query().Get("zone_id")
+	// Exactly one zone_id parameter is required. A missing, repeated or
+	// empty parameter is a malformed request, not an unknown zone.
+	if zone == "" || len(r.URL.Query()) != 1 || len(r.URL.Query()["zone_id"]) != 1 {
+		fail(w, 400, "invalid_zone")
+		return "", false
+	}
+	exists, err := store.ZoneExists(r.Context(), zone)
+	if err != nil {
+		fail(w, 503, "storage_unavailable")
+		return "", false
+	}
+	if !exists {
+		fail(w, 400, "invalid_zone")
+		return "", false
+	}
+	return zone, true
+}
+
+// latestBatch serves the newest requested batch of one zone. No batch is the
+// documented insufficient-data answer, not an empty array.
+func latestBatch(store Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		zone, ok := zoneParam(w, r, store)
+		if !ok {
+			return
+		}
+		batches, err := store.List(r.Context(), zone, 1)
+		if err != nil {
+			fail(w, 503, "storage_unavailable")
+			return
+		}
+		if len(batches) == 0 {
+			respond(w, 404, map[string]string{"code": "no_published_batch", "data_status": "insufficient"})
+			return
+		}
+		respond(w, 200, batches[0])
+	}
+}
+
+// readHistory is the single bounded history read: the JSON route and the CSV
+// export both call it, so the accepted zone, the window and the failure
+// vocabulary cannot drift between the two representations. It returns the
+// validated zone as well, because the export's filename declares it. On failure
+// the response is already written.
+func readHistory(w http.ResponseWriter, r *http.Request, store Repository) (string, []repository.Batch, bool) {
+	zone, ok := zoneParam(w, r, store)
+	if !ok {
+		return "", nil, false
+	}
+	batches, err := store.List(r.Context(), zone, historyWindow)
+	if err != nil {
+		fail(w, 503, "storage_unavailable")
+		return "", nil, false
+	}
+	return zone, batches, true
+}
+
+// history serves the bounded window as JSON. Its body is unchanged, including
+// the empty answer storage produced: this route is the reference the CSV export
+// is compared against, not a place to redefine.
+func history(store Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, batches, ok := readHistory(w, r, store)
+		if !ok {
+			return
+		}
+		respond(w, 200, batches)
+	}
 }
 
 // batchCollection is the aggregate read's body. Batches is never nil, so an empty
