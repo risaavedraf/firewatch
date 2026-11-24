@@ -60,6 +60,10 @@ func New(store Repository, verifier Verifier, dir Directory) http.Handler {
 	mux.HandleFunc("GET /v1/prevention/actions/{id}", detail(store))
 	mux.HandleFunc("POST /v1/prevention/actions/{id}/transitions", transition(store))
 	registerEvidenceRoutes(mux, store)
+	// PM-09's observation routes are mounted below the same prevention prefix. They
+	// use their own persistence interface, so the frozen action contract above is
+	// unchanged and a store without observation persistence fails closed with 503.
+	registerObservationRoutes(mux, store)
 	mux.HandleFunc("GET /v1/users", listUsers(dir))
 	return Authorize(verifier, mux)
 }

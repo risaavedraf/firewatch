@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"firewatch.local/prevention/internal/handler"
 	"firewatch.local/prevention/internal/state"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -32,19 +33,22 @@ func sqlFor(t *testing.T, version int) string {
 	return ""
 }
 
-// TestAllHasTheThreeContractMigrations pins the migration identity: version 9
-// for the frozen action tables, version 11 for the S2 evidence tables and version
-// 14 for the directory projection and the assignment reference. Version 10
+// TestAllHasTheContractMigrations pins the migration identity: version 9 for the
+// frozen action tables, version 11 for the S2 evidence tables, version 14 for the
+// directory projection and the assignment reference, and version 15 for PM-09's
+// field observations and version 16 for PM-10's adoption link. Version 10
 // belongs to risk's model activation and 12 and 13 to risk's readings and model
-// fixture in the shared schema_migrations ledger, so claiming any of them here
-// would make one of the two migrations skip silently.
-func TestAllHasTheThreeContractMigrations(t *testing.T) {
+// fixture in the shared schema_migrations ledger.
+func TestAllHasTheContractMigrations(t *testing.T) {
 	all := All()
-	if len(all) != 3 {
-		t.Fatalf("the service defines three migrations, All() returned %d", len(all))
+	want := []int{9, 11, 14, 15, 16}
+	if len(all) != len(want) {
+		t.Fatalf("All() returned %d migrations, want %d", len(all), len(want))
 	}
-	if all[0].Version != 9 || all[1].Version != 11 || all[2].Version != 14 {
-		t.Errorf("versions are %d, %d and %d, want 9, 11 and 14", all[0].Version, all[1].Version, all[2].Version)
+	for index, version := range want {
+		if all[index].Version != version {
+			t.Errorf("migration at index %d has version %d, want %d", index, all[index].Version, version)
+		}
 	}
 	for _, migration := range all {
 		if migration.Name == "" {
@@ -295,6 +299,131 @@ func TestAssigneeMigrationAppliesAndReappliesWithoutRewritingLegacyAssignees(t *
 	}
 	if nullable != "YES" {
 		t.Errorf("assignee_id is nullable=%q, want YES so an unassigned action stays valid", nullable)
+	}
+}
+
+// TestObservationMigrationIsAdditiveAndKeepsTheTypeCatalogueClosed pins version
+// 15: one new append-only table, the closed type catalogue written twice (the Go
+// vocabulary and the SQL CHECK) with a test that reads both, and no foreign key
+// into the zone catalogue. The absence of that foreign key is deliberate: the
+// prevention and risk migration runners are independent in the compose test
+// profile, so the schema must not depend on which one ran first. The service
+// resolves the zone with a select from `zones` inside the insert instead.
+func TestObservationMigrationIsAdditiveAndKeepsTheTypeCatalogueClosed(t *testing.T) {
+	sql := sqlFor(t, 15)
+	for _, fragment := range []string{
+		"CREATE TABLE IF NOT EXISTS prevention.observations (",
+		"type text NOT NULL CHECK (type IN",
+		"zone_id text NOT NULL CHECK (btrim(zone_id) <> '')",
+		"observed_on date NOT NULL",
+		"description text NOT NULL CHECK (btrim(description) <> '')",
+		"created_by text NOT NULL CHECK (btrim(created_by) <> '')",
+		"CREATE INDEX IF NOT EXISTS observations_type_recency",
+		"GRANT SELECT, INSERT ON prevention.observations TO risk_app;",
+	} {
+		if !strings.Contains(sql, fragment) {
+			t.Errorf("migration 015 does not contain %q", fragment)
+		}
+	}
+	if n := strings.Count(sql, "CREATE TABLE"); n != 1 {
+		t.Errorf("migration 015 creates %d tables, PM-09 names exactly 1", n)
+	}
+	for _, forbidden := range []string{
+		"ALTER TABLE", "DROP ", "DELETE FROM", "TRUNCATE",
+		"UPDATE prevention.observations", "REFERENCES zones",
+	} {
+		if strings.Contains(sql, forbidden) {
+			t.Errorf("migration 015 is not additive or couples its startup order: it contains %q", forbidden)
+		}
+	}
+
+	// The closed catalogue exists twice: handler.ObservationTypes is what the
+	// transport accepts, and the CHECK is what the database accepts. A test that
+	// reads both is the only thing that keeps them from drifting.
+	marker := "type IN"
+	index := strings.Index(sql, marker)
+	if index < 0 {
+		t.Fatalf("migration 015 has no %q constraint", marker)
+	}
+	end := strings.Index(sql[index:], ")")
+	if end < 0 {
+		t.Fatal("the observation type CHECK constraint is not terminated")
+	}
+	declared := map[string]bool{}
+	for _, match := range statusCheckLiteral.FindAllStringSubmatch(sql[index:index+end], -1) {
+		declared[match[1]] = true
+	}
+	want := map[string]bool{}
+	for _, observationType := range handler.ObservationTypes() {
+		want[observationType] = true
+	}
+	for value := range want {
+		if !declared[value] {
+			t.Errorf("prevention.observations.type does not accept %q, but the transport does", value)
+		}
+	}
+	for value := range declared {
+		if !want[value] {
+			t.Errorf("prevention.observations.type accepts %q, which is not a member of the closed catalogue", value)
+		}
+	}
+}
+
+// TestObservationMigrationAppliesRepeatedlyAndTheDatabaseKeepsTheCatalogueClosed
+// is the database-side proof of version 15: the file applies to an isolated
+// schema, a documented observation is stored, an unknown type is refused by the
+// CHECK, and re-applying the file is still a no-op. It needs a connection that
+// may create a schema; see migrationDatabase for the exact variable.
+func TestObservationMigrationAppliesRepeatedlyAndTheDatabaseKeepsTheCatalogueClosed(t *testing.T) {
+	ctx, db := migrationDatabase(t)
+	schema := throwawaySchema(t, ctx, db)
+	ident := pgx.Identifier{schema}.Sanitize()
+
+	if _, err := db.Exec(ctx, sqlInSchema(sqlFor(t, 9), schema)); err != nil {
+		t.Fatalf("apply migration 009 to the isolated schema: %v", err)
+	}
+	for attempt := 1; attempt <= 2; attempt++ {
+		if _, err := db.Exec(ctx, sqlInSchema(sqlFor(t, 15), schema)); err != nil {
+			t.Fatalf("apply migration 015 (attempt %d): %v", attempt, err)
+		}
+	}
+
+	id := uuid.NewString()
+	if _, err := db.Exec(ctx, `INSERT INTO `+ident+`.observations(id,type,zone_id,observed_on,description,created_by)
+		VALUES($1,'quema','valparaiso-demo','2026-11-20','Pastizal seco junto al acceso','tester')`, id); err != nil {
+		t.Fatalf("insert a documented observation: %v", err)
+	}
+
+	// A value outside the closed catalogue is refused by the database, not only
+	// by the transport, so a future code path that skips the Go validation cannot
+	// invent a sixth type.
+	_, err := db.Exec(ctx, `INSERT INTO `+ident+`.observations(id,type,zone_id,observed_on,description,created_by)
+		VALUES($1,'incendio','valparaiso-demo','2026-11-20','inventada','tester')`, uuid.NewString())
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "23514" {
+		t.Fatalf("inserting an unknown type returned %v, want SQLSTATE 23514", err)
+	}
+
+	var count int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM `+ident+`.observations`).Scan(&count); err != nil {
+		t.Fatalf("count the observation rows: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("the isolated schema holds %d observations, want exactly the one documented row", count)
+	}
+
+	// Version 15 must not have added a foreign key into the zone catalogue: the
+	// risk migrations may not have run in the same window, and the service already
+	// gates the zone by selecting it from `zones`.
+	var references int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM pg_constraint c
+		JOIN pg_class t ON t.oid = c.conrelid
+		JOIN pg_namespace n ON n.oid = t.relnamespace
+		WHERE n.nspname=$1 AND t.relname='observations' AND c.contype='f'`, schema).Scan(&references); err != nil {
+		t.Fatalf("read the observation foreign keys: %v", err)
+	}
+	if references != 0 {
+		t.Errorf("the observations table carries %d foreign keys, want 0 so its migration stays independent", references)
 	}
 }
 

@@ -311,6 +311,7 @@ class Harness:
             "POSTGRES_PASSWORD": secrets.token_hex(16),
             "JOBS_DB_PASSWORD": secrets.token_hex(16),
             "RISK_DB_PASSWORD": secrets.token_hex(16),
+            "AUDIT_DB_PASSWORD": secrets.token_hex(24),
             "KEYCLOAK_DB_PASSWORD": secrets.token_hex(16),
             "RABBITMQ_PASSWORD": secrets.token_hex(16),
             "KEYCLOAK_ADMIN_PASSWORD": secrets.token_hex(16),
@@ -545,6 +546,7 @@ class Harness:
                 "POSTGRES_PASSWORD": self.secrets["POSTGRES_PASSWORD"],
                 "JOBS_DB_PASSWORD": self.secrets["JOBS_DB_PASSWORD"],
                 "RISK_DB_PASSWORD": self.secrets["RISK_DB_PASSWORD"],
+                "AUDIT_DB_PASSWORD": self.secrets["AUDIT_DB_PASSWORD"],
                 "KEYCLOAK_DB_PASSWORD": self.secrets["KEYCLOAK_DB_PASSWORD"],
             },
             mounts=[
@@ -714,6 +716,9 @@ class Harness:
                 **common,
                 "JOBS_URL": "http://jobs:8080",
                 "RISK_URL": "http://risk:8080",
+                "AUDIT_DATABASE_URL": (
+                    f"postgres://audit_query_app:{self.secrets['AUDIT_DB_PASSWORD']}@postgres:5432/jobs?sslmode=disable"
+                ),
                 # Required by the gateway at startup, like JOBS_URL and RISK_URL.
                 # This harness starts no prevention container and calls no
                 # /v1/prevention/ route, so the value only has to exist.

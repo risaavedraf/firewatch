@@ -250,10 +250,10 @@ test('logout returns the role panel to the explicit unavailable state', async ()
 // port of the legacy assertion
 // `the permissions matrix documents the real server guards and marks what it cannot verify`.
 const GUARD_LINES: Record<string, RegExp> = {
-  'backend/services/gateway/internal/handler/gateway.go:78': /mux\.Handle\("\/v1\/audit"/,
-  'backend/services/gateway/internal/handler/gateway.go:166': /health\/ready/,
-  'backend/services/gateway/internal/handler/gateway.go:190': /auth := strings\.Fields/,
-  'backend/services/gateway/internal/handler/gateway.go:196': /verifier\.Verify\(ctx, auth\[1\]\)/,
+  'backend/services/gateway/internal/handler/gateway.go:126': /mux\.Handle\("\/v1\/audit"/,
+  'backend/services/gateway/internal/handler/gateway.go:216': /health\/ready/,
+  'backend/services/gateway/internal/handler/gateway.go:240': /auth := strings\.Fields/,
+  'backend/services/gateway/internal/handler/gateway.go:246': /verifier\.Verify\(ctx, auth\[1\]\)/,
   'backend/services/risk/internal/handler/security.go:59': /role == "viewer" \|\| role == "admin"/,
   'backend/services/risk/internal/handler/security.go:64': /fail\(w, 403, "forbidden"\)/,
   'backend/services/risk/internal/handler/api.go:62': /"GET \/v1\/risk\/status"/,

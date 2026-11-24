@@ -37,8 +37,9 @@ metadata:
   # schema. Naming it after the schema it produces makes a release with new
   # migrations a different object, while re-applying the same release stays a
   # no-op, which is the truth: there is nothing new to migrate. The render
-  # contract keeps this name in step with the highest migration in the tree.
-  name: migrate-v17
+  # contract derives the name from both ledgers: v17 for risk/prevention's
+  # shared ledger and j6 for the independent jobs ledger.
+  name: migrate-v17-j6
   namespace: firewatch
   labels:
     app.kubernetes.io/name: migrate

@@ -15,14 +15,20 @@ this one, so its versions cannot collide with the two below.
 | Module | Versions in the shared ledger | Source |
 | --- | --- | --- |
 | `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17 | [risk embed.go](../services/risk/migrations/embed.go):68-80 |
-| `prevention` | 9, 11, 14 | [prevention embed.go](../services/prevention/migrations/embed.go):39-45 |
-| `jobs` | 1, 2, 3, 4 | own database, not in this ledger |
+| `prevention` | 9, 11, 14, 15, 16 | [prevention embed.go](../services/prevention/migrations/embed.go):40-48 |
+| `jobs` | 1, 2, 3, 4, 5, 6 | own database, not in this ledger |
 
-The gaps are deliberate: 9, 11 and 14 belong to `prevention`, and nothing may be
-inserted into a gap to "tidy" the sequence. Versions 15 and 16 are reserved by
-the registered sibling branches of PM-09 and PM-10, so no module in this tree
-claims them either: taking one of those numbers here would make the sibling's
-migration skip in silence once the branches are integrated.
+The `jobs` row is complete as of PM-10: `005_audit_event_metadata.sql` added the audit
+metadata and `006_query_audit_writer.sql` the gateway's insert-only query writer.
+Neither takes a number from the shared ledger above, and neither moves "next free
+version": the gateway writes into the jobs database, which has its own
+`schema_migrations` and its own migrator.
+
+The gaps in risk's sequence are deliberate: 9, 11, 14, 15 and 16 belong to
+`prevention` — 15 is PM-09's field observations and 16 is PM-10's adoption link — and
+nothing may be inserted into a gap to "tidy" the sequence. Integrating the two chains
+turned those two reservations into files without moving a number: `risk` keeps 17 for
+its alert table and `prevention` keeps 15 and 16, so the claims stay disjoint.
 
 ## The rule
 
@@ -34,7 +40,7 @@ migration skip in silence once the branches are integrated.
    recorded in a deployed ledger cannot be moved: the old row stays and the
    renamed migration never runs.
 4. `jobs` versions are independent because the ledger is per database, so `jobs`
-   may use 1–4 while `risk` uses 1.
+   may use 1–6 while `risk` uses 1.
 5. A collision is a test failure, not a review comment. The guard below already
    exists; a reviewer does not need to spot the overlap by eye.
 
@@ -44,21 +50,22 @@ The highest version claimed in this tree is **17**, `risk`'s
 `backend/services/risk/migrations/017_risk_alerts.sql`, so the next free integer
 across both services is **18**. Prevention's next migration must take version 18,
 not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13 and
-17, `prevention` holds 9, 11 and 14, and 15 and 16 are reserved by the sibling
-branches of PM-09 and PM-10. This paragraph is the determination the rule asks
-for: a migration is numbered against the integrated tree, never against its own
-module.
+17, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
+determination the rule asks for: a migration is numbered against the integrated
+tree, never against its own module.
 
-The previous determination said 15 and was consumed twice over by the PM-09 and
-PM-10 reservations before any file existed in this tree. That is the rule working,
-not an exception: a version is reserved when a registered branch claims it, and
-this section is updated with the claim so it never names a version someone already
-owns.
+The previous determinations were consumed in order, and that is the rule working,
+not an exception: this section said 15 when PM-09 and PM-10 reserved 15 and 16
+before either file existed here, and it said 17 once PM-10 had claimed 16 for the
+[observation adoption migration](../services/prevention/migrations/016_observation_adoption.sql)
+on its own branch. A version is reserved or claimed when a registered branch takes
+it, and this section is updated with each claim so it never names a version someone
+already owns.
 
 ## Enforcement
 
 `TestVersionsDoNotCollideWithPrevention`
-([migrations_test.go](../services/risk/migrations/migrations_test.go):75) is the
+([migrations_test.go](../services/risk/migrations/migrations_test.go):76) is the
 only cross-service guard. It reads
 `backend/services/prevention/migrations/embed.go` as text, parses every
 `{Version: N,` entry of prevention's `All()` list, and fails with `t.Errorf` for
@@ -83,6 +90,12 @@ Version 17 is PM-07's alert table (`017_risk_alerts.sql`). It was claimed agains
 the integrated tree after 15 and 16 were reserved by PM-09 and PM-10, and it is
 the first version this branch adds: risk's highest claim is no longer 13, so the
 ledger's claim table and the Job's name (`migrate-v17`) were updated with it.
+
+Integration with PM-09/10 kept that claim where it was and added the independent
+jobs ledger to the Job's name: the one ordered Job is now `migrate-v17-j6`
+(`../deploy/k8s/base/jobs-migrate.yaml`), which the render contract derives from
+both ledgers. No registered version moved, and PM-09's 15 and PM-10's 16 became
+files without a renumber.
 
 Version 11 was claimed twice: `risk`'s `ml_fixture_v1` and `prevention`'s
 `011_preventive_evidence.sql` both registered it, and the second migrator to run

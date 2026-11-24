@@ -43,9 +43,9 @@ export type PermissionRow = {
 //     line 49 answers a verified viewer with 403.
 //   backend/services/jobs/internal/handler/api.go:236 wraps the whole jobs mux:
 //     jobs status, job creation, job read and /v1/audit.
-//   backend/services/gateway/internal/handler/gateway.go:78 only proxies
-//     /v1/audit and adds no role of its own; line 166 answers /health/ready before
-//     any bearer check; lines 190-196 require a verifiable bearer with a subject
+//   backend/services/gateway/internal/handler/gateway.go:126 only proxies
+//     /v1/audit and adds no role of its own; line 216 answers /health/ready before
+//     any bearer check; lines 240-246 require a verifiable bearer with a subject
 //     but decide no role.
 // eslint-disable-next-line react-refresh/only-export-components
 export const PERMISSION_MATRIX: readonly PermissionRow[] = [
@@ -53,15 +53,15 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     capability: 'Disponibilidad del gateway · GET /health/ready',
     viewer: 'Sí: responde 204 sin comprobar token ni rol',
     admin: 'Sí: responde 204 sin comprobar token ni rol',
-    guards: ['backend/services/gateway/internal/handler/gateway.go:166'],
+    guards: ['backend/services/gateway/internal/handler/gateway.go:216'],
   },
   {
     capability: 'Autenticación de cualquier ruta /v1/* · bearer verificado en el gateway',
     viewer: 'Sí: exige un bearer verificable con sujeto; no decide ningún rol',
     admin: 'Sí: exige un bearer verificable con sujeto; no decide ningún rol',
     guards: [
-      'backend/services/gateway/internal/handler/gateway.go:190',
-      'backend/services/gateway/internal/handler/gateway.go:196',
+      'backend/services/gateway/internal/handler/gateway.go:240',
+      'backend/services/gateway/internal/handler/gateway.go:246',
     ],
   },
   {
@@ -164,7 +164,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     guards: [
       'backend/services/jobs/internal/handler/api.go:228',
       'backend/services/jobs/internal/handler/security.go:44',
-      'backend/services/gateway/internal/handler/gateway.go:78',
+      'backend/services/gateway/internal/handler/gateway.go:126',
     ],
   },
   {

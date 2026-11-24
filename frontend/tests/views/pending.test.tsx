@@ -51,6 +51,56 @@ test('every capability in the exported list renders as a row with its three colu
   });
 });
 
+// PM-10 / V1-P-07 — `GET /v1/audit` now returns the actor name, a free-text
+// detail and a per-row event identifier, and the audit view renders them, so the
+// entry that declared the opposite has left this inventory. Retiring a capability
+// is a one-row operation: the test pins both halves of it, the absence of the
+// retired entry and the untouched order of the rows that survive around it.
+const RETIRED_AUDIT_CAPABILITY = 'Nombre del actor, detalle libre e id de evento';
+
+const EXPECTED_CAPABILITIES = [
+  'Cobertura y entorno por sector',
+  'Contexto y prioridad por sector',
+  'Estados candidate, in_progress, reviewed y closed',
+  'Historial de todas las zonas',
+  'Revisar e incorporar registros, y hallazgos de calidad',
+  'Publicar lote, avance manual y reevaluación',
+];
+
+test('the retired audit entry is gone and its neighbouring rows are untouched (PM-10 / V1-P-07)', () => {
+  render(<PendingView />);
+
+  const tbody = document.getElementById('pending-rows') as HTMLElement | null;
+  expect(tbody).not.toBeNull();
+  const rows = [...(tbody as HTMLElement).querySelectorAll('tr')];
+  const capabilities = rows.map(row => row.querySelector('td')?.textContent?.trim() ?? '');
+
+  // The delivered audit metadata retired exactly this row, in the list and in the
+  // rendering: a leftover copy would claim an absence the backend no longer has.
+  expect(NOT_IMPLEMENTED.map(entry => entry.capability)).not.toContain(RETIRED_AUDIT_CAPABILITY);
+  expect(capabilities).not.toContain(RETIRED_AUDIT_CAPABILITY);
+  expect(document.getElementById('pending-rows')).not.toHaveTextContent(/nombre del actor/i);
+
+  // Nothing else moved: same six capabilities, same order. A retirement that also
+  // dropped, reordered or rewrote a neighbour is the regression this catches.
+  expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
+  expect(NOT_IMPLEMENTED).toHaveLength(EXPECTED_CAPABILITIES.length);
+
+  // The two rows that used to surround the retired entry keep their full cells.
+  const last = [...rows[rows.length - 1].querySelectorAll('td')].map(cell => cell.textContent?.trim());
+  expect(last).toEqual([
+    'Publicar lote, avance manual y reevaluación',
+    'No existe endpoint: el servidor decide y publica por su cuenta; la página solo solicita el trabajo y lee el resultado.',
+    'Procesamiento asíncrono',
+  ]);
+  const first = [...rows[0].querySelectorAll('td')].map(cell => cell.textContent?.trim());
+  expect(first).toEqual([
+    'Cobertura y entorno por sector',
+    'La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.',
+    'Tabla de sectores',
+  ]);
+});
+
 test('the view offers no button, link or interactive control for any listed capability', () => {
   const { container } = render(<PendingView />);
 

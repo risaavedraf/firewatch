@@ -58,8 +58,8 @@ type Migration struct {
 // Adding a migration means adding one file under this directory plus one entry
 // here. The numbering is global across the services that share this ledger, not
 // per module: this service claims 1-8, 10, 12, 13 and 17, the prevention service
-// claims 9, 11 and 14, and the registered sibling branches reserve 15 (PM-09) and
-// 16 (PM-10), so the next free number is 18. The rule, the current claims and the
+// claims 9, 11, 14, 15 and 16 (PM-09's field observations and PM-10's adoption
+// link), and the next free number is 18. The rule, the current claims and the
 // guard are in backend/docs/migration-ledger.md. The runner applies whatever is
 // still pending in schema_migrations and does nothing on a database that is
 // already up to date.

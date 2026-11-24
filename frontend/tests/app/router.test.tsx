@@ -45,17 +45,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the nine views are declared once, with the two merged pairs and no duplicate hash', () => {
+test('the ten views are declared once, with the two merged pairs and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
   // (Acceso) and the sidebar order is the declared order. `#actions` joins
-  // Prevención beside the territory and the batch history (T12), and
-  // `#notifications` joins Coordinación beside the activity register (PM-08).
+  // Prevención beside the territory and the batch history (T12); `#observations`
+  // follows it as the PM-09 field-observation page, and `#notifications` joins
+  // Coordinación beside the activity register (PM-08).
   expect(ids).toEqual([
     'overview',
     'history',
     'actions',
+    'observations',
     'sources',
     'jobs',
     'pending',

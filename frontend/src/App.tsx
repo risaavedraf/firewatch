@@ -10,6 +10,7 @@ import { AuthView } from './views/AuthView';
 import { HistoryView } from './views/HistoryView';
 import { JobsView } from './views/JobsView';
 import { NotificationsView } from './views/NotificationsView';
+import { ObservationsView } from './views/ObservationsView';
 import { OverviewView } from './views/OverviewView';
 import { PendingView } from './views/PendingView';
 import { SessionView } from './views/SessionView';
@@ -19,6 +20,7 @@ const views: Record<ViewId, () => ReactElement> = {
   overview: OverviewView,
   history: HistoryView,
   actions: ActionsView,
+  observations: ObservationsView,
   sources: SourcesView,
   jobs: JobsView,
   session: SessionView,

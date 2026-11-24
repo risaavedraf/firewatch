@@ -542,7 +542,7 @@ This is the step the whole file exists for, and it must not run before Phase 3.
 kubectl apply -k backend/deploy/k8s/overlays/delivery
 ```
 
-**Expected:** the objects created or configured — namespace, ConfigMaps, StatefulSets, Deployments, Services, PodDisruptionBudgets, HPAs, NetworkPolicies, the Ingress, and the two Jobs `migrate-v17` and `broker-provision`. Kustomize renders a list and guarantees no order; `base/kustomization.yaml` lists the data plane first because the application cannot become ready before it, and that intent is honoured by the retries below, not by the apply.
+**Expected:** the objects created or configured — namespace, ConfigMaps, StatefulSets, Deployments, Services, PodDisruptionBudgets, HPAs, NetworkPolicies, the Ingress, and the two Jobs `migrate-v17-j6` and `broker-provision`. Kustomize renders a list and guarantees no order; `base/kustomization.yaml` lists the data plane first because the application cannot become ready before it, and that intent is honoured by the retries below, not by the apply.
 
 **If it fails:** `violates PodSecurity "restricted"` means a field the base already satisfies was changed. `firewatch-tls not found` is not an apply failure — that is 4.3.
 
@@ -569,11 +569,11 @@ kubectl -n firewatch get statefulsets
 kubectl -n firewatch get jobs
 ```
 
-**Expected:** `migrate-v17` `Complete 1/1` and `broker-provision` `Complete 1/1`. The migration Job runs `migrate-risk`, then `migrate-prevention`, then `migrate-jobs` as one ordered unit (`base/jobs-migrate.yaml:89-178`), because the prevention schema takes the next versions of the risk database's ledger.
+**Expected:** `migrate-v17-j6` `Complete 1/1` and `broker-provision` `Complete 1/1`. The migration Job runs `migrate-risk`, then `migrate-prevention`, then `migrate-jobs` as one ordered unit (`base/jobs-migrate.yaml:90-179`), because the prevention schema takes the next versions of the risk database's ledger.
 
-**If it fails:** `migrate-v17` backs off six times by design, because a cold cluster starts the Job before PostgreSQL answers; a `Failed` Job after that is a schema or credential problem a human reads. `broker-provision` failing means the broker topology was not provisioned and every service will fail its next reconnect.
+**If it fails:** `migrate-v17-j6` backs off six times by design, because a cold cluster starts the Job before PostgreSQL answers; a `Failed` Job after that is a schema or credential problem a human reads. `broker-provision` failing means the broker topology was not provisioned and every service will fail its next reconnect.
 
-**Do not continue unless** both Jobs report `Complete 1/1`.
+**Do not continue unless** both named Jobs report `Complete 1/1`. An older `migrate-v17` is not evidence for jobs migration 006 and need not be deleted. For an existing volume, complete the [query-audit credential upgrade](README.md#configure-before-applying). The database operator should confirm version `6` exists in the `jobs` database's `schema_migrations` table. Once the realm is configured, confirm an authenticated `GET /v1/prevention/observations` returns `200`, then as an administrator confirm `/v1/audit` contains the new `prevention.observations.read` query with the matching request ID as `trace_id`. A `503` is a failed readiness check even if pods are ready.
 
 ### 5.4 The nodes pulled the pinned digests
 
@@ -881,7 +881,7 @@ kubectl apply -k backend/deploy/k8s/overlays/delivery
 
 **If it fails:** a digest that no longer exists in the registry cannot be rolled back to. Retention and tag immutability of the artefacts a release replaces are part of rollback, not housekeeping.
 
-**The schema does not roll back.** The migration runner applies the versions the code carries and records them; there is no down path, and a version recorded in a deployed ledger can never be renumbered or moved (`backend/docs/migration-ledger.md:30-32`). A rollback that crosses a migration is a restore, not a rollback: the older image would run against a schema it does not know. Rolling forward with a fixed image is the only reversible direction, and the overlay is what makes that a one-file change.
+**The schema does not roll back.** The migration runner applies the versions the code carries and records them; there is no down path, and a version recorded in a deployed ledger can never be renumbered or moved (`backend/docs/migration-ledger.md:39-41`). A rollback that crosses a migration is a restore, not a rollback: the older image would run against a schema it does not know. Rolling forward with a fixed image is the only reversible direction, and the overlay is what makes that a one-file change.
 
 **No restore has been rehearsed anywhere**, so there is no measured RTO and no verified restore procedure to reach for. That is the state the acta records, not a gap this runbook closes.
 
@@ -905,4 +905,4 @@ kubectl apply -k backend/deploy/k8s/overlays/delivery
 - `odd/entrega/acta-cierre.md` §7 (policy, SLA and what it does not close), §7.3 (`:161-175`, the Kubernetes substrate) and §7.4 (`:214-242`, Google Cloud with GKE, which closes the cluster-flavor question).
 - `odd/tasks/gcp-gke-delivery.md` — the specification of this target, and the state of each task.
 - `odd/plan-produccion/07-firma-registry-rollout.md:19-22` — the signing and promotion gap, owned there and not here.
-- `backend/docs/migration-ledger.md:30-32` — why the ledger forbids moving a recorded version.
+- `backend/docs/migration-ledger.md:39-41` — why the ledger forbids moving a recorded version.

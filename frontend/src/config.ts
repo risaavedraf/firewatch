@@ -90,6 +90,11 @@ export const routes = {
   // are reached through the gateway, the only origin the page's `connect-src`
   // allows besides the identity provider.
   preventiveActions: '/v1/prevention/actions',
+  // PM-09 field observations. Both routes are served by the prevention service
+  // through the gateway; the zones read is the REAL catalogue, including zones
+  // without map geometry, so the form never invents a sector.
+  observations: '/v1/prevention/observations',
+  observationZones: '/v1/prevention/observations/zones',
   models: '/v1/models',
 } as const;
 
@@ -103,6 +108,12 @@ export function preventiveActionRoute(id: string): string {
 
 export function preventiveTransitionRoute(id: string): string {
   return `${preventiveActionRoute(id)}/transitions`;
+}
+
+// PM-10: the one link operation of S4. The observation is addressed by the path
+// and the existing action by the body, so neither can be exchanged for the other.
+export function observationAdoptionRoute(id: string): string {
+  return `${routes.observations}/${encodeURIComponent(id)}/adoption`;
 }
 
 // Bounds and deadlines the retired page enforced. They are policy, not
