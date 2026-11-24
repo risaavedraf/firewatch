@@ -1,6 +1,6 @@
 import type { IconName } from '../components/ui';
 
-// The ten views of the application. The nine areas of the retired page are all
+// The eleven views of the application. The nine areas of the retired page are all
 // still here: `#sources` also carries the dependent-services status and
 // `#session` also carries the permissions matrix, which is the grouping the user
 // chose (D1). `#pending` gained the navigation entry it never had (D2): the
@@ -9,9 +9,11 @@ import type { IconName } from '../components/ui';
 // is PM-08's own route: the persisted PM-07 alerts are a destination, not a
 // panel hidden inside another view. `#observations` is the PM-09
 // field-observation page, reachable by every role: the server decides reads and
-// writes, and the page renders its answer.
+// writes, and the page renders its answer. PM-11 adds `#infrastructure` as its
+// own demo view rather than folding it into territorio.
 export type ViewId =
   | 'overview'
+  | 'infrastructure'
   | 'history'
   | 'actions'
   | 'observations'
@@ -35,6 +37,7 @@ export interface RouteDefinition {
 
 export const routes: readonly RouteDefinition[] = [
   { id: 'overview', hash: '#overview', label: 'Territorio', group: 'Prevención', icon: 'territory', title: 'Estado de la zona' },
+  { id: 'infrastructure', hash: '#infrastructure', label: 'Infraestructura', group: 'Prevención', icon: 'zones', title: 'Infraestructura prioritaria' },
   { id: 'history', hash: '#history', label: 'Historial de lotes', group: 'Prevención', icon: 'history', title: 'Historial de lotes' },
   { id: 'actions', hash: '#actions', label: 'Acciones preventivas', group: 'Prevención', icon: 'actions', title: 'Acciones preventivas' },
   {

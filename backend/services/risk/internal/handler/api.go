@@ -106,6 +106,7 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 	mux.HandleFunc("GET /v1/risk/alerts", listAlerts(store))
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
+	mux.HandleFunc("GET /v1/risk/infrastructure", listInfrastructure())
 	// Model registry: the list is a read route; activation is admin-only through
 	// requireAdmin, defined in security.go.
 	mux.HandleFunc("GET /v1/models", listModels(store))
