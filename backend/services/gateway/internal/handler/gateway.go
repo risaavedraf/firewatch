@@ -206,8 +206,38 @@ func NewWithRootCAs(verifier Verifier, jobs, risk, prevention *url.URL, webOrigi
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 8192)
+		// The alert timeline is the one route whose query this gateway judges itself;
+		// see alertQueryUnreadable for why. Every sibling route keeps the forwarding
+		// behaviour it already has, and the guard sits after the bearer gate and both
+		// quotas so an unauthenticated caller still learns nothing about its own query.
+		if alertQueryUnreadable(r) {
+			failure(w, http.StatusBadRequest, "invalid_alert_query")
+			return
+		}
 		mux.ServeHTTP(w, r)
 	})
+}
+
+// alertQueryUnreadable reports whether this request is the alert timeline read with
+// a query this gateway cannot represent.
+//
+// It exists for one route only. httputil.ReverseProxy sanitises the query it
+// forwards and drops a pair it cannot decode, so `GET /v1/risk/alerts?limit=%zz`
+// would be answered the default first page - a different question than the one sent -
+// and the risk service could not detect it, because the discarded pair never reaches
+// that service. Nothing in the risk API distinguishes "no limit given" from "limit
+// dropped in transit", so the public boundary is the only place this can be caught.
+//
+// The scope is exact: this method, this path. Sibling routes keep the forwarding
+// behaviour they already have, and only the encoding is read - a well-formed query
+// that is semantically invalid (limit=500, order=up) stays the service's own 400
+// rather than being re-judged here.
+func alertQueryUnreadable(r *http.Request) bool {
+	if r.Method != http.MethodGet || r.URL.Path != "/v1/risk/alerts" {
+		return false
+	}
+	_, err := url.ParseQuery(r.URL.RawQuery)
+	return err != nil
 }
 
 func randomID() []byte {

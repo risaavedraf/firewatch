@@ -315,6 +315,92 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/alerts:
+    get:
+      operationId: listRiskAlerts
+      description: >-
+        Viewer/admin. One page of the persisted PM-07 level-change alerts, newest
+        first by default. Every element is a transition stored in the risk
+        database, read back with its zone label and its batch provenance: this
+        route invents no alert, generates no stand-in and serves no count. The
+        order is the stable keyset (occurred_at, id) in the selected direction, so
+        a page boundary neither repeats nor skips a row when two alerts share an
+        instant. An empty timeline is 200 with an empty array and a null cursor,
+        never 404, because nothing stored is an answer.
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: >-
+            Page size. A value outside 1..100, a non-integer, an empty value or a
+            repeated value is refused 400 invalid_alert_query before anything is
+            read.
+        - in: query
+          name: order
+          required: false
+          schema:
+            type: string
+            enum: [desc, asc]
+            default: desc
+          description: >-
+            Timeline direction: desc is newest first, asc oldest first. The
+            accepted values are exactly these two literals, so any other
+            spelling, including an upper-case one, is refused 400.
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+          description: >-
+            Opaque value copied verbatim from the preceding response's
+            next_cursor. Omit it to read the first page. Opaque means
+            unstructured: the value is not for the client to interpret or
+            construct, and it is not signed, so it is not proof that this service
+            produced it. It is validated for structure and for the direction it
+            encodes, so a value that is empty, undecodable, of the wrong shape, or
+            encoded for the other order is refused 400 invalid_alert_query instead
+            of being read as the first page.
+      responses:
+        '200':
+          description: >-
+            One page of stored alerts, ordered by (occurred_at, id) in the
+            requested direction. items is empty when nothing is stored, and
+            next_cursor is null on the last page.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AlertCollection'}
+        '400':
+          description: >-
+            Malformed query; nothing was read. An unknown or repeated parameter,
+            a limit outside 1..100, an order other than desc or asc, a cursor that
+            is empty, undecodable, structurally invalid or encoded for the other
+            order, or a query whose percent-encoding cannot be read. The encoding
+            case is answered at the public boundary, because a proxy that
+            sanitises the forwarded query would otherwise drop the pair and serve
+            a different question than the one sent.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                additionalProperties: false
+                properties:
+                  code: {type: string, enum: [invalid_alert_query]}
+                  request_id: {type: string, format: uuid}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
   /v1/risk/synthetic-scenarios:
     get:
       operationId: listSyntheticScenarios
@@ -1904,6 +1990,92 @@ components:
             One element per zone with at least one published batch, ordered by
             zone_id ascending. A zone with no published batch is absent.
           items: {$ref: '#/components/schemas/ZoneBatch'}
+    AlertLevel:
+      type: string
+      description: >-
+        A determined risk level. `desconocido` is deliberately absent: it records
+        that the inputs were insufficient rather than a severity, so an alert
+        naming it is refused by this schema exactly as the table refuses it.
+      enum: [bajo, medio, alto]
+    Alert:
+      type: object
+      description: >-
+        One stored level change of one zone, as PM-07 persisted it. It is evidence
+        that a transition happened: it carries no read state, no delivery attempt
+        and no synthetic stand-in.
+      required:
+        - id
+        - zone_id
+        - zone_name
+        - previous_level
+        - new_level
+        - threshold
+        - occurred_at
+        - demo
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        zone_id:
+          type: string
+          description: >-
+            Catalogue zone code of the transition. The accepted set is whatever
+            the catalogue holds, so it is deliberately not an enum here: an enum
+            would drift from the table.
+        zone_name:
+          type: string
+          nullable: true
+          description: >-
+            Current catalogue label of the zone, joined at read time. It is null
+            when the catalogue no longer names the zone: the alert is still
+            served, because it records a transition rather than projecting the
+            catalogue, and a label is never invented.
+        previous_level: {$ref: '#/components/schemas/AlertLevel'}
+        new_level: {$ref: '#/components/schemas/AlertLevel'}
+        threshold:
+          type: integer
+          minimum: 1
+          description: >-
+            The agreed threshold stored with the row rather than assumed at read
+            time: one severity step, the smallest change two determined levels
+            can have. A later policy applies to the rows written with it, never
+            retroactively to these.
+        occurred_at:
+          type: string
+          format: date-time
+          description: >-
+            UTC instant of the assessment that produced the transition. It is the
+            alert's ordering key together with the identifier.
+        demo:
+          type: boolean
+          description: >-
+            Read from the batch that produced the alert, never stamped here. True
+            means the transition came from a synthetic demonstration input, so a
+            real transition cannot be labelled synthetic and a synthetic one is
+            never silently unlabelled.
+    AlertCollection:
+      type: object
+      description: >-
+        One page of the alert timeline. items is never null: an empty timeline is
+        an empty array with 200, never 404, because nothing stored is an answer.
+      required: [items, next_cursor]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          description: >-
+            Up to limit alerts in the requested direction. The order is
+            (occurred_at, id) so a page boundary is stable when two alerts share
+            an instant.
+          items: {$ref: '#/components/schemas/Alert'}
+        next_cursor:
+          type: string
+          nullable: true
+          description: >-
+            Opaque cursor for the next page in the same direction, or null when
+            this page reached the end. It is bound to the direction it encodes, so
+            a client resets its cursor history when the order changes. Opaque means
+            unstructured, not secret or signed: echo it verbatim and do not
+            interpret it.
     Geometry:
       type: object
       description: >-
