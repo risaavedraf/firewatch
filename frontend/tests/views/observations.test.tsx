@@ -17,6 +17,7 @@ import { createCryptoStub, createFetchStub, createStorageStub, flush, jwt } from
 
 const OBSERVATIONS_URL = `${gatewayOrigin}/v1/prevention/observations`;
 const ZONES_URL = `${gatewayOrigin}/v1/prevention/observations/zones`;
+const ACTIONS_URL = `${gatewayOrigin}/v1/prevention/actions`;
 const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
 const ADMIN_TOKEN = jwt({ realm_access: { roles: ['admin'] } });
 const VIEWER_TOKEN = jwt({ realm_access: { roles: ['viewer'] } });
@@ -60,6 +61,19 @@ function observationFixture(overrides: Record<string, unknown> = {}): Record<str
     description: DESCRIPTION,
     created_by: 'sub-verified',
     created_at: '2026-11-20T10:05:00Z',
+    ...overrides,
+  };
+}
+
+function actionFixture(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'action-1',
+    community_code: '05101',
+    title: 'Despeje de vegetación seca',
+    priority: 'alta',
+    status: 'propuesta',
+    assignee: null,
+    due_date: null,
     ...overrides,
   };
 }
@@ -438,4 +452,45 @@ test('an unavailable zone catalogue disables the form until the retry read succe
   expect(optionValues('observation-zone')).toEqual(['', 'z-1', 'z-2']);
   expect((document.getElementById('observation-zone') as HTMLSelectElement).disabled).toBe(false);
   expect(text('observation-zones-status')).toMatch(/2 zonas disponibles/i);
+});
+
+// PM-10 / S4 — the narrow seam this task adds to the PM-09 screen. The action
+// list is a panel-local read, so it must not become part of the list's lifecycle:
+// replacing the list closes the confirmation instead of re-reading the action
+// list for a row the person never opened.
+test('a filter change closes the open confirmation instead of re-reading its action list', async () => {
+  await mountSignedIn();
+  await answer(ZONES_URL, 'GET', zonesFixture());
+  await answer(OBSERVATIONS_URL, 'GET', [observationFixture()]);
+
+  await userEvent.click(screen.getByRole('button', { name: /confirmar que el trabajo se necesita/i }));
+  await answer(ACTIONS_URL, 'GET', [actionFixture()]);
+  expect(document.getElementById('observation-adoption-obs-1')).not.toBeNull();
+
+  await userEvent.selectOptions(screen.getByLabelText('Filtrar por tipo'), 'quema');
+  expect(document.getElementById('observation-adoption-obs-1')).toBeNull();
+
+  await answer(`${OBSERVATIONS_URL}?type=quema`, 'GET', [observationFixture({ type: 'quema' })]);
+
+  // The same observation is listed under the new filter and the panel is NOT
+  // reopened: its one action-list read stays the only one.
+  expect(document.getElementById('observation-rows')?.querySelectorAll('li')).toHaveLength(1);
+  expect(document.getElementById('observation-adoption-obs-1')).toBeNull();
+  expect(callsTo(ACTIONS_URL, 'GET')).toHaveLength(1);
+  expect(document.getElementById('observation-adopt-obs-1')?.getAttribute('aria-expanded')).toBe('false');
+  expect(text('observation-adoption-status')).toBe('');
+});
+
+// The confirmation is a write, so a viewer reads the observations and the
+// recorded associations but is offered no control and no action-list read.
+test('a viewer is offered no confirmation control and no action-list read', async () => {
+  await mountSignedIn(VIEWER_TOKEN);
+  await answer(ZONES_URL, 'GET', zonesFixture());
+  await answer(OBSERVATIONS_URL, 'GET', [observationFixture()]);
+
+  expect(document.getElementById('observation-rows')?.querySelectorAll('li')).toHaveLength(1);
+  expect(document.getElementById('observation-adopt-obs-1')).toBeNull();
+  expect(document.getElementById('observation-adoption-obs-1')).toBeNull();
+  expect(callsTo(ACTIONS_URL, 'GET')).toHaveLength(0);
+  expect(text('observation-list-note')).toMatch(/rol admin/i);
 });

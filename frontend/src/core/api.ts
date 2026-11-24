@@ -13,7 +13,7 @@
 //      login) is discarded instead of repopulating it;
 //   3. every read honours the caller's `AbortSignal` and a bounded deadline, so
 //      a hung gateway cannot leave a request pending forever.
-import { gatewayOrigin, jobRoute, preventiveActionRoute, preventiveTransitionRoute, routes } from '../config';
+import { gatewayOrigin, jobRoute, observationAdoptionRoute, preventiveActionRoute, preventiveTransitionRoute, routes } from '../config';
 import type {
   ActionHistoryEntry,
   AuditEntry,
@@ -82,6 +82,7 @@ type RequestKind =
   | 'observations'
   | 'observationZones'
   | 'createObservation'
+  | 'adoptObservation'
   | 'models';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
@@ -893,6 +894,10 @@ function isObservation(value: unknown): value is Observation {
   // The author and the instant are server facts; a row without them is refused
   // rather than rendered with an invented attribution.
   if (!nonempty(value.created_by) || !nonempty(value.created_at)) return false;
+  // PM-10 adds the optional link: null and an absent field are both "no
+  // confirmation recorded", and only a value that is neither null nor a string
+  // is a contract change.
+  if (!nullableString(value.adopted_action_id)) return false;
   return true;
 }
 
@@ -977,6 +982,53 @@ export async function createObservation(input: ObservationInput, signal?: AbortS
     return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
   }
   return { ok: true, data: result.body };
+}
+
+// --- PM-10: observation adoption (S1/S4) -----------------------------------
+//
+// The one authorized link operation: an operator states that a recorded
+// observation justifies an existing preventive action. The body carries the
+// action and NOTHING else — the observation is addressed by the path and the
+// confirming actor is the verified token subject, so a client cannot assign the
+// work, move the action, backdate a confirmation or name itself as author. The
+// answer is the observation in its post-link state, so the association the page
+// displays is always the one the service stored.
+//
+// The request kind is its own: a link write must never supersede an in-flight
+// observation or action read, and it must not be superseded by one.
+export async function adoptObservation(
+  observationId: string,
+  actionId: string,
+  signal?: AbortSignal,
+): Promise<Outcome<Observation>> {
+  const result = await requestJson(
+    'adoptObservation',
+    `${gatewayOrigin}${observationAdoptionRoute(observationId)}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ action_id: actionId }),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<Observation>(result);
+  if (!isObservation(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  // A record for another observation, or one that does not state the link that
+  // was requested, is refused: the page must never display an association the
+  // service did not confirm.
+  if (result.body.id !== observationId || !sameIdentifier(result.body.adopted_action_id, actionId)) {
+    return failureOutcome(failureSpec('malformed', 'adoption_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
+}
+
+// A path id is compared byte for byte; an action id is a UUID, whose case is not
+// semantic, so the stored spelling is compared without case.
+function sameIdentifier(left: unknown, right: string): boolean {
+  return nonempty(left) && left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
 // The model registry is passed through as an array of opaque entries: the real

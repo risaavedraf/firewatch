@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { idleCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
@@ -12,6 +12,7 @@ import {
   type ObservationType,
   type ObservationZone,
 } from '../types/api';
+import { ObservationAdoption } from './ObservationAdoption';
 import '../styles/observations.css';
 
 // S2/S3 — field observations (PM-09), built against the frozen seam in
@@ -208,6 +209,15 @@ export function ObservationsView() {
   const [zonesRevision, setZonesRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  // PM-10 keeps one confirmation open at a time: it belongs to one observation,
+  // and the action list is read only when a person opens it.
+  const [adoptingId, setAdoptingId] = useState('');
+  const [linkNotice, setLinkNotice] = useState('');
+  // The disclosure control of the row whose confirmation is open. Closing the
+  // panel returns focus to it instead of dropping focus on the document body.
+  const adoptTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const adoptedLinkRef = useRef<HTMLDivElement | null>(null);
+  const filterRef = useRef<HTMLSelectElement | null>(null);
 
   // The zone catalogue is re-read on every connection and after a retry. A failed
   // read empties it instead of leaving a stale catalogue selectable.
@@ -261,6 +271,8 @@ export function ObservationsView() {
         setForm(EMPTY_FORM);
         setFilterType('');
         setBusy(false);
+        setAdoptingId('');
+        setLinkNotice('');
         if (reason !== 'rejected') setNotice('');
       }),
     [],
@@ -279,11 +291,37 @@ export function ObservationsView() {
     // The rows of the previous filter are not the answer to the new one, so the
     // list returns to its loading state until the server answers.
     setList(null);
+    // An open confirmation belongs to a row of the list that is being replaced:
+    // keeping it would reopen it, and re-read the action list, for a row the
+    // person never opened.
+    setAdoptingId('');
     setFilterType(value);
   }
 
   function clearFilter(): void {
     selectFilter('');
+  }
+
+  function toggleAdoption(id: string): void {
+    setAdoptingId(current => (current === id ? '' : id));
+  }
+
+  function closeAdoption(showStoredLink = false): void {
+    // After success the refreshed row replaces the opener. If it has not yet
+    // arrived, use the stable filter rather than focusing a disappearing button.
+    const destination = showStoredLink ? adoptedLinkRef.current : adoptTriggerRef.current;
+    (destination ?? filterRef.current)?.focus();
+    setAdoptingId('');
+  }
+
+  // The stored link is what the SERVICE returned, so the list is re-read instead
+  // of being patched locally. The notice states the effect and who was not
+  // assigned, because neither is visible in an identifier.
+  function handleLinked(linked: Observation): void {
+    setLinkNotice(
+      `Vínculo registrado: la observación ${linked.id} quedó asociada al trabajo preventivo ${linked.adopted_action_id}. La lista se vuelve a leer desde el servicio; no se asignó a ninguna persona.`,
+    );
+    setRevision(value => value + 1);
   }
 
   function retryZones(): void {
@@ -506,6 +544,7 @@ export function ObservationsView() {
               <label htmlFor="observation-filter">Filtrar por tipo</label>
               <select
                 id="observation-filter"
+                ref={filterRef}
                 value={filterType}
                 disabled={!signedIn}
                 onChange={event => selectFilter(event.target.value)}
@@ -531,7 +570,12 @@ export function ObservationsView() {
 
           <p className="panel-note" id="observation-list-note">
             La lista se lee de <code>/v1/prevention/observations</code>, más reciente primero. El filtro es una
-            consulta al servicio, no un filtro local, y la atribución de cada fila es la que guardó el servidor.
+            consulta al servicio, no un filtro local, y la atribución de cada fila es la que guardó el servidor. La
+            asociación con un trabajo preventivo la registra el rol admin y el servicio la devuelve en cada lectura.
+          </p>
+
+          <p id="observation-adoption-status" className="status-copy" role="status" aria-live="polite">
+            {linkNotice}
           </p>
 
           <ul className="observation-list" id="observation-rows" aria-busy={listState.phase === 'loading'}>
@@ -546,6 +590,46 @@ export function ObservationsView() {
                 <p className="observation-meta">
                   Registrada por {entry.created_by} · {entry.created_at}
                 </p>
+                {entry.adopted_action_id != null ? (
+                  // PM-10 / S4: the association is read from the service on every
+                  // list read. It is historical, so it stays visible for every
+                  // reader — including a viewer, and including the case where the
+                  // adopted action is cancelled later.
+                  <div
+                    className="observation-adoption-link"
+                    id={`observation-adopted-${entry.id}`}
+                    ref={adoptingId === entry.id ? adoptedLinkRef : undefined}
+                    tabIndex={-1}
+                  >
+                    <p>
+                      <strong>Trabajo preventivo adoptado</strong>{' '}
+                      <code>{entry.adopted_action_id}</code>
+                    </p>
+                    <p className="observation-adoption-link-note">
+                      Identificador devuelto por el servicio. Es un registro histórico: sigue visible aunque el trabajo
+                      se cancele después. No asigna a ninguna persona ni cambia el estado del trabajo.
+                    </p>
+                  </div>
+                ) : admin ? (
+                  <button
+                    id={`observation-adopt-${entry.id}`}
+                    ref={adoptingId === entry.id ? adoptTriggerRef : undefined}
+                    className="button-text observation-adopt"
+                    type="button"
+                    aria-expanded={adoptingId === entry.id}
+                    onClick={() => toggleAdoption(entry.id)}
+                  >
+                    {adoptingId === entry.id ? 'Cerrar confirmación' : 'Confirmar que el trabajo se necesita'}
+                  </button>
+                ) : null}
+                {adoptingId === entry.id ? (
+                  <ObservationAdoption
+                    observation={entry}
+                    canConfirm={admin}
+                    onCancel={closeAdoption}
+                    onLinked={handleLinked}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

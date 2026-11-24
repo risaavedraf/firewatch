@@ -262,6 +262,12 @@ export interface Observation {
   description: string;
   created_by: string;
   created_at: string;
+  // PM-10 (S4): the preventive action this observation was durably confirmed to
+  // justify, as the service reports it on every observation read. `null` (or an
+  // absent field in an older payload) means no confirmation has been recorded.
+  // It is an identifier and not a copy of the action: the record is historical,
+  // so it keeps naming the adopted action after that action is cancelled.
+  adopted_action_id?: string | null;
 }
 
 export interface ObservationZone {

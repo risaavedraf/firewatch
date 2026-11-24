@@ -106,6 +106,12 @@ export function preventiveTransitionRoute(id: string): string {
   return `${preventiveActionRoute(id)}/transitions`;
 }
 
+// PM-10: the one link operation of S4. The observation is addressed by the path
+// and the existing action by the body, so neither can be exchanged for the other.
+export function observationAdoptionRoute(id: string): string {
+  return `${routes.observations}/${encodeURIComponent(id)}/adoption`;
+}
+
 // Bounds and deadlines the retired page enforced. They are policy, not
 // decoration: they are what keeps a stale or superseded answer from being shown
 // as current, so they travel with the code that honours them.
