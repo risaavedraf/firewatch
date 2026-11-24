@@ -261,6 +261,22 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .risk-error { color: #944a39 !important; }
 .risk-good { color: #237354 !important; }
 
+/* ── Operational verdict (PM-16) ───────────────────────────────────────── */
+/* The status rows and the verdict share ONE panel: PM-16 asks for a single
+   explicit verdict, not a second health screen. The block uses the paper/line
+   tokens so it reads as a summary, and the badge carries the same weight as the
+   panel badges instead of inventing a louder alarm style. */
+.operational-verdict { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 9px; background: #f8faf7; }
+.operational-verdict-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.operational-verdict-head .eyebrow { margin: 0; color: var(--forest-700); }
+.operational-verdict h4 { margin: 0 0 6px; font-size: 14px; letter-spacing: -.2px; }
+.operational-verdict > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.operational-verdict > .panel-note { margin-top: 8px; }
+/* The registry values can be long (a sha256 hash wraps inside its own cell rather
+   than widening the panel) and the sentence labels are not truncated. */
+#operational-weather, #operational-rule, #operational-rule-hash, #operational-rule-kind, #operational-freshness, #operational-verdict { white-space: normal; }
+#operational-rule-hash { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
 /* Factor rows keep their plain text and gain the mockup's proportion bar.
    The bar is only rendered when the batch carries a real `contribution`. */
 #risk-factors { margin: 0; padding: 0; list-style: none; }

@@ -168,6 +168,80 @@ and its fallbacks are pinned by `tests/domain/recommendations.test.ts`; the rend
 its states and the no-mutating-request assertion by the PM-18 cases in
 `tests/views/overview.test.tsx`.
 
+## Sources and services: the operational verdict (PM-16)
+
+`src/views/SourcesView.tsx` is the **only** screen for this: it shows the geographic
+provenance, the authenticated service snapshots, the live gateway probe, the cycle
+freshness and one explicit operational verdict. It opens no second health screen and
+issues no metrics or telemetry scrape; the transport calls are exactly
+`/v1/risk/sources`, `/v1/risk/status`, `/v1/jobs/status`, `/v1/models` and
+`/health/ready`, in the same bounded 30 s cycle.
+
+The "model" row states the **effective rule**, not a model the product does not have.
+Its version and parameter hash come only from the additive `effective` object of
+`GET /v1/models` (frozen backend contract, L6), and the client validates the claim
+before showing it:
+
+- `effective` is `{status:"rule", version, params_hash}` only when the service
+  resolved a rule through the publisher's own classifier source. The row accepts it
+  only with a non-empty version and exactly one canonical lowercase SHA-256
+  (`^[0-9a-f]{64}$`, length checked because JavaScript's `$` also matches before a
+  trailing newline).
+- `{status:"non_rule"}` means the resolved classifier is not a rule. The screen says
+  so (`No es una regla`, `No aplica`) and never prints an identity for it, even if a
+  hostile payload carries one.
+- `{status:"unavailable"}`, an absent `effective`, an unknown status or an invalid
+  version/hash are the same truthful unknown (`No verificable` / `No acreditado`) and
+  never borrow a version or a hash. A 401/403/503 keeps its normal error meaning.
+- **No registry row is an identity source.** `models` remains in the envelope for the
+  overview panel, but an `active` row, a seeded row or even a row carrying an
+  activation record cannot verify the rule on this screen. `GET /v1/models` itself
+  reports resolution **at read time**; it is not proof of a published classification
+  or of inference availability, and the copy says so.
+
+`src/core/active-rule.ts` owns that validation; the additive transport read is
+`modelRegistry` in `src/core/api.ts`, while `modelVersions` keeps serving
+`src/domain/model.ts` and the overview panel unchanged. The verdict composition is
+`src/domain/operational-status.ts`, and the gateway probe rule is
+`evaluateGatewayProbe` in `src/domain/readiness.ts`.
+
+The verdict keeps apart what is often conflated:
+
+| Evidence | What it proves |
+| --- | --- |
+| Live gateway probe (`/health/ready`) | The gateway process answered. A 204 does **not** accredit the risk or jobs pipeline |
+| Authenticated snapshots (`/v1/risk/status`, `/v1/jobs/status`) | Each service earns `ready`, a fresh `checked_at`, a known dead-letter depth inside its bound and three consistent dependencies, or it is unknown |
+| Provenance (`/v1/risk/sources`) | The published provider, attribution, restriction and declared hash match; a failed or mismatched read blocks the verdict |
+| Weather source | **Not integrated**: no consumed contract publishes a weather provider or reading, so the row says so and shows no invented weather |
+| Effective classifier (`/v1/models`) | A validated `rule` only; `non_rule` and `unavailable`/invalid are named as such, never as a rule |
+
+A demo/synthetic input, an unverified or non-rule classifier, a failed gateway probe
+or the missing weather integration keep the verdict out of the verified branch even
+when both services report healthy, so the screen never claims production readiness
+from a green health check.
+
+Session and announcement boundaries are part of the honesty of the panel:
+
+- Evidence is stored with the `SessionState` instance that produced it. A logout and
+  a later login on the same mounted view cannot render the previous session's
+  readings, even before the first new response lands. A superseded or aborted read
+  (including a late completion from the abandoned session) abandons the whole cycle
+  instead of painting a partial snapshot, and the next cycle re-reads under the
+  current session. Shared auth code is untouched.
+- The verdict has one dedicated visually-hidden `role="status"` region that names
+  only the verdict title. Its text is derived from the verdict state, so a same-verdict
+  30 s refresh produces no DOM mutation (no repeated announcement), while a
+  transition updates it once. The visible verdict paragraph is not a live region
+  and the service/provenance paragraphs keep their own regions for their own facts.
+
+The automated suites in `tests/core/active-rule.test.ts`,
+`tests/domain/operational-status.test.ts`, `tests/domain/readiness.test.ts` and
+`tests/views/sources.test.tsx` pin all of the above, including hostile payloads,
+missing/malformed `effective`, logout→login on the same view, late completions and
+the announcement mutation count. They use a stubbed `fetch` and jsdom: **no browser
+was executed for this unit**, so visual and assistive-technology behaviour remains
+unverified here.
+
 ## Quality gates
 
 ```sh
