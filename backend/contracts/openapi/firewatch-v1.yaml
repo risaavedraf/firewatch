@@ -597,8 +597,17 @@ paths:
     get:
       operationId: listAudit
       description: >-
-        Admin only. Last 100 audit records; application role cannot update or
-        delete audit rows.
+        Admin only. Last 100 audit records, newest first. Every row carries a
+        durable event id derived from the audit table's own identity, the
+        verified display name captured when the event was written (null when no
+        verified human name exists: legacy rows and system events such as
+        batch.published), a server-generated free-text detail and a closed event
+        kind. A query is recorded with event_kind query and keeps job_id null; a
+        mutation keeps the job it changed. Historical rows written before these
+        fields existed keep their original actor_id, action, job_id, trace_id
+        and occurred_at, and their actor_name and detail are null rather than a
+        synthesized name. The application role can only select and insert audit
+        rows; it cannot update or delete them.
       responses:
         '200':
           description: Audit entries
@@ -608,13 +617,52 @@ paths:
                 type: array
                 items:
                   type: object
-                  required: [actor_id, action, job_id, trace_id, occurred_at]
+                  required: [event_id, actor_id, actor_name, action, event_kind, detail, job_id, trace_id, occurred_at]
                   properties:
+                    event_id:
+                      type: string
+                      pattern: '^audit-[0-9]+$'
+                      description: >-
+                        Stable identifier of this audit row, derived from the
+                        audit table's own identity. It is never the job or the
+                        trace id.
+                      example: audit-42
                     actor_id: {type: string}
+                    actor_name:
+                      type: string
+                      nullable: true
+                      description: >-
+                        Display name resolved from the verified token claims at
+                        write time. Null when no verified name was captured;
+                        clients fall back to actor_id and never synthesize a
+                        name.
                     action:
                       type: string
-                      enum: [job.requested, batch.published]
-                    job_id: {type: string, format: uuid}
+                      description: >-
+                        The action the event records. The mutation actions
+                        written by the job transitions are job.requested and
+                        batch.published; a query action is defined by the query
+                        recorder that writes event_kind query, so this field is
+                        not closed to those two mutations.
+                    event_kind:
+                      type: string
+                      enum: [mutation, query]
+                      description: >-
+                        'mutation' for an applied write, 'query' for a recorded
+                        read. A read is never recorded as a mutation.
+                    detail:
+                      type: string
+                      nullable: true
+                      description: >-
+                        Server-generated free-text context for the event. Null
+                        on historical rows written before the field existed.
+                    job_id:
+                      type: string
+                      format: uuid
+                      nullable: true
+                      description: >-
+                        The affected job, or null for a query record that has no
+                        job.
                     trace_id: {type: string, format: uuid}
                     occurred_at: {type: string, format: date-time}
         '401': {$ref: '#/components/responses/Unauthorized'}

@@ -357,16 +357,22 @@ function isJob(value: unknown): value is Job {
   return true;
 }
 
-// An event is usable only when it states WHAT happened and WHEN. An omitted
-// identifier is labelled in place by the view; it is not a reason to discard
-// the register, and it is never filled in from another field.
+// An event is usable only when it states WHAT happened, WHEN, its own stable id
+// and its kind. A nullable name, detail or job is data, not malformation: the
+// view labels the absence in place and never fills it in from another field.
+// `event_kind` is the closed vocabulary the contract documents, so an unknown
+// kind is refused instead of being guessed as a mutation.
 function isAuditEntry(value: unknown): value is AuditEntry {
   return (
     record(value) &&
+    nonempty(value.event_id) &&
     nonempty(value.action) &&
     nonempty(value.occurred_at) &&
+    (value.event_kind === 'mutation' || value.event_kind === 'query') &&
     optionalString(value.actor_id) &&
-    optionalString(value.job_id) &&
+    nullableString(value.actor_name) &&
+    nullableString(value.detail) &&
+    nullableString(value.job_id) &&
     optionalString(value.trace_id)
   );
 }

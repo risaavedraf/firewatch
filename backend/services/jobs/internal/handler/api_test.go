@@ -28,6 +28,9 @@ type fakeStore struct {
 	// scenarios records the optional scenario each Create received, so a test can
 	// prove the transport forwarded (or withheld) the selection.
 	scenarios []string
+	// createActor records the verified identity the transport forwarded, so a
+	// test can prove a display name comes from token claims and nowhere else.
+	createActor repository.Actor
 	// job and getErr let a test drive GET /v1/jobs/{id} through the Repository
 	// interface without a database.
 	job    repository.Job
@@ -39,15 +42,21 @@ type fakeStore struct {
 	replayErr   error
 	replayCalls int
 	replayID    string
-	replayActor string
+	replayActor repository.Actor
 	replayTrace string
 	// replayConfirm records the confirmation the transport forwarded, so a test
 	// can prove a re-dispatch is only confirmed when the operator asked for it.
 	replayConfirm bool
+	// audits, auditErr and auditCalls let a test drive GET /v1/audit through the
+	// Repository interface and prove an unauthorized read never reaches it.
+	audits     []repository.Audit
+	auditErr   error
+	auditCalls int
 }
 
-func (s *fakeStore) Create(_ context.Context, actor, key, zone, trace string, scenarioID ...string) (repository.Job, error) {
+func (s *fakeStore) CreateAs(_ context.Context, actor repository.Actor, key, zone, trace string, scenarioID ...string) (repository.Job, error) {
 	s.calls++
+	s.createActor = actor
 	scenario := ""
 	if len(scenarioID) > 0 {
 		scenario = scenarioID[0]
@@ -58,12 +67,15 @@ func (s *fakeStore) Create(_ context.Context, actor, key, zone, trace string, sc
 func (s *fakeStore) Get(context.Context, string) (repository.Job, error) {
 	return s.job, s.getErr
 }
-func (s *fakeStore) Audit(context.Context) ([]repository.Audit, error) { return nil, nil }
+func (s *fakeStore) Audit(context.Context) ([]repository.Audit, error) {
+	s.auditCalls++
+	return s.audits, s.auditErr
+}
 
-// Replay records the forwarded arguments so a test can pin that the operator
-// subject, the request trace and the queued re-dispatch confirmation are what
-// reach persistence, and returns the configured outcome.
-func (s *fakeStore) Replay(_ context.Context, id, actor, trace string, confirmQueued bool) (repository.Job, error) {
+// ReplayAs records the forwarded arguments so a test can pin that the operator
+// subject and verified name, the request trace and the queued re-dispatch
+// confirmation are what reach persistence, and returns the configured outcome.
+func (s *fakeStore) ReplayAs(_ context.Context, id string, actor repository.Actor, trace string, confirmQueued bool) (repository.Job, error) {
 	s.replayCalls++
 	s.replayID, s.replayActor, s.replayTrace, s.replayConfirm = id, actor, trace, confirmQueued
 	return s.replayJob, s.replayErr
@@ -349,7 +361,7 @@ func replayHandler(t *testing.T, store *fakeStore) (http.Handler, func(roles ...
 	}
 	verifier := oidc.NewVerifier("https://issuer.test", &oidc.StaticKeySet{PublicKeys: []crypto.PublicKey{&key.PublicKey}}, &oidc.Config{ClientID: "firewatch-api", SupportedSigningAlgs: []string{"RS256"}})
 	mint := func(roles ...string) string {
-		claims := map[string]any{"iss": "https://issuer.test", "aud": "firewatch-api", "sub": "operator-subject", "exp": time.Now().Add(time.Minute).Unix(), "typ": "Bearer", "realm_access": map[string]any{"roles": roles}}
+		claims := map[string]any{"iss": "https://issuer.test", "aud": "firewatch-api", "sub": "operator-subject", "name": "Operador Verificado", "exp": time.Now().Add(time.Minute).Unix(), "typ": "Bearer", "realm_access": map[string]any{"roles": roles}}
 		return signTokenWith(t, key, jose.RS256, claims)
 	}
 	return New(store, verifier), mint
@@ -389,8 +401,8 @@ func TestReplayFailedJobReturnsQueued(t *testing.T) {
 	if got.FailureReason != nil || got.FailedAt != nil {
 		t.Fatalf("terminal fields must be cleared: %s", w.Body)
 	}
-	if store.replayCalls != 1 || store.replayID != id || store.replayActor != "operator-subject" || store.replayTrace != trace {
-		t.Fatalf("store call id=%q actor=%q trace=%q calls=%d", store.replayID, store.replayActor, store.replayTrace, store.replayCalls)
+	if store.replayCalls != 1 || store.replayID != id || store.replayActor.ID != "operator-subject" || store.replayActor.Name != "Operador Verificado" || store.replayTrace != trace {
+		t.Fatalf("store call id=%q actor=%+v trace=%q calls=%d", store.replayID, store.replayActor, store.replayTrace, store.replayCalls)
 	}
 	// A bodiless replay must never confirm a queued re-dispatch: the confirmation
 	// is the operator's explicit acceptance of a possible duplicate dispatch.
@@ -550,5 +562,191 @@ func TestReplayRejectsMalformedConfirmation(t *testing.T) {
 				t.Fatal("a rejected body still confirmed the re-dispatch")
 			}
 		})
+	}
+}
+
+// createWithClaimsHandler builds the transport with the production RS256 policy
+// and a signer, so a create test can mint a token with controlled identity claims
+// without a remote JWKS.
+func createWithClaimsHandler(t *testing.T, store *fakeStore) (http.Handler, *rsa.PrivateKey) {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifier := oidc.NewVerifier("https://issuer.test", &oidc.StaticKeySet{PublicKeys: []crypto.PublicKey{&key.PublicKey}}, &oidc.Config{ClientID: "firewatch-api", SupportedSigningAlgs: []string{"RS256"}})
+	return New(store, verifier), key
+}
+
+// TestVerifiedActorNameIsTheOnlyNameSource pins the provenance rule of the audit
+// metadata: the display name is read from the verified token claims only. A
+// caller-supplied header or body field is ignored or refused, and a token with no
+// name claim leaves the name absent instead of synthesizing one from the subject.
+func TestVerifiedActorNameIsTheOnlyNameSource(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		claims     map[string]any
+		body       string
+		wantStatus int
+		wantName   string
+		wantCalls  int
+	}{
+		{
+			name:       "verified full name",
+			claims:     map[string]any{"name": "Demo Admin"},
+			wantStatus: http.StatusAccepted,
+			wantName:   "Demo Admin",
+			wantCalls:  1,
+		},
+		{
+			name:       "preferred username fallback",
+			claims:     map[string]any{"preferred_username": "demo-admin"},
+			wantStatus: http.StatusAccepted,
+			wantName:   "demo-admin",
+			wantCalls:  1,
+		},
+		{
+			name:       "given and family fallback",
+			claims:     map[string]any{"given_name": "Demo", "family_name": "Viewer"},
+			wantStatus: http.StatusAccepted,
+			wantName:   "Demo Viewer",
+			wantCalls:  1,
+		},
+		{
+			name:       "a token without a name claim is not given the subject as a name",
+			wantStatus: http.StatusAccepted,
+			wantName:   "",
+			wantCalls:  1,
+		},
+		{
+			name:       "a caller-supplied body name is refused",
+			claims:     map[string]any{"name": "Demo Admin"},
+			body:       `{"zone_id":"valparaiso-demo","actor_name":"Mallory"}`,
+			wantStatus: http.StatusBadRequest,
+			wantCalls:  0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &fakeStore{zones: map[string]bool{"valparaiso-demo": true}}
+			handler, key := createWithClaimsHandler(t, store)
+			claims := policyClaims()
+			for key, value := range tc.claims {
+				claims[key] = value
+			}
+			token := signTokenWith(t, key, jose.RS256, claims)
+			body := tc.body
+			if body == "" {
+				body = `{"zone_id":"valparaiso-demo"}`
+			}
+			r := httptest.NewRequest(http.MethodPost, "/v1/jobs", strings.NewReader(body))
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set("Authorization", "Bearer "+token)
+			r.Header.Set("Idempotency-Key", uuid.NewString())
+			// A caller-supplied header must never become the display name.
+			r.Header.Set("X-Actor-Name", "Mallory")
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			if w.Code != tc.wantStatus {
+				t.Fatalf("code=%d want=%d body=%s", w.Code, tc.wantStatus, w.Body)
+			}
+			if store.calls != tc.wantCalls {
+				t.Fatalf("store calls=%d want=%d", store.calls, tc.wantCalls)
+			}
+			if tc.wantCalls == 1 {
+				if store.createActor.ID != "admin-subject" || store.createActor.Name != tc.wantName {
+					t.Fatalf("forwarded actor=%+v want subject=admin-subject name=%q", store.createActor, tc.wantName)
+				}
+			}
+		})
+	}
+}
+
+// TestAuditReadIsAdminOnlyAndCarriesTheExtendedContract pins the read contract
+// end to end at the transport boundary: only an admin reaches the store, and the
+// response carries the durable event id, the verified name or an explicit null,
+// the free-text detail, the event kind and a nullable job reference, while every
+// legacy field keeps its original value and shape.
+func TestAuditReadIsAdminOnlyAndCarriesTheExtendedContract(t *testing.T) {
+	name := "Demo Admin"
+	detail := "Solicitud de trabajo para la zona valparaiso-demo"
+	jobID := uuid.NewString()
+	traceID := uuid.NewString()
+	occurred := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+	store := &fakeStore{audits: []repository.Audit{
+		{EventID: "audit-41", ActorID: "admin-subject", ActorName: &name, Action: "job.requested", EventKind: repository.AuditEventMutation, Detail: &detail, JobID: &jobID, TraceID: traceID, OccurredAt: occurred},
+		{EventID: "audit-42", ActorID: "system", Action: "batch.published", EventKind: repository.AuditEventMutation, JobID: &jobID, TraceID: traceID, OccurredAt: occurred},
+		{EventID: "audit-43", ActorID: "query-actor", Action: "risk.current.read", EventKind: repository.AuditEventQuery, Detail: &detail, TraceID: traceID, OccurredAt: occurred},
+	}}
+	handler, mint := replayHandler(t, store)
+
+	for _, tc := range []struct {
+		name   string
+		token  string
+		status int
+	}{
+		{name: "missing token", status: http.StatusUnauthorized},
+		{name: "viewer forbidden", token: mint("viewer"), status: http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, "/v1/audit", nil)
+			if tc.token != "" {
+				r.Header.Set("Authorization", "Bearer "+tc.token)
+			}
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			if w.Code != tc.status {
+				t.Fatalf("code=%d want=%d body=%s", w.Code, tc.status, w.Body)
+			}
+		})
+	}
+	if store.auditCalls != 0 {
+		t.Fatalf("an unauthorized read reached the store %d times", store.auditCalls)
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/v1/audit", nil)
+	r.Header.Set("Authorization", "Bearer "+mint("admin"))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("code=%d want=%d body=%s", w.Code, http.StatusOK, w.Body)
+	}
+	if store.auditCalls != 1 {
+		t.Fatalf("admin read reached the store %d times, want exactly 1", store.auditCalls)
+	}
+	var rows []map[string]json.RawMessage
+	if err := json.Unmarshal(w.Body.Bytes(), &rows); err != nil {
+		t.Fatalf("decode audit rows: %v body=%s", err, w.Body)
+	}
+	if len(rows) != 3 {
+		t.Fatalf("rows=%d want=3 body=%s", len(rows), w.Body)
+	}
+	raw := func(row int, field string) string {
+		t.Helper()
+		value, present := rows[row][field]
+		if !present {
+			t.Fatalf("row %d is missing %q: %s", row, field, w.Body)
+		}
+		return string(value)
+	}
+	for row := range rows {
+		for _, legacy := range []string{"actor_id", "action", "trace_id", "occurred_at"} {
+			if !strings.HasPrefix(raw(row, legacy), `"`) {
+				t.Fatalf("row %d %s=%s want the legacy string value", row, legacy, raw(row, legacy))
+			}
+		}
+		// job_id must stay present for every row; only a query record may carry
+		// the explicit null the contract documents.
+		if value := raw(row, "job_id"); value != "null" && !strings.HasPrefix(value, `"`) {
+			t.Fatalf("row %d job_id=%s want a uuid string or null", row, value)
+		}
+	}
+	if raw(0, "event_id") != `"audit-41"` || raw(0, "actor_name") != `"Demo Admin"` || raw(0, "job_id") != `"`+jobID+`"` || raw(0, "event_kind") != `"mutation"` {
+		t.Fatalf("first row=%s", w.Body)
+	}
+	if raw(1, "actor_name") != "null" || raw(1, "detail") != "null" {
+		t.Fatalf("a system record without a verified name must serialize null, body=%s", w.Body)
+	}
+	if raw(2, "job_id") != "null" || raw(2, "event_kind") != `"query"` || raw(2, "action") != `"risk.current.read"` {
+		t.Fatalf("a query record must keep job_id null and kind query, body=%s", w.Body)
 	}
 }

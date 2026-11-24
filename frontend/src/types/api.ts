@@ -148,10 +148,20 @@ export interface Scenario {
   description: string;
 }
 
+// The durable audit row returned by `GET /v1/audit`. `event_id` is the row's own
+// stable identity (never the job or trace id), so two events of one job remain
+// distinguishable. `actor_name` is the display name captured from verified token
+// claims; it is null when no name was captured, and the view falls back to the
+// opaque `actor_id` instead of synthesizing one. `detail` is server-generated
+// free text and `job_id` is null on a query record.
 export interface AuditEntry {
+  event_id: string;
   actor_id: string;
+  actor_name: string | null;
   action: string;
-  job_id: string;
+  event_kind: 'mutation' | 'query';
+  detail: string | null;
+  job_id: string | null;
   trace_id: string;
   occurred_at: string;
 }

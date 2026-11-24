@@ -74,6 +74,7 @@ func run() error {
 			{version: 2, sql: migrations.Zones},
 			{version: 3, sql: migrations.SyntheticScenario},
 			{version: 4, sql: migrations.JobFailureState},
+			{version: 5, sql: migrations.AuditEventMetadata},
 		} {
 			var exists bool
 			if err = tx.QueryRow(migrationCtx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)`, migration.version).Scan(&exists); err != nil {

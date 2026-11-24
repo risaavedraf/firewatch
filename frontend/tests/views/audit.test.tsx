@@ -3,6 +3,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { gatewayOrigin, issuer, pkceTransactionKey } from '../../src/config';
 import { completeLogin, getSessionSnapshot, resetSession } from '../../src/core/session';
 import { AuditView } from '../../src/views/AuditView';
+import type { AuditEntry } from '../../src/types/api';
 
 import {
   createCryptoStub,
@@ -12,13 +13,13 @@ import {
   jwt,
 } from '../core/harness';
 
-// N8b — the activity register (S13/S17). `/v1/audit` is a parameterless,
-// admin-only endpoint: the view renders exactly the five fields it carries
-// (`actor_id`, `action`, `job_id`, `trace_id`, `occurred_at`), states an explicit
-// 403 for a non-administrator and fails closed on an entry that does not say WHAT
-// happened and WHEN. It is reachable for every role on purpose: a `viewer` must
-// arrive and read the server's own refusal, because there is no client-side role
-// gating.
+// N8b — the activity register (S13/S17/S1/S2). `/v1/audit` is a parameterless,
+// admin-only endpoint. The view renders the durable metadata the endpoint now
+// carries: its own stable `event_id`, the verified `actor_name` (falling back to
+// the opaque `actor_id` when no name was captured), `action`, `event_kind`,
+// the free-text `detail`, and the legacy `job_id`, `trace_id` and `occurred_at`.
+// An explicit 403 is stated for a non-administrator, and an entry that does not
+// say WHAT happened and WHEN fails closed.
 //
 // The transport, storage and crypto are stubbed exactly as `tests/core/harness.ts`
 // establishes; the real `window` stays in place because this is a DOM render.
@@ -27,6 +28,23 @@ const AUDIT_URL = `${gatewayOrigin}/v1/audit`;
 const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
 const ADMIN_TOKEN = jwt({ realm_access: { roles: ['viewer', 'admin'] } });
 const VIEWER_TOKEN = jwt({ realm_access: { roles: ['viewer'] } });
+
+// auditEntry is the shape the service returns for one row. Overrides keep each
+// case focused on the field it exercises instead of repeating nine keys.
+function auditEntry(overrides: Partial<AuditEntry> = {}): AuditEntry {
+  return {
+    event_id: 'audit-1',
+    actor_id: 'actor-opaco-1',
+    actor_name: 'Demo Admin',
+    action: 'job.requested',
+    event_kind: 'mutation',
+    detail: 'Solicitud de trabajo para la zona valparaiso-demo',
+    job_id: 'job-1',
+    trace_id: 'trace-1',
+    occurred_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
 
 let fetchStub: ReturnType<typeof createFetchStub>;
 let storageStub: ReturnType<typeof createStorageStub>;
@@ -65,6 +83,10 @@ function badgeText(): string {
   return text('audit-badge');
 }
 
+function cells(): string[] {
+  return [...document.querySelectorAll('#audit-rows tr td')].map(cell => cell.textContent ?? '');
+}
+
 beforeEach(() => {
   setup();
 });
@@ -73,7 +95,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the audit section carries every legacy identifier and the five real columns', async () => {
+test('the audit panel carries the durable event columns and no longer declares them unimplemented', async () => {
   await connect(ADMIN_TOKEN);
   const { container } = render(<AuditView />);
 
@@ -86,7 +108,6 @@ test('the audit section carries every legacy identifier and the five real column
     'audit-title',
     'audit-badge',
     'audit-status',
-    'audit-unimplemented',
     'audit-table',
     'audit-rows',
     'audit-count',
@@ -95,25 +116,29 @@ test('the audit section carries every legacy identifier and the five real column
     expect(document.getElementById(id), id).not.toBeNull();
   }
 
-  // The retired mockup's name/detail/id fields have no backend: the panel says so
-  // instead of simulating them.
-  expect(text('audit-unimplemented')).toMatch(/nombre del perfil/i);
-  expect(text('audit-unimplemented')).toMatch(/no se muestran ni se simulan/i);
+  // The retired mockup's fields now have a backend: the panel must not carry the
+  // old "not implemented" note anymore.
+  expect(document.getElementById('audit-unimplemented')).toBeNull();
+  expect(text('audit-status')).not.toMatch(/Aún no implementado/i);
 
   await waitFor(() => {
     expect(fetchStub.callsFor(AUDIT_URL)).toHaveLength(1);
   });
   const headerCells = [...document.querySelectorAll('#audit-table thead th')].map(cell => cell.textContent);
   expect(headerCells).toEqual([
-    'Actor (actor_id)',
+    'Evento (event_id)',
+    'Actor (nombre o actor_id)',
     'Acción',
+    'Tipo',
+    'Detalle',
     'Trabajo (job_id)',
     'Traza (trace_id)',
     'Ocurrido (occurred_at)',
   ]);
+  expect(document.querySelector('.panel-note')?.textContent).toMatch(/identidad verificada/i);
 });
 
-test('the panel reads the parameterless admin endpoint once and renders the five real fields verbatim', async () => {
+test('the panel reads the parameterless admin endpoint once and renders the durable metadata verbatim', async () => {
   await connect(ADMIN_TOKEN);
   render(<AuditView />);
 
@@ -125,28 +150,74 @@ test('the panel reads the parameterless admin endpoint once and renders the five
   expect((call.init.headers as Record<string, string>).Authorization).toBe(`Bearer ${ADMIN_TOKEN}`);
 
   await answerAudit([
-    { actor_id: 'actor-opaco-1', action: 'job.requested', job_id: 'job-1', trace_id: 'trace-1', occurred_at: '2026-01-01T00:00:00Z' },
-    { actor_id: 'actor-opaco-2', action: 'batch.published', job_id: 'job-2', trace_id: 'trace-2', occurred_at: '2026-01-02T00:00:00Z' },
+    auditEntry(),
+    auditEntry({
+      event_id: 'audit-2',
+      actor_id: 'system',
+      actor_name: null,
+      action: 'batch.published',
+      detail: null,
+      job_id: 'job-2',
+      trace_id: 'trace-2',
+      occurred_at: '2026-01-02T00:00:00Z',
+    }),
+    auditEntry({
+      event_id: 'audit-3',
+      actor_id: 'consulta-actor',
+      actor_name: 'Demo Viewer',
+      action: 'risk.current.read',
+      event_kind: 'query',
+      detail: 'Consulta del riesgo actual',
+      job_id: null,
+      trace_id: 'trace-3',
+      occurred_at: '2026-01-03T00:00:00Z',
+    }),
   ]);
 
   const rows = [...document.querySelectorAll('#audit-rows tr')];
-  expect(rows).toHaveLength(2);
+  expect(rows).toHaveLength(3);
   expect([...rows[0].querySelectorAll('td')].map(cell => cell.textContent)).toEqual([
-    'actor-opaco-1',
+    'audit-1',
+    'Demo Admin',
     'job.requested',
+    'Mutación',
+    'Solicitud de trabajo para la zona valparaiso-demo',
     'job-1',
     'trace-1',
     '2026-01-01T00:00:00Z',
   ]);
-  expect(text('audit-count')).toBe('2');
+  // No verified name was captured for the system record: the page falls back to
+  // the opaque actor_id and never invents a display name.
+  expect([...rows[1].querySelectorAll('td')].map(cell => cell.textContent)).toEqual([
+    'audit-2',
+    'system',
+    'batch.published',
+    'Mutación',
+    'No informado',
+    'job-2',
+    'trace-2',
+    '2026-01-02T00:00:00Z',
+  ]);
+  // A query record is shown as a query and has no job to show.
+  expect([...rows[2].querySelectorAll('td')].map(cell => cell.textContent)).toEqual([
+    'audit-3',
+    'Demo Viewer',
+    'risk.current.read',
+    'Consulta',
+    'Consulta del riesgo actual',
+    'No informado',
+    'trace-3',
+    '2026-01-03T00:00:00Z',
+  ]);
+  expect(text('audit-count')).toBe('3');
   expect(badgeText()).toBe('LEÍDO');
   expect(document.getElementById('audit-table')?.hasAttribute('hidden')).toBe(false);
   expect(text('audit-status')).toMatch(/Registro real devuelto por \/v1\/audit/);
   expect((document.getElementById('audit-refresh') as HTMLButtonElement).disabled).toBe(false);
 
-  // Nothing the endpoint does not provide is rendered: no severity, no display
-  // name, no Spanish gloss of the action enum.
-  expect(text('audit-status')).not.toMatch(/severidad|nombre para mostrar|riesgo/i);
+  // Nothing the endpoint does not provide is rendered: no severity and no
+  // Spanish gloss of the action enum.
+  expect(text('audit-status')).not.toMatch(/severidad|riesgo/i);
 });
 
 test('audit 403 renders an explicit admin-only reason instead of hiding the panel', async () => {
@@ -194,44 +265,75 @@ test('a viewer reaches the audit view and reads the server 403 instead of being 
   expect(refresh.disabled).toBe(false);
 });
 
-test('the register fails closed unless every entry states an action and a time, and an omitted identifier is labelled in place', async () => {
-  // A body that is not an array of events is not a register.
+// expectMalformed drives one fresh render through a response the register must
+// refuse as a whole: an unusable body never paints partial or invented rows.
+async function expectMalformed(body: unknown): Promise<void> {
+  setup();
   await connect(ADMIN_TOKEN);
-  const notArray = render(<AuditView />);
+  const view = render(<AuditView />);
   await waitFor(() => {
     expect(fetchStub.callsFor(AUDIT_URL)).toHaveLength(1);
   });
-  await answerAudit({ code: 'unexpected' });
+  await answerAudit(body);
   expect(badgeText()).toBe('NO DISPONIBLE');
   expect(document.querySelectorAll('#audit-rows tr')).toHaveLength(0);
   expect(document.getElementById('audit-table')?.hasAttribute('hidden')).toBe(true);
-  notArray.unmount();
+  view.unmount();
+}
+
+test('the register fails closed unless every entry states its own event id, action, time and kind', async () => {
+  // A body that is not an array of events is not a register.
+  await expectMalformed({ code: 'unexpected' });
 
   // An entry without an action and a time is not an event: nothing is invented.
-  setup();
-  await connect(ADMIN_TOKEN);
-  const incomplete = render(<AuditView />);
-  await waitFor(() => {
-    expect(fetchStub.callsFor(AUDIT_URL)).toHaveLength(1);
-  });
-  await answerAudit([{ actor_id: 'a', job_id: 'j', trace_id: 't' }]);
-  expect(badgeText()).toBe('NO DISPONIBLE');
-  expect(document.querySelectorAll('#audit-rows tr')).toHaveLength(0);
-  incomplete.unmount();
+  await expectMalformed([{ actor_id: 'a', job_id: 'j', trace_id: 't' }]);
 
-  // An omitted identifier is labelled in place, never filled in from another
-  // field, and an action outside the documented enum is shown verbatim.
-  setup();
+  // The durable event id is required: without it the page cannot key a row.
+  await expectMalformed([auditEntry({ event_id: '' })]);
+
+  // The kind is a closed vocabulary, not free text.
+  await expectMalformed([
+    {
+      event_id: 'audit-9',
+      actor_id: 'a',
+      actor_name: null,
+      action: 'cualquier.valor',
+      event_kind: 'lectura',
+      detail: null,
+      job_id: null,
+      trace_id: 't',
+      occurred_at: '2026-01-01T00:00:00Z',
+    },
+  ]);
+});
+
+test('an omitted nullable field is labelled in place, never filled in from another field', async () => {
   await connect(ADMIN_TOKEN);
   render(<AuditView />);
   await waitFor(() => {
     expect(fetchStub.callsFor(AUDIT_URL)).toHaveLength(1);
   });
   await answerAudit([
-    { actor_id: 'a', action: 'cualquier.valor', job_id: 'j', trace_id: '', occurred_at: '2026-01-01T00:00:00Z' },
+    auditEntry({
+      event_id: 'audit-9',
+      actor_id: 'a',
+      actor_name: null,
+      action: 'cualquier.valor',
+      detail: null,
+      job_id: null,
+      trace_id: '',
+    }),
   ]);
-  const cells = [...document.querySelectorAll('#audit-rows tr td')].map(cell => cell.textContent);
-  expect(cells).toEqual(['a', 'cualquier.valor', 'j', 'No informado', '2026-01-01T00:00:00Z']);
+  expect(cells()).toEqual([
+    'audit-9',
+    'a',
+    'cualquier.valor',
+    'Mutación',
+    'No informado',
+    'No informado',
+    'No informado',
+    '2026-01-01T00:00:00Z',
+  ]);
 });
 
 test('the refresh control re-reads the same parameterless endpoint and an empty register is a real zero', async () => {
@@ -240,9 +342,7 @@ test('the refresh control re-reads the same parameterless endpoint and an empty 
   await waitFor(() => {
     expect(fetchStub.callsFor(AUDIT_URL)).toHaveLength(1);
   });
-  await answerAudit([
-    { actor_id: 'a', action: 'job.requested', job_id: 'j', trace_id: 't', occurred_at: '2026-01-01T00:00:00Z' },
-  ]);
+  await answerAudit([auditEntry()]);
   expect(document.querySelectorAll('#audit-rows tr')).toHaveLength(1);
 
   act(() => {
@@ -267,9 +367,7 @@ test('closing the session clears the register and a fenced reply cannot repaint 
   await waitFor(() => {
     expect(fetchStub.callsFor(AUDIT_URL)).toHaveLength(1);
   });
-  await answerAudit([
-    { actor_id: 'a', action: 'job.requested', job_id: 'j', trace_id: 't', occurred_at: '2026-01-01T00:00:00Z' },
-  ]);
+  await answerAudit([auditEntry()]);
   expect(document.querySelectorAll('#audit-rows tr')).toHaveLength(1);
 
   // Start a read, then close the session while it is in flight.
@@ -290,9 +388,7 @@ test('closing the session clears the register and a fenced reply cannot repaint 
   expect((document.getElementById('audit-refresh') as HTMLButtonElement).disabled).toBe(true);
 
   // The late reply owns nothing: it must not repaint the closed panel.
-  await answerAudit([
-    { actor_id: 'late', action: 'batch.published', job_id: 'j', trace_id: 't', occurred_at: '2026-01-03T00:00:00Z' },
-  ]);
+  await answerAudit([auditEntry({ event_id: 'audit-late', actor_id: 'late', action: 'batch.published' })]);
   expect(document.querySelectorAll('#audit-rows tr')).toHaveLength(0);
   expect(badgeText()).toBe('SIN CONSULTAR');
   expect(text('audit-status')).toBe('Conecta un token autorizado para consultar el registro de actividad.');

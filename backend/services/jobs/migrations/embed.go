@@ -21,3 +21,11 @@ var SyntheticScenario string
 //
 //go:embed 004_job_failure_state.sql
 var JobFailureState string
+
+// AuditEventMetadata adds the durable audit event metadata: the verified actor
+// name, a free-text detail, a closed event kind and a nullable job reference for
+// query records. It is forward-only and guarded; historical rows keep a NULL
+// name and detail, and the append-only grants stay unchanged.
+//
+//go:embed 005_audit_event_metadata.sql
+var AuditEventMetadata string
