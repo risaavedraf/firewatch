@@ -33,6 +33,8 @@ The endpoints bind only to host loopback. HTTP/password grants and the local Rab
 
 Do not read the registry's `active` flag as proof of what ran: the migrations seed `academic-rule-v1` as active before any operator decides anything, and that seed is not evidence of runtime selection. After an explicit activation, every publication whose classifier resolution happens **after** the call runs the activated version and records that version with its policy, in every replica, without a restart. A publication already in flight that resolved its classifier before the call keeps the one snapshot it resolved. Reversion is activating the previous version through the same route. The full contract, precedence table and fail-closed rules are in [`docs/model-activation.md`](docs/model-activation.md).
 
+The registry read also carries an additive `effective` object: the classifier the **next** publication would resolve at read time, projected through the same runtime source the publisher uses. `{"status":"rule","version":"...","params_hash":"..."}` is published only for a rule whose own policy fingerprint is canonical lowercase SHA-256 and, for a frozen identifier, matches the frozen expectation. A resolved trained classifier is `{"status":"non_rule"}` without identity; a missing resolver, an unreadable registry, an unresolvable version or a fingerprint failure is `{"status":"unavailable"}`. The last two states never remove or fail the `models` list, and `effective` describes the current selection, not the last publication or a claim that inference runs.
+
 ### Cycle and freshness
 
 `risk` runs the ingestion cycle at startup and every 15 minutes. The startup run publishes a batch for the configured demo zone, so a restart can legitimately make `GET /v1/risk/latest` return a newer batch than the one a client read before; `latest` is the most recently persisted batch, not a durable observation contract. `GET /v1/risk/sources` reports the last run and the expected renewal (`last_run_at` + 900 s), which is a renewal deadline, not necessarily the next scheduler tick.
@@ -70,7 +72,7 @@ Use the demo script or an API client to obtain a token from Keycloak's `/realms/
 | `GET /v1/risk/latest?zone_id=valparaiso-demo` | viewer/admin | Latest batch, GeoJSON point, emission/validity dates and freshness |
 | `GET /v1/risk/history?zone_id=valparaiso-demo` | viewer/admin | Last 100 batches |
 | `GET /v1/risk/batches` | viewer/admin | The newest published batch of every zone, one element per zone ordered by `zone_id`, without the batch `geometry`; a zone with no published batch is absent and nothing published is `{"batches":[]}` with `200`, never `404` |
-| `GET /v1/models` | viewer/admin | Registered classifier versions and the single `active` row |
+| `GET /v1/models` | viewer/admin | Registered classifier versions, the single `active` row and the additive `effective` projection of the classifier the next publication would resolve (a rule with its version and verified fingerprint, `non_rule`, or `unavailable`; identity is omitted unless it is proven) |
 | `POST /v1/models/{version}/activate` | admin | Activates a registered version; publications resolved after the call run it, in-flight ones keep their snapshot |
 | `POST /v1/risk/cycle/run` | admin | Runs the ingestion cycle immediately and reports completion |
 | `GET /v1/prevention/actions?community_code=&status=` | viewer/admin | Preventive actions, at most 200 rows |

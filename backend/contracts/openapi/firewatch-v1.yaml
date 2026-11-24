@@ -494,6 +494,19 @@ paths:
         completes with that earlier version, so the active row here and the
         version recorded on the newest batch can legitimately differ until the
         next publication is resolved.
+
+        The additive `effective` object reports the classifier the NEXT
+        publication would resolve at read time, using the same runtime source the
+        publisher uses. It is not a claim about the last publication, about
+        inference availability or about an artifact having been published:
+        `{"status":"rule","version":"...","params_hash":"..."}` appears only
+        when the resolved classifier is a rule whose own policy fingerprint is a
+        canonical lowercase SHA-256 and, for a frozen identifier, matches the
+        frozen expectation. A resolved trained classifier is
+        `{"status":"non_rule"}` with no identity. A missing resolver, an
+        unreadable registry, an unresolvable active version, a fingerprint error
+        or any other missing evidence is `{"status":"unavailable"}`, and it never
+        changes the registry list's `200` or its `models` array.
       responses:
         '200':
           description: Model registry ordered active first, then by version.
@@ -1546,11 +1559,58 @@ components:
         whose parameter set is not reconstructible.
     ModelList:
       type: object
-      required: [models]
+      required: [models, effective]
       properties:
         models:
           type: array
           items: {$ref: '#/components/schemas/ModelVersion'}
+        effective:
+          $ref: '#/components/schemas/EffectiveClassifier'
+    EffectiveClassifier:
+      description: >-
+        Additive projection of the classifier the next publication would resolve
+        at read time. Exactly one shape applies. Identity belongs to the rule
+        state alone; unavailable is the fail-closed answer, not an error, and it
+        can coexist with a successful registry list.
+      oneOf:
+        - $ref: '#/components/schemas/EffectiveRuleClassifier'
+        - $ref: '#/components/schemas/EffectiveNonRuleClassifier'
+        - $ref: '#/components/schemas/EffectiveUnavailableClassifier'
+    EffectiveRuleClassifier:
+      type: object
+      required: [status, version, params_hash]
+      additionalProperties: false
+      properties:
+        status: {type: string, enum: [rule]}
+        version:
+          type: string
+          minLength: 1
+          description: The resolved rule's identifier, as the runtime selected it.
+        params_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: >-
+            The resolved rule's own verified policy fingerprint. It is canonical
+            lowercase SHA-256 and, for a frozen identifier, equal to the frozen
+            expectation; it is not a registry row copied blindly.
+    EffectiveNonRuleClassifier:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status: {type: string, enum: [non_rule]}
+      description: >-
+        A resolved trained or otherwise non-rule classifier. Its identity is
+        omitted because this projection does not present a model as a rule.
+    EffectiveUnavailableClassifier:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status: {type: string, enum: [unavailable]}
+      description: >-
+        Missing evidence or a resolution failure. No version or fingerprint is
+        claimed, and the registry list itself remains a successful 200.
     ErrorResponse:
       type: object
       description: >-
