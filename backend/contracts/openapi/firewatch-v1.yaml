@@ -607,7 +607,12 @@ paths:
         fields existed keep their original actor_id, action, job_id, trace_id
         and occurred_at, and their actor_name and detail are null rather than a
         synthesized name. The application role can only select and insert audit
-        rows; it cannot update or delete them.
+        rows; it cannot update or delete them. The gateway records successful
+        GETs for latest and historical risk, aggregate published batches,
+        observations, and the preventive-action collection and detail. It does
+        not record this endpoint, catalogues, geometry requests, or failed
+        upstream reads. If recording a selected successful result fails, that
+        read returns 503 storage_unavailable instead of the upstream success.
       responses:
         '200':
           description: Audit entries
@@ -641,9 +646,13 @@ paths:
                       description: >-
                         The action the event records. The mutation actions
                         written by the job transitions are job.requested and
-                        batch.published; a query action is defined by the query
-                        recorder that writes event_kind query, so this field is
-                        not closed to those two mutations.
+                        batch.published. The query actions are risk.current.read
+                        (GET /v1/risk/latest), risk.history.read (GET /v1/risk/history),
+                        risk.batches.read (GET /v1/risk/batches),
+                        prevention.observations.read (GET /v1/prevention/observations),
+                        and prevention.actions.read (GET /v1/prevention/actions or
+                        its action detail). Request query parameters, tokens and
+                        resource IDs are not copied into the record.
                     event_kind:
                       type: string
                       enum: [mutation, query]
@@ -1429,6 +1438,78 @@ paths:
                     type: string
                     enum: [invalid_observation_request, zone_not_found]
                   request_id: {type: string, format: uuid}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/prevention/observations/{id}/adoption:
+    post:
+      operationId: adoptPreventionObservation
+      description: >-
+        Admin only. Explicitly confirms that an existing non-cancelled action
+        is needed and records the field observation supporting it. The action
+        may still be proposed; this operation does not assign personnel or
+        change its status. An observation can support at most one action, and
+        several observations may support the same action. Repeating the same
+        link returns the stored observation without rewriting the confirmation,
+        even if the action was cancelled later.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the existing field observation.
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action_id]
+              properties:
+                action_id: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The persisted observation with its adopted action ID.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PreventiveObservation'}
+        '400':
+          description: Invalid observation UUID (invalid_observation_id).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404':
+          description: The observation does not exist (observation_not_found).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '409':
+          description: >-
+            A fresh link to a cancelled action (action_cancelled) or an attempt
+            to replace an existing link (observation_already_adopted). No link
+            is changed.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '415':
+          description: JSON content type required (json_required).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '422':
+          description: >-
+            The body is not a single valid adoption request of at most 1024
+            bytes (invalid_adoption_request), or references an action that
+            does not exist (action_not_found). No confirmation is recorded.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -2541,6 +2622,14 @@ components:
             The author: verified token subject of the admin who recorded the
             observation. Never a client-supplied identity.
         created_at: {type: string, format: date-time}
+        adopted_action_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            ID of the action confirmed as necessary based on this observation,
+            or null when there is no link. Later cancellation does not erase
+            the recorded association.
     PreventiveObservationCreate:
       type: object
       additionalProperties: false

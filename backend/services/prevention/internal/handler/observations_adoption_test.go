@@ -147,16 +147,29 @@ func TestObservationListReportsTheDurableAdoption(t *testing.T) {
 	}
 }
 
-// TestAdoptionResponseKeepsTheDocumentedObservationShape validates the 200 body of
-// the adoption operation against the published PreventiveObservation schema, so
-// the additive association cannot quietly change the observation the frontend
-// already renders. The operation and the new optional property are documented by
-// the contract owner; this test proves the body those documents must describe.
 func TestAdoptionResponseKeepsTheDocumentedObservationShape(t *testing.T) {
+	const path = "/v1/prevention/observations/{id}/adoption"
 	contract := loadContract(t)
-	schema := contract.Components.Schemas["PreventiveObservation"]
-	if schema == nil || schema.Value == nil {
-		t.Fatal("the contract documents no PreventiveObservation schema")
+	item := contract.Paths.Find(path)
+	if item == nil || item.Post == nil || item.Post.RequestBody == nil {
+		t.Fatal("the contract does not describe the adoption POST and its body")
+	}
+	operation := item.Post
+	for _, status := range []int{200, 400, 401, 403, 404, 409, 415, 422, 429, 502, 503} {
+		if operation.Responses.Status(status) == nil {
+			t.Errorf("adoption POST does not document HTTP %d", status)
+		}
+	}
+	schema := operation.RequestBody.Value.Content.Get("application/json").Schema.Value
+	if err := schema.VisitJSON(map[string]any{"action_id": fixedAdoptionActionID}); err != nil {
+		t.Errorf("documented adoption input was refused: %v", err)
+	}
+	if err := schema.VisitJSON(map[string]any{"action_id": fixedAdoptionActionID, "confirmed_by": "untrusted"}); err == nil {
+		t.Error("contract accepts an identity field set by the client")
+	}
+	field := contract.Components.Schemas["PreventiveObservation"].Value.Properties["adopted_action_id"]
+	if field == nil || !field.Value.Nullable || field.Value.Format != "uuid" {
+		t.Fatal("adopted_action_id must be documented as a nullable UUID")
 	}
 	store := newAdoptionStore()
 	store.adoption.ConfirmedAt = time.Date(2026, 11, 21, 9, 0, 0, 0, time.UTC)
@@ -170,9 +183,7 @@ func TestAdoptionResponseKeepsTheDocumentedObservationShape(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatalf("body is not JSON: %v", err)
 	}
-	if err := schema.Value.VisitJSON(body); err != nil {
-		t.Fatalf("the adoption answer is not a documented observation: %v\nbody: %s", err, w.Body.String())
-	}
+	assertResponseMatchesContract(t, contract, path, http.MethodPost, w)
 	documented, _ := body.(map[string]any)
 	if documented["adopted_action_id"] != fixedAdoptionActionID {
 		t.Errorf("adopted_action_id is %v, want the linked action", documented["adopted_action_id"])

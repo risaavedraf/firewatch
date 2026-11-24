@@ -18,6 +18,13 @@ export type UnimplementedCapability = {
 // content instead of a copy that could drift. The react-refresh rule wants a
 // view module to export components only; this is a read-only data table, not a
 // fast-refresh boundary, so its advisory is suppressed here on purpose.
+//
+// Rows leave this list only when the backend answers the capability they declare.
+// PM-10 / V1-P-07 retired the audit entry («Nombre del actor, detalle libre e id
+// de evento»): `GET /v1/audit` now returns the actor name, a free-text detail and
+// a per-row event identifier, and `#audit` renders them. The retired entry is not
+// kept here as a "recently fixed" note — an absence list that also lists what
+// exists is no longer a statement of what the page cannot do.
 // eslint-disable-next-line react-refresh/only-export-components
 export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
   {
@@ -55,12 +62,6 @@ export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
     reason:
       'No existe endpoint: el servidor decide y publica por su cuenta; la página solo solicita el trabajo y lee el resultado.',
     location: 'Procesamiento asíncrono',
-  },
-  {
-    capability: 'Nombre del actor, detalle libre e id de evento',
-    reason:
-      'GET /v1/audit entrega actor_id, action, job_id, trace_id y occurred_at: identificadores opacos, sin nombre ni detalle.',
-    location: 'Registro de actividad',
   },
 ];
 
