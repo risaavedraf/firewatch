@@ -77,6 +77,9 @@ export const routes = {
   // The aggregate read that colours the whole territory on load: the newest
   // published batch of every zone that has one, answered in a single request.
   batches: '/v1/risk/batches',
+  // PM-11 — the embedded fictional infrastructure catalogue. Read-only and
+  // authenticated by the existing risk prefix; there is no mutation route.
+  infrastructure: '/v1/risk/infrastructure',
   sources: '/v1/risk/sources',
   riskStatus: '/v1/risk/status',
   jobsStatus: '/v1/jobs/status',

@@ -7,7 +7,7 @@ import { completeLogin, resetSession } from '../../src/core/session';
 
 import { createCryptoStub, createFetchStub, flush, jwt } from '../core/harness';
 
-// N4 — the nine real areas are now seven views, and exactly one of them is
+// N4 — the nine real areas are now nine views, and exactly one of them is
 // rendered at a time. The retired page stacked all nine sections in one scroll,
 // which is the symptom the user reported ("puedo scrolleando ver toda la info,
 // no por separado").
@@ -45,13 +45,14 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the eight views are declared once, with the two merged pairs and no duplicate hash', () => {
+test('the nine views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
   // (Acceso) and the sidebar order is the declared order. `#actions` joins
-  // Prevención beside the territory and the batch history (T12).
-  expect(ids).toEqual(['overview', 'history', 'actions', 'sources', 'jobs', 'pending', 'session', 'audit']);
+  // Prevención beside the territory and the batch history (T12), and PM-11 adds
+  // the dedicated synthetic-infrastructure demo in the same group.
+  expect(ids).toEqual(['overview', 'infrastructure', 'history', 'actions', 'sources', 'jobs', 'pending', 'session', 'audit']);
   expect(new Set(ids).size).toBe(ids.length);
   // `#session` carries the permissions matrix and `#sources` carries the pipeline
   // status: the two merged pairs must not survive as their own routes, or the
@@ -104,4 +105,17 @@ test('the active navigation entry follows the opened view and marks nothing else
   const active = [...document.querySelectorAll('nav a[aria-current="true"]')];
   expect(active).toHaveLength(1);
   expect(active[0]).toHaveAttribute('href', '#audit');
+});
+
+// PM-11 — the synthetic infrastructure demo is a dedicated view, not a panel
+// appended to the territory overview. It keeps its own hash and navigation entry.
+test('the synthetic infrastructure demo has a dedicated #infrastructure route and navigation entry', () => {
+  render(<App />);
+
+  expect(screen.getByRole('link', { name: /infraestructura/i })).toHaveAttribute('href', '#infrastructure');
+
+  navigate('#infrastructure');
+  expect(renderedViews()).toEqual(['infrastructure']);
+  expect(document.getElementById('infrastructure-title')?.textContent).toBe('Infraestructura prioritaria');
+  expect(document.getElementById('infrastructure-synthetic')).not.toBeNull();
 });

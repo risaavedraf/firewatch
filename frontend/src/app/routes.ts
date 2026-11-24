@@ -1,12 +1,13 @@
 import type { IconName } from '../components/ui';
 
-// The seven views of the application. The nine areas of the retired page are all
+// The nine views of the application. The nine areas of the retired page are all
 // still here: `#sources` also carries the dependent-services status and
 // `#session` also carries the permissions matrix, which is the grouping the user
 // chose (D1). `#pending` gained the navigation entry it never had (D2): the
 // "not implemented yet" inventory is exactly the kind of honesty statement that
-// must not depend on someone scrolling to the bottom of the page.
-export type ViewId = 'overview' | 'history' | 'actions' | 'sources' | 'jobs' | 'session' | 'pending' | 'audit';
+// must not depend on someone scrolling to the bottom of the page. PM-11 adds
+// `#infrastructure` as its own demo view rather than folding it into territorio.
+export type ViewId = 'overview' | 'infrastructure' | 'history' | 'actions' | 'sources' | 'jobs' | 'session' | 'pending' | 'audit';
 
 export interface RouteDefinition {
   id: ViewId;
@@ -21,6 +22,7 @@ export interface RouteDefinition {
 
 export const routes: readonly RouteDefinition[] = [
   { id: 'overview', hash: '#overview', label: 'Territorio', group: 'Prevención', icon: 'territory', title: 'Estado de la zona' },
+  { id: 'infrastructure', hash: '#infrastructure', label: 'Infraestructura', group: 'Prevención', icon: 'zones', title: 'Infraestructura prioritaria' },
   { id: 'history', hash: '#history', label: 'Historial de lotes', group: 'Prevención', icon: 'history', title: 'Historial de lotes' },
   { id: 'actions', hash: '#actions', label: 'Acciones preventivas', group: 'Prevención', icon: 'actions', title: 'Acciones preventivas' },
   { id: 'sources', hash: '#sources', label: 'Fuentes y servicios', group: 'Información', icon: 'sources', title: 'Fuentes y servicios' },
