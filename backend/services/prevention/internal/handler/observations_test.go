@@ -45,6 +45,13 @@ type observationStore struct {
 	zones      []repository.Zone
 	zonesErr   error
 	zonesCalls int
+
+	adoption           repository.ObservationAdoption
+	adoptionErr        error
+	adoptionCalls      int
+	lastAdoptionID     string
+	lastAdoptionAction string
+	lastAdoptionActor  string
 }
 
 func (s *observationStore) ListObservations(_ context.Context, observationType string) ([]repository.Observation, error) {
@@ -79,6 +86,32 @@ func (s *observationStore) ListZones(_ context.Context) ([]repository.Zone, erro
 	return s.zones, nil
 }
 
+// AdoptObservation mirrors the store's shape: it records what the route passed and
+// answers the observation in its post-link state. Whether a link is new, repeated
+// or refused is the repository's single decision, and that rule is proved against
+// the real database rather than by this stub.
+func (s *observationStore) AdoptObservation(_ context.Context, observationID, actionID, confirmedBy string) (repository.ObservationAdoption, error) {
+	s.adoptionCalls++
+	s.lastAdoptionID, s.lastAdoptionAction, s.lastAdoptionActor = observationID, actionID, confirmedBy
+	if s.adoptionErr != nil {
+		return repository.ObservationAdoption{}, s.adoptionErr
+	}
+	result := s.adoption
+	// The answer is the stored observation, exactly as the real store re-reads it
+	// inside the adoption transaction, so a body assertion proves the transport.
+	result.Observation = s.created
+	result.Observation.ID = observationID
+	if result.ActionID == "" {
+		result.ActionID = actionID
+	}
+	if result.ConfirmedBy == "" {
+		result.ConfirmedBy = confirmedBy
+	}
+	linked := result.ActionID
+	result.Observation.AdoptedActionID = &linked
+	return result, nil
+}
+
 // newObservationStore builds a stub whose create answer is the documented wire
 // object, so a 201 body can be validated against the contract.
 func newObservationStore() *observationStore {
@@ -99,6 +132,27 @@ func newObservationStore() *observationStore {
 }
 
 const observationBody = `{"zone_id":"valparaiso-demo","type":"quema","observed_on":"2026-11-20","description":"Pastizal seco junto a la escalera de acceso"}`
+
+// fixedAdoptionActionID is a valid action id for the adoption route. The stub
+// store answers it; no real action row is needed to prove the transport.
+const fixedAdoptionActionID = "3f2b1c7d-5e6a-4b8c-9d0e-1a2b3c4d5e6f"
+
+// adoptionBody is the only documented adoption body: one action reference. The
+// confirming actor is the verified subject, never a field, and no status is sent.
+const adoptionBody = `{"action_id":"` + fixedAdoptionActionID + `"}`
+
+// newAdoptionStore builds a stub whose adoption answer is a fresh confirmation of
+// the documented action, so the 200 body can be asserted as the durable link.
+func newAdoptionStore() *observationStore {
+	store := newObservationStore()
+	store.adoption = repository.ObservationAdoption{
+		ActionID:    fixedAdoptionActionID,
+		ConfirmedBy: "admin-1",
+		ConfirmedAt: time.Date(2026, 11, 21, 9, 0, 0, 0, time.UTC),
+		Recorded:    true,
+	}
+	return store
+}
 
 // TestObservationRouteAuthorization pins the role boundary of PM-09: reads are
 // open to viewer and admin, writes are admin only, and a role this service does
@@ -557,4 +611,104 @@ func requestWithContentType(t *testing.T, h http.Handler, method, target, bearer
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	return w
+}
+
+// TestAdoptionRouteAuthorization pins the role boundary of PM-10's adoption
+// operation: it is a write, so it stays admin only, while the observation reads
+// keep the PM-09 viewer/admin posture. A refused write must never reach storage.
+func TestAdoptionRouteAuthorization(t *testing.T) {
+	target := "/v1/prevention/observations/" + fixedObservationID + "/adoption"
+	for _, tc := range []struct {
+		role      string
+		want      int
+		wantCalls int
+	}{
+		{role: "", want: http.StatusUnauthorized},
+		{role: "operator", want: http.StatusForbidden},
+		{role: "viewer", want: http.StatusForbidden},
+		{role: "admin", want: http.StatusOK, wantCalls: 1},
+	} {
+		name := "adoption_" + tc.role
+		t.Run(name, func(t *testing.T) {
+			store := newAdoptionStore()
+			h, signer := app(t, store)
+			bearer := ""
+			if tc.role != "" {
+				bearer = token(t, signer, tc.role, "admin-1")
+			}
+			w := requestWith(t, h, http.MethodPost, target, bearer, adoptionBody)
+			if w.Code != tc.want {
+				t.Fatalf("answered %d, want %d: %s", w.Code, tc.want, w.Body.String())
+			}
+			if store.adoptionCalls != tc.wantCalls {
+				t.Fatalf("the write reached storage %d times, want %d", store.adoptionCalls, tc.wantCalls)
+			}
+		})
+	}
+}
+
+// TestAdoptObservationConfirmsTheNeedAndEchoesTheDurableLink is S4's timing rule
+// at the transport: one authorized operation confirms that the observation
+// justifies an existing action, and the answer is the observation in its
+// post-link state. Nothing here assigns personnel or moves the action: the body
+// carries no status, assignee or note, so those cannot be sent at all.
+func TestAdoptObservationConfirmsTheNeedAndEchoesTheDurableLink(t *testing.T) {
+	store := newAdoptionStore()
+	h, signer := app(t, store)
+	w := requestWith(t, h, http.MethodPost, "/v1/prevention/observations/"+fixedObservationID+"/adoption",
+		token(t, signer, "admin", "encargado-7"), adoptionBody)
+	if w.Code != http.StatusOK {
+		t.Fatalf("answered %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if store.lastAdoptionID != fixedObservationID {
+		t.Errorf("the store received observation %q, want the path id %q", store.lastAdoptionID, fixedObservationID)
+	}
+	if store.lastAdoptionAction != fixedAdoptionActionID {
+		t.Errorf("the store received action %q, want %q", store.lastAdoptionAction, fixedAdoptionActionID)
+	}
+	if store.lastAdoptionActor != "encargado-7" {
+		t.Errorf("the store received confirmer %q, want the verified subject %q", store.lastAdoptionActor, "encargado-7")
+	}
+	var adopted repository.Observation
+	if err := json.Unmarshal(w.Body.Bytes(), &adopted); err != nil {
+		t.Fatalf("body is not an observation: %v", err)
+	}
+	if adopted.AdoptedActionID == nil || *adopted.AdoptedActionID != fixedAdoptionActionID {
+		t.Errorf("adopted_action_id is %v, want %q", adopted.AdoptedActionID, fixedAdoptionActionID)
+	}
+	if adopted.ID != fixedObservationID || adopted.CreatedBy != "admin-1" {
+		t.Errorf("the answer is not the stored observation: %+v", adopted)
+	}
+	if got := w.Header().Get("Location"); got != "" {
+		t.Errorf("Location %q was set; the answer is the observation representation", got)
+	}
+}
+
+// TestAdoptObservationRepeatsTheDurableLinkWithoutRewritingIt proves the
+// idempotent half of the link rule on the wire: a repeat of the identical link is
+// a 200 that reports the link already stored, and the answer keeps the original
+// observation author rather than attributing the observation to the repeater.
+// The repository reports that no row was written; the transport must not turn
+// that into an error or a second confirmation.
+func TestAdoptObservationRepeatsTheDurableLinkWithoutRewritingIt(t *testing.T) {
+	store := newAdoptionStore()
+	store.adoption.Recorded = false
+	store.adoption.ConfirmedBy = "admin-1"
+	store.adoption.ConfirmedAt = time.Date(2026, 11, 20, 18, 30, 0, 0, time.UTC)
+	h, signer := app(t, store)
+	w := requestWith(t, h, http.MethodPost, "/v1/prevention/observations/"+fixedObservationID+"/adoption",
+		token(t, signer, "admin", "encargado-7"), adoptionBody)
+	if w.Code != http.StatusOK {
+		t.Fatalf("a repeated identical link answered %d, want 200: %s", w.Code, w.Body.String())
+	}
+	var adopted repository.Observation
+	if err := json.Unmarshal(w.Body.Bytes(), &adopted); err != nil {
+		t.Fatal(err)
+	}
+	if adopted.AdoptedActionID == nil || *adopted.AdoptedActionID != fixedAdoptionActionID {
+		t.Errorf("a repeated link lost the durable association: %v", adopted.AdoptedActionID)
+	}
+	if adopted.CreatedBy != "admin-1" {
+		t.Errorf("observation author became %q; the repeater must not be attributed as its author", adopted.CreatedBy)
+	}
 }

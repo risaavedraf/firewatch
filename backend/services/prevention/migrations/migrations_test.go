@@ -36,15 +36,15 @@ func sqlFor(t *testing.T, version int) string {
 // TestAllHasTheContractMigrations pins the migration identity: version 9 for the
 // frozen action tables, version 11 for the S2 evidence tables, version 14 for the
 // directory projection and the assignment reference, and version 15 for PM-09's
-// field observations. Version 10 belongs to risk's model activation and 12 and 13
-// to risk's readings and model fixture in the shared schema_migrations ledger, so
-// claiming any of them here would make one of the two migrations skip silently.
+// field observations and version 16 for PM-10's adoption link. Version 10
+// belongs to risk's model activation and 12 and 13 to risk's readings and model
+// fixture in the shared schema_migrations ledger.
 func TestAllHasTheContractMigrations(t *testing.T) {
 	all := All()
-	if len(all) != 4 {
-		t.Fatalf("the service defines four migrations, All() returned %d", len(all))
+	want := []int{9, 11, 14, 15, 16}
+	if len(all) != len(want) {
+		t.Fatalf("All() returned %d migrations, want %d", len(all), len(want))
 	}
-	want := []int{9, 11, 14, 15}
 	for index, version := range want {
 		if all[index].Version != version {
 			t.Errorf("migration at index %d has version %d, want %d", index, all[index].Version, version)

@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"firewatch.local/prevention/internal/repository"
+	"github.com/google/uuid"
 )
 
 // Body bound and field bound for PM-09. The observation body is a small flat
@@ -22,6 +23,9 @@ import (
 const (
 	maxObservationBody        = 8192
 	maxObservationDescription = 240
+	// maxAdoptionBody bounds the adoption body. It carries one UUID and nothing
+	// else, so a larger document is not a confirmation this service defines.
+	maxAdoptionBody = 1024
 )
 
 // ObservationType is one member of PM-09's closed observation catalogue. There is
@@ -79,6 +83,10 @@ type ObservationRepository interface {
 	CreateObservation(ctx context.Context, input repository.NewObservation) (repository.Observation, error)
 	// ListZones returns the zone catalogue in display order.
 	ListZones(ctx context.Context) ([]repository.Zone, error)
+	// AdoptObservation durably confirms that the observation justifies the named
+	// existing action and links the two in one row-locked transaction, or refuses
+	// with one of the documented errors leaving nothing written.
+	AdoptObservation(ctx context.Context, observationID, actionID, confirmedBy string) (repository.ObservationAdoption, error)
 }
 
 // registerObservationRoutes mounts the PM-09 routes below the prevention prefix
@@ -95,11 +103,15 @@ func registerObservationRoutes(mux *http.ServeMux, store Repository) {
 		mux.HandleFunc("GET /v1/prevention/observations", observationsUnavailable)
 		mux.HandleFunc("POST /v1/prevention/observations", observationsUnavailable)
 		mux.HandleFunc("GET /v1/prevention/observations/zones", observationsUnavailable)
+		mux.HandleFunc("POST /v1/prevention/observations/{id}/adoption", observationsUnavailable)
 		return
 	}
 	mux.HandleFunc("GET /v1/prevention/observations", listObservations(observations))
 	mux.HandleFunc("POST /v1/prevention/observations", createObservation(observations))
 	mux.HandleFunc("GET /v1/prevention/observations/zones", listObservationZones(observations))
+	// PM-10's one authorized operation: confirmation of need, which links an
+	// existing observation to an existing action without assigning or advancing it.
+	mux.HandleFunc("POST /v1/prevention/observations/{id}/adoption", adoptObservation(observations))
 }
 
 // observationsUnavailable is the documented 503 of a service whose observation
@@ -276,4 +288,113 @@ func listObservationZones(store ObservationRepository) http.HandlerFunc {
 		}
 		respond(w, http.StatusOK, zones)
 	}
+}
+
+// adoptionRequest is the adoption body. The action is the only field: the
+// confirming actor is the verified subject, the observation is addressed by the
+// path, and the body carries no status, assignee, note or date, so a client
+// cannot assign the work, move the action or backdate a confirmation.
+type adoptionRequest struct {
+	ActionID *string `json:"action_id"`
+}
+
+// adoptObservation serves POST /v1/prevention/observations/{id}/adoption: admin
+// only.
+//
+// It is the one authorized operation of PM-10's relationship: an operator states
+// that the recorded observation justifies the selected existing action, and the
+// pair is linked durably. Linking is allowed in propuesta and confined to
+// non-cancelled actions; the operation never assigns personnel, never advances the
+// action and never reviews evidence. The four distinguishable refusals are kept
+// apart: a malformed path is 400, an action the service does not hold is the 422
+// reference refusal (the same posture as zone_not_found), and a cancelled action or
+// an observation already linked to another action are 409 conflicts because both
+// records exist and the rule refuses.
+func adoptObservation(store ObservationRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !isAdmin(r.Context()) {
+			fail(w, http.StatusForbidden, "forbidden")
+			return
+		}
+		if !jsonContentType(r) {
+			fail(w, http.StatusUnsupportedMediaType, "json_required")
+			return
+		}
+		observationID, ok := observationID(r)
+		if !ok {
+			fail(w, http.StatusBadRequest, "invalid_observation_id")
+			return
+		}
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxAdoptionBody))
+		if err != nil {
+			fail(w, http.StatusUnprocessableEntity, "invalid_adoption_request")
+			return
+		}
+		var request adoptionRequest
+		if !decodeStrict(body, &request) {
+			fail(w, http.StatusUnprocessableEntity, "invalid_adoption_request")
+			return
+		}
+		actionID, ok := adoptionActionID(request)
+		if !ok {
+			fail(w, http.StatusUnprocessableEntity, "invalid_adoption_request")
+			return
+		}
+		result, err := store.AdoptObservation(r.Context(), observationID, actionID, subjectOf(r.Context()))
+		switch {
+		case errors.Is(err, repository.ErrObservationNotFound):
+			fail(w, http.StatusNotFound, "observation_not_found")
+			return
+		case errors.Is(err, repository.ErrAdoptionActionNotFound):
+			fail(w, http.StatusUnprocessableEntity, "action_not_found")
+			return
+		case errors.Is(err, repository.ErrAdoptionActionCancelled):
+			fail(w, http.StatusConflict, "action_cancelled")
+			return
+		case errors.Is(err, repository.ErrObservationAlreadyAdopted):
+			fail(w, http.StatusConflict, "observation_already_adopted")
+			return
+		case err != nil:
+			slog.Error("adopt_observation_failed", "request_id", r.Header.Get("X-Request-ID"))
+			fail(w, http.StatusServiceUnavailable, "storage_unavailable")
+			return
+		}
+		// Durable audit: the link row plus this line, keyed by the actor who owns
+		// the durable confirmation. A repeat writes no row, so its line reports the
+		// original confirmation with recorded=false instead of claiming a new one.
+		slog.Info("audit",
+			"actor_id", result.ConfirmedBy,
+			"action", "prevention.observation.adopted",
+			"observation_id", result.Observation.ID,
+			"action_id", result.ActionID,
+			"recorded", result.Recorded,
+			"trace_id", r.Header.Get("X-Request-ID"),
+			"occurred_at", result.ConfirmedAt)
+		respond(w, http.StatusOK, result.Observation)
+	}
+}
+
+// observationID parses the {id} path value of the observation routes as a UUID.
+// The path addresses an observation or it is malformed; nothing else addresses
+// one, so it is refused before storage is touched.
+func observationID(r *http.Request) (string, bool) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil || id == uuid.Nil {
+		return "", false
+	}
+	return id.String(), true
+}
+
+// adoptionActionID validates the adoption body and returns the canonical action
+// id. An omitted, blank or non-UUID value is malformed input: the action must be
+// an existing row the service can resolve, not a name or a partial reference.
+func adoptionActionID(request adoptionRequest) (string, bool) {
+	if request.ActionID == nil || strings.TrimSpace(*request.ActionID) == "" {
+		return "", false
+	}
+	parsed, err := uuid.Parse(*request.ActionID)
+	if err != nil || parsed == uuid.Nil {
+		return "", false
+	}
+	return parsed.String(), true
 }
