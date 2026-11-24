@@ -257,13 +257,13 @@ const GUARD_LINES: Record<string, RegExp> = {
   'backend/services/risk/internal/handler/security.go:59': /role == "viewer" \|\| role == "admin"/,
   'backend/services/risk/internal/handler/security.go:64': /fail\(w, 403, "forbidden"\)/,
   'backend/services/risk/internal/handler/api.go:58': /"GET \/v1\/risk\/status"/,
-  'backend/services/risk/internal/handler/api.go:97': /"GET \/v1\/risk\/latest"/,
-  'backend/services/risk/internal/handler/api.go:98': /"GET \/v1\/risk\/history"/,
-  'backend/services/risk/internal/handler/api.go:99': /"GET \/v1\/risk\/batches"/,
-  'backend/services/risk/internal/handler/api.go:100': /"GET \/v1\/risk\/zones"/,
-  'backend/services/risk/internal/handler/api.go:101': /"GET \/v1\/risk\/synthetic-scenarios"/,
-  'backend/services/risk/internal/handler/api.go:111': /"GET \/v1\/risk\/sources"/,
-  'backend/services/risk/internal/handler/api.go:112': /return Authorize\(verifier, mux\)/,
+  'backend/services/risk/internal/handler/api.go:59': /"GET \/v1\/risk\/latest"/,
+  'backend/services/risk/internal/handler/api.go:60': /"GET \/v1\/risk\/history"/,
+  'backend/services/risk/internal/handler/api.go:65': /"GET \/v1\/risk\/batches"/,
+  'backend/services/risk/internal/handler/api.go:66': /"GET \/v1\/risk\/zones"/,
+  'backend/services/risk/internal/handler/api.go:67': /"GET \/v1\/risk\/synthetic-scenarios"/,
+  'backend/services/risk/internal/handler/api.go:77': /"GET \/v1\/risk\/sources"/,
+  'backend/services/risk/internal/handler/api.go:78': /return Authorize\(verifier, mux\)/,
   'backend/services/jobs/internal/handler/security.go:44': /role == "admin"/,
   'backend/services/jobs/internal/handler/security.go:49': /fail\(w, 403, "forbidden"\)/,
   'backend/services/jobs/internal/handler/api.go:86': /"GET \/v1\/jobs\/status"/,
@@ -347,7 +347,7 @@ test('no role selector, switcher or picker is ported anywhere in the view', () =
   // The note also cites the two `Authorize` wraps. Both are the same full guard
   // refs the matrix renders, so the matrix test above proves their disk content;
   // a short `api.go:N` form here would drift unverified, as it did once.
-  expect(matrixNote).toContain('backend/services/risk/internal/handler/api.go:112');
+  expect(matrixNote).toContain('backend/services/risk/internal/handler/api.go:78');
   expect(matrixNote).toContain('backend/services/jobs/internal/handler/api.go:236');
 });
 

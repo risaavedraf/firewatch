@@ -289,6 +289,17 @@ td code { color: var(--forest-700); font-size: 10px; }
 td:last-child { overflow-wrap: anywhere; }
 .empty-state { padding: 16px 10px; color: var(--muted); font-size: 10px; text-align: center; }
 .history-panel:not(.has-rows) .table-wrap, .history-panel:not(.has-rows) .filter-bar { display: none; }
+/* PM-13 — the export row. It sits outside `.filter-bar` on purpose: a history
+   with no rows hides the filter bar, while a header-only export is still a valid
+   answer and has to state that it carries no rows. The status sentence takes its
+   own row, so a long message never pushes the control out of reach. */
+.history-export { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
+.history-export .panel-note { flex: 1 1 380px; min-width: 220px; margin: 0; }
+.history-export .status-copy { flex: 1 1 100%; min-height: 0; margin: 0; }
+/* While the download is in flight the control stays focusable through
+   `aria-disabled`, so the keyboard reader does not lose its place. It states the
+   same visual state as the `disabled` buttons beside it. */
+.history-export button[aria-disabled="true"]:not(:disabled) { cursor: not-allowed; opacity: .48; }
 .row-index { margin-right: 8px; color: #879787; font-size: 9px; }
 .selected-label { color: var(--forest-700); font-size: 9px; }
 .row-actions { display: flex; align-items: center; gap: 7px; }

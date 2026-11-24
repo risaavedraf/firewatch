@@ -19,6 +19,7 @@ single-file, framework-free page; the reasons and the parity obligations are rec
 | `src/components/ui.tsx` | Presentation primitives: `Icon`, `Chip`, `Metric`, `PanelHeading`, `DataList`, `StatusCopy`, `EmptyState`, the "not implemented" markers |
 | `src/components/map/` | Territorial map projection and level colouring |
 | `src/core/api.ts` | Transport: one function per consumed route, absolute gateway URLs, sequence fences, deadlines |
+| `src/core/history-csv.ts` | The CSV export read: the same bearer and fences as the JSON transport, but the served bytes are downloaded as-is |
 | `src/core/session.ts` | OIDC PKCE, the in-memory token, the unverified role claim, logout |
 | `src/domain/` | Pure rules: validity, level mapping, fail-closed batch and provenance acceptance, readiness, history filters, the PM-18 recommendation catalogue |
 | `src/views/` | The eight views |
@@ -167,6 +168,59 @@ no item is an official alert, an official risk classification or an order. The c
 and its fallbacks are pinned by `tests/domain/recommendations.test.ts`; the rendered list,
 its states and the no-mutating-request assertion by the PM-18 cases in
 `tests/views/overview.test.tsx`.
+
+## History CSV export (PM-13)
+
+The history view (`src/views/HistoryView.tsx`) carries the S1–S2 export: the
+**Descargar CSV** control downloads the history of the **selected zone** from
+`GET /v1/risk/history.csv?zone_id=<selected>` (`src/core/history-csv.ts`).
+
+- The request carries the selection and the session bearer, and nothing else —
+  no `limit`, no `offset`, no search term and no data-status filter. The export
+  is the zone's bounded 100-row window in the server's order; the in-memory
+  search and status filter narrow the table only.
+- The served bytes are saved unchanged. The page does not parse and rebuild the
+  document, so a CRLF inside a quoted cell and the server's spreadsheet guard
+  reach the file exactly as the route wrote them. It downloads only a `200`
+  `text/csv` document: a failure is the route's shared JSON error body, never a
+  file, and a `200` that is not CSV (a proxy login page, an empty body) is
+  refused instead of being saved under a `.csv` name. A `206 Partial Content` —
+  or any other 2xx — is a failure too, because a partial document is not the
+  export the contract describes.
+- An empty history is a valid export: the file is the header row alone, the
+  control stays available, and the status sentence says it carries no rows. The
+  table keeps its own, separate statement that the API returned no history.
+- The file is named locally and deterministically from the selected zone
+  (`risk-history-<zone>.csv`, reduced to a filename-safe alphabet). The page does
+  not read the server's `Content-Disposition`: it is not a CORS-exposed header
+  and no CORS exposure is needed or requested. The zone, the publication instant
+  and the synthetic flag are declared inside the file, per row.
+- The lifecycle is the JSON transport's: 401 lowers the session and returns the
+  panel to its connect state, a 403 is named as a denied permission, and a lost
+  or refused read never saves anything. Switching the zone, signing out or
+  unmounting aborts the in-flight export and discards a late answer, so no file
+  can be saved for a selection that is no longer current. The export state
+  belongs to the selection/session instance it was started in — leaving a zone
+  and returning starts from idle instead of restoring an abandoned request's
+  busy state — and the save re-checks the selected zone and the signed-in
+  session against the stores, not against the render that started it.
+- Accessibility: the control is a labelled button described by the note that
+  states the scope; its loading, failure and header-only sentences are announced
+  through a `role="status"` `aria-live="polite"` region. While a read is in
+  flight the button keeps focus through `aria-busy`/`aria-disabled` instead of
+  being disabled mid-interaction, and without a session or a selected zone it is
+  disabled with the reason stated rather than hidden.
+
+The format claim itself, the header-only answer and the parity between the CSV
+and the JSON handler are backend contract, pinned by
+`backend/services/risk/internal/handler/history_csv_test.go` and
+`backend/contracts/openapi/firewatch-v1.yaml`. This client's half is pinned by
+`tests/core/history-csv.test.ts` (transport, bytes, failures, abort/supersede,
+filename) and the PM-13 cases in `tests/views/history.test.tsx` (accessible
+control, downloaded bytes and name, filters not applied, header-only answer,
+errors and stale-context discards). No test here opens a browser: the download
+is observed at the Blob and the anchor's `download` name, which is the seam the
+browser uses, not a real save dialog.
 
 ## Quality gates
 
