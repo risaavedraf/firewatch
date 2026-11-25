@@ -25,6 +25,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -46,11 +47,18 @@ type auditRecorder struct {
 	err         error
 	deadline    time.Duration
 	undeadlined bool
+	// atCall runs at the start of every write, so a test can capture the state of
+	// the request the write observed: how far the upstream got and whether the
+	// response had already been written.
+	atCall func()
 }
 
 func (r *auditRecorder) RecordQuery(ctx context.Context, record QueryRecord) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.atCall != nil {
+		r.atCall()
+	}
 	if deadline, ok := ctx.Deadline(); ok {
 		r.deadline = time.Until(deadline)
 	} else {
@@ -131,6 +139,60 @@ func auditUpstream(t *testing.T) (*httptest.Server, *url.URL) {
 	return server, target
 }
 
+// csvExportBody and csvExportDisposition are the exact document the risk
+// service's export writes for this fixture: the frozen header row, one record and
+// a bare LF terminator. The gateway proxies them, so a test compares bytes.
+const (
+	csvExportBody = "zone_id,batch_id,job_id,requested_at,published_at,valid_until,model_version,risk_level,data_status,synthetic,scenario_id,evaluated_at\n" +
+		"05101,0f0a0e4e-4b3c-4f8e-9a1d-6c2b8d5e7a90,7c9e6679-7425-40de-944b-e07fc1f90ae7,2026-11-02T08:00:00Z,2026-11-02T08:01:00Z,2026-11-03T08:01:00Z,risk-model-3,moderado,current,yes,urban-demo,2026-11-02T08:00:30Z\n"
+	csvExportDisposition = `attachment; filename="risk-history-05101-20261102T080100Z.csv"`
+)
+
+// csvExportUpstream serves the export exactly as the risk service does and counts
+// the requests that reached it, so a test can prove the gateway forwarded once.
+func csvExportUpstream(t *testing.T) (*url.URL, *atomic.Int32) {
+	t.Helper()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		if r.URL.Path != "/v1/risk/history.csv" || r.URL.Query().Get("zone_id") != "05101" {
+			t.Errorf("upstream saw %s, want GET /v1/risk/history.csv?zone_id=05101", r.URL.RequestURI())
+		}
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Disposition", csvExportDisposition)
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, csvExportBody)
+	}))
+	t.Cleanup(server.Close)
+	target, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return target, &hits
+}
+
+// writeProbe counts the writes of a response, so a test can observe whether the
+// response had begun when the audit write was attempted. Unwrap keeps the
+// underlying writer reachable for the proxy's flush, like statusRecorder.
+type writeProbe struct {
+	http.ResponseWriter
+	writes int
+}
+
+func (p *writeProbe) WriteHeader(code int) {
+	p.writes++
+	p.ResponseWriter.WriteHeader(code)
+}
+
+func (p *writeProbe) Write(body []byte) (int, error) {
+	p.writes++
+	return p.ResponseWriter.Write(body)
+}
+
+func (p *writeProbe) Unwrap() http.ResponseWriter { return p.ResponseWriter }
+
 // TestQueryRoutesAreExactlyTheSelectedBusinessReads pins the whole selection at
 // once. The list is the feature: anything added here starts writing audit rows,
 // so the expectation is written out in full rather than derived from the table
@@ -141,6 +203,10 @@ func TestQueryRoutesAreExactlyTheSelectedBusinessReads(t *testing.T) {
 	want := []struct{ method, path, action string }{
 		{http.MethodGet, "/v1/risk/latest", "risk.current.read"},
 		{http.MethodGet, "/v1/risk/history", "risk.history.read"},
+		// The export is the historical risk read rendered instead of JSON: same
+		// zone, same window, same access policy, so it is the same consultation of
+		// the same collection and carries the same action.
+		{http.MethodGet, "/v1/risk/history.csv", "risk.history.read"},
 		{http.MethodGet, "/v1/risk/batches", "risk.batches.read"},
 		{http.MethodGet, "/v1/prevention/observations", "prevention.observations.read"},
 		{http.MethodGet, "/v1/prevention/actions", "prevention.actions.read"},
@@ -148,7 +214,7 @@ func TestQueryRoutesAreExactlyTheSelectedBusinessReads(t *testing.T) {
 	if len(queryRoutes) != len(want) {
 		t.Fatalf("the query vocabulary has %d entries, want %d: %+v", len(queryRoutes), len(want), queryRoutes)
 	}
-	seenPath, seenAction := map[string]bool{}, map[string]bool{}
+	seenPath, seenAction := map[string]bool{}, map[string]int{}
 	for i, expected := range want {
 		got := queryRoutes[i]
 		if got.Method != expected.method || got.Path != expected.path || got.Action != expected.action {
@@ -157,10 +223,23 @@ func TestQueryRoutesAreExactlyTheSelectedBusinessReads(t *testing.T) {
 		if seenPath[got.Path] {
 			t.Errorf("path %q is listed twice", got.Path)
 		}
-		if seenAction[got.Action] {
-			t.Errorf("action %q is listed twice", got.Action)
+		seenPath[got.Path] = true
+		seenAction[got.Action]++
+	}
+	// One action may cover more than one route when the routes are the same read:
+	// risk.history.read covers the JSON history and its CSV export, and nothing
+	// else is allowed to share.
+	sharedActions := map[string]int{"risk.history.read": 2}
+	for action, count := range seenAction {
+		if wantCount, shared := sharedActions[action]; shared {
+			if count != wantCount {
+				t.Errorf("action %q is used by %d routes, want %d", action, count, wantCount)
+			}
+			continue
 		}
-		seenPath[got.Path], seenAction[got.Action] = true, true
+		if count != 1 {
+			t.Errorf("action %q is listed %d times; only risk.history.read is shared", action, count)
+		}
 	}
 	// The exclusions S3 and the technical-map note name, plus the writes and the
 	// sub-resources that are not the selected collection reads. Every one of them
@@ -180,6 +259,7 @@ func TestQueryRoutesAreExactlyTheSelectedBusinessReads(t *testing.T) {
 		{http.MethodGet, "/v1/risk/history/valparaiso-demo"},
 		{http.MethodGet, "/v1/risk/latest/"},
 		{http.MethodPost, "/v1/risk/batches"},
+		{http.MethodPost, "/v1/risk/history.csv"},
 		{http.MethodGet, "/v1/prevention/actions/invalid-id"},
 		{http.MethodHead, "/v1/prevention/actions/8f1d0a52-7b3c-4a19-9e21-8a1b2c3d4e5f"},
 		{http.MethodPost, "/v1/prevention/actions"},
@@ -474,6 +554,122 @@ func TestQueryRecordingIsBoundedAndUncancelled(t *testing.T) {
 	if recorder.deadline <= 0 || recorder.deadline > queryAuditTimeout {
 		t.Fatalf("deadline = %v, want a positive budget no larger than %v", recorder.deadline, queryAuditTimeout)
 	}
+}
+
+// TestQueryRecordingCoversTheCSVExport pins the export's half of the S3
+// contract. The CSV download is the historical risk read rendered instead of
+// JSON, so an authenticated success is one recorded read: the record is
+// attempted after the upstream answered 200 and before the first byte of the
+// document reaches the caller, the document keeps the upstream's bytes and
+// headers, and the gateway forwards the request exactly once.
+func TestQueryRecordingCoversTheCSVExport(t *testing.T) {
+	key, verifier := newTokenIssuer(t)
+	target, hits := csvExportUpstream(t)
+	recorder := &auditRecorder{}
+	probe := &writeProbe{ResponseWriter: httptest.NewRecorder()}
+	var writesAtRecord, hitsAtRecord []int
+	recorder.atCall = func() {
+		writesAtRecord = append(writesAtRecord, probe.writes)
+		hitsAtRecord = append(hitsAtRecord, int(hits.Load()))
+	}
+	request := httptest.NewRequest(http.MethodGet, "/v1/risk/history.csv?zone_id=05101", nil)
+	request.Header.Set("Authorization", "Bearer "+mintToken(t, key, map[string]any{"sub": "subject-1", "name": "Demo Admin"}))
+	newAuditedGateway(t, verifier, recorder, target).ServeHTTP(probe, request)
+	response := probe.ResponseWriter.(*httptest.ResponseRecorder)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("got %d, want 200: %s", response.Code, response.Body)
+	}
+	// The document is the upstream's, byte for byte: adding the record must not
+	// re-encode, truncate or reshape the export.
+	if got := response.Body.String(); got != csvExportBody {
+		t.Fatalf("body = %q, want the upstream's CSV document %q", got, csvExportBody)
+	}
+	for header, want := range map[string]string{
+		"Content-Type":        "text/csv; charset=utf-8",
+		"Content-Disposition": csvExportDisposition,
+	} {
+		if got := response.Header().Get(header); got != want {
+			t.Errorf("%s = %q, want %q", header, got, want)
+		}
+	}
+	if got := response.Header().Get("Cache-Control"); !headerAllowed(got, "no-store") {
+		t.Errorf("Cache-Control = %q, want the no-store directive", got)
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("the upstream saw %d requests, want exactly 1", got)
+	}
+
+	records := recorder.snapshot()
+	if len(records) != 1 {
+		t.Fatalf("recorded %d queries, want 1", len(records))
+	}
+	record := records[0]
+	if record.Action != "risk.history.read" {
+		t.Errorf("action = %q, want risk.history.read", record.Action)
+	}
+	if record.ActorID != "subject-1" || record.ActorName != "Demo Admin" {
+		t.Errorf("actor = %q/%q, want subject-1/Demo Admin", record.ActorID, record.ActorName)
+	}
+	if got := response.Header().Get("X-Request-ID"); record.TraceID != got || !canonicalUUID.MatchString(record.TraceID) {
+		t.Errorf("trace id = %q, want the canonical response header %q", record.TraceID, got)
+	}
+	// The ordering this feature rests on, observed rather than assumed: the write
+	// ran once the upstream had answered and before the response had begun, so a
+	// caller never receives a document whose read was not recorded.
+	if len(writesAtRecord) != 1 || writesAtRecord[0] != 0 {
+		t.Fatalf("response writes at record time = %v, want the record attempted before the response was written", writesAtRecord)
+	}
+	if len(hitsAtRecord) != 1 || hitsAtRecord[0] != 1 {
+		t.Fatalf("upstream hits at record time = %v, want the record attempted after the upstream answered", hitsAtRecord)
+	}
+}
+
+// TestCSVRecordingFailureAnswersTheDocumentedErrorInsteadOfTheFile is the failure
+// half: when the record cannot be written, the caller receives the documented
+// JSON 503 storage_unavailable and no attachment, so the export is never offered
+// for a read this gateway did not write down.
+func TestCSVRecordingFailureAnswersTheDocumentedErrorInsteadOfTheFile(t *testing.T) {
+	contract := loadContract(t)
+	key, verifier := newTokenIssuer(t)
+	target, hits := csvExportUpstream(t)
+	recorder := &auditRecorder{err: errors.New("audit store unavailable")}
+	request := httptest.NewRequest(http.MethodGet, "/v1/risk/history.csv?zone_id=05101", nil)
+	request.Header.Set("Authorization", "Bearer "+mintToken(t, key, map[string]any{"sub": "subject-1", "name": "Demo Admin"}))
+	response := httptest.NewRecorder()
+	newAuditedGateway(t, verifier, recorder, target).ServeHTTP(response, request)
+
+	if len(recorder.snapshot()) != 1 {
+		t.Fatalf("the recorder was called %d times, want exactly 1", len(recorder.snapshot()))
+	}
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("the upstream saw %d requests, want exactly 1", got)
+	}
+	if response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("got %d, want 503 when the record cannot be written: %s", response.Code, response.Body)
+	}
+	// No download is offered: no attachment header, a JSON content type, and the
+	// export's own header row is not in the body.
+	if got := response.Header().Get("Content-Disposition"); got != "" {
+		t.Errorf("Content-Disposition = %q, want no attachment on the failure", got)
+	}
+	if got := response.Header().Get("Content-Type"); got != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", got)
+	}
+	if strings.Contains(response.Body.String(), "zone_id,batch_id") {
+		t.Fatalf("the CSV document was written: %s", response.Body)
+	}
+	// The exact body the existing storage failure answers, with this request's own
+	// correlation id: the export adds no second error shape.
+	requestID := response.Header().Get("X-Request-ID")
+	if !canonicalUUID.MatchString(requestID) {
+		t.Fatalf("X-Request-ID = %q, want the canonical id", requestID)
+	}
+	wantBody := `{"code":"storage_unavailable","request_id":"` + requestID + "\"}\n"
+	if got := response.Body.String(); got != wantBody {
+		t.Fatalf("body = %q, want the existing JSON 503 %q", got, wantBody)
+	}
+	assertResponseMatchesContract(t, contract, "/v1/risk/history.csv", http.MethodGet, response)
 }
 
 // TestQueryRecordingLeavesTheProxyResponseUntouched pins the sibling behaviour the

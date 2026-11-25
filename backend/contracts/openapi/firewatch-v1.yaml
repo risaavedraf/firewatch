@@ -290,6 +290,97 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/history.csv:
+    get:
+      operationId: exportRiskHistoryCSV
+      description: >-
+        Viewer/admin. The same bounded history that GET /v1/risk/history serves,
+        rendered as a CSV attachment: one zone_id parameter, the same accepted
+        zone catalogue, up to 100 batches in descending request-time order and
+        the same access policy. No filter is added, no row the JSON read serves
+        is dropped, and the JSON route is unchanged. The body always starts with
+        the header row zone_id,batch_id,job_id,requested_at,published_at,
+        valid_until,model_version,risk_level,data_status,synthetic,scenario_id,
+        evaluated_at, and then carries up to 100 records. The format is exactly
+        what encoding/csv writes with its default settings, not RFC 4180: UTF-8
+        text, comma-delimited, every record terminated by a bare LF, a field
+        quoted only when it needs to be (it contains a comma, a quote, a CR or an
+        LF, or it begins with whitespace), and a quote inside a quoted field
+        doubled. A CRLF inside a cell is written raw inside
+        its quoted field, while a CSV reader may normalise that CRLF to LF when it
+        parses the file, so re-serialising parsed values need not reproduce the
+        bytes. Every row declares its own provenance: the zone it belongs to, the
+        publication instant published_at and synthetic (yes/no), which is derived
+        from the batch demo flag and never inferred from the environment. Instants
+        are RFC 3339 in UTC, and evaluated_at is empty for a row that recorded
+        none. An empty history is 200 with the header row alone, never 404. A
+        failure is never a CSV document: it is the shared JSON error body of the
+        route this one mirrors. A cell that a spreadsheet could read as a formula
+        is prefixed with an apostrophe, which covers the four symbol prefixes and
+        a leading tab, carriage return or line feed, because a spreadsheet may
+        discard those before parsing the rest of the cell; the exported columns
+        are otherwise scalar and drawn from bounded vocabularies (uuid
+        identifiers, registry versions, enums, yes/no, synthetic profile ids). The
+        200 response carries the no-store Cache-Control directive and an
+        attachment Content-Disposition whose filename is
+        risk-history-<zone>-<newest published_at as 20060102T150405Z>.csv, or
+        -empty.csv when the history holds no row; the zone segment is reduced to
+        filename-safe bytes and is never echoed verbatim from the request. A
+        proxy in front of this service may append its own no-store to the same
+        response, so that header is a directive that must be present rather than
+        an exact value with a single occurrence. Content-Disposition is
+        informational for non-browser clients: the cross-origin browser page does
+        not read it and names the downloaded file locally from the selected zone,
+        so no CORS exposure is needed or promised.
+      parameters: [{$ref: '#/components/parameters/Zone'}]
+      responses:
+        '200':
+          description: >-
+            Header row plus one row per batch in the bounded window, or the
+            header row alone when the zone has no batch.
+          headers:
+            Cache-Control:
+              description: >-
+                no-store is the directive this service sets for the export. A
+                proxy may append its own no-store to the same response, so the
+                header may carry the directive more than once: clients must treat
+                it as a directive that is present, not as an exact value or a
+                guaranteed single occurrence.
+              schema:
+                type: string
+                example: no-store
+            Content-Disposition:
+              description: >-
+                attachment header with a fixed filename shape declaring the
+                validated zone and the newest publication instant in the file.
+                Informational for non-browser clients: the cross-origin page does
+                not read this header (it is not exposed) and names the file
+                locally from the selected zone.
+              schema:
+                type: string
+                example: 'attachment; filename="risk-history-05101-20261102T080100Z.csv"'
+          content:
+            text/csv:
+              schema: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503':
+          description: >-
+            The dependency this operation reads was unavailable, or the gateway
+            could not record the read its upstream already answered. The answer
+            is always the shared JSON error body, code storage_unavailable,
+            never a CSV document: a failed export carries no attachment
+            Content-Disposition and no header row, so a caller is never handed a
+            download whose read was not written down.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
   /v1/risk/batches:
     get:
       operationId: listLatestBatchesPerZone
@@ -720,11 +811,12 @@ paths:
         and occurred_at, and their actor_name and detail are null rather than a
         synthesized name. The application role can only select and insert audit
         rows; it cannot update or delete them. The gateway records successful
-        GETs for latest and historical risk, aggregate published batches,
-        observations, and the preventive-action collection and detail. It does
-        not record this endpoint, catalogues, geometry requests, or failed
-        upstream reads. If recording a selected successful result fails, that
-        read returns 503 storage_unavailable instead of the upstream success.
+        GETs for latest risk, historical risk and its CSV export, aggregate
+        published batches, observations, and the preventive-action collection
+        and detail. It does not record this endpoint, catalogues, geometry
+        requests, or failed upstream reads. If recording a selected successful
+        result fails, that read returns 503 storage_unavailable instead of the
+        upstream success.
       responses:
         '200':
           description: Audit entries
@@ -759,7 +851,8 @@ paths:
                         The action the event records. The mutation actions
                         written by the job transitions are job.requested and
                         batch.published. The query actions are risk.current.read
-                        (GET /v1/risk/latest), risk.history.read (GET /v1/risk/history),
+                        (GET /v1/risk/latest), risk.history.read (GET /v1/risk/history
+                        or its CSV export at GET /v1/risk/history.csv),
                         risk.batches.read (GET /v1/risk/batches),
                         prevention.observations.read (GET /v1/prevention/observations),
                         and prevention.actions.read (GET /v1/prevention/actions or

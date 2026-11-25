@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { idleCopy, rejectedSessionCopy } from '../app/sessionCopy';
 import {
   getHistoryFilters,
+  getSelectedZone,
   setHistoryQuery,
   setHistoryStatus,
   useHistoryFilters,
@@ -11,6 +12,8 @@ import {
 } from '../app/store';
 import { Icon, UnimplementedNote } from '../components/ui';
 import { history, type Failure } from '../core/api';
+import { historyCsv, saveHistoryCsv } from '../core/history-csv';
+import { getSessionSnapshot } from '../core/session';
 import {
   filterHistoryRows,
   historyStatusOptions,
@@ -33,6 +36,150 @@ type HistoryStatus =
   | { kind: 'empty' }
   | { kind: 'ready'; allDemo: boolean }
   | { kind: 'failure'; failure: Failure };
+
+// The export has its own lifecycle, keyed to the zone it was read for. It is not
+// part of the table status: a download can be in flight while the table shows
+// rows, fail while the table stays readable, and vice versa.
+type DownloadState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'saved'; filename: string; headerOnly: boolean }
+  | { kind: 'failure'; failure: Failure };
+
+const EXPORT_NO_FILE = ' No se descargó ningún archivo.';
+
+function exportFailureMessage(failure: Failure): string {
+  switch (failure.kind) {
+    case 'unauthorized':
+      return `${rejectedSessionCopy()}${EXPORT_NO_FILE}`;
+    case 'forbidden':
+      return `La API denegó el permiso para exportar el historial (403).${EXPORT_NO_FILE}`;
+    case 'malformed':
+      return `La API no devolvió una exportación CSV legible.${EXPORT_NO_FILE}`;
+    case 'missing':
+      return `No existe historial exportable para la zona consultada (404).${EXPORT_NO_FILE}`;
+    case 'unavailable':
+      if (failure.reason === 'save_failed') return `El navegador no pudo guardar el archivo.${EXPORT_NO_FILE}`;
+      return failure.status !== undefined
+        ? `No se pudo descargar el historial (HTTP ${failure.status}).${EXPORT_NO_FILE}`
+        : `No se pudo descargar el historial (sin conexión).${EXPORT_NO_FILE}`;
+  }
+}
+
+function exportMessage(state: DownloadState, signedIn: boolean, zone: string): string {
+  switch (state.kind) {
+    case 'loading':
+      return `Preparando la descarga del historial de la zona ${zone}…`;
+    case 'saved':
+      // The empty answer is a valid export of the header row alone, so it is
+      // stated as that instead of as a failure or as a document with rows.
+      return state.headerOnly
+        ? `Descarga iniciada: ${state.filename} — solo el encabezado, porque la API no devolvió filas para esta zona.`
+        : `Descarga iniciada: ${state.filename} — las mismas filas que la API devuelve para la zona.`;
+    case 'failure':
+      return exportFailureMessage(state.failure);
+    case 'idle':
+      if (!signedIn) return 'La descarga necesita una sesión autorizada; no se solicitó nada.';
+      if (zone === '') return 'Selecciona una zona para descargar su historial.';
+      return `Listo para descargar el historial de la zona ${zone}.`;
+  }
+}
+
+// The export row. It is its own component because it is its own lifecycle, and
+// the parent REMOUNTS it for every selection/session instance (see the `key` at
+// the render site). A download belongs to the selection it was started in:
+// keying the state by zone id alone was not enough, because returning to a zone
+// whose request had been abandoned restored that dead `loading` state and made
+// every retry impossible. A new instance starts idle, which is what it is.
+function HistoryExport({ zone, signedIn }: { zone: string; signedIn: boolean }) {
+  const [state, setState] = useState<DownloadState>({ kind: 'idle' });
+  const abort = useRef<AbortController | null>(null);
+
+  // This instance is unmounted both when the view leaves and when the selection
+  // or the session changes (the parent's key). Either way its in-flight request
+  // is aborted, so its bytes can never be saved under a different context. The
+  // state does not need clearing here: it belongs to this instance, and the next
+  // context gets a new one.
+  useEffect(() => {
+    return () => {
+      abort.current?.abort();
+      abort.current = null;
+    };
+  }, []);
+
+  const busy = state.kind === 'loading';
+  // Without a session or a selection there is nothing the export could read.
+  const blocked = !signedIn || zone === '';
+
+  const start = (): void => {
+    if (blocked || busy) return;
+    const selection = zone;
+    abort.current?.abort();
+    const controller = new AbortController();
+    abort.current = controller;
+    setState({ kind: 'loading' });
+    void historyCsv(selection, controller.signal).then((outcome) => {
+      // Only the newest export may answer, and only while its own zone is still
+      // the selection in the stores — the authoritative read, not this render's
+      // props, so an answer that lands across a selection or session change is
+      // dropped instead of saved.
+      if (abort.current !== controller) return;
+      if (getSelectedZone() !== selection || getSessionSnapshot().status !== 'signed-in') return;
+      abort.current = null;
+      if (!outcome.ok) {
+        setState({ kind: 'failure', failure: outcome.failure });
+        return;
+      }
+      try {
+        saveHistoryCsv(outcome.data);
+      } catch {
+        // A browser that refuses the save (no object URLs, a blocked download) is
+        // a stated outcome, never an empty success.
+        setState({ kind: 'failure', failure: { kind: 'unavailable', reason: 'save_failed' } });
+        return;
+      }
+      setState({
+        kind: 'saved',
+        filename: outcome.data.filename,
+        headerOnly: outcome.data.headerOnly,
+      });
+    });
+  };
+
+  return (
+    <div className="history-export">
+      <button
+        id="history-csv-download"
+        className="secondary-button"
+        type="button"
+        // `disabled` only when the export cannot be attempted at all. While a
+        // download is in flight the control keeps focus through `aria-disabled`
+        // and `aria-busy`, so the keyboard reader does not lose its place and the
+        // status region announces the work.
+        disabled={blocked}
+        aria-disabled={blocked || busy || undefined}
+        aria-busy={busy || undefined}
+        aria-describedby="history-csv-note"
+        onClick={start}
+      >
+        Descargar CSV
+      </button>
+      <p id="history-csv-note" className="panel-note">
+        Descarga el historial de la zona seleccionada tal como lo devuelve <code>/v1/risk/history.csv</code>: las filas
+        que la API devuelve para la zona, sin aplicar la búsqueda ni el filtro de estado de la tabla. El archivo no se
+        recodifica; cada fila declara su zona, su fecha de publicación y si el dato es sintético.
+      </p>
+      <p
+        id="history-csv-status"
+        className={state.kind === 'failure' ? 'status-copy risk-error' : 'status-copy'}
+        role="status"
+        aria-live="polite"
+      >
+        {exportMessage(state, signedIn, zone)}
+      </p>
+    </div>
+  );
+}
 
 interface LoadedHistory {
   rows: RiskBatch[];
@@ -221,6 +368,17 @@ export function HistoryView() {
             </tbody>
           </table>
         </div>
+        {/* The export row sits outside `.filter-bar` on purpose: a history with
+            no rows hides the filter bar, while a header-only export is still a
+            valid answer and must be able to say that it carries no rows.
+            The key is the instance identity: the download state belongs to the
+            selection and session it was started in, so leaving and returning
+            gets a fresh, idle control instead of an abandoned request's state. */}
+        <HistoryExport
+          key={`${signedIn ? 'open' : 'closed'}:${selectedZone}`}
+          zone={selectedZone}
+          signedIn={signedIn}
+        />
         <UnimplementedNote>
           Historial de todas las zonas: <code>/v1/risk/history</code> exige <code>zone_id</code> y no existe endpoint
           agregado, así que esta tabla muestra siempre la zona consultada.
