@@ -1,0 +1,1609 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FireWatch · Dirección 02 · Informe territorial (maqueta)</title>
+<style>
+:root {
+  color-scheme: light;
+  --forest-950: #102c2d;
+  --forest-900: #173c3b;
+  --forest-700: #285e56;
+  --forest-500: #638579;
+  --canvas: #f5f5ef;
+  --paper: #fffefa;
+  --ink: #233b39;
+  --muted: #5c6c65;
+  --line: #dde3da;
+  --soft: #eef1e9;
+  --terracotta: #a74d34;
+  --terracotta-soft: #f7e9e2;
+  --gold: #85691e;
+  --gold-soft: #f7f0d9;
+  --level-low-fill: #84ab8e;
+  --level-low-line: #5c8467;
+  --level-medium-fill: #d0b756;
+  --level-medium-line: #a99850;
+  --level-high-fill: #c77454;
+  --level-high-line: #b36647;
+  --level-unknown-fill: #c3cbcd;
+  --level-unknown-line: #6b7a80;
+  --level-neutral-fill: #e6ecea;
+  --level-neutral-line: #9fb3ab;
+  --radius: 12px;
+  --shadow: 0 3px 14px rgb(24 52 40 / 3%);
+  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--canvas); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p, dl, dd, ol, ul, figure { margin-top: 0; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+:focus-visible {
+  outline: 3px solid var(--forest-950);
+  outline-offset: 3px;
+}
+.on-dark :focus-visible,
+.mast-top :focus-visible,
+.verdict :focus-visible,
+.detail-card :focus-visible,
+.proto-line :focus-visible {
+  outline-color: #cf7d4f;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+.skip-link {
+  position: fixed;
+  top: -80px;
+  left: 16px;
+  z-index: 50;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+.skip-link:focus { top: 12px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.sheet {
+  max-width: 1360px;
+  margin: 0 auto;
+  border-right: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  background: var(--paper);
+}
+.mast-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 22px;
+  padding: 14px 44px;
+  background: var(--forest-900);
+  color: #f6fff9;
+  border-bottom: 4px solid var(--gold);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #d7aa73;
+  color: var(--forest-900);
+  font-family: Georgia, serif;
+  font-size: 21px;
+  font-style: italic;
+}
+.brand strong { color: var(--paper); font-size: 16px; font-weight: 650; letter-spacing: -.4px; }
+.brand small { display: block; color: #a8c2b7; font-size: 7.5px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; }
+.edition {
+  margin: 0;
+  color: #c3d6cf;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.mast-top .maqueta-tag {
+  margin-left: auto;
+  padding: 4px 9px;
+  border: 1px solid #41625b;
+  border-radius: 5px;
+  background: var(--forest-950);
+  color: #f6fff9;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.proto-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 18px;
+  padding: 8px 44px;
+  background: var(--gold-soft);
+  color: #5f4717;
+  border-bottom: 1px solid #f0dfb9;
+  font-size: 9px;
+}
+.proto-line strong { font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.proto-line .g6-tag {
+  margin-left: auto;
+  padding: 2px 7px;
+  border: 1px dashed #7d6c3f;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.mast-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, .8fr);
+  gap: 38px;
+  align-items: start;
+  padding: 40px 44px 30px;
+}
+.kicker {
+  margin: 0 0 10px;
+  color: var(--forest-700);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+h1 {
+  margin: 0 0 16px;
+  max-width: 17ch;
+  color: var(--forest-950);
+  font-family: Georgia, serif;
+  font-size: clamp(38px, 4.4vw, 58px);
+  font-weight: 400;
+  line-height: 1.03;
+  letter-spacing: -1.6px;
+}
+.standfirst {
+  max-width: 62ch;
+  margin: 0 0 16px;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.5;
+}
+.byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 9px;
+}
+.byline strong { color: var(--ink); }
+
+.verdict {
+  padding: 18px 20px 16px;
+  border-radius: 9px;
+  background: var(--forest-950);
+  color: var(--paper);
+  box-shadow: var(--shadow);
+}
+.verdict-label {
+  margin: 0 0 4px;
+  color: #c3d6cf;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+.verdict-level {
+  margin: 0;
+  color: #d7aa73;
+  font-family: Georgia, serif;
+  font-size: 52px;
+  line-height: 1;
+  letter-spacing: -1.5px;
+}
+.verdict-sub { margin: 4px 0 12px; color: #f6fff9; font-size: 11px; font-weight: 650; }
+.verdict dl { display: grid; gap: 7px; margin: 0; padding-top: 10px; border-top: 1px solid #41625b; }
+.verdict dl div { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
+.verdict dt { color: #c3d6cf; font-size: 8px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.verdict dd { margin: 0; color: #d5e1db; font-size: 9px; text-align: right; }
+.verdict .verdict-note { margin: 12px 0 0; color: #a5c8bf; font-size: 8px; line-height: 1.55; }
+
+.chapters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 0 44px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+.chapters a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-height: 46px;
+  padding: 12px 18px 11px 0;
+  color: var(--forest-700);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.chapters a:hover { color: var(--forest-950); text-decoration: underline; text-underline-offset: 3px; }
+.chapters a span { color: var(--gold); font-family: var(--mono); font-size: 9px; }
+
+main { padding: 0 44px 10px; }
+.chapter { padding: 34px 0 36px; border-bottom: 1px solid var(--line); scroll-margin-top: 12px; }
+.chapter:last-of-type { border-bottom: 0; }
+.chapter-head {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 22px;
+}
+.chapter-num {
+  margin: 0;
+  color: var(--terracotta);
+  font-family: Georgia, serif;
+  font-size: 44px;
+  line-height: .94;
+  letter-spacing: -1.4px;
+}
+.chapter-head h2 {
+  margin: 0 0 5px;
+  color: var(--forest-950);
+  font-family: Georgia, serif;
+  font-size: clamp(27px, 2.5vw, 36px);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -.8px;
+}
+.dek { max-width: 76ch; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+
+.chapter-grid { display: grid; grid-template-columns: minmax(0, 1.62fr) minmax(270px, .72fr); gap: 34px; align-items: start; }
+.article { min-width: 0; }
+.prose { max-width: 68ch; }
+.lede { margin: 0 0 20px; font-size: 17px; line-height: 1.62; }
+.lede::first-letter {
+  float: left;
+  margin: 4px 8px 0 0;
+  color: var(--terracotta);
+  font-family: Georgia, serif;
+  font-size: 51px;
+  line-height: .78;
+}
+.prose p { margin: 0 0 14px; }
+.prose h3 {
+  margin: 24px 0 8px;
+  color: var(--forest-950);
+  font-family: Georgia, serif;
+  font-size: 21px;
+  font-weight: 400;
+  letter-spacing: -.3px;
+}
+.prose strong { font-weight: 700; }
+.prose .small { color: var(--muted); font-size: 10px; line-height: 1.65; }
+.hairline { margin: 22px 0; border: 0; border-top: 1px solid var(--line); }
+
+.map-editorial {
+  margin: 0 0 18px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.map-editorial svg { display: block; width: 100%; height: auto; }
+.map-editorial figcaption { padding: 8px 2px 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 13px;
+  padding: 8px 2px 0;
+  border-top: 1px solid var(--line);
+  margin-top: 7px;
+  color: var(--ink);
+  font-size: 8.5px;
+}
+.map-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.swatch { width: 11px; height: 11px; border: 1px solid var(--level-neutral-line); border-radius: 2px; }
+.swatch-low { background: var(--level-low-fill); border-color: var(--level-low-line); }
+.swatch-medium { background: var(--level-medium-fill); border-color: var(--level-medium-line); }
+.swatch-high { background: var(--level-high-fill); border-color: var(--level-high-line); }
+.swatch-unknown { background: var(--level-unknown-fill); border-color: var(--level-unknown-line); }
+.swatch-neutral { background: var(--level-neutral-fill); }
+
+.sector-ledger { margin: 0 0 18px; }
+.ledger-head {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 80px 82px 94px;
+  gap: 9px;
+  padding: 8px 10px;
+  border-top: 2px solid var(--forest-950);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 7.5px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+#zone-list { margin: 0; padding: 0; list-style: none; }
+.sector-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 80px 82px 94px;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  min-height: 54px;
+  padding: 9px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+}
+.sector-row:hover { background: var(--soft); }
+.sector-row[aria-pressed="true"] { background: var(--soft); box-shadow: inset 4px 0 0 var(--forest-950); }
+.row-num { color: var(--gold); font-family: var(--mono); font-size: 10px; font-weight: 700; }
+.row-name { font-size: 11px; font-weight: 750; line-height: 1.35; }
+.row-name em { display: block; color: var(--muted); font-size: 8px; font-style: normal; font-weight: 500; }
+.row-cov, .row-priority { color: var(--muted); font-size: 8.5px; }
+.row-priority strong { color: var(--ink); font-weight: 750; }
+
+.level {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  line-height: 1.2;
+}
+.level::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.level-alto { background: var(--terracotta-soft); color: #9c472f; }
+.level-medio { background: var(--gold-soft); color: #7f641e; }
+.level-bajo { background: #e7f0e6; color: #396246; }
+.level-neutral { background: var(--soft); color: var(--ink); }
+.level-on-dark { background: var(--paper); color: var(--forest-900); }
+
+.sector-note {
+  padding: 16px 18px 17px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--terracotta);
+  border-radius: 6px;
+  background: #fcf6f0;
+}
+.sector-note .note-label { margin: 0 0 3px; color: var(--terracotta); font-size: 8px; font-weight: 850; letter-spacing: 1px; text-transform: uppercase; }
+.sector-note h3 { margin: 0 0 6px; color: var(--forest-950); font-family: Georgia, serif; font-size: 25px; font-weight: 400; letter-spacing: -.5px; }
+.sector-note p { margin: 0 0 8px; font-size: 11px; line-height: 1.6; }
+.note-meta { display: flex; flex-wrap: wrap; gap: 7px 16px; margin: 9px 0 12px; padding-top: 8px; border-top: 1px solid #ead9ca; color: var(--muted); font-size: 8.5px; }
+.note-meta strong { color: var(--ink); }
+
+.margin { display: grid; gap: 14px; }
+.margin-card {
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+.margin-card .label { margin: 0 0 5px; color: var(--muted); font-size: 8px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.big-figure { margin: 0; color: var(--forest-950); font-family: Georgia, serif; font-size: 50px; line-height: .95; letter-spacing: -1.4px; }
+.big-figure small { display: block; margin-top: 5px; color: var(--muted); font-family: var(--font); font-size: 8.5px; line-height: 1.5; letter-spacing: 0; }
+.margin-card h3 { margin: 0 0 7px; color: var(--forest-950); font-family: Georgia, serif; font-size: 18px; font-weight: 400; letter-spacing: -.2px; }
+.margin-card p { margin: 0 0 7px; font-size: 10px; line-height: 1.6; }
+.margin-card p:last-child { margin-bottom: 0; }
+.margin-card .src { color: var(--muted); font-size: 8.5px; }
+.proto-card {
+  border: 1px dashed #c8bda0;
+  background: #faf7ee;
+  color: #7d6c3f;
+}
+.proto-card .label { color: #7d6c3f; }
+.proto-card strong { color: #5f4717; }
+.margin-list { margin: 0; padding-left: 16px; color: var(--ink); font-size: 9px; line-height: 1.65; }
+.margin-list li { margin-bottom: 4px; }
+
+.freshness-wide {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 20px;
+  border-top: 2px solid var(--forest-950);
+  border-bottom: 1px solid var(--line);
+}
+.freshness-wide div { padding: 11px 12px 11px 0; border-right: 1px solid var(--line); }
+.freshness-wide div:last-child { border-right: 0; padding-right: 0; }
+.freshness-wide dt { color: var(--muted); font-size: 7.5px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.freshness-wide dd { margin: 3px 0 0; color: var(--ink); font-size: 10px; font-weight: 650; }
+.freshness-wide dd .mono { font-family: var(--mono); font-size: 9px; font-weight: 500; }
+.notice-line {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--gold);
+  background: var(--gold-soft);
+  color: #5f4717;
+  font-size: 9.5px;
+  line-height: 1.6;
+}
+.notice-line strong { font-weight: 800; }
+
+.factor-ledger { margin: 8px 0 18px; border-top: 1px solid var(--line); }
+.factor-row {
+  display: grid;
+  grid-template-columns: 142px 108px minmax(0, 1fr) 58px;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.factor-row .name { color: var(--ink); font-size: 9px; font-weight: 750; }
+.factor-row .reading { color: var(--ink); font-size: 9px; }
+.factor-row .weight { color: var(--muted); font-size: 8.5px; text-align: right; }
+.track { height: 7px; overflow: hidden; border-radius: 4px; background: #e8e9df; }
+.track span { display: block; height: 100%; border-radius: 4px; background: var(--forest-700); }
+.factor-row.head { color: var(--muted); font-size: 7.5px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.factor-row.head .name, .factor-row.head .reading, .factor-row.head .weight { color: var(--muted); font-size: 7.5px; font-weight: 850; }
+
+details {
+  margin: 0 0 18px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+details summary {
+  min-height: 44px;
+  padding: 12px 0;
+  color: var(--forest-700);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+details summary:hover { color: var(--forest-950); }
+details .detail-body { max-width: 72ch; padding: 0 0 14px; color: var(--ink); font-size: 11px; line-height: 1.65; }
+details .detail-body p:last-child { margin-bottom: 0; }
+
+.evidence-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0 18px; }
+.evidence-card {
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--gold);
+  border-radius: 5px;
+  background: var(--paper);
+}
+.evidence-card strong { display: block; margin-bottom: 3px; font-size: 11px; font-weight: 750; }
+.evidence-card span { display: block; color: var(--muted); font-size: 8.5px; line-height: 1.5; }
+.evidence-card .tag { display: inline-flex; width: fit-content; margin-top: 7px; padding: 2px 5px; border-radius: 3px; background: var(--soft); color: var(--ink); font-size: 7px; font-weight: 850; letter-spacing: .05em; text-transform: uppercase; }
+
+.rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 0 0 18px; padding: 0; list-style: none; }
+.rec-card {
+  display: flex;
+  flex-direction: column;
+  padding: 15px 16px 14px;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--gold);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.rec-card:nth-child(2n) { border-top-color: var(--terracotta); }
+.rec-card .rec-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.rec-id { color: var(--gold); font-family: Georgia, serif; font-size: 27px; line-height: 1; letter-spacing: -.6px; }
+.rec-card:nth-child(2n) .rec-id { color: var(--terracotta); }
+.rec-source { padding: 2px 6px; border-radius: 4px; background: var(--soft); color: var(--ink); font-size: 7px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.rec-card p { flex: 1; margin: 0 0 9px; font-size: 12px; line-height: 1.55; }
+.rec-card button { align-self: flex-start; }
+
+.general-note {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 9.5px;
+  line-height: 1.6;
+}
+.general-note strong { font-weight: 800; }
+
+.annex-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .85fr); gap: 26px; align-items: start; }
+.annex-main { min-width: 0; }
+.filter-bar { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 10px; margin-bottom: 10px; }
+.filter-group { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); }
+.filter-btn {
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 700;
+}
+.filter-btn:hover { background: var(--paper); }
+.filter-btn[aria-pressed="true"] { border-color: var(--forest-900); background: var(--forest-900); color: var(--paper); }
+.filter-select { display: grid; gap: 3px; color: var(--muted); font-size: 7.5px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.filter-select select {
+  min-height: 36px;
+  padding: 6px 9px;
+  border: 1px solid #ced8cb;
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.filter-status { margin: 0 0 8px; color: var(--forest-700); font-size: 9px; font-weight: 650; }
+
+.action-ledger { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--forest-950); }
+.action-ledger li { border-bottom: 1px solid var(--line); }
+.action-ledger li[hidden] { display: none; }
+.action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px 112px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 11px;
+  border: 0;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+}
+.action-row:hover { background: var(--soft); }
+.action-row[aria-current="true"] { background: var(--soft); box-shadow: inset 4px 0 0 var(--forest-900); }
+.action-row .title { font-size: 11px; font-weight: 750; line-height: 1.35; }
+.action-row .meta { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; }
+.action-row .due { color: var(--muted); font-size: 8.5px; }
+.action-row .assignee { color: var(--muted); font-size: 8.5px; }
+.action-row .assignee strong { color: var(--ink); font-weight: 700; }
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 7.5px;
+  font-weight: 850;
+  letter-spacing: .04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.status-chip::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.chip-propuesta { background: var(--soft); color: var(--ink); }
+.chip-asignada { background: #e7f0e6; color: #396246; }
+.chip-en-curso { background: #e3efef; color: #32686a; }
+.chip-bloqueada { background: var(--gold-soft); color: #7f641e; }
+.empty-state {
+  padding: 14px;
+  border: 1px dashed #c8bda0;
+  border-radius: 6px;
+  background: #faf7ee;
+  color: #7d6c3f;
+  font-size: 10px;
+}
+.empty-state strong { display: block; margin-bottom: 3px; color: #5f4717; }
+.empty-state button { margin-top: 6px; }
+
+.detail-card {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--paper);
+}
+.detail-card .detail-head { padding: 13px 15px; background: var(--forest-900); color: var(--paper); }
+.detail-card .detail-head .kicker { color: #d7aa73; margin-bottom: 3px; }
+.detail-card .detail-head h3 { margin: 0; color: var(--paper); font-family: Georgia, serif; font-size: 20px; font-weight: 400; line-height: 1.2; letter-spacing: -.3px; }
+.detail-body { padding: 13px 15px 15px; }
+.detail-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0 0 11px; }
+.detail-facts dt { color: var(--muted); font-size: 7.5px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.detail-facts dd { margin: 2px 0 0; color: var(--ink); font-size: 10px; font-weight: 650; overflow-wrap: anywhere; }
+.assignee-line { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0 0 4px; }
+.assignee-line .name { margin: 0; color: var(--ink); font-size: 12px; font-weight: 750; }
+.assignee-role { margin: 0 0 10px; color: var(--muted); font-size: 9px; }
+.unassigned-flag { display: inline-flex; padding: 2px 6px; border-radius: 3px; background: var(--gold-soft); color: #7f641e; font-size: 7.5px; font-weight: 850; letter-spacing: .05em; text-transform: uppercase; }
+.detail-evidence { margin: 0 0 9px; color: var(--ink); font-size: 9.5px; line-height: 1.55; }
+
+.assignment {
+  position: sticky;
+  top: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--gold);
+  border-radius: 7px;
+  background: var(--soft);
+}
+.assignment h3 { margin: 0 0 4px; color: var(--forest-950); font-family: Georgia, serif; font-size: 25px; font-weight: 400; letter-spacing: -.5px; }
+.assignment .assignment-note { margin: 0 0 12px; color: var(--muted); font-size: 9px; line-height: 1.6; }
+.form-grid { display: grid; gap: 8px; }
+.field { display: grid; gap: 3px; color: var(--muted); font-size: 7.5px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 9px;
+  border: 1px solid #ced8cb;
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.field textarea { min-height: 72px; resize: vertical; line-height: 1.5; }
+.field input::placeholder, .field textarea::placeholder { color: var(--muted); opacity: 1; }
+.field select:disabled, .field input:disabled { background: #eef1ee; color: var(--muted); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.case-switch { padding: 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); }
+.case-switch .field-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 7.5px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.case-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
+.case-btn {
+  min-height: 33px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.case-btn[aria-pressed="true"] { background: var(--forest-900); color: var(--paper); border-color: var(--forest-900); }
+.assignee-hint { margin: 5px 0 0; color: var(--muted); font-size: 8.5px; line-height: 1.5; }
+.directory-failure {
+  margin-top: 6px;
+  padding: 8px 9px;
+  border: 1px solid #f0dfb9;
+  border-radius: 5px;
+  background: var(--gold-soft);
+  color: #705d35;
+  font-size: 8.5px;
+  line-height: 1.55;
+}
+.directory-failure strong { display: block; color: #5f4717; font-size: 9.5px; }
+.primary-button, .secondary-button {
+  min-height: 42px;
+  padding: 9px 13px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 750;
+}
+.primary-button { border: 1px solid var(--forest-900); background: var(--forest-900); color: #fcfcf2; }
+.primary-button:hover { background: var(--forest-700); border-color: var(--forest-700); }
+.secondary-button { border: 1px solid #ced8cb; background: var(--paper); color: var(--forest-700); }
+.secondary-button:hover { background: var(--soft); }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+.form-actions .micro { max-width: 180px; }
+.micro { margin: 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
+.feedback {
+  margin-top: 9px;
+  padding: 10px;
+  border: 1px solid #dfe8d8;
+  border-left: 4px solid var(--forest-700);
+  border-radius: 4px;
+  background: #eef3ea;
+  color: #56705d;
+  font-size: 9px;
+  line-height: 1.55;
+}
+.feedback strong { display: block; color: #396246; font-size: 9.5px; }
+.feedback:focus-visible { outline-offset: 2px; }
+
+.text-button {
+  min-height: 32px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--forest-700);
+  font-size: 9.5px;
+  font-weight: 750;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.text-button:hover { color: var(--forest-950); }
+.detail-card .text-button { min-height: 34px; }
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 18px;
+  padding: 12px 44px 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.55;
+}
+.footer strong { color: var(--ink); }
+
+@media (max-width: 1120px) {
+  .mast-main { grid-template-columns: minmax(0, 1.4fr) minmax(280px, .8fr); gap: 24px; }
+  .chapter-grid { grid-template-columns: minmax(0, 1.5fr) minmax(250px, .7fr); gap: 24px; }
+  .annex-grid { grid-template-columns: minmax(0, 1.2fr) minmax(300px, .85fr); gap: 20px; }
+}
+@media (max-width: 900px) {
+  .mast-main { grid-template-columns: 1fr; }
+  .verdict { max-width: 600px; }
+  .chapter-grid { grid-template-columns: 1fr; }
+  .margin { grid-template-columns: 1fr 1fr; }
+  .annex-grid { grid-template-columns: 1fr; }
+  .assignment { position: static; }
+  .freshness-wide { grid-template-columns: 1fr 1fr; }
+  .freshness-wide div:nth-child(2) { border-right: 0; }
+  .freshness-wide div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 700px) {
+  .mast-top, .proto-line { padding-right: 18px; padding-left: 18px; }
+  .mast-main { padding: 28px 18px 22px; }
+  .chapters { padding: 0 18px; }
+  .chapters a { padding-right: 12px; }
+  main { padding: 0 18px 6px; }
+  .footer { padding: 12px 18px 18px; }
+  .chapter-head { grid-template-columns: 44px minmax(0, 1fr); gap: 12px; }
+  .chapter-num { font-size: 33px; }
+  .ledger-head { display: none; }
+  .sector-row { grid-template-columns: 28px minmax(0, 1fr) 72px; grid-template-areas: "num name level" "num cov priority"; gap: 2px 8px; padding: 9px; }
+  .row-num { grid-area: num; }
+  .row-name { grid-area: name; }
+  .sector-row > .level { grid-area: level; justify-self: end; }
+  .row-cov { grid-area: cov; }
+  .row-priority { grid-area: priority; justify-self: end; }
+  .rec-grid, .evidence-cards { grid-template-columns: 1fr; }
+  .margin { grid-template-columns: 1fr; }
+  .action-row { grid-template-columns: minmax(0, 1fr) 74px; grid-template-areas: "title status" "assignee due"; gap: 4px 8px; }
+  .action-row .title { grid-area: title; }
+  .action-row .status-chip { grid-area: status; justify-self: end; }
+  .action-row .assignee { grid-area: assignee; }
+  .action-row .due { grid-area: due; text-align: right; }
+  .action-row .meta { display: block; }
+  .factor-row { grid-template-columns: 118px minmax(0, 1fr) 50px; gap: 7px; }
+  .factor-row .reading { display: none; }
+  .factor-row.head { grid-template-columns: 118px minmax(0, 1fr) 50px; }
+  .map-editorial figcaption { font-size: 8.5px; }
+}
+@media (max-width: 620px) {
+  h1 { font-size: 38px; letter-spacing: -1px; }
+  .standfirst { font-size: 15px; }
+  .map-editorial svg text { display: none; }
+  .freshness-wide { grid-template-columns: 1fr; }
+  .freshness-wide div { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; }
+  .freshness-wide div:last-child { border-bottom: 0; }
+  .form-row { grid-template-columns: 1fr; }
+  .case-btn { min-height: 40px; }
+  .filter-btn { min-height: 38px; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Saltar al contenido principal</a>
+<div class="sheet">
+  <header class="masthead">
+    <div class="mast-top">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">F</span>
+        <span>
+          <strong>FireWatch</strong>
+          <small>Prevención municipal</small>
+        </span>
+      </div>
+      <p class="edition">Informe territorial · N.º 04 · 18 nov 2026</p>
+      <span class="maqueta-tag">MAQUETA</span>
+    </div>
+
+    <div class="proto-line" role="note">
+      <strong>MAQUETA INTERACTIVA · ESCENARIO ILUSTRATIVO</strong>
+      <span>Ningún dato es real. Nada se guarda, se envía ni se persiste.</span>
+      <span class="g6-tag">PROTOTIPO G6 · V1-P-01 / V1-P-02</span>
+    </div>
+
+    <div class="mast-main">
+      <div>
+        <p class="kicker">Valparaíso · CUT 05101 · lectura de prevención</p>
+        <h1>El riesgo alto vive en la interfaz de las quebradas</h1>
+        <p class="standfirst">Un lote sintético de demostración describe el borde urbano-forestal de Valparaíso: combustible continuo, viento sostenido y baja humedad relativa. La lectura ordena la evidencia, explicita su frescura y deja el trabajo operativo en un anexo.</p>
+        <p class="byline"><strong>Informe de maqueta</strong><span>Dirección 02 · Informe territorial</span><span>Escenario ficticio, sin consulta real</span></p>
+      </div>
+      <aside class="verdict" aria-label="Lectura del lote">
+        <p class="verdict-label">Lectura del lote</p>
+        <p class="verdict-level">ALTO</p>
+        <p class="verdict-sub">Nivel informado por el lote sintético</p>
+        <dl>
+          <div><dt>Publicado</dt><dd>18 nov 2026 · 14:20</dd></div>
+          <div><dt>Vigencia</dt><dd>21 nov 2026 · 14:20</dd></div>
+          <div><dt>Modelo</dt><dd>fw-rule-v3.2</dd></div>
+          <div><dt>Política</dt><dd>FW-RISK-004</dd></div>
+        </dl>
+        <p class="verdict-note">La publicación no acredita frescura de observaciones. La clasificación es una regla propia no oficial. Escenario ilustrativo: no es una alerta.</p>
+      </aside>
+    </div>
+
+    <nav class="chapters" aria-label="Secciones del informe">
+      <a href="#territorio"><span>01</span>Territorio</a>
+      <a href="#evidencia"><span>02</span>Evidencia y frescura</a>
+      <a href="#recomendaciones"><span>03</span>Recomendaciones</a>
+      <a href="#acciones"><span>04</span>Anexo de acciones</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="chapter" id="territorio" aria-labelledby="territorio-title">
+      <div class="chapter-head">
+        <p class="chapter-num" aria-hidden="true">01</p>
+        <div>
+          <h2 id="territorio-title">Mapa del riesgo y cobertura del territorio</h2>
+          <p class="dek">La comuna tiene cinco sectores de lectura en esta maqueta. Los niveles por sector, la cobertura y la prioridad contextual son prototipo G6: el servicio publica nivel por comuna y todavía no publica ninguna de esas tres cosas.</p>
+        </div>
+      </div>
+
+      <div class="chapter-grid">
+        <div class="article prose">
+          <p class="lede">Valparaíso combina quebradas profundas, viviendas en laderas y vegetación seca a poca distancia de los accesos. En el escenario de esta maqueta, dos sectores quedan en nivel alto y dos en nivel medio; el Centro queda bajo. La figura no es cartografía: es un esquema para comparar sectores y probar cómo se relacionan el territorio y las acciones.</p>
+
+          <figure class="map-editorial">
+            <svg viewBox="0 0 800 370" role="img" aria-labelledby="map-editorial-title map-editorial-desc">
+              <title id="map-editorial-title">Esquema editorial de los cinco sectores de Valparaíso</title>
+              <desc id="map-editorial-desc">Figura esquemática sin cartografía oficial. Los números 1 a 5 identifican Cerro La Campana, Quebrada Verde, Playa Ancha, Rodelillo y Centro. La lista de sectores que sigue a la figura contiene los niveles, la cobertura y la prioridad contextual de cada uno.</desc>
+              <rect width="800" height="370" fill="#eef2e8"></rect>
+              <path d="M0 0 H142 C174 84 154 166 128 236 C106 298 116 342 146 370 H0 Z" fill="var(--level-neutral-fill)" stroke="var(--level-neutral-line)" stroke-width="1.3"></path>
+              <text x="24" y="196" transform="rotate(-90 24 196)" fill="#233b39" font-family="Inter, sans-serif" font-size="10" letter-spacing="1.1">OCÉANO PACÍFICO</text>
+
+              <g fill="none" stroke="#d4dfd0" stroke-width="1.2">
+                <path d="M170 50 C280 24 390 44 500 28 S650 26 744 56"></path>
+                <path d="M162 102 C284 66 398 94 512 72 S664 72 756 106"></path>
+                <path d="M156 160 C286 124 404 150 520 128 S672 130 766 166"></path>
+                <path d="M154 238 C288 202 410 228 528 206 S678 210 772 246"></path>
+                <path d="M154 316 C292 282 418 308 538 286 S686 292 780 326"></path>
+              </g>
+
+              <path data-zone-shape="cerro-la-campana" d="M258 30 L548 20 L640 92 L606 174 L486 206 L306 192 L254 112 Z" fill="var(--level-high-fill)" stroke="var(--level-high-line)" stroke-width="2"></path>
+              <path data-zone-shape="quebrada-verde" d="M654 32 L786 58 L782 190 L646 218 L618 142 Z" fill="var(--level-high-fill)" stroke="var(--level-high-line)" stroke-width="2"></path>
+              <path data-zone-shape="playa-ancha" d="M148 202 L260 180 L302 236 L278 316 L182 348 L142 292 Z" fill="var(--level-medium-fill)" stroke="var(--level-medium-line)" stroke-width="2"></path>
+              <path data-zone-shape="rodelillo" d="M320 212 L516 204 L620 244 L592 342 L454 360 L330 330 Z" fill="var(--level-medium-fill)" stroke="var(--level-medium-line)" stroke-width="2"></path>
+              <path data-zone-shape="centro" d="M152 354 L316 342 L448 362 L454 370 L150 370 Z" fill="var(--level-low-fill)" stroke="var(--level-low-line)" stroke-width="2"></path>
+
+              <g fill="none" stroke="#dde3da" stroke-width="1">
+                <path d="M188 228 C242 218 280 242 302 278"></path>
+                <path d="M198 266 C246 256 266 276 278 302"></path>
+                <path d="M356 246 C412 236 458 254 482 286"></path>
+                <path d="M370 290 C424 282 458 298 476 326"></path>
+              </g>
+
+              <path d="M300 22 C330 108 312 190 270 254 C240 300 212 338 198 370" fill="none" stroke="#d7aa73" stroke-width="4"></path>
+              <path d="M300 22 C330 108 312 190 270 254 C240 300 212 338 198 370" fill="none" stroke="#85691e" stroke-width="1.1" stroke-dasharray="5 6"></path>
+
+              <g data-zone-label="cerro-la-campana">
+                <circle cx="420" cy="106" r="21" fill="#fffefa" stroke="#102c2d" stroke-width="2"></circle>
+                <text x="420" y="113" text-anchor="middle" fill="#102c2d" font-family="Georgia, serif" font-size="19">1</text>
+              </g>
+              <g data-zone-label="quebrada-verde">
+                <circle cx="700" cy="96" r="21" fill="#fffefa" stroke="#102c2d" stroke-width="2"></circle>
+                <text x="700" y="103" text-anchor="middle" fill="#102c2d" font-family="Georgia, serif" font-size="19">2</text>
+              </g>
+              <g data-zone-label="playa-ancha">
+                <circle cx="214" cy="254" r="21" fill="#fffefa" stroke="#102c2d" stroke-width="2"></circle>
+                <text x="214" y="261" text-anchor="middle" fill="#102c2d" font-family="Georgia, serif" font-size="19">3</text>
+              </g>
+              <g data-zone-label="rodelillo">
+                <circle cx="472" cy="270" r="21" fill="#fffefa" stroke="#102c2d" stroke-width="2"></circle>
+                <text x="472" y="277" text-anchor="middle" fill="#102c2d" font-family="Georgia, serif" font-size="19">4</text>
+              </g>
+              <g data-zone-label="centro">
+                <circle cx="250" cy="350" r="21" fill="#fffefa" stroke="#102c2d" stroke-width="2"></circle>
+                <text x="250" y="357" text-anchor="middle" fill="#102c2d" font-family="Georgia, serif" font-size="19">5</text>
+              </g>
+
+              <g transform="translate(744 320)">
+                <circle r="16" fill="#fffefa" stroke="#9fb3ab"></circle>
+                <path d="M0 -8 L5 6 L0 3 L-5 6 Z" fill="#102c2d"></path>
+                <text x="0" y="15" text-anchor="middle" fill="#233b39" font-family="Inter, sans-serif" font-size="7" font-weight="700">N</text>
+              </g>
+            </svg>
+            <figcaption>Esquema territorial ilustrativo, sin coordenadas ni cartografía oficial. En pantallas angostas se ocultan los números internos; la lista siguiente conserva la referencia. Los niveles por sector son un prototipo.</figcaption>
+            <div class="map-legend" aria-label="Leyenda de niveles">
+              <span><i class="swatch swatch-low"></i>BAJO</span>
+              <span><i class="swatch swatch-medium"></i>MEDIO</span>
+              <span><i class="swatch swatch-high"></i>ALTO</span>
+              <span><i class="swatch swatch-unknown"></i>INFORMACIÓN INSUFICIENTE</span>
+              <span><i class="swatch swatch-neutral"></i>SIN EVALUACIÓN</span>
+            </div>
+          </figure>
+
+          <div class="sector-ledger">
+            <div class="ledger-head" aria-hidden="true"><span>N.º</span><span>Sector</span><span>Nivel</span><span>Cobertura</span><span>Prioridad contexto</span></div>
+            <ol id="zone-list" aria-label="Sectores del escenario">
+              <li>
+                <button type="button" class="sector-row" data-zone="cerro-la-campana" data-name="Cerro La Campana" data-level="ALTO" data-level-class="level-alto" data-coverage="71" data-priority="ALTA" data-summary="Combustible fino continuo en la quebrada; viento sostenido del suroeste y baja humedad relativa." aria-pressed="true">
+                  <span class="row-num">01</span>
+                  <span class="row-name">Cerro La Campana<em>Borde norte · quebrada</em></span>
+                  <span class="level level-alto">ALTO</span>
+                  <span class="row-cov">71 %</span>
+                  <span class="row-priority"><strong>ALTA</strong> · prototipo</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="sector-row" data-zone="quebrada-verde" data-name="Quebrada Verde" data-level="ALTO" data-level-class="level-alto" data-coverage="48" data-priority="ALTA" data-summary="Interfaz urbano-forestal con accesos estrechos; lectura parcial de la cobertura del sector." aria-pressed="false">
+                  <span class="row-num">02</span>
+                  <span class="row-name">Quebrada Verde<em>Accesos estrechos</em></span>
+                  <span class="level level-alto">ALTO</span>
+                  <span class="row-cov">48 %</span>
+                  <span class="row-priority"><strong>ALTA</strong> · prototipo</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="sector-row" data-zone="playa-ancha" data-name="Playa Ancha" data-level="MEDIO" data-level-class="level-medio" data-coverage="84" data-priority="MEDIA" data-summary="Vegetación de quebrada junto a construcciones antiguas; la cobertura de evaluación es la más completa del sector." aria-pressed="false">
+                  <span class="row-num">03</span>
+                  <span class="row-name">Playa Ancha<em>Ladera y construcciones antiguas</em></span>
+                  <span class="level level-medio">MEDIO</span>
+                  <span class="row-cov">84 %</span>
+                  <span class="row-priority"><strong>MEDIA</strong> · prototipo</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="sector-row" data-zone="rodelillo" data-name="Rodelillo" data-level="MEDIO" data-level-class="level-medio" data-coverage="39" data-priority="MEDIA" data-summary="Laderas con rastrojos y viviendas dispersas; la lectura del sector está incompleta." aria-pressed="false">
+                  <span class="row-num">04</span>
+                  <span class="row-name">Rodelillo<em>Laderas y viviendas dispersas</em></span>
+                  <span class="level level-medio">MEDIO</span>
+                  <span class="row-cov">39 %</span>
+                  <span class="row-priority"><strong>MEDIA</strong> · prototipo</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="sector-row" data-zone="centro" data-name="Centro" data-level="BAJO" data-level-class="level-bajo" data-coverage="92" data-priority="BAJA" data-summary="Borde urbano consolidado; menor continuidad de combustible y accesos más amplios." aria-pressed="false">
+                  <span class="row-num">05</span>
+                  <span class="row-name">Centro<em>Borde urbano consolidado</em></span>
+                  <span class="level level-bajo">BAJO</span>
+                  <span class="row-cov">92 %</span>
+                  <span class="row-priority"><strong>BAJA</strong> · prototipo</span>
+                </button>
+              </li>
+            </ol>
+          </div>
+
+          <div class="sector-note" id="sector-note">
+            <p class="note-label">Lectura del sector seleccionado</p>
+            <h3 id="selected-sector-name">Cerro La Campana</h3>
+            <p><span id="selected-sector-level" class="level level-alto">ALTO</span></p>
+            <p id="selected-sector-summary">Combustible fino continuo en la quebrada; viento sostenido del suroeste y baja humedad relativa.</p>
+            <div class="note-meta">
+              <span>Cobertura de evaluación <strong id="selected-sector-coverage">71 %</strong> · prototipo</span>
+              <span>Prioridad contextual <strong id="selected-sector-priority">ALTA</strong> · prototipo</span>
+              <span>Lote <strong>b-7f3c9a21</strong></span>
+            </div>
+            <button type="button" class="secondary-button" id="prepare-zone">Preparar una acción para este sector →</button>
+            <p class="sr-only" role="status" id="zone-live">Sector seleccionado: Cerro La Campana, nivel alto.</p>
+          </div>
+        </div>
+
+        <aside class="margin" aria-label="Cifras y notas del informe">
+          <div class="margin-card">
+            <p class="label">Cobertura de evaluación · prototipo</p>
+            <p class="big-figure">62 %<small>de los cinco sectores de la maqueta tendrían lectura completa. Cifra ilustrativa de V1-P-01; el servicio no publica cobertura por sector.</small></p>
+          </div>
+          <div class="margin-card">
+            <p class="label">Estado y frescura</p>
+            <p><strong>Publicado</strong> 18 nov 2026 · 14:20<br /><strong>Vigencia declarada</strong> hasta 21 nov 2026 · 14:20<br /><strong>Lectura de la maqueta</strong> 18 nov 2026 · 14:26</p>
+            <p class="src">La publicación no acredita frescura de observaciones. El lote es sintético y no calibrado.</p>
+          </div>
+          <div class="margin-card proto-card">
+            <p class="label">Prototipo G6 · V1-P-01 / V1-P-02</p>
+            <p><strong>Cobertura y prioridad por sector no existen en el servicio actual.</strong> Se muestran para probar la jerarquía y la interacción; no son datos ni servicios publicados.</p>
+          </div>
+          <div class="margin-card">
+            <p class="label">Cómo leer este informe</p>
+            <ul class="margin-list">
+              <li>El nivel es de la comuna; los niveles por sector son un prototipo.</li>
+              <li>“Sin evaluación” no es riesgo bajo.</li>
+              <li>La recomendación no es una alerta ni una orden.</li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="chapter" id="evidencia" aria-labelledby="evidencia-title">
+      <div class="chapter-head">
+        <p class="chapter-num" aria-hidden="true">02</p>
+        <div>
+          <h2 id="evidencia-title">Evidencia, factores y frescura</h2>
+          <p class="dek">Lo que el lote dice, lo que no dice y cuándo fue publicado. La fecha de publicación no reemplaza una fecha de observación que el lote no informa.</p>
+        </div>
+      </div>
+
+      <div class="chapter-grid">
+        <div class="article prose">
+          <div class="notice-line"><strong>Escenario ilustrativo.</strong> Lote sintético <span style="font-family:var(--mono)">b-7f3c9a21</span>. No representa riesgo real observado; la clasificación la calcula una regla propia no oficial.</div>
+          <dl class="freshness-wide">
+            <div><dt>Publicado</dt><dd><time datetime="2026-11-18T14:20">18 nov 2026 · 14:20</time></dd></div>
+            <div><dt>Vigencia declarada</dt><dd><time datetime="2026-11-21T14:20">21 nov 2026 · 14:20</time></dd></div>
+            <div><dt>Lectura de la maqueta</dt><dd><time datetime="2026-11-18T14:26">18 nov 2026 · 14:26</time></dd></div>
+            <div><dt>Estado del dato</dt><dd>Sintético · no calibrado</dd></div>
+          </dl>
+
+          <h3>Factores con lectura</h3>
+          <div class="factor-ledger">
+            <div class="factor-row head" aria-hidden="true"><span class="name">Factor</span><span class="reading">Lectura</span><span>Contribución</span><span class="weight">Peso</span></div>
+            <div class="factor-row"><span class="name">temperatura</span><span class="reading">31,4 °C</span><div class="track"><span style="width: 90%"></span></div><span class="weight">0,28</span></div>
+            <div class="factor-row"><span class="name">humedad_relativa</span><span class="reading">24 %</span><div class="track"><span style="width: 71%"></span></div><span class="weight">0,22</span></div>
+            <div class="factor-row"><span class="name">viento</span><span class="reading">38 km/h SO</span><div class="track"><span style="width: 100%"></span></div><span class="weight">0,31</span></div>
+            <div class="factor-row"><span class="name">cobertura_vegetal</span><span class="reading">0,72</span><div class="track"><span style="width: 61%"></span></div><span class="weight">0,19</span></div>
+            <div class="factor-row"><span class="name">incendios_historicos</span><span class="reading">4 en 10 años</span><div class="track"><span style="width: 39%"></span></div><span class="weight">0,12</span></div>
+          </div>
+
+          <details>
+            <summary>Justificación y política completas</summary>
+            <div class="detail-body">
+              <p><strong>Justificación del lote.</strong> Continuidad de combustible fino en quebradas y borde urbano; viento sostenido del suroeste y humedad relativa baja; cuatro incendios de interfaz en la última década. Es una justificación redactada para el escenario, no una observación de terreno.</p>
+              <p><strong>Política informada.</strong> FW-RISK-004 · hash informado <span style="font-family:var(--mono)">sha256:9c1e…4b07</span> (no verificado). La página reproduce la política que el lote declara; no la evalúa ni la certifica.</p>
+              <p><strong>Modelo.</strong> fw-rule-v3.2. La versión del registro y la del lote pueden diferir; esta maqueta muestra una sola versión para el escenario.</p>
+            </div>
+          </details>
+
+          <h3>Evidencia disponible</h3>
+          <div class="evidence-cards">
+            <div class="evidence-card">
+              <strong>Acta DR-2026-114</strong>
+              <span>Dirección de Gestión de Riesgo. Referencia textual simulada; no hay enlace externo en esta maqueta.</span>
+              <span class="tag">Referencia simulada</span>
+            </div>
+            <div class="evidence-card">
+              <strong>Registro de poda 2026-031</strong>
+              <span>Dirección de Aseo y Ornato. Referencia textual simulada; no hay enlace externo en esta maqueta.</span>
+              <span class="tag">Referencia simulada</span>
+            </div>
+          </div>
+          <p class="small">La suficiencia de la evidencia no está decidida en este escenario. En el producto, una persona autorizada registra la decisión sobre la instantánea vigente; una revisión anterior no cuenta después de nueva evidencia.</p>
+        </div>
+
+        <aside class="margin" aria-label="Notas de la evidencia">
+          <div class="margin-card">
+            <p class="label">Qué no dice este lote</p>
+            <ul class="margin-list">
+              <li>No es una alerta oficial ni una orden de evacuación.</li>
+              <li>No informa frescura de observaciones; solo la fecha de publicación.</li>
+              <li>No publica cobertura por sector ni prioridad contextual.</li>
+              <li>No certifica la política ni el hash declarados.</li>
+            </ul>
+          </div>
+          <div class="margin-card">
+            <p class="label">Niveles que no son severidad</p>
+            <p><strong>INFORMACIÓN INSUFICIENTE</strong> describe un lote publicado sin clasificación suficiente.</p>
+            <p><strong>SIN EVALUACIÓN</strong> describe la ausencia de una evaluación; no es un nivel bajo.</p>
+          </div>
+          <div class="margin-card">
+            <p class="label">Fuente</p>
+            <p class="src">Lote sintético b-7f3c9a21 · publicado 18 nov 2026 14:20 · vigencia declarada 21 nov 2026 14:20 · lectura simulada 14:26.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="chapter" id="recomendaciones" aria-labelledby="recomendaciones-title">
+      <div class="chapter-head">
+        <p class="chapter-num" aria-hidden="true">03</p>
+        <div>
+          <h2 id="recomendaciones-title">Recomendaciones para planificar</h2>
+          <p class="dek">Cuatro sugerencias compuestas desde el nivel del lote y desde los factores con lectura. No son hallazgos de esta zona, no crean acciones y no envían notificaciones.</p>
+        </div>
+      </div>
+
+      <div class="chapter-grid">
+        <div class="article">
+          <ol class="rec-grid" aria-label="Sugerencias de prevención">
+            <li class="rec-card" data-rec="R-08" data-title="Reforzar la restricción de fogatas y chispas por viento">
+              <div class="rec-top"><span class="rec-id">R-08</span><span class="rec-source">Factor viento</span></div>
+              <p>Con viento, no hagas fogatas ni quemas y no uses herramientas que produzcan chispas.</p>
+              <button type="button" class="text-button" data-prepare="R-08">Llevar al anexo de acciones →</button>
+            </li>
+            <li class="rec-card" data-rec="R-06" data-title="Evitar trabajos con chispas en días calurosos">
+              <div class="rec-top"><span class="rec-id">R-06</span><span class="rec-source">Factor temperatura</span></div>
+              <p>En días calurosos, evita herramientas y trabajos que generen chispas al aire libre, sobre todo cerca de vegetación.</p>
+              <button type="button" class="text-button" data-prepare="R-06">Llevar al anexo de acciones →</button>
+            </li>
+            <li class="rec-card" data-rec="R-03" data-title="Restringir fogatas y quema de desechos">
+              <div class="rec-top"><span class="rec-id">R-03</span><span class="rec-source">Nivel alto</span></div>
+              <p>Restringe fogatas, parrillas, quema de desechos y otras fuentes de calor cerca de vegetación.</p>
+              <button type="button" class="text-button" data-prepare="R-03">Llevar al anexo de acciones →</button>
+            </li>
+            <li class="rec-card" data-rec="R-04" data-title="Coordinar una revisión de vías de salida con la comunidad">
+              <div class="rec-top"><span class="rec-id">R-04</span><span class="rec-source">Nivel alto</span></div>
+              <p>Coordina con la municipalidad o la junta de vecinos una revisión del entorno y de las vías de salida.</p>
+              <button type="button" class="text-button" data-prepare="R-04">Llevar al anexo de acciones →</button>
+            </li>
+          </ol>
+          <p class="general-note"><strong>Prevención general, no alerta.</strong> El ítem de observación directa R-05 no se incluye como hallazgo: la maqueta no sabe si hay vegetación en contacto con líneas eléctricas. La correspondencia entre medidas y niveles es una decisión de FireWatch y no está validada por SENAPRED ni MINVU. Ante un incendio en curso, sigue las instrucciones de la autoridad.</p>
+        </div>
+
+        <aside class="margin" aria-label="Notas de las recomendaciones">
+          <div class="margin-card">
+            <p class="label">Cómo se compone la lista</p>
+            <p>Primero los factores con contribución positiva, ordenados por aporte; después la pareja base del nivel. El presupuesto de pantalla es de cuatro ítems.</p>
+          </div>
+          <div class="margin-card">
+            <p class="label">Qué no hace</p>
+            <ul class="margin-list">
+              <li>No crea acciones por sí sola.</li>
+              <li>No envía correos ni notificaciones.</li>
+              <li>No consulta un servicio nuevo.</li>
+              <li>No afirma una condición local que no leyó.</li>
+            </ul>
+          </div>
+          <div class="margin-card proto-card">
+            <p class="label">G6 fuera de alcance aquí</p>
+            <p>La cobertura y la prioridad contextual son <strong>prototipo V1-P-01 / V1-P-02</strong>. Las demás superficies G6 se diseñan en otra tarea; esta dirección no las insinúa como existentes.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="chapter" id="acciones" aria-labelledby="acciones-title">
+      <div class="chapter-head">
+        <p class="chapter-num" aria-hidden="true">04</p>
+        <div>
+          <h2 id="acciones-title">Anexo operativo: acciones y responsable</h2>
+          <p class="dek">El informe termina en trabajo concreto. Estas cuatro acciones del escenario muestran los estados existentes, el caso sin asignar y el selector de responsable; el formulario es una maqueta y no guarda nada.</p>
+        </div>
+      </div>
+
+      <div class="annex-grid">
+        <div class="annex-main">
+          <div class="filter-bar">
+            <div class="filter-group" role="group" aria-label="Filtrar acciones por estado">
+              <button type="button" class="filter-btn" data-status="" aria-pressed="true">Todas</button>
+              <button type="button" class="filter-btn" data-status="propuesta" aria-pressed="false">Propuesta</button>
+              <button type="button" class="filter-btn" data-status="asignada" aria-pressed="false">Asignada</button>
+              <button type="button" class="filter-btn" data-status="en_curso" aria-pressed="false">En curso</button>
+              <button type="button" class="filter-btn" data-status="bloqueada" aria-pressed="false">Bloqueada</button>
+            </div>
+            <label class="filter-select" for="action-sector-filter">Sector
+              <select id="action-sector-filter">
+                <option value="">Todos</option>
+                <option value="cerro-la-campana">Cerro La Campana</option>
+                <option value="quebrada-verde">Quebrada Verde</option>
+                <option value="playa-ancha">Playa Ancha</option>
+                <option value="rodelillo">Rodelillo</option>
+                <option value="centro">Centro</option>
+              </select>
+            </label>
+          </div>
+          <p class="filter-status" id="filter-status" role="status" aria-live="polite">4 de 4 acciones · escenario ilustrativo.</p>
+
+          <ol class="action-ledger" id="action-list" aria-label="Acciones preventivas del escenario">
+            <li>
+              <button type="button" class="action-row" data-action="acc-1042" aria-current="true">
+                <span><span class="title">Despeje de vegetación seca en el borde norte del Cerro La Campana</span><span class="meta">ACC-1042 · Cerro La Campana · prioridad Alta</span></span>
+                <span class="status-chip chip-asignada">Asignada</span>
+                <span class="assignee">Responsable <strong>Camila Rojas Fuentes</strong><span class="meta">Vence 27 nov 2026</span></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="action-row" data-action="acc-1043">
+                <span><span class="title">Revisión de vías de evacuación en Quebrada Verde</span><span class="meta">ACC-1043 · Quebrada Verde · prioridad Alta</span></span>
+                <span class="status-chip chip-en-curso">En curso</span>
+                <span class="assignee">Responsable <strong>Jorge Muñoz Salinas</strong><span class="meta">Vence 24 nov 2026</span></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="action-row" data-action="acc-1044">
+                <span><span class="title">Difusión de la restricción de fogatas en ferias vecinales</span><span class="meta">ACC-1044 · Playa Ancha · prioridad Media</span></span>
+                <span class="status-chip chip-propuesta">Propuesta</span>
+                <span class="assignee">Responsable <strong>Sin asignar</strong><span class="meta">Vence 2 dic 2026</span></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="action-row" data-action="acc-1045">
+                <span><span class="title">Inspección de conexiones eléctricas informales en Playa Ancha</span><span class="meta">ACC-1045 · Playa Ancha · prioridad Alta</span></span>
+                <span class="status-chip chip-bloqueada">Bloqueada</span>
+                <span class="assignee">Responsable <strong>Valentina Díaz Paredes</strong><span class="meta">Vence 22 nov 2026</span></span>
+              </button>
+            </li>
+          </ol>
+
+          <div class="empty-state" id="empty-actions" hidden>
+            <strong>No hay acciones con este filtro.</strong> Los cuatro registros del escenario siguen existiendo; solo se ocultaron en la vista.
+            <br />
+            <button type="button" class="text-button" id="clear-action-filter">Ver todas las acciones</button>
+          </div>
+
+          <article class="detail-card" id="action-detail" aria-labelledby="detail-title">
+            <div class="detail-head">
+              <p class="kicker">Ficha de la acción · maqueta</p>
+              <h3 id="detail-title">Despeje de vegetación seca en el borde norte del Cerro La Campana</h3>
+            </div>
+            <div class="detail-body">
+              <dl class="detail-facts">
+                <div><dt>Código</dt><dd id="detail-code">ACC-1042</dd></div>
+                <div><dt>Estado</dt><dd><span class="status-chip chip-asignada" id="detail-status">Asignada</span></dd></div>
+                <div><dt>Sector</dt><dd id="detail-sector">Cerro La Campana</dd></div>
+                <div><dt>Vence</dt><dd id="detail-due">27 nov 2026</dd></div>
+                <div><dt>Prioridad (texto libre)</dt><dd id="detail-priority">Alta</dd></div>
+                <div><dt>Prioridad contextual · prototipo</dt><dd id="detail-context-priority">ALTA</dd></div>
+              </dl>
+              <div class="assignee-line"><span class="name" id="detail-assignee-name">Camila Rojas Fuentes</span><span class="level level-asignada" id="detail-assignee-tag" hidden>Asignada</span></div>
+              <p class="assignee-role" id="detail-assignee-role">Dirección de Aseo y Ornato · identificador u-8f3a</p>
+              <p class="detail-evidence" id="detail-evidence">2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.</p>
+              <button type="button" class="text-button" id="view-sector">Leer este sector en el informe ↑</button>
+              <p class="sr-only" role="status" aria-live="polite" id="detail-live"></p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="assignment" aria-labelledby="assignment-title">
+          <h3 id="assignment-title">Asignar y crear</h3>
+          <p class="assignment-note">El selector reproduce la forma del directorio del proveedor de identidad. La lista es ficticia; no se consulta ningún servicio. El formulario no guarda, no envía red y no escribe almacenamiento.</p>
+
+          <form id="create-form" class="form-grid" novalidate>
+            <div class="case-switch">
+              <span class="field-label" id="case-label">Casos del selector · maqueta</span>
+              <div class="case-buttons" role="group" aria-labelledby="case-label">
+                <button type="button" class="case-btn" id="case-assigned" data-case="assigned" aria-pressed="true">Con directorio</button>
+                <button type="button" class="case-btn" id="case-unassigned" data-case="unassigned" aria-pressed="false">Sin asignar</button>
+                <button type="button" class="case-btn" id="case-unavailable" data-case="unavailable" aria-pressed="false">Directorio no disponible</button>
+              </div>
+            </div>
+            <label class="field" for="assignee-select">Responsable
+              <select id="assignee-select" name="assignee">
+                <option value="">Sin asignar (se crea sin responsable)</option>
+                <option value="u-8f3a" selected>Camila Rojas Fuentes · Dirección de Aseo y Ornato</option>
+                <option value="u-2c91">Jorge Muñoz Salinas · Dirección de Gestión de Riesgo</option>
+                <option value="u-6d47">Valentina Díaz Paredes · Oficina de Emergencia</option>
+                <option value="u-9b02">Rodrigo Salinas Vega · Dirección de Obras Municipales</option>
+                <option value="u-4e18">Paula Herrera León · DIDECO · enlace vecinal</option>
+              </select>
+            </label>
+            <p class="assignee-hint" id="assignee-hint">Se asignaría a Camila Rojas Fuentes (u-8f3a).</p>
+            <div class="directory-failure" id="directory-failure" role="status" aria-live="polite" hidden>
+              <strong>No se pudo leer el directorio.</strong>
+              Respuesta simulada: 503 directory_unavailable. No se inventó una lista. Puedes crear la acción sin responsable o reintentar.
+              <button type="button" class="secondary-button" id="directory-retry" style="margin-top:6px;">Reintentar lectura</button>
+            </div>
+
+            <label class="field" for="create-title">Título
+              <input id="create-title" name="title" type="text" placeholder="Ej.: Despeje de vegetación seca" />
+            </label>
+            <label class="field" for="create-description">Descripción
+              <textarea id="create-description" name="description" placeholder="Trabajo, sector y referencia de evidencia."></textarea>
+            </label>
+            <div class="form-row">
+              <label class="field" for="create-sector">Sector
+                <select id="create-sector" name="sector">
+                  <option value="cerro-la-campana">Cerro La Campana</option>
+                  <option value="quebrada-verde">Quebrada Verde</option>
+                  <option value="playa-ancha">Playa Ancha</option>
+                  <option value="rodelillo">Rodelillo</option>
+                  <option value="centro">Centro</option>
+                </select>
+              </label>
+              <label class="field" for="create-due">Fecha límite
+                <input id="create-due" name="due" type="date" value="2026-11-27" />
+              </label>
+            </div>
+            <label class="field" for="create-priority">Prioridad (texto libre)
+              <input id="create-priority" name="priority" type="text" value="Alta" />
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-button" id="create-submit">Crear acción (simulacro)</button>
+            </div>
+            <p class="micro">No guarda nada. En el producto, el servidor valida el rol y el directorio antes de escribir.</p>
+            <div class="feedback" id="form-feedback" role="status" aria-live="polite" tabindex="-1" hidden>
+              <strong id="feedback-title"></strong>
+              <span id="feedback-body"></span>
+            </div>
+            <p class="sr-only" id="prefill-status" role="status" aria-live="polite"></p>
+          </form>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span><strong>Fuente de la maqueta:</strong> lote sintético b-7f3c9a21 · publicado 18 nov 2026 14:20 · vigencia declarada 21 nov 2026 14:20 · lectura simulada 14:26.</span>
+    <span><strong>Sin red:</strong> este documento no carga fuentes, imágenes ni datos externos.</span>
+    <span><strong>G6:</strong> cobertura y prioridad por sector son prototipo (V1-P-01, V1-P-02); no son datos ni servicios existentes.</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var zones = {
+    'cerro-la-campana': { name: 'Cerro La Campana', level: 'ALTO', levelClass: 'level-alto', coverage: '71', priority: 'ALTA', summary: 'Combustible fino continuo en la quebrada; viento sostenido del suroeste y baja humedad relativa.' },
+    'quebrada-verde': { name: 'Quebrada Verde', level: 'ALTO', levelClass: 'level-alto', coverage: '48', priority: 'ALTA', summary: 'Interfaz urbano-forestal con accesos estrechos; lectura parcial de la cobertura del sector.' },
+    'playa-ancha': { name: 'Playa Ancha', level: 'MEDIO', levelClass: 'level-medio', coverage: '84', priority: 'MEDIA', summary: 'Vegetación de quebrada junto a construcciones antiguas; la cobertura de evaluación es la más completa del sector.' },
+    'rodelillo': { name: 'Rodelillo', level: 'MEDIO', levelClass: 'level-medio', coverage: '39', priority: 'MEDIA', summary: 'Laderas con rastrojos y viviendas dispersas; la lectura del sector está incompleta.' },
+    'centro': { name: 'Centro', level: 'BAJO', levelClass: 'level-bajo', coverage: '92', priority: 'BAJA', summary: 'Borde urbano consolidado; menor continuidad de combustible y accesos más amplios.' }
+  };
+
+  var actions = {
+    'acc-1042': { title: 'Despeje de vegetación seca en el borde norte del Cerro La Campana', code: 'ACC-1042', status: 'Asignada', statusClass: 'chip-asignada', sector: 'cerro-la-campana', sectorName: 'Cerro La Campana', due: '27 nov 2026', priority: 'Alta', context: 'ALTA', assigneeName: 'Camila Rojas Fuentes', assigneeRole: 'Dirección de Aseo y Ornato · identificador u-8f3a', evidence: '2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.' },
+    'acc-1043': { title: 'Revisión de vías de evacuación en Quebrada Verde', code: 'ACC-1043', status: 'En curso', statusClass: 'chip-en-curso', sector: 'quebrada-verde', sectorName: 'Quebrada Verde', due: '24 nov 2026', priority: 'Alta', context: 'ALTA', assigneeName: 'Jorge Muñoz Salinas', assigneeRole: 'Dirección de Gestión de Riesgo · identificador u-2c91', evidence: 'Evidencia pendiente: la acción aún no registra una instantánea. Revisión de suficiencia: no iniciada.' },
+    'acc-1044': { title: 'Difusión de la restricción de fogatas en ferias vecinales', code: 'ACC-1044', status: 'Propuesta', statusClass: 'chip-propuesta', sector: 'playa-ancha', sectorName: 'Playa Ancha', due: '2 dic 2026', priority: 'Media', context: 'MEDIA', assigneeName: 'Sin asignar', assigneeRole: 'No hay responsable registrado. La acción puede asignarse después de crearla.', evidence: 'Sin evidencia registrada. El criterio de suficiencia lo define una persona autorizada.' },
+    'acc-1045': { title: 'Inspección de conexiones eléctricas informales en Playa Ancha', code: 'ACC-1045', status: 'Bloqueada', statusClass: 'chip-bloqueada', sector: 'playa-ancha', sectorName: 'Playa Ancha', due: '22 nov 2026', priority: 'Alta', context: 'ALTA', assigneeName: 'Valentina Díaz Paredes', assigneeRole: 'Oficina de Emergencia · identificador u-6d47', evidence: '1 referencia · acta OE-2026-057. Bloqueada: falta la autorización de la empresa distribuidora en este escenario.' }
+  };
+
+  var directory = {
+    'u-8f3a': 'Camila Rojas Fuentes · Dirección de Aseo y Ornato',
+    'u-2c91': 'Jorge Muñoz Salinas · Dirección de Gestión de Riesgo',
+    'u-6d47': 'Valentina Díaz Paredes · Oficina de Emergencia',
+    'u-9b02': 'Rodrigo Salinas Vega · Dirección de Obras Municipales',
+    'u-4e18': 'Paula Herrera León · DIDECO · enlace vecinal'
+  };
+
+  var selectedZone = 'cerro-la-campana';
+  var selectedAction = 'acc-1042';
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var zoneButtons = Array.prototype.slice.call(document.querySelectorAll('[data-zone]'));
+  var actionButtons = Array.prototype.slice.call(document.querySelectorAll('[data-action]'));
+  var filterButtons = Array.prototype.slice.call(document.querySelectorAll('[data-status]'));
+  var statusFilter = '';
+  var sectorFilter = document.getElementById('action-sector-filter');
+  var filterStatus = document.getElementById('filter-status');
+  var emptyActions = document.getElementById('empty-actions');
+  var createBlock = document.getElementById('create-form');
+  var titleInput = document.getElementById('create-title');
+  var descriptionInput = document.getElementById('create-description');
+  var sectorSelect = document.getElementById('create-sector');
+  var assigneeSelect = document.getElementById('assignee-select');
+  var assigneeHint = document.getElementById('assignee-hint');
+  var feedback = document.getElementById('form-feedback');
+  var feedbackTitle = document.getElementById('feedback-title');
+  var feedbackBody = document.getElementById('feedback-body');
+  var prefillStatus = document.getElementById('prefill-status');
+  var failure = document.getElementById('directory-failure');
+  var caseButtons = Array.prototype.slice.call(document.querySelectorAll('.case-btn'));
+  var lastGoodAssignee = assigneeSelect.value;
+
+  function setLevel(el, text, className) {
+    el.className = 'level ' + className;
+    el.textContent = text;
+  }
+
+  function selectZone(id, options) {
+    var zone = zones[id];
+    if (!zone) return;
+    selectedZone = id;
+    zoneButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-zone') === id));
+    });
+    document.querySelectorAll('[data-zone-shape]').forEach(function (shape) {
+      shape.style.strokeWidth = shape.getAttribute('data-zone-shape') === id ? '5' : '2';
+      shape.style.stroke = shape.getAttribute('data-zone-shape') === id ? 'var(--forest-950)' : '';
+    });
+    document.querySelectorAll('[data-zone-label]').forEach(function (label) {
+      var circle = label.querySelector('circle');
+      var text = label.querySelector('text');
+      if (!circle || !text) return;
+      var isSelected = label.getAttribute('data-zone-label') === id;
+      circle.setAttribute('fill', isSelected ? '#102c2d' : '#fffefa');
+      text.setAttribute('fill', isSelected ? '#fffefa' : '#102c2d');
+    });
+    document.getElementById('selected-sector-name').textContent = zone.name;
+    setLevel(document.getElementById('selected-sector-level'), zone.level, zone.levelClass);
+    document.getElementById('selected-sector-coverage').textContent = zone.coverage + ' %';
+    document.getElementById('selected-sector-priority').textContent = zone.priority;
+    document.getElementById('selected-sector-summary').textContent = zone.summary;
+    document.getElementById('zone-live').textContent = 'Sector seleccionado: ' + zone.name + ', nivel ' + zone.level.toLowerCase() + '. Cobertura de prototipo ' + zone.coverage + ' por ciento.';
+    sectorSelect.value = id;
+    if (options && options.filterActions) {
+      sectorFilter.value = id;
+      applyFilter();
+      filterStatus.textContent = 'Acciones filtradas por ' + zone.name + '. La maqueta no consultó el servicio.';
+    }
+  }
+
+  function applyFilter() {
+    var visible = 0;
+    actionButtons.forEach(function (button) {
+      var data = actions[button.getAttribute('data-action')];
+      var li = button.closest('li');
+      var show = (statusFilter === '' || data.status.toLowerCase().replace(/\s+/g, '_') === statusFilter) && (sectorFilter.value === '' || data.sector === sectorFilter.value);
+      if (li) li.hidden = !show;
+      if (show) visible += 1;
+    });
+    filterStatus.textContent = visible + ' de 4 acciones con el filtro actual · escenario ilustrativo.';
+    emptyActions.hidden = visible !== 0;
+  }
+
+  function renderAction(id) {
+    var data = actions[id];
+    if (!data) return;
+    selectedAction = id;
+    actionButtons.forEach(function (button) {
+      var isSelected = button.getAttribute('data-action') === id;
+      if (isSelected) button.setAttribute('aria-current', 'true');
+      else button.removeAttribute('aria-current');
+    });
+    document.getElementById('detail-title').textContent = data.title;
+    document.getElementById('detail-code').textContent = data.code;
+    var status = document.getElementById('detail-status');
+    status.className = 'status-chip ' + data.statusClass;
+    status.textContent = data.status;
+    document.getElementById('detail-sector').textContent = data.sectorName;
+    document.getElementById('detail-due').textContent = data.due;
+    document.getElementById('detail-priority').textContent = data.priority;
+    document.getElementById('detail-context-priority').textContent = data.context + ' · prototipo';
+    document.getElementById('detail-assignee-name').textContent = data.assigneeName;
+    document.getElementById('detail-assignee-role').textContent = data.assigneeRole;
+    var flag = document.getElementById('detail-assignee-tag');
+    flag.hidden = data.assigneeName !== 'Sin asignar';
+    document.getElementById('detail-evidence').textContent = data.evidence;
+    document.getElementById('detail-live').textContent = 'Ficha de ' + data.code + ' actualizada.';
+  }
+
+  zoneButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      selectZone(button.getAttribute('data-zone'));
+      setLevel(document.getElementById('selected-sector-level'), zones[selectedZone].level, zones[selectedZone].levelClass);
+    });
+  });
+  actionButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      renderAction(button.getAttribute('data-action'));
+    });
+  });
+  filterButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      statusFilter = button.getAttribute('data-status');
+      filterButtons.forEach(function (other) {
+        other.setAttribute('aria-pressed', String(other === button));
+      });
+      applyFilter();
+    });
+  });
+  sectorFilter.addEventListener('change', applyFilter);
+  document.getElementById('clear-action-filter').addEventListener('click', function () {
+    statusFilter = '';
+    filterButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-status') === ''));
+    });
+    sectorFilter.value = '';
+    applyFilter();
+  });
+  document.getElementById('view-sector').addEventListener('click', function () {
+    var data = actions[selectedAction];
+    selectZone(data.sector);
+    var heading = document.getElementById('selected-sector-name');
+    heading.setAttribute('tabindex', '-1');
+    heading.focus({ preventScroll: false });
+    filterStatus.textContent = 'Informe actualizado al sector ' + data.sectorName + '. No se consultó el servicio.';
+  });
+
+  function directoryState(state) {
+    caseButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-case') === state));
+    });
+    if (state === 'unavailable') {
+      assigneeSelect.disabled = true;
+      assigneeSelect.value = '';
+      failure.hidden = false;
+      assigneeHint.textContent = 'Directorio no disponible: el alta seguiría sin responsable. No se inventó una lista.';
+      return;
+    }
+    assigneeSelect.disabled = false;
+    failure.hidden = true;
+    assigneeSelect.value = state === 'unassigned' ? '' : (lastGoodAssignee || 'u-8f3a');
+    updateAssigneeHint();
+  }
+
+  function updateAssigneeHint() {
+    var value = assigneeSelect.value;
+    if (!value) {
+      assigneeHint.textContent = 'Se crearía sin responsable. La acción puede asignarse después; el servidor real acepta omitir assignee_id.';
+      return;
+    }
+    assigneeHint.textContent = 'Se asignaría a ' + directory[value] + ' (identificador ' + value + '). La lista es ficticia y no se consulta ningún directorio real.';
+  }
+
+  caseButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      directoryState(button.getAttribute('data-case'));
+      if (button.getAttribute('data-case') !== 'unavailable') assigneeSelect.focus();
+    });
+  });
+  document.getElementById('directory-retry').addEventListener('click', function () {
+    directoryState('assigned');
+    assigneeSelect.focus();
+  });
+  assigneeSelect.addEventListener('change', function () {
+    if (!assigneeSelect.disabled && assigneeSelect.value) lastGoodAssignee = assigneeSelect.value;
+    updateAssigneeHint();
+  });
+
+  function fillForm(title, description, sector, recId) {
+    titleInput.value = title;
+    descriptionInput.value = description;
+    sectorSelect.value = sector;
+    createBlock.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
+    titleInput.focus({ preventScroll: true });
+    prefillStatus.textContent = (recId ? 'Sugerencia ' + recId : 'Sector ' + zones[sector].name) + ' trasladado al anexo. Nada se ha guardado.';
+    feedback.hidden = true;
+  }
+
+  Array.prototype.slice.call(document.querySelectorAll('[data-prepare]')).forEach(function (button) {
+    button.addEventListener('click', function () {
+      var item = button.closest('.rec-card');
+      var zone = zones[selectedZone];
+      fillForm(
+        item.getAttribute('data-title') + ' · ' + zone.name,
+        item.querySelector('p').textContent + ' Sector: ' + zone.name + ' · nivel ' + zone.level + ' (lectura de maqueta). Referencia: lote b-7f3c9a21.',
+        selectedZone,
+        item.getAttribute('data-rec')
+      );
+    });
+  });
+  document.getElementById('prepare-zone').addEventListener('click', function () {
+    var zone = zones[selectedZone];
+    fillForm(
+      'Revisión preventiva del sector ' + zone.name,
+      'Acción de prevención para el sector ' + zone.name + ' a partir de la lectura de maqueta del lote b-7f3c9a21. Nivel del sector: ' + zone.level + '. Cobertura de prototipo: ' + zone.coverage + ' por ciento.',
+      selectedZone,
+      ''
+    );
+  });
+
+  document.getElementById('create-form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var title = titleInput.value.trim();
+    if (title === '') {
+      feedback.hidden = false;
+      feedbackTitle.textContent = 'Falta el título.';
+      feedbackBody.textContent = 'Escribe un título para continuar. La maqueta no guardó nada.';
+      feedback.focus();
+      titleInput.setAttribute('aria-invalid', 'true');
+      return;
+    }
+    titleInput.removeAttribute('aria-invalid');
+    var assignee = assigneeSelect.disabled || assigneeSelect.value === '' ? null : directory[assigneeSelect.value];
+    var sectorName = zones[sectorSelect.value].name;
+    feedback.hidden = false;
+    feedbackTitle.textContent = 'Maqueta: no se guardó nada ni salió ninguna solicitud.';
+    feedbackBody.textContent = 'Se habría creado «' + title + '» en 05101 · ' + sectorName + ', ' + (assignee ? 'con responsable ' + assignee : 'sin responsable') + '. Ninguna escritura llegó a un almacenamiento, cookie o servicio. En el producto real, el servidor valida el rol, el directorio y las reglas antes de guardar.';
+    feedback.focus();
+    prefillStatus.textContent = 'Formulario de maqueta enviado. No se guardó ninguna acción.';
+  });
+
+  updateAssigneeHint();
+  renderAction('acc-1042');
+})();
+</script>
+</body>
+</html>
