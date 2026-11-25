@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 
 import { idleCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
@@ -15,12 +15,21 @@ import {
   reviewPreventiveEvidence,
   scenarios,
   transitionPreventiveAction,
+  users as readUsers,
+  isConfirmedWriteRefusal,
+  type DirectoryUser,
   type Failure,
   type Outcome,
 } from '../core/api';
-import { getSessionSnapshot, subscribeSession } from '../core/session';
+import {
+  getSessionGeneration,
+  getSessionSnapshot,
+  subscribeSession,
+  subscribeSessionGeneration,
+} from '../core/session';
 import {
   actionStatusLabel,
+  assigneeLabel,
   declaresAdminRole,
   evidenceDecisionLabel,
   isEvidenceReference,
@@ -73,6 +82,7 @@ const IDLE_LIST: ListState = {
 
 const LIST_ACTION = 'listar las acciones preventivas';
 const CREATE_ACTION = 'crear la acción preventiva';
+const DIRECTORY_ACTION = 'leer el directorio de usuarios';
 const DETAIL_ACTION = 'consultar el detalle de la acción';
 const TRANSITION_ACTION = 'aplicar la transición';
 const EVIDENCE_ACTION = 'registrar la evidencia';
@@ -84,7 +94,9 @@ interface FormState {
   title: string;
   description: string;
   priority: string;
-  assignee: string;
+  // The directory reference of a NEW assignment (V1-U-04). Empty means the
+  // action is created unassigned, which the contract accepts.
+  assigneeId: string;
   dueDate: string;
 }
 
@@ -93,9 +105,58 @@ const EMPTY_FORM: FormState = {
   title: '',
   description: '',
   priority: '',
-  assignee: '',
+  assigneeId: '',
   dueDate: '',
 };
+
+// V1-U-04 — the realm's user directory, read by the AUTHORIZED create UI only.
+//
+// `unloaded` is also "a read is in flight or was never allowed": the selector
+// keeps its single unassigned option either way, and the copy states which of
+// the two it is. A failed read keeps its server message (status, code and
+// request id) and offers a retry; it never leaves a previously read list on
+// screen, because a list the server did not just serve is not a list.
+type DirectoryPhase = 'unloaded' | 'read' | 'failed';
+
+interface DirectoryState {
+  phase: DirectoryPhase;
+  users: readonly DirectoryUser[];
+  message: string;
+}
+
+const UNLOADED_DIRECTORY: DirectoryState = { phase: 'unloaded', users: [], message: '' };
+
+// The one option that is always offered: creating an action without a
+// responsible is valid and is not a failure state.
+const UNASSIGNED_OPTION = 'Sin asignar (se crea sin responsable)';
+
+const DIRECTORY_READING = 'Leyendo el directorio de usuarios del realm…';
+
+// The words that accompany the assignee selector: what was read, what the write
+// will mean, and what the operator can still do when the directory could not be
+// read at all. It lives outside the component so the rendering branch stays one
+// expression, and it never names a user the directory did not serve.
+function assigneeStatusCopy(
+  signedIn: boolean,
+  admin: boolean,
+  directory: DirectoryState,
+  selected: DirectoryUser | null,
+): string {
+  if (!signedIn || !admin) {
+    return 'El selector de responsable se llena con el directorio de usuarios del realm, que exige una sesión autorizada; esta sesión crea la acción sin responsable y el servidor decide la asignación.';
+  }
+  if (directory.phase === 'failed') {
+    return `${directory.message} Puedes crear la acción sin responsable o reintentar la lectura; no se inventó ninguna persona ni ningún identificador.`;
+  }
+  if (directory.phase !== 'read') return DIRECTORY_READING;
+  if (directory.users.length === 0) {
+    return 'El directorio del realm no tiene usuarios: la acción se crea sin responsable.';
+  }
+  if (selected !== null) {
+    return `Se asignaría a ${selected.display_name} (${selected.id}). El servidor resuelve el identificador antes de guardar; si el directorio no lo reconoce, rechaza el alta y no se crea nada.`;
+  }
+  return `Directorio leído: ${directory.users.length} usuario(s) del realm. Elige un responsable o deja «Sin asignar»; el servidor resuelve el identificador antes de guardar.`;
+}
 
 // The synthetic-reassessment cycle the view renders. A job is requested through
 // the existing authenticated submission, polled with the same bounded timing, and
@@ -133,6 +194,22 @@ function idempotencyKey(): string {
 
 function nonempty(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
+}
+
+// A failed create is one of two different facts, and the page may not report one
+// as the other:
+//   · a refusal the contract PROVES stored nothing (401/403, 429, 415, 422
+//     `invalid_action_request`/`assignee_not_found`, the directory's own
+//     503/502, 503 `storage_unavailable`) — "no se creó" is true there;
+//   · an outcome this page cannot determine (no response, a deadline, an aborted
+//     or superseded request, an unusable 2xx body, a gateway 502 `upstream_unavailable`)
+//     — the write may have happened, so claiming it did not is false, and inviting
+//     a blind retry could duplicate the action.
+// The second names what is unknown and the check to perform instead.
+function createFailureNotice(failure: Failure): string {
+  const detail = failureMessage(failure, CREATE_ACTION);
+  if (isConfirmedWriteRefusal(failure)) return `${detail} No se creó ninguna acción.`;
+  return `${detail} No se pudo confirmar si el servidor guardó la acción: la respuesta no llegó a completarse o no es utilizable. Actualiza la lista con «Actualizar lista» antes de volver a enviar el formulario, porque un segundo envío podría duplicarla.`;
 }
 
 // One message builder for every refusal, so the list, the detail, the creation
@@ -178,6 +255,12 @@ function failureMessage(failure: Failure, action: string): string {
       return `La API rechazó la transición (${detail}): el estado destino no está declarado por el contrato. La acción no cambió de estado.`;
     case 'invalid_action_request':
       return `La API rechazó la acción (${detail}); revisa community_code y title, que son los únicos campos requeridos.`;
+    case 'assignee_not_found':
+      return `La API rechazó la asignación (${detail}): el identificador no existe en el directorio del realm.`;
+    case 'directory_unavailable':
+      return `El directorio de usuarios del realm no está disponible o no está configurado (${detail}).`;
+    case 'directory_upstream_failed':
+      return `El proveedor de identidad no respondió correctamente al leer el directorio de usuarios (${detail}).`;
     case 'invalid_query':
       return `La API rechazó el filtro (${detail}); revisa los valores de comunidad y estado.`;
     case 'action_not_found':
@@ -266,6 +349,15 @@ export function ActionsView() {
   // The role is a token FACT, read without verifying the signature. It only
   // decides which affordances this page shows; the server decides the action.
   const admin = signedIn && declaresAdminRole(session.roles);
+  // The session INSTANCE, as a non-secret generation. The declared roles cannot
+  // describe a replacement that keeps them, so the directory state of this page and
+  // the ownership of an in-flight directory read are keyed on this, never on
+  // `session.roles` or on the public snapshot.
+  const sessionGeneration = useSyncExternalStore(
+    subscribeSessionGeneration,
+    getSessionGeneration,
+    getSessionGeneration,
+  );
 
   const [list, setList] = useState<ListState>(IDLE_LIST);
   const [selectedId, setSelectedId] = useState('');
@@ -279,12 +371,26 @@ export function ActionsView() {
   const [revision, setRevision] = useState(0);
   const [detailRevision, setDetailRevision] = useState(0);
   const [busy, setBusy] = useState(false);
+  // The create's own pending state, tagged with the session instance that owns it.
+  // It is deliberately separate from `busy`: a session replacement releases ONLY an
+  // owned create, whose completion is already fenced, while a transition, evidence
+  // write, review or reassessment keeps the shared interlock until it completes.
+  // Releasing that would let two writes to the same action overlap, which is what
+  // the interlock exists to prevent.
+  const [createPending, setCreatePending] = useState<number | null>(null);
+  // What every mutation control reads: a pending create OR a pending sibling write,
+  // so the two kinds still interlock with each other exactly as before.
+  const writePending = busy || createPending !== null;
   const [evidenceCriterion, setEvidenceCriterion] = useState('');
   const [evidenceReferences, setEvidenceReferences] = useState('');
   const [reviewNote, setReviewNote] = useState('');
   const [catalogue, setCatalogue] = useState<readonly Scenario[] | null>(null);
   const [scenarioId, setScenarioId] = useState('');
   const [reassessment, setReassessment] = useState<ReassessmentState>(IDLE_REASSESSMENT);
+  // The realm directory of the create form, the retry counter that re-reads it,
+  // and the rendering fence that keeps a late answer from a previous read out.
+  const [directoryState, setDirectoryState] = useState<DirectoryState>(UNLOADED_DIRECTORY);
+  const [directoryRevision, setDirectoryRevision] = useState(0);
 
   // The reassessment cycle is fenced by a sequence number, one abortable
   // controller and the originating action id, so an answer for a previous action
@@ -374,6 +480,10 @@ export function ActionsView() {
   useEffect(
     () =>
       subscribeSession(() => {
+        // The directory is authenticated data of ONE session. A session change
+        // discards it, so no name read here is ever retained or shown under
+        // another one — not in the selector and not in a row label.
+        setDirectoryState(UNLOADED_DIRECTORY);
         if (getSessionSnapshot().status === 'signed-in') return;
         const reason = getSessionSnapshot().reason;
         reassessmentSequence.current += 1;
@@ -422,6 +532,72 @@ export function ActionsView() {
     };
   }, [signedIn]);
 
+  // V1-U-04 — everything this page holds from the directory belongs to ONE session
+  // instance: a bearer can be replaced while the declared roles stay identical, and
+  // the public session snapshot cannot describe that. The reset runs from the
+  // instance subscription (like the session subscription below), so a replacement
+  // clears the previous instance's list and the reference the operator had chosen
+  // before the read effect re-runs under the new bearer.
+  useEffect(
+    () =>
+      subscribeSessionGeneration(() => {
+        // A new instance owns this panel from here. The previous one's directory,
+        // its chosen reference and its notice are that instance's: keeping any of
+        // them would show a result this session never produced. Its CREATE is
+        // released too, because that completion is fenced below. The shared `busy`
+        // interlock is NOT touched: a transition, evidence write, review or
+        // reassessment still belongs to the write that is running.
+        setDirectoryState(UNLOADED_DIRECTORY);
+        setForm(previous => (previous.assigneeId === '' ? previous : { ...previous, assigneeId: '' }));
+        setCreatePending(null);
+        setNotice('');
+      }),
+    [],
+  );
+
+  // V1-U-04 — the realm directory behind the assignee selector. It is read only
+  // while the AUTHORIZED create UI is offered (a signed-in session whose token
+  // declares admin); a viewer never asks for it, and the server remains the
+  // authority on whether the read is allowed at all. A failed read is rendered
+  // with its status, code and request id, keeps the unassigned option and offers
+  // a retry; it never keeps the identifiers of a list the server did not just
+  // serve.
+  useEffect(() => {
+    if (!signedIn || !admin) return undefined;
+    const controller = new AbortController();
+    const generation = sessionGeneration;
+    let active = true;
+    void (async () => {
+      const outcome = await readUsers(controller.signal);
+      // Ownership first, before any view effect: an answer produced for another
+      // instance is not this panel's — not even a 401 refusal, whose notice would
+      // otherwise outlive the session that issued the read. The session reset has
+      // already published the closure and cleared this panel.
+      if (!active || generation !== getSessionGeneration()) return;
+      if (!outcome.ok) {
+        if (outcome.failure.reason === 'superseded' || outcome.failure.reason === 'aborted') return;
+        setDirectoryState({
+          phase: 'failed',
+          users: [],
+          message: failureMessage(outcome.failure, DIRECTORY_ACTION),
+        });
+        // A reference the operator can no longer see must not be submitted.
+        setForm(previous => (previous.assigneeId === '' ? previous : { ...previous, assigneeId: '' }));
+        return;
+      }
+      setDirectoryState({ phase: 'read', users: outcome.data, message: '' });
+      setForm(previous =>
+        previous.assigneeId !== '' && !outcome.data.some(user => user.id === previous.assigneeId)
+          ? { ...previous, assigneeId: '' }
+          : previous,
+      );
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [signedIn, admin, directoryRevision, sessionGeneration]);
+
   function applyFilters(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     setApplied({ communityCode: communityFilter.trim(), status: statusFilter.trim() });
@@ -435,8 +611,14 @@ export function ActionsView() {
 
   function submitCreate(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (!signedIn || busy) return;
-    setBusy(true);
+    if (!signedIn || writePending) return;
+    // The reference, the reading it came from and the write itself belong to ONE
+    // session instance. A submit that starts after the instance moved would send a
+    // reference this instance never read, so nothing is sent: the instance reset
+    // has already cleared the choice and is about to re-render the panel.
+    if (sessionGeneration !== getSessionGeneration()) return;
+    const generation = sessionGeneration;
+    setCreatePending(generation);
     setNotice('');
     void (async () => {
       const outcome = await createPreventiveAction({
@@ -444,12 +626,21 @@ export function ActionsView() {
         title: form.title,
         description: form.description,
         priority: form.priority,
-        assignee: form.assignee,
+        assigneeId: form.assigneeId,
         dueDate: form.dueDate,
       });
-      setBusy(false);
+      // Ownership: the completion of a write belongs to the instance that started
+      // it. When that instance is gone this renders NOTHING — no notice (not even
+      // a refusal, whose request id belongs to a closed session), no form reset, no
+      // selection and no list refresh. The instance reset already released this
+      // create; this answer has no part in the new instance's state.
+      if (generation !== getSessionGeneration()) return;
+      setCreatePending(null);
       if (!outcome.ok) {
-        setNotice(failureMessage(outcome.failure, CREATE_ACTION));
+        // The server also decides the assignment, and an undetermined response is
+        // not a refusal: `createFailureNotice` states which of the two it is and
+        // never claims a write that may have been stored.
+        setNotice(createFailureNotice(outcome.failure));
         return;
       }
       setForm(EMPTY_FORM);
@@ -462,7 +653,7 @@ export function ActionsView() {
   }
 
   function applyTransition(to: string): void {
-    if (!signedIn || busy || selectedId === '') return;
+    if (!signedIn || writePending || selectedId === '') return;
     setBusy(true);
     setNotice('');
     void (async () => {
@@ -481,7 +672,7 @@ export function ActionsView() {
 
   function submitEvidence(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (!signedIn || !admin || busy || selectedId === '') return;
+    if (!signedIn || !admin || writePending || selectedId === '') return;
     const criterion = evidenceCriterion.trim();
     const references = parseEvidenceReferences(evidenceReferences);
     if (criterion === '') {
@@ -520,7 +711,7 @@ export function ActionsView() {
   }
 
   function submitReview(decision: 'suficiente' | 'insuficiente'): void {
-    if (!signedIn || !admin || busy || selectedId === '' || currentEvidence === null) return;
+    if (!signedIn || !admin || writePending || selectedId === '' || currentEvidence === null) return;
     setBusy(true);
     setNotice('');
     void (async () => {
@@ -615,7 +806,7 @@ export function ActionsView() {
   }
 
   function startReassessment(): void {
-    if (!signedIn || !admin || busy || selected === null) return;
+    if (!signedIn || !admin || writePending || selected === null) return;
     reassessmentController.current?.abort();
     const controller = new AbortController();
     reassessmentController.current = controller;
@@ -659,6 +850,19 @@ export function ActionsView() {
     reassessmentController.current?.abort();
     void trackReassessment(reassessment.jobId, selected.id);
   }
+
+  // V1-U-04 — the names the directory actually served under this session, or
+  // `null` when it has not been read (unauthorized, failed or still in flight).
+  // The label rule keeps the reference or the legacy text in that case; no name
+  // is composed from an identifier.
+  const assigneeNames: ReadonlyMap<string, string> | null =
+    directoryState.phase === 'read'
+      ? new Map(directoryState.users.map(user => [user.id, user.display_name] as const))
+      : null;
+  const selectedDirectoryUser = directoryState.users.find(user => user.id === form.assigneeId) ?? null;
+  // The honest companion of the control: the state in words, never a name the
+  // directory did not serve.
+  const assigneeStatus = assigneeStatusCopy(signedIn, admin, directoryState, selectedDirectoryUser);
 
   // Only the detail of the action currently selected is shown: a late answer for
   // a previous selection is a mismatch, not the new action's detail.
@@ -719,7 +923,8 @@ export function ActionsView() {
         </p>
         <p className="panel-note">
           El servicio acota la lista a 200 filas y ambos filtros son opcionales: un filtro vacío no acota nada. La
-          prioridad es texto libre validado por el servicio.
+          prioridad es texto libre validado por el servicio. El responsable se resuelve con el directorio de usuarios del
+          realm cuando la sesión puede leerlo; el texto libre heredado se muestra tal como lo guardó el servicio.
         </p>
 
         <form className="filter-bar actions-filters" onSubmit={applyFilters}>
@@ -792,7 +997,7 @@ export function ActionsView() {
                     </span>
                   </td>
                   <td>{field(action.priority)}</td>
-                  <td>{field(action.assignee)}</td>
+                  <td>{assigneeLabel(action, assigneeNames)}</td>
                   <td>{field(action.due_date)}</td>
                   <td>
                     <button
@@ -838,7 +1043,7 @@ export function ActionsView() {
             </div>
             <div>
               <dt>Responsable</dt>
-              <dd>{selected !== null ? field(selected.assignee) : 'No disponible'}</dd>
+              <dd>{selected !== null ? assigneeLabel(selected, assigneeNames) : 'No disponible'}</dd>
             </div>
             <div>
               <dt>Fecha límite</dt>
@@ -980,7 +1185,7 @@ export function ActionsView() {
               <textarea
                 id="evidence-criterion"
                 value={evidenceCriterion}
-                disabled={!admin || busy}
+                disabled={!admin || writePending}
                 onChange={event => setEvidenceCriterion(event.target.value)}
               />
             </label>
@@ -989,11 +1194,11 @@ export function ActionsView() {
               <textarea
                 id="evidence-references"
                 value={evidenceReferences}
-                disabled={!admin || busy}
+                disabled={!admin || writePending}
                 onChange={event => setEvidenceReferences(event.target.value)}
               />
             </label>
-            <button id="record-evidence" className="primary-button" type="submit" disabled={!admin || busy}>
+            <button id="record-evidence" className="primary-button" type="submit" disabled={!admin || writePending}>
               Registrar evidencia
             </button>
           </form>
@@ -1004,7 +1209,7 @@ export function ActionsView() {
               id="review-note"
               type="text"
               value={reviewNote}
-              disabled={!admin || busy || currentEvidence === null}
+              disabled={!admin || writePending || currentEvidence === null}
               onChange={event => setReviewNote(event.target.value)}
             />
           </label>
@@ -1013,7 +1218,7 @@ export function ActionsView() {
               id="review-suficiente"
               type="button"
               className="secondary-button"
-              disabled={!admin || busy || currentEvidence === null}
+              disabled={!admin || writePending || currentEvidence === null}
               onClick={() => submitReview('suficiente')}
             >
               Suficiente
@@ -1022,7 +1227,7 @@ export function ActionsView() {
               id="review-insuficiente"
               type="button"
               className="secondary-button"
-              disabled={!admin || busy || currentEvidence === null}
+              disabled={!admin || writePending || currentEvidence === null}
               onClick={() => submitReview('insuficiente')}
             >
               Insuficiente
@@ -1043,7 +1248,7 @@ export function ActionsView() {
             <select
               id="reassessment-scenario"
               value={scenarioId}
-              disabled={!admin || busy}
+              disabled={!admin || writePending}
               onChange={event => setScenarioId(event.target.value)}
             >
               <option value="">Perfil heredado del servidor</option>
@@ -1059,7 +1264,7 @@ export function ActionsView() {
               id="request-reassessment"
               type="button"
               className="secondary-button"
-              disabled={!admin || busy || reassessmentForSelected.phase === 'submitting' || reassessmentForSelected.phase === 'polling' || reassessmentForSelected.phase === 'linking'}
+              disabled={!admin || writePending || reassessmentForSelected.phase === 'submitting' || reassessmentForSelected.phase === 'polling' || reassessmentForSelected.phase === 'linking'}
               onClick={startReassessment}
             >
               Solicitar reevaluación
@@ -1069,7 +1274,7 @@ export function ActionsView() {
                 id="retry-reassessment"
                 type="button"
                 className="secondary-button"
-                disabled={!admin || busy}
+                disabled={!admin || writePending}
                 onClick={retryReassessment}
               >
                 Reintentar vinculación
@@ -1140,7 +1345,7 @@ export function ActionsView() {
                   type="button"
                   className="secondary-button"
                   data-transition-to={item.to}
-                  disabled={!item.enabled || busy || (item.to === 'aceptada' && !evidenceSufficient)}
+                  disabled={!item.enabled || writePending || (item.to === 'aceptada' && !evidenceSufficient)}
                   aria-describedby={item.to === 'aceptada' && !evidenceSufficient ? 'actions-acceptance-note' : undefined}
                   onClick={() => applyTransition(item.to)}
                 >
@@ -1161,8 +1366,8 @@ export function ActionsView() {
       <article className="panel actions-create" aria-labelledby="action-create-title">
         <PanelHeading eyebrow="ALTA" title="Nueva acción preventiva" titleId="action-create-title" />
         <p className="panel-note">
-          El alta requiere el rol admin y crea una acción vinculada a la comunidad indicada. El servidor decide y
-          responde con el estado real.
+          El alta requiere el rol admin y crea una acción vinculada a la comunidad indicada. El servidor resuelve el
+          responsable en el directorio del realm cuando se elige uno y responde con el estado real.
         </p>
         <form className="actions-form" onSubmit={submitCreate}>
           <label htmlFor="create-community">
@@ -1172,7 +1377,7 @@ export function ActionsView() {
               type="text"
               required
               value={form.communityCode}
-              disabled={!admin || busy}
+              disabled={!admin || writePending}
               onChange={event => setForm(previous => ({ ...previous, communityCode: event.target.value }))}
             />
           </label>
@@ -1183,7 +1388,7 @@ export function ActionsView() {
               type="text"
               required
               value={form.title}
-              disabled={!admin || busy}
+              disabled={!admin || writePending}
               onChange={event => setForm(previous => ({ ...previous, title: event.target.value }))}
             />
           </label>
@@ -1192,7 +1397,7 @@ export function ActionsView() {
             <textarea
               id="create-description"
               value={form.description}
-              disabled={!admin || busy}
+              disabled={!admin || writePending}
               onChange={event => setForm(previous => ({ ...previous, description: event.target.value }))}
             />
           </label>
@@ -1202,19 +1407,31 @@ export function ActionsView() {
               id="create-priority"
               type="text"
               value={form.priority}
-              disabled={!admin || busy}
+              disabled={!admin || writePending}
               onChange={event => setForm(previous => ({ ...previous, priority: event.target.value }))}
             />
           </label>
           <label htmlFor="create-assignee">
-            Responsable
-            <input
+            Responsable (usuario del directorio)
+            <select
               id="create-assignee"
-              type="text"
-              value={form.assignee}
-              disabled={!admin || busy}
-              onChange={event => setForm(previous => ({ ...previous, assignee: event.target.value }))}
-            />
+              value={form.assigneeId}
+              disabled={!admin || writePending}
+              // The state of the directory is part of the control's own
+              // description: a keyboard or screen-reader user hears the same
+              // thing a sighted user reads under the form.
+              aria-describedby="create-assignee-status"
+              onChange={event => setForm(previous => ({ ...previous, assigneeId: event.target.value }))}
+            >
+              <option value="">{UNASSIGNED_OPTION}</option>
+              {directoryState.phase === 'read'
+                ? directoryState.users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.display_name}
+                    </option>
+                  ))
+                : null}
+            </select>
           </label>
           <label htmlFor="create-due-date">
             Fecha límite
@@ -1222,14 +1439,28 @@ export function ActionsView() {
               id="create-due-date"
               type="date"
               value={form.dueDate}
-              disabled={!admin || busy}
+              disabled={!admin || writePending}
               onChange={event => setForm(previous => ({ ...previous, dueDate: event.target.value }))}
             />
           </label>
-          <button id="create-action" className="primary-button" type="submit" disabled={!admin || busy}>
+          <button id="create-action" className="primary-button" type="submit" disabled={!admin || writePending}>
             Crear acción
           </button>
         </form>
+        <p id="create-assignee-status" className="status-copy" role="status" aria-live="polite">
+          {assigneeStatus}
+        </p>
+        {admin && directoryState.phase === 'failed' ? (
+          <button
+            id="retry-directory"
+            className="secondary-button"
+            type="button"
+            disabled={writePending}
+            onClick={() => setDirectoryRevision(value => value + 1)}
+          >
+            Reintentar lectura del directorio
+          </button>
+        ) : null}
       </article>
     </section>
   );
