@@ -1,7 +1,9 @@
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
+import { routes } from '../../src/app/routes';
 import { clearZoneState } from '../../src/app/store';
+import { Shell } from '../../src/components/Shell';
 import { gatewayOrigin, issuer, pkceTransactionKey, timing } from '../../src/config';
 import { completeLogin, resetSession } from '../../src/core/session';
 import { SourcesView } from '../../src/views/SourcesView';
@@ -620,6 +622,82 @@ test('a failed gateway probe is its own evidence and cannot green the pipeline (
   expect(text('pipeline-gateway')).toMatch(/no acredita el pipeline/i);
   // The explicit verdict does not ignore a probe that did not answer.
   expect(text('operational-verdict-badge')).toBe('NO ACREDITA');
+});
+
+// S1/T1 — the gateway probe has two consumers, and it must not arbitrate between
+// them. `Shell` polls `/health/ready` for its card while this cycle polls it as
+// one of its five reads. While both shared one request sequence, whichever probe
+// started last made the other's healthy answer look superseded: the cycle then
+// abandoned all five reads, and the card could call a working gateway down. Both
+// are mounted together because the defect exists only while they overlap.
+const SOURCES_ROUTE = routes.find(route => route.id === 'sources')!;
+
+function mountWorkspace() {
+  return render(
+    <Shell route={SOURCES_ROUTE}>
+      <SourcesView />
+    </Shell>,
+  );
+}
+
+test('overlapping shell and sources gateway probes both settle on a healthy gateway (S1, T1)', async () => {
+  const { fetchStub } = await connect();
+  mountWorkspace();
+  await flush();
+
+  // One probe per consumer, both healthy: neither answer supersedes the other.
+  expect(fetchStub.callsFor(READY_URL)).toHaveLength(2);
+  answerReads(fetchStub);
+  fetchStub.answer(READY_URL, null, 204);
+
+  // The cycle paints from the first round instead of discarding the whole read.
+  await waitFor(() => expect(text('sources-badge')).toBe('PUBLICADA'));
+  expect(text('pipeline-gateway')).toContain('204');
+  expect(fetchStub.callsFor(RISK_STATUS_URL)).toHaveLength(1);
+
+  // The card states that the gateway answered instead of reporting an outage.
+  await waitFor(() => expect(text('readiness-status')).toMatch(/^Gateway disponible/));
+  expect(document.querySelector('.health-dot.ready')).not.toBeNull();
+  expect(text('readiness-status')).not.toMatch(/no fue posible consultar/i);
+});
+
+// The other half of the same defect: a cycle that starts while the card's own
+// refresh is in flight must not turn that refresh's healthy answer into an
+// outage either.
+test('a cycle starting during a shell refresh cannot turn its healthy probe into an outage (S1, T1)', async () => {
+  vi.useFakeTimers();
+  try {
+    const { fetchStub } = await connect();
+    mountWorkspace();
+    await flush();
+
+    // Round one settles both consumers.
+    answerReads(fetchStub);
+    fetchStub.answer(READY_URL, null, 204);
+    await vi.waitFor(() => expect(document.querySelector('.health-dot.ready')).not.toBeNull());
+
+    // The operator refreshes the card just before the cycle timer fires, so the
+    // refresh's answer will land after the next cycle's probe already started.
+    await vi.advanceTimersByTimeAsync(timing.pipelineRefreshMs - 100);
+    fireEvent.click(document.getElementById('readiness-refresh')!);
+    await flush();
+    expect(fetchStub.callsFor(READY_URL)).toHaveLength(3);
+
+    await vi.advanceTimersByTimeAsync(100);
+    await flush();
+    expect(fetchStub.callsFor(READY_URL)).toHaveLength(4);
+
+    // The refresh's own healthy answer lands now, after the cycle's probe.
+    fetchStub.answer(READY_URL, null, 204);
+    await vi.waitFor(() => expect(text('readiness-status')).toMatch(/^Gateway disponible/));
+    expect(document.querySelector('.health-dot.ready')).not.toBeNull();
+
+    // The cycle's five reads still settle on their own lane.
+    answerReads(fetchStub);
+    await vi.waitFor(() => expect(text('sources-badge')).toBe('PUBLICADA'));
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test('the verdict stays demo, not production, with every service verified (PM-16)', async () => {

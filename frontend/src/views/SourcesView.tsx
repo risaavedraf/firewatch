@@ -145,8 +145,11 @@ export function SourcesView() {
         // `GET /v1/models` route. The registry rows are never read here.
         modelRegistry(controller.signal),
         // A LIVE probe of the gateway, deliberately unauthenticated and kept in
-        // its own row: a 204 proves the gateway answered, not the pipeline.
-        ready(controller.signal),
+        // its own row: a 204 proves the gateway answered, not the pipeline. It
+        // names its own lane because the shell card probes the same route: on a
+        // shared sequence either consumer discarded the other's healthy answer,
+        // and here that also threw away the whole cycle.
+        ready(controller.signal, 'sources'),
       ]);
       if (!active) return;
       // A superseded or aborted read belongs to a token or an effect instance that

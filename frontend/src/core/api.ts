@@ -8,7 +8,8 @@
 //
 // Three properties are load-bearing and travel with this code:
 //   1. a monotonic sequence per route kind discards a superseded response, so a
-//      slow answer for zone A can never be shown as the answer for zone B;
+//      slow answer for zone A can never be shown as the answer for zone B, and a
+//      route with two independent consumers probes on one lane per consumer;
 //   2. a response that lands after the view was reset (401, logout, failed
 //      login) is discarded instead of repopulating it;
 //   3. every read honours the caller's `AbortSignal` and a bounded deadline, so
@@ -89,16 +90,26 @@ type RequestKind =
 // The sequence is per kind on purpose: `latest` and `history` are issued
 // together for one selection, so a shared counter would make each treat the
 // other's just-started request as a supersession and discard its own answer.
-const sequences = new Map<RequestKind, number>();
+//
+// A lane is the route kind unless a consumer names its own. `/health/ready` is
+// polled by the shell card and by the sources cycle, and both are entitled to
+// their own answer: on one lane the probe started last discarded the other's
+// healthy response, which the card rendered as an outage and the cycle as an
+// abandoned read.
+const sequences = new Map<string, number>();
 
-function nextSequence(kind: RequestKind): number {
-  const next = (sequences.get(kind) ?? 0) + 1;
-  sequences.set(kind, next);
+function laneKey(kind: RequestKind, lane?: string): string {
+  return lane === undefined ? kind : `${kind}#${lane}`;
+}
+
+function nextSequence(lane: string): number {
+  const next = (sequences.get(lane) ?? 0) + 1;
+  sequences.set(lane, next);
   return next;
 }
 
-function isSuperseded(kind: RequestKind, sequence: number, token: string): boolean {
-  return sequence !== (sequences.get(kind) ?? 0) || token !== getAccessToken();
+function isSuperseded(lane: string, sequence: number, token: string): boolean {
+  return sequence !== (sequences.get(lane) ?? 0) || token !== getAccessToken();
 }
 
 function failureSpec(kind: FailureKind, reason: string, status?: number, requestId?: string): Failure {
@@ -116,6 +127,9 @@ interface TransportRequest {
   method?: string;
   body?: string;
   headers?: Record<string, string>;
+  // Optional independent supersession lane, for a route this build consumes from
+  // more than one place. Absent means the route kind is the lane.
+  lane?: string;
   // `false` only for the unauthenticated gateway probe; every `/v1/*` read
   // carries the bearer even when the token is empty, exactly as the retired
   // page did.
@@ -162,7 +176,8 @@ async function requestJson(
   request: TransportRequest,
   signal?: AbortSignal,
 ): Promise<TransportResult> {
-  const sequence = nextSequence(kind);
+  const lane = laneKey(kind, request.lane);
+  const sequence = nextSequence(lane);
   const token = getAccessToken();
   const controller = new AbortController();
   let stop: 'none' | 'aborted' | 'deadline' = 'none';
@@ -195,7 +210,7 @@ async function requestJson(
     );
     // Supersession is checked BEFORE the status: a superseded 401 must not reset
     // the session of the selection that replaced it.
-    if (isSuperseded(kind, sequence, token)) {
+    if (isSuperseded(lane, sequence, token)) {
       return { state: 'failed', failure: failureSpec('unavailable', 'superseded') };
     }
     const requestId = response.headers.get('X-Request-ID') ?? '';
@@ -213,7 +228,7 @@ async function requestJson(
     }
     if (response.status === 204) return { state: 'empty', status: 204, requestId };
     const body = await abortable(readJson(response), controller.signal);
-    if (isSuperseded(kind, sequence, token)) {
+    if (isSuperseded(lane, sequence, token)) {
       return { state: 'failed', failure: failureSpec('unavailable', 'superseded') };
     }
     if (body === jsonFailure) {
@@ -383,8 +398,20 @@ function isAuditEntry(value: unknown): value is AuditEntry {
 
 // Gateway-only availability probe. A 204 proves the gateway process answered;
 // it does not accredit the risk or jobs pipeline, and the view states so.
-export async function ready(signal?: AbortSignal): Promise<Outcome<null>> {
-  const result = await requestJson('ready', `${gatewayOrigin}${routes.ready}`, { authenticated: false }, signal);
+//
+// The consumers of this probe are independent, so each names its own lane: the
+// shell card and the sources cycle overlap, and a shared lane made whichever
+// probe started last discard the other's healthy answer. Omitting the scope
+// keeps the single-lane behaviour every other caller already has.
+export type ReadyProbeScope = 'shell' | 'sources';
+
+export async function ready(signal?: AbortSignal, scope?: ReadyProbeScope): Promise<Outcome<null>> {
+  const result = await requestJson(
+    'ready',
+    `${gatewayOrigin}${routes.ready}`,
+    { authenticated: false, lane: scope },
+    signal,
+  );
   if (result.state === 'ok' || result.state === 'empty') return { ok: true, data: null };
   return resultFailure<null>(result);
 }
