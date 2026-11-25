@@ -194,7 +194,7 @@ export function HistoryView() {
               ))}
             </select>
           </label>
-          <span className="result-count" id="history-visible-count">
+          <span className="result-count" id="history-visible-count" role="status" aria-live="polite">
             {visibleLabel}
           </span>
         </div>

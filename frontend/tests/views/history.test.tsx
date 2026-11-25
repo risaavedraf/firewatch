@@ -187,6 +187,32 @@ test('search and the data-status filter narrow only the returned rows and issue 
   expect(visibleCount()).toBe('2 de 2');
 });
 
+// 4.1.3 — the result count is the only copy that reports what survived the
+// filters, and a search that drops every row changes it without moving focus,
+// so the count must expose itself as a status message instead of a silently
+// repainted span. No other live region in the view repeats it.
+test('the visible count exposes itself as a polite status message', async () => {
+  const { fetchStub } = await connect();
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, [
+    batch('lote-uno', { requested_at: '2026-01-01T00:00:00Z', data_status: 'sufficient' }),
+  ]);
+  await waitFor(() => expect(visibleCount()).toBe('1 de 1'));
+
+  fireEvent.change(screen.getByLabelText('Buscar en el historial de la zona'), {
+    target: { value: 'sin-coincidencias' },
+  });
+
+  const badge = document.getElementById('history-visible-count') as HTMLElement;
+  expect(tbody().children).toHaveLength(0);
+  expect(visibleCount()).toBe('0 de 1');
+  expect(badge).toHaveAttribute('role', 'status');
+  expect(badge).toHaveAttribute('aria-live', 'polite');
+});
+
 test('a 503 read is stated as unavailable and never rendered as a row', async () => {
   const { fetchStub } = await connect();
   selectZone(ZONE);
