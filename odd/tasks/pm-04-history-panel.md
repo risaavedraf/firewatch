@@ -47,6 +47,8 @@
   - **Comandos y resultados finales.** `npm run typecheck` → exit 0. `npm run lint` → exit 0. `npx vitest run tests/views/session.test.tsx` → 11/11. `npm test` → **49 archivos, 595 pruebas, 595 pasan, 0 fallan** (exit 0). `npm run build:local` → exit 0 (67 módulos transformados; `dist/` regenerado).
   - **Omisiones.** Ninguna prueba omitida ni saltada en la corrida completa. No se re-ejecutó el backend porque no se tocó. Sin commit, merge, publicación ni despliegue.
 
+- **L4 (2026-11-25) — Slices de entrega.** `6d95dc5` historial y pruebas (1029+/106-); `ad420d5` citas de sesión (19+/19-); `a30fd07` este documento. El slice de 1029 líneas incluye página y pruebas; al publicar, revisar como dos unidades o partir las pruebas si el revisor lo pide. El aviso de «88 commits desde main» es la ascendencia de `dev`, no líneas autoradas.
+
 ## Allowed edit surfaces
 
 - `frontend/src/views/HistoryView.tsx`
