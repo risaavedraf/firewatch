@@ -70,6 +70,11 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 	// The alert timeline is a viewer/admin read like its neighbours: it is inside
 	// the Authorize gate and requires no further role check, and it stores nothing.
 	mux.HandleFunc("GET /v1/risk/alerts", listAlerts(store))
+	// The counterfactual simulation is a viewer/admin read like its neighbours: it
+	// is inside the Authorize gate, requires no further role check, recomputes
+	// locally from the rule the batch recorded and writes no row. No gateway change
+	// is needed: /v1/risk/ is already proxied as a subtree.
+	mux.HandleFunc("POST /v1/risk/simulate", simulate(store))
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
 	mux.HandleFunc("GET /v1/risk/infrastructure", listInfrastructure())
