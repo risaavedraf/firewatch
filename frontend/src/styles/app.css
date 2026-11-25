@@ -8,7 +8,9 @@
    Two rule groups changed home rather than content: the demonstration strip and
    the warning banner are no longer the headline of the page (they became the
    discreet technical notice the data-status view owns), and the navigation now
-   carries seven grouped entries instead of nine flat ones. */
+   carries nine grouped entries instead of nine flat ones. */
+
+@import './notifications.css';
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
@@ -177,7 +179,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    against the border, which clips the right-aligned values of a data list
    (`model-panel`, `cycle-panel` both shipped that way). `tests/styles/
    layout-padding.test.tsx` reads this rule against the shipped markup. */
-.map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel { padding: 18px; }
+.map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel { padding: 18px; }
 .padded { padding: 22px; }
 .status-copy { min-height: 32px; margin: 13px 0 7px; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .8fr); gap: 16px; }
@@ -270,6 +272,22 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .risk-error { color: #944a39 !important; }
 .risk-good { color: #237354 !important; }
 
+/* ── Operational verdict (PM-16) ───────────────────────────────────────── */
+/* The status rows and the verdict share ONE panel: PM-16 asks for a single
+   explicit verdict, not a second health screen. The block uses the paper/line
+   tokens so it reads as a summary, and the badge carries the same weight as the
+   panel badges instead of inventing a louder alarm style. */
+.operational-verdict { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 9px; background: #f8faf7; }
+.operational-verdict-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.operational-verdict-head .eyebrow { margin: 0; color: var(--forest-700); }
+.operational-verdict h4 { margin: 0 0 6px; font-size: 14px; letter-spacing: -.2px; }
+.operational-verdict > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.operational-verdict > .panel-note { margin-top: 8px; }
+/* The registry values can be long (a sha256 hash wraps inside its own cell rather
+   than widening the panel) and the sentence labels are not truncated. */
+#operational-weather, #operational-rule, #operational-rule-hash, #operational-rule-kind, #operational-freshness, #operational-verdict { white-space: normal; }
+#operational-rule-hash { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
 /* Factor rows keep their plain text and gain the mockup's proportion bar.
    The bar is only rendered when the batch carries a real `contribution`. */
 #risk-factors { margin: 0; padding: 0; list-style: none; }
@@ -298,6 +316,17 @@ td code { color: var(--forest-700); font-size: 10px; }
 td:last-child { overflow-wrap: anywhere; }
 .empty-state { padding: 16px 10px; color: var(--muted); font-size: 10px; text-align: center; }
 .history-panel:not(.has-rows) .table-wrap, .history-panel:not(.has-rows) .filter-bar { display: none; }
+/* PM-13 — the export row. It sits outside `.filter-bar` on purpose: a history
+   with no rows hides the filter bar, while a header-only export is still a valid
+   answer and has to state that it carries no rows. The status sentence takes its
+   own row, so a long message never pushes the control out of reach. */
+.history-export { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
+.history-export .panel-note { flex: 1 1 380px; min-width: 220px; margin: 0; }
+.history-export .status-copy { flex: 1 1 100%; min-height: 0; margin: 0; }
+/* While the download is in flight the control stays focusable through
+   `aria-disabled`, so the keyboard reader does not lose its place. It states the
+   same visual state as the `disabled` buttons beside it. */
+.history-export button[aria-disabled="true"]:not(:disabled) { cursor: not-allowed; opacity: .48; }
 .row-index { margin-right: 8px; color: #879787; font-size: 9px; }
 .selected-label { color: var(--forest-700); font-size: 9px; }
 .row-actions { display: flex; align-items: center; gap: 7px; }
@@ -449,7 +478,7 @@ footer .icon { width: 13px; height: 13px; }
   main { padding: 20px 15px 28px; }
   .intro-row { align-items: flex-start; flex-direction: column; gap: 9px; }
   .intro-row h2 { font-size: 21px; }
-  .map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel { padding: 14px; }
+  .map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel { padding: 14px; }
   .metrics-three { grid-template-columns: 1fr; }
   .metric { padding: 14px; }
   .map-viewport, .map-svg { min-height: 220px; }
@@ -468,8 +497,83 @@ footer .icon { width: 13px; height: 13px; }
   .actions-transitions { width: 100%; }
   .actions-review, .actions-reassessment { width: 100%; }
   .actions-evidence-form > button { justify-self: stretch; }
+  .infrastructure-actions { justify-content: flex-start; }
+  .infrastructure-print-note { text-align: left; }
+  .infrastructure-table { min-width: 560px; }
   footer { align-items: flex-start; flex-direction: column; gap: 6px; margin-inline: 15px; }
   .toast { right: 16px; left: 16px; bottom: 16px; }
+}
+
+/* ── Synthetic infrastructure (PM-11) ──────────────────────────────────── */
+/* The demo view is deliberately narrow: one catalogue, one provisional rule and
+   one printed page. The synthetic label is the most prominent element in the
+   card, and the map is a schematic drawing of fixture geometries — never a
+   basemap or a tile layer. */
+.infrastructure-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.infrastructure-print-note { flex-basis: 100%; margin: 0; text-align: right; }
+.infrastructure-synthetic { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 10px; padding: 13px 15px; border: 2px solid #b58b45; border-left-width: 7px; border-radius: 9px; background: #fdf6e8; color: #57441c; }
+.infrastructure-synthetic strong { font-size: 12px; letter-spacing: .08em; }
+.infrastructure-synthetic span { font-size: 10px; line-height: 1.55; }
+.infrastructure-formula { margin: 0 0 12px; padding: 10px 12px; border: 1px dashed #b9c9b4; border-radius: 7px; background: #f5f8f1; color: var(--forest-700); font-size: 10px; line-height: 1.6; }
+.infrastructure-map { margin: 14px 0 0; padding: 10px; border: 1px solid #d4dfd0; border-radius: 9px; background: #eef2e8; }
+.infrastructure-map figcaption { margin-bottom: 8px; color: var(--forest-700); font-size: 10px; font-weight: 700; }
+.infrastructure-map-svg { display: block; width: 100%; height: auto; min-height: 220px; }
+.infrastructure-map-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 9px 0 0; padding: 0; list-style: none; }
+.infrastructure-map-legend li { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 8px; }
+.infrastructure-legend-marker { width: 11px; height: 11px; flex: 0 0 auto; background: #5f6f66; }
+.infrastructure-legend-colegio { border-radius: 2px; background: #356a8a; }
+.infrastructure-legend-vivienda { border-radius: 50%; background: #4f7d46; }
+.infrastructure-legend-hospital { border-radius: 1px; background: #9b4b3b; transform: rotate(45deg); }
+.infrastructure-legend-hidrante { background: #8a6a1f; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.infrastructure-legend-ruta { width: 18px; height: 3px; border-radius: 2px; background: #7a5a32; }
+.infrastructure-map-note { margin: 8px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.infrastructure-marker-colegio { fill: #356a8a; }
+.infrastructure-marker-vivienda { fill: #4f7d46; }
+.infrastructure-marker-hospital { fill: #9b4b3b; }
+.infrastructure-marker-hidrante { fill: #8a6a1f; }
+.infrastructure-route { fill: none; stroke: #7a5a32; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.infrastructure-table { min-width: 620px; }
+.infrastructure-table caption { padding: 0 0 8px; color: var(--muted); font-size: 9px; line-height: 1.55; text-align: left; }
+.infrastructure-table th, .infrastructure-table td { text-align: right; }
+.infrastructure-table th:first-child, .infrastructure-table td:first-child { text-align: left; }
+.infrastructure-table tbody tr[data-zone] th { font-variant-numeric: tabular-nums; }
+.infrastructure-count, .infrastructure-total { font-variant-numeric: tabular-nums; }
+.infrastructure-total { font-weight: 800; }
+.infrastructure-breakdown { margin-top: 18px; }
+.infrastructure-breakdown h3 { margin-bottom: 2px; }
+.infrastructure-zone { padding: 12px 0; border-top: 1px solid var(--line); }
+.infrastructure-zone:first-of-type { border-top: 0; }
+.infrastructure-zone h4 { margin-bottom: 3px; }
+.infrastructure-elements { display: grid; gap: 5px; margin: 6px 0 0; padding: 0; list-style: none; }
+.infrastructure-elements li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 10px; }
+.infrastructure-geometry { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9px; }
+
+/* Print-to-PDF without a library. The browser's own print dialog is the whole
+   feature; these rules keep the synthetic label, the provisional formula, the
+   zone table and the geometry list, while removing the shell chrome and the
+   print control itself. The scope is the infrastructure route, so printing any
+   other view is unchanged. */
+@media print {
+  body:has(#infrastructure) .sidebar,
+  body:has(#infrastructure) .topbar,
+  body:has(#infrastructure) .update-bar,
+  body:has(#infrastructure) footer,
+  body:has(#infrastructure) .skip-link,
+  body:has(#infrastructure) .infrastructure-print-action,
+  body:has(#infrastructure) .infrastructure-print-note { display: none !important; }
+  body:has(#infrastructure) .app-shell { display: block; }
+  body:has(#infrastructure) main { width: auto; padding: 0; }
+  body:has(#infrastructure) .infrastructure-panel { padding: 0; border: 0; box-shadow: none; }
+  body:has(#infrastructure) .infrastructure-synthetic { display: flex; border: 2px solid #000; background: #fff; color: #000; }
+  body:has(#infrastructure) .infrastructure-formula { border: 1px solid #000; background: #fff; color: #000; }
+  body:has(#infrastructure) .infrastructure-map { break-inside: avoid; background: #fff; border-color: #000; }
+  body:has(#infrastructure) .infrastructure-zone { break-inside: avoid; }
+  body:has(#infrastructure) .infrastructure-table { min-width: 0; }
+  body:has(#infrastructure) .table-wrap { overflow: visible; }
+  body:has(#infrastructure) th,
+  body:has(#infrastructure) td { border-color: #666; color: #000; }
+  body:has(#infrastructure) .metric { border-color: #666; box-shadow: none; }
+  body:has(#infrastructure) .neutral-tag { border: 1px solid #000; background: #fff; color: #000; }
 }
 
 @media (prefers-reduced-motion: reduce) {

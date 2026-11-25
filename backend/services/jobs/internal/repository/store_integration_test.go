@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	v1 "firewatch.local/contracts/events/v1"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -415,5 +417,145 @@ func TestReplayQueuedJobRequiresConfirmation(t *testing.T) {
 	}
 	if _, err = s.Replay(ctx, job.ID, operator, uuid.NewString(), true); !errors.Is(err, ErrJobNotReplayable) {
 		t.Fatalf("replay of a published job err=%v want ErrJobNotReplayable", err)
+	}
+}
+
+// TestAuditEventMetadataIsDurableAndReadable is the database-side proof of the
+// audit metadata migration and writer: a verified name, detail and kind are
+// stored with a mutation, a writer without a verified name leaves NULL, a system
+// completion never invents a human name, a query record may omit the job, the
+// closed kind vocabulary is enforced by the database, and the read view derives
+// the event id from the audit identity. It skips without TEST_DATABASE_URL.
+func TestAuditEventMetadataIsDurableAndReadable(t *testing.T) {
+	if testing.Short() || os.Getenv("TEST_DATABASE_URL") == "" {
+		t.Skip("requires migrated disposable jobs database")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	db, err := pgxpool.New(ctx, os.Getenv("TEST_DATABASE_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	s := Store{DB: db}
+	trace := uuid.NewString()
+
+	// A verified name reaches the stored mutation exactly as the token asserted.
+	actor := Actor{ID: uuid.NewString(), Name: "Demo Admin"}
+	job, err := s.CreateAs(ctx, actor, uuid.NewString(), "valparaiso-demo", trace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var storedName, storedDetail, storedKind, storedJob string
+	if err = db.QueryRow(ctx, `SELECT actor_name, detail, event_kind, job_id::text FROM audit WHERE job_id=$1 AND action='job.requested'`, job.ID).
+		Scan(&storedName, &storedDetail, &storedKind, &storedJob); err != nil {
+		t.Fatal(err)
+	}
+	wantDetail := "Solicitud de trabajo para la zona valparaiso-demo"
+	if storedName != actor.Name || storedDetail != wantDetail || storedKind != AuditEventMutation || storedJob != job.ID {
+		t.Fatalf("stored audit name=%q detail=%q kind=%q job=%q want %q/%q/%q/%q", storedName, storedDetail, storedKind, storedJob, actor.Name, wantDetail, AuditEventMutation, job.ID)
+	}
+
+	// The pre-existing writer has no verified name, so the row stays honest: the
+	// name is NULL instead of being derived from the opaque actor id.
+	legacy, err := s.Create(ctx, uuid.NewString(), uuid.NewString(), "valparaiso-demo", trace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var legacyName *string
+	if err = db.QueryRow(ctx, `SELECT actor_name FROM audit WHERE job_id=$1 AND action='job.requested'`, legacy.ID).Scan(&legacyName); err != nil {
+		t.Fatal(err)
+	}
+	if legacyName != nil {
+		t.Fatalf("a legacy writer stored actor_name=%q; an opaque id is not a name", *legacyName)
+	}
+
+	// The completion is a system event: it records what happened without
+	// pretending the original requester's name was asserted at publication time.
+	batchID := uuid.NewString()
+	completion := v1.Event{ID: uuid.NewString(), Type: v1.BatchPublishedType, JobID: job.ID, BatchID: batchID, ActorID: actor.ID, ZoneID: "valparaiso-demo", TraceID: trace, RequestedAt: job.RequestedAt, OccurredAt: time.Now().UTC()}
+	if err = s.Complete(ctx, completion); err != nil {
+		t.Fatal(err)
+	}
+	var systemName *string
+	var systemDetail string
+	if err = db.QueryRow(ctx, `SELECT actor_name, detail FROM audit WHERE job_id=$1 AND action='batch.published'`, job.ID).Scan(&systemName, &systemDetail); err != nil {
+		t.Fatal(err)
+	}
+	if systemName != nil {
+		t.Fatalf("a system event stored actor_name=%q; no verified human wrote it", *systemName)
+	}
+	if want := "Lote " + batchID + " publicado para la zona valparaiso-demo"; systemDetail != want {
+		t.Fatalf("system detail=%q want %q", systemDetail, want)
+	}
+
+	// A direct insert that omits the kind keeps the documented mutation default,
+	// which is what makes the migration truthful for pre-existing rows.
+	var defaultKind string
+	if err = db.QueryRow(ctx, `INSERT INTO audit(actor_id,action,job_id,trace_id) VALUES($1,'job.requested',$2,$3) RETURNING event_kind`, "legacy-writer", legacy.ID, trace).Scan(&defaultKind); err != nil {
+		t.Fatal(err)
+	}
+	if defaultKind != AuditEventMutation {
+		t.Fatalf("direct insert kind=%q want the mutation default", defaultKind)
+	}
+
+	// A query has no job and may have no captured name; both columns stay NULL.
+	queryDetail := "Consulta del riesgo actual"
+	var queryID int64
+	if err = db.QueryRow(ctx, `INSERT INTO audit(actor_id,action,event_kind,detail,trace_id) VALUES($1,'risk.current.read',$2,$3,$4) RETURNING id`, "query-actor", AuditEventQuery, queryDetail, trace).Scan(&queryID); err != nil {
+		t.Fatal(err)
+	}
+
+	// The closed vocabulary is enforced by the database, not only by the reader.
+	_, err = db.Exec(ctx, `INSERT INTO audit(actor_id,action,event_kind,trace_id) VALUES($1,'risk.current.read','incident',$2)`, "query-actor", trace)
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "23514" {
+		t.Fatalf("inserting an unknown kind returned %v, want SQLSTATE 23514", err)
+	}
+
+	items, err := s.Audit(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	find := func(predicate func(Audit) bool) Audit {
+		t.Helper()
+		for _, item := range items {
+			if predicate(item) {
+				return item
+			}
+		}
+		t.Fatalf("the read view did not return the expected audit row: %+v", items)
+		return Audit{}
+	}
+	query := find(func(item Audit) bool { return item.EventID == fmt.Sprintf("audit-%d", queryID) })
+	if query.EventKind != AuditEventQuery || query.JobID != nil || query.ActorName != nil || query.Detail == nil || *query.Detail != queryDetail {
+		t.Fatalf("query read view=%+v", query)
+	}
+	created := find(func(item Audit) bool {
+		return item.JobID != nil && *item.JobID == job.ID && item.Action == "job.requested"
+	})
+	if created.ActorName == nil || *created.ActorName != actor.Name || created.Detail == nil || *created.Detail != wantDetail || created.EventKind != AuditEventMutation {
+		t.Fatalf("mutation read view=%+v", created)
+	}
+	if created.EventID == job.ID || created.EventID == trace {
+		t.Fatalf("event id %q reused the job or trace id", created.EventID)
+	}
+
+	// The application role must not be able to rewrite or erase the trail. A test
+	// connection that is the table owner cannot demonstrate this, so it is stated
+	// as a log instead of a false pass.
+	var canUpdate bool
+	if err = db.QueryRow(ctx, `SELECT has_table_privilege(current_user,'public.audit','UPDATE')`).Scan(&canUpdate); err != nil {
+		t.Fatal(err)
+	}
+	if canUpdate {
+		t.Log("TEST_DATABASE_URL is a role that may update audit; run with the unprivileged jobs_app role to prove the append-only grant")
+	} else {
+		if _, err = db.Exec(ctx, `UPDATE audit SET actor_name='Mallory' WHERE id=$1`, queryID); !errors.As(err, &pgErr) || pgErr.Code != "42501" {
+			t.Fatalf("updating an audit row returned %v, want SQLSTATE 42501", err)
+		}
+		if _, err = db.Exec(ctx, `DELETE FROM audit WHERE id=$1`, queryID); !errors.As(err, &pgErr) || pgErr.Code != "42501" {
+			t.Fatalf("deleting an audit row returned %v, want SQLSTATE 42501", err)
+		}
 	}
 }

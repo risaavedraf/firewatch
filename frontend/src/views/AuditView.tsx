@@ -7,19 +7,19 @@ import { audit, type Outcome } from '../core/api';
 import type { SessionState } from '../core/session';
 import type { AuditEntry } from '../types/api';
 
-// N8b — the activity register (S13/S17). `/v1/audit` is admin-only and accepts no
-// parameter: the service bounds the answer itself, so the panel sends no limit or
-// offset and never pages. Every entry is rendered with the five fields the
-// endpoint carries — `actor_id`, `action`, `job_id`, `trace_id`, `occurred_at` —
-// and the retired mockup's columns no backend provides (a display name, a
-// free-text detail and its own event id) are declared as not implemented instead
-// of being simulated.
+// N8b — the activity register (S13/S17/S1/S2). `/v1/audit` is admin-only and
+// accepts no parameter: the service bounds the answer itself, so the panel sends
+// no limit or offset and never pages. Every entry is rendered with the durable
+// fields the endpoint carries — `event_id`, `actor_id`, `actor_name`, `action`,
+// `event_kind`, `detail`, `job_id`, `trace_id`, `occurred_at`. The actor column
+// shows the verified display name when it was captured and falls back to the
+// opaque `actor_id` otherwise; it never synthesizes a name. `detail` and
+// `job_id` are nullable, so a legacy row or a query without a job is labelled in
+// place instead of being hidden or filled in from another field.
 //
 // The view is reachable for every role on purpose: the server decides, so a
 // `viewer` must be able to arrive here and read its own explicit 403. There is no
 // client-side role gating anywhere.
-
-const AUDIT_FIELDS = ['actor_id', 'action', 'job_id', 'trace_id', 'occurred_at'] as const;
 
 type AuditPhase = 'idle' | 'loading' | 'read' | 'denied' | 'unavailable';
 
@@ -54,6 +54,25 @@ function nonempty(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
 }
 
+// actorLabel is the honest presentation of provenance: the verified name when the
+// service captured one, otherwise the opaque actor_id. It never derives a name
+// from the id and never hides the row when neither exists.
+function actorLabel(entry: AuditEntry): string {
+  if (nonempty(entry.actor_name)) return entry.actor_name;
+  if (nonempty(entry.actor_id)) return entry.actor_id;
+  return 'No informado';
+}
+
+// kindLabel translates the closed contract vocabulary for the Spanish UI. The
+// transport has already refused any value outside mutation/query.
+function kindLabel(kind: AuditEntry['event_kind']): string {
+  return kind === 'query' ? 'Consulta' : 'Mutación';
+}
+
+function shown(value: string | null | undefined): string {
+  return nonempty(value) ? value : 'No informado';
+}
+
 // The transport already fails closed: an entry that does not state WHAT happened
 // and WHEN never reaches this function. What is left is presentation, and every
 // branch below states an outcome instead of hiding one.
@@ -67,7 +86,7 @@ function registerFromOutcome(outcome: Outcome<AuditEntry[]>): RegisterState {
       phase: 'read',
       badge: 'LEÍDO',
       message:
-        'Registro real devuelto por /v1/audit. Es un endpoint de solo administradores y no acepta parámetros: el servicio acota la respuesta por sí mismo.',
+        'Registro real devuelto por /v1/audit. Es un endpoint de solo administradores y no acepta parámetros: el servicio acota la respuesta por sí mismo. Cada fila muestra su identificador de evento, el actor verificado y el detalle cuando existen.',
       entries,
       showTable: true,
     };
@@ -160,37 +179,37 @@ function AuditRegister({ session }: { session: SessionState }) {
         </p>
         <p className="panel-note">
           Endpoint de solo administradores. No acepta parámetros: el servicio acota la respuesta por sí mismo (hasta 100
-          eventos recientes) y esta página no pagina, no filtra ni ordena. Los identificadores son opacos, sin nombre para
-          mostrar.
-        </p>
-        <p id="audit-unimplemented" className="unimplemented-note">
-          Aún no implementado: el mockup retirado mostraba el nombre del perfil, un detalle de texto libre y su propio
-          identificador de evento. <code>/v1/audit</code> no entrega ninguno de esos datos, así que no se muestran ni se
-          simulan.
+          eventos recientes) y esta página no pagina, no filtra ni ordena. El nombre del actor proviene de la identidad
+          verificada; cuando el registro no lo capturó, se muestra el <code>actor_id</code> sin inventar un nombre.
         </p>
         <TableWrap label="Eventos del registro de actividad" id="audit-table" hidden={!state.showTable}>
           <table>
             <caption className="sr-only">Registro de actividad devuelto por /v1/audit</caption>
             <thead>
               <tr>
-                <th scope="col">Actor (actor_id)</th>
+                <th scope="col">Evento (event_id)</th>
+                <th scope="col">Actor (nombre o actor_id)</th>
                 <th scope="col">Acción</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Detalle</th>
                 <th scope="col">Trabajo (job_id)</th>
                 <th scope="col">Traza (trace_id)</th>
                 <th scope="col">Ocurrido (occurred_at)</th>
               </tr>
             </thead>
             <tbody id="audit-rows">
-              {state.entries.map((entry, index) => (
-                // `/v1/audit` carries opaque identifiers, and the service, not the
-                // page, decides what is unique; the row position is the only stable
-                // key the page can honestly use.
-                <tr key={index}>
-                  {AUDIT_FIELDS.map(field => (
-                    // An identifier the service omits is labelled in place: nothing
-                    // is filled in from another field and no name is derived from an id.
-                    <td key={field}>{nonempty(entry[field]) ? entry[field] : 'No informado'}</td>
-                  ))}
+              {state.entries.map(entry => (
+                // The service owns the stable per-row event id, so it is the key;
+                // the row position is no longer the only honest identifier.
+                <tr key={entry.event_id}>
+                  <td>{shown(entry.event_id)}</td>
+                  <td>{actorLabel(entry)}</td>
+                  <td>{shown(entry.action)}</td>
+                  <td>{kindLabel(entry.event_kind)}</td>
+                  <td>{shown(entry.detail)}</td>
+                  <td>{shown(entry.job_id)}</td>
+                  <td>{shown(entry.trace_id)}</td>
+                  <td>{shown(entry.occurred_at)}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,0 +1,1176 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FireWatch · Dirección 03 · Mesa de prevención (maqueta)</title>
+<style>
+:root {
+  color-scheme: light;
+  --forest-950: #102c2d;
+  --forest-900: #173c3b;
+  --forest-700: #285e56;
+  --forest-500: #638579;
+  --canvas: #f5f5ef;
+  --paper: #fffefa;
+  --ink: #233b39;
+  --muted: #5c6c65;
+  --line: #dde3da;
+  --soft: #eef1e9;
+  --terracotta: #a74d34;
+  --terracotta-soft: #f7e9e2;
+  --gold: #85691e;
+  --gold-soft: #f7f0d9;
+  --level-low-fill: #84ab8e;
+  --level-low-line: #5c8467;
+  --level-medium-fill: #d0b756;
+  --level-medium-line: #a99850;
+  --level-high-fill: #c77454;
+  --level-high-line: #b36647;
+  --level-unknown-fill: #c3cbcd;
+  --level-unknown-line: #6b7a80;
+  --level-neutral-fill: #e6ecea;
+  --level-neutral-line: #9fb3ab;
+  --radius: 12px;
+  --shadow: 0 3px 14px rgb(24 52 40 / 3%);
+  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--canvas); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p, dl, dd, ol, ul, figure { margin-top: 0; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--forest-950); outline-offset: 3px; }
+.on-dark :focus-visible,
+.topbar :focus-visible,
+.coverage-strip :focus-visible,
+.detail-head :focus-visible,
+.dialog-head :focus-visible {
+  outline-color: #cf7d4f;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+.skip-link {
+  position: fixed;
+  top: -80px;
+  left: 16px;
+  z-index: 80;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+.skip-link:focus { top: 12px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.app { min-height: 100vh; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.topbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  padding: 14px 26px;
+  background: var(--forest-900);
+  color: #f6fff9;
+  border-bottom: 4px solid var(--gold);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #d7aa73;
+  color: var(--forest-900);
+  font-family: Georgia, serif;
+  font-size: 22px;
+  font-style: italic;
+}
+.brand strong { display: block; color: var(--paper); font-size: 16px; font-weight: 650; letter-spacing: -.4px; }
+.brand small { display: block; color: #a8c2b7; font-size: 7px; font-weight: 750; letter-spacing: 1.4px; text-transform: uppercase; }
+.topbar h1 { margin: 0; color: var(--paper); font-size: clamp(21px, 2vw, 27px); font-weight: 600; letter-spacing: -.8px; }
+.topbar .sub { margin: 1px 0 0; color: #c3d6cf; font-size: 8.5px; }
+.top-actions { display: flex; align-items: center; gap: 10px; }
+.batch-mini {
+  padding: 7px 10px;
+  border: 1px solid #41625b;
+  border-radius: 7px;
+  background: var(--forest-950);
+  text-align: right;
+}
+.batch-mini .lvl { display: flex; align-items: center; justify-content: flex-end; gap: 6px; color: var(--paper); font-size: 17px; font-weight: 650; letter-spacing: -.5px; }
+.batch-mini p { margin: 1px 0 0; color: #c3d6cf; font-size: 8px; }
+.primary-button, .secondary-button {
+  min-height: 42px;
+  padding: 9px 13px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+.primary-button { border: 1px solid var(--forest-900); background: var(--forest-900); color: #fcfcf2; }
+.primary-button:hover { background: var(--forest-700); border-color: var(--forest-700); }
+.secondary-button { border: 1px solid #ced8cb; background: var(--paper); color: var(--forest-700); }
+.secondary-button:hover { background: var(--soft); }
+.topbar .primary-button { border-color: #d7aa73; background: #d7aa73; color: var(--forest-950); }
+.topbar .primary-button:hover { background: var(--gold-soft); border-color: var(--gold-soft); }
+
+.coverage-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 16px;
+  padding: 8px 26px;
+  background: var(--gold-soft);
+  color: #5f4717;
+  border-bottom: 1px solid #f0dfb9;
+  font-size: 9px;
+}
+.coverage-strip .strip-label { font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.coverage-strip .g6-tag { padding: 2px 6px; border: 1px dashed #7d6c3f; border-radius: 5px; font-family: var(--mono); font-size: 8px; }
+.coverage-items { display: flex; flex-wrap: wrap; gap: 5px 13px; }
+.coverage-items span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.meter { width: 40px; height: 6px; overflow: hidden; border-radius: 3px; background: var(--paper); border: 1px solid #c8bda0; }
+.meter i { display: block; height: 100%; background: var(--forest-700); }
+.coverage-strip .no-service { margin-left: auto; color: #705d35; font-size: 8px; }
+
+.workspace { min-height: 0; display: grid; grid-template-columns: 276px minmax(0, 1fr) 372px; }
+.territory-rail, .board-pane, .inspector { min-width: 0; min-height: 0; overflow: auto; }
+.territory-rail { padding: 14px 14px 20px; border-right: 1px solid var(--line); background: var(--paper); }
+.board-pane { padding: 14px 16px 20px; background: var(--soft); }
+.inspector { padding: 14px 16px 20px; border-left: 1px solid var(--line); background: var(--paper); }
+.territory-rail:focus-visible, .board-pane:focus-visible, .inspector:focus-visible { outline-offset: -4px; }
+
+.eyebrow { margin: 0 0 4px; color: var(--forest-700); font-size: 8px; font-weight: 850; letter-spacing: 1.2px; text-transform: uppercase; }
+.micro { margin: 0; color: var(--muted); font-size: 8.5px; line-height: 1.5; }
+.panel-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.panel-title h2 { margin: 0; font-size: 18px; font-weight: 650; letter-spacing: -.5px; }
+.proto-tag { flex: none; padding: 3px 6px; border: 1px dashed #c8bda0; border-radius: 4px; background: #faf7ee; color: #7d6c3f; font-family: var(--mono); font-size: 7.5px; font-weight: 700; }
+
+.mini-map {
+  margin: 0 0 10px;
+  padding: 6px;
+  border: 1px solid #d4dfd0;
+  border-radius: 7px;
+  background: #eef2e8;
+}
+.mini-map svg { display: block; width: 100%; height: auto; }
+.mini-map figcaption { padding: 4px 1px 0; color: var(--muted); font-size: 7.5px; line-height: 1.4; }
+
+.sector-list { display: grid; gap: 5px; margin: 0 0 10px; }
+.sector-btn {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+}
+.sector-btn:hover { background: var(--soft); }
+.sector-btn[aria-pressed="true"] { border-color: var(--forest-950); background: var(--soft); box-shadow: inset 3px 0 0 var(--forest-950); }
+.sector-btn .row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.sector-btn .name { font-size: 10.5px; font-weight: 750; }
+.sector-btn .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 7px; color: var(--muted); font-size: 8px; }
+.sector-btn .priority { color: var(--ink); font-size: 8px; }
+.sector-btn .priority strong { font-weight: 750; }
+.cov-inline { display: inline-flex; align-items: center; gap: 4px; }
+.cov-bar { width: 30px; height: 5px; overflow: hidden; border-radius: 3px; background: #e8e9df; border: 1px solid var(--line); }
+.cov-bar i { display: block; height: 100%; background: var(--forest-700); }
+
+.level {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 7.5px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  line-height: 1.2;
+}
+.level::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.level-alto { background: var(--terracotta-soft); color: #9c472f; }
+.level-medio { background: var(--gold-soft); color: #7f641e; }
+.level-bajo { background: #e7f0e6; color: #396246; }
+.level-neutral { background: var(--soft); color: var(--ink); }
+.level-on-dark { background: var(--paper); color: var(--forest-900); }
+
+.selected-sector {
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 7px;
+  background: var(--forest-950);
+  color: var(--paper);
+}
+.selected-sector .micro { color: #c3d6cf; }
+.selected-sector h3 { margin: 2px 0 5px; color: var(--paper); font-size: 16px; font-weight: 600; letter-spacing: -.3px; }
+.selected-sector p { margin: 0 0 6px; color: #d5e1db; font-size: 9px; line-height: 1.5; }
+.selected-sector .link-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.text-button {
+  min-height: 30px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--forest-700);
+  font-size: 9px;
+  font-weight: 750;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.text-button:hover { color: var(--forest-950); }
+.selected-sector .text-button { color: #d7aa73; }
+.selected-sector :focus-visible { outline-color: #cf7d4f; }
+.selected-sector .text-button:hover { color: var(--paper); }
+
+.rail-card { margin-bottom: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.rail-card h3 { margin: 0 0 6px; color: var(--forest-950); font-size: 12px; font-weight: 750; }
+.rail-card p { margin: 0 0 5px; font-size: 9px; line-height: 1.55; }
+.rail-card p:last-child { margin-bottom: 0; }
+.freshness { display: grid; gap: 3px; margin: 0; }
+.freshness div { display: grid; grid-template-columns: 84px 1fr; gap: 6px; }
+.freshness dt { color: var(--muted); font-size: 7.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.freshness dd { margin: 0; color: var(--ink); font-size: 8.5px; text-align: right; }
+.freshness dd .mono { font-family: var(--mono); font-size: 8px; }
+.source-note { padding: 7px 8px; border-left: 3px solid var(--gold); background: var(--gold-soft); color: #5f4717; font-size: 8px; line-height: 1.5; }
+details { margin: 0 0 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+details summary { min-height: 40px; padding: 11px 0; color: var(--forest-700); font-size: 9.5px; font-weight: 750; cursor: pointer; }
+details summary:hover { color: var(--forest-950); }
+.evidence-list { display: grid; gap: 5px; padding: 0 0 9px; }
+.evidence-list p { margin: 0; font-size: 8.5px; line-height: 1.5; }
+.evidence-list strong { display: block; font-size: 9px; }
+.evidence-list span { color: var(--muted); font-size: 8px; }
+
+.rec-mini { display: grid; gap: 5px; }
+.rec-mini-item { padding: 7px 8px; border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 5px; background: var(--paper); }
+.rec-mini-item .rec-top { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+.rec-mini-item .rec-id { color: var(--gold); font-family: var(--mono); font-size: 8px; font-weight: 700; }
+.rec-mini-item p { margin: 0 0 3px; font-size: 8.5px; line-height: 1.45; }
+.rec-mini-item .text-button { min-height: 30px; font-size: 8px; }
+.proto-note { padding: 8px; border: 1px dashed #c8bda0; border-radius: 5px; background: #faf7ee; color: #7d6c3f; font-size: 8px; line-height: 1.5; }
+.proto-note strong { color: #5f4717; }
+
+.board-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px 10px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.field { display: grid; gap: 3px; color: var(--muted); font-size: 7.5px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.field input, .field select, .field textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid #ced8cb;
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.field input::placeholder, .field textarea::placeholder { color: var(--muted); opacity: 1; }
+.field select:disabled, .field input:disabled { background: var(--soft); color: var(--muted); }
+.search-field { flex: 1 1 200px; }
+.sector-filter { flex: 0 1 170px; }
+.board-status { margin: 0 0 8px; color: var(--forest-700); font-size: 8.5px; font-weight: 650; }
+
+.board-wrap { min-width: 0; }
+.board-wrap:focus-visible { outline-offset: 2px; }
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(172px, 1fr));
+  gap: 8px;
+  min-width: 720px;
+}
+.column { min-width: 0; border: 1px solid var(--line); border-radius: 7px; background: #f9faf4; }
+.column-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 9px; border-bottom: 1px solid var(--line); border-top: 4px solid var(--forest-700); border-radius: 6px 6px 0 0; background: var(--paper); }
+.column-head h2 { margin: 0; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
+.column-head .count { min-width: 18px; padding: 1px 5px; border-radius: 999px; background: var(--soft); color: var(--ink); font-size: 8px; font-weight: 750; text-align: center; }
+.column-propuesta .column-head { border-top-color: var(--gold); }
+.column-asignada .column-head { border-top-color: #396246; }
+.column-en-curso .column-head { border-top-color: #32686a; }
+.column-bloqueada .column-head { border-top-color: var(--terracotta); }
+.column-list { display: grid; gap: 6px; margin: 0; padding: 7px; list-style: none; }
+.column-list li[hidden] { display: none; }
+.card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 78px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+}
+.card:hover { border-color: var(--forest-500); background: #f9faf4; }
+.card[aria-current="true"] { border-color: var(--forest-900); box-shadow: inset 3px 0 0 var(--forest-900); background: var(--soft); }
+.card .title { font-size: 9.5px; font-weight: 750; line-height: 1.35; }
+.card .code { color: var(--muted); font-family: var(--mono); font-size: 7.5px; }
+.card .assignee { color: var(--muted); font-size: 8px; }
+.card .assignee strong { color: var(--ink); font-weight: 700; }
+.card .due { color: var(--muted); font-size: 7.5px; }
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 5px; }
+.priority-flag { flex: none; padding: 2px 4px; border-radius: 3px; font-size: 7px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.priority-alta { background: var(--terracotta-soft); color: #9c472f; }
+.priority-media { background: var(--gold-soft); color: #7f641e; }
+.column-empty { margin: 0; padding: 12px 9px 14px; color: var(--muted); font-size: 8.5px; line-height: 1.5; }
+.empty-board { padding: 18px; border: 1px dashed #c8bda0; border-radius: 7px; background: #faf7ee; color: #7d6c3f; font-size: 10px; }
+.empty-board strong { display: block; margin-bottom: 4px; color: #5f4717; }
+.board-footnote { margin: 9px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
+
+.detail-card { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); box-shadow: var(--shadow); }
+.detail-head { padding: 12px 13px; background: var(--forest-900); color: var(--paper); }
+.detail-head .eyebrow { color: #d7aa73; }
+.detail-head h2 { margin: 0; color: var(--paper); font-size: 17px; font-weight: 600; line-height: 1.25; letter-spacing: -.3px; }
+.detail-body { padding: 12px 13px 14px; }
+.detail-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 10px; margin: 0 0 10px; }
+.detail-facts dt { color: var(--muted); font-size: 7px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.detail-facts dd { margin: 2px 0 0; color: var(--ink); font-size: 9.5px; font-weight: 650; overflow-wrap: anywhere; }
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 7.5px;
+  font-weight: 850;
+  letter-spacing: .04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.status-chip::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.chip-propuesta { background: var(--soft); color: var(--ink); }
+.chip-asignada { background: #e7f0e6; color: #396246; }
+.chip-en-curso { background: #e3efef; color: #32686a; }
+.chip-bloqueada { background: var(--gold-soft); color: #7f641e; }
+.assignee-box { margin: 9px 0 10px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; background: #f8faf7; }
+.assignee-box .label { margin: 0 0 2px; color: var(--muted); font-size: 7px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.assignee-box .name { margin: 0; color: var(--ink); font-size: 11px; font-weight: 750; }
+.assignee-box .role { margin: 1px 0 0; color: var(--muted); font-size: 8px; line-height: 1.45; }
+.unassigned-flag { display: inline-flex; margin-left: 5px; padding: 2px 5px; border-radius: 3px; background: var(--gold-soft); color: #7f641e; font-size: 7px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.detail-evidence { margin: 0 0 9px; font-size: 9px; line-height: 1.55; }
+.detail-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.dialog {
+  width: min(570px, calc(100vw - 28px));
+  max-height: calc(100vh - 36px);
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 18px 50px rgb(16 44 45 / 8%), var(--shadow);
+  overflow: auto;
+}
+.dialog::backdrop { background: rgb(16 44 45 / 55%); }
+.dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--forest-900);
+  color: var(--paper);
+}
+.dialog-head .eyebrow { color: #d7aa73; }
+.dialog-head h2 { margin: 0; color: var(--paper); font-size: 20px; font-weight: 600; letter-spacing: -.4px; }
+.close-button {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #41625b;
+  border-radius: 6px;
+  background: var(--forest-950);
+  color: var(--paper);
+  font-size: 18px;
+  line-height: 1;
+}
+.close-button:hover { background: var(--forest-700); }
+.dialog-body { padding: 14px 16px 18px; }
+.dialog-note { margin: 0 0 10px; color: var(--muted); font-size: 9px; line-height: 1.55; }
+.form-grid { display: grid; gap: 8px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field textarea { min-height: 68px; resize: vertical; line-height: 1.5; }
+.case-switch { padding: 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--soft); }
+.case-switch .field-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 7.5px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.case-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
+.case-btn {
+  min-height: 34px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.case-btn[aria-pressed="true"] { background: var(--forest-900); color: var(--paper); border-color: var(--forest-900); }
+.assignee-hint { margin: 5px 0 0; color: var(--muted); font-size: 8.5px; line-height: 1.5; }
+.directory-failure { margin-top: 6px; padding: 8px 9px; border: 1px solid #f0dfb9; border-radius: 5px; background: var(--gold-soft); color: #705d35; font-size: 8.5px; line-height: 1.55; }
+.directory-failure strong { display: block; color: #5f4717; font-size: 9.5px; }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+.form-actions .micro { max-width: 220px; }
+.feedback { margin-top: 8px; padding: 9px 10px; border: 1px solid #dfe8d8; border-left: 4px solid var(--forest-700); border-radius: 4px; background: #eef3ea; color: #56705d; font-size: 9px; line-height: 1.55; }
+.feedback strong { display: block; color: #396246; font-size: 9.5px; }
+.feedback:focus-visible { outline-offset: 2px; }
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 8px 26px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.5;
+}
+.footer strong { color: var(--ink); }
+
+@media (max-width: 1250px) {
+  .workspace { grid-template-columns: 250px minmax(0, 1fr) 340px; }
+}
+@media (max-width: 1080px) {
+  .workspace { grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .inspector { grid-column: 1 / -1; border-top: 1px solid var(--line); border-left: 0; overflow: visible; }
+  .inspector .detail-card { max-width: 760px; }
+}
+@media (max-width: 900px) {
+  .app { display: block; }
+  .topbar { grid-template-columns: auto minmax(0, 1fr); padding: 13px 16px; }
+  .top-actions { grid-column: 1 / -1; justify-content: space-between; }
+  .coverage-strip { padding: 8px 16px; }
+  .coverage-strip .no-service { margin-left: 0; }
+  .workspace { display: block; }
+  .territory-rail, .board-pane, .inspector { overflow: visible; padding: 14px 16px 20px; }
+  .territory-rail { border-right: 0; border-bottom: 6px solid var(--forest-900); }
+  .board { min-width: 0; grid-template-columns: 1fr 1fr; }
+  .board-pane { padding-top: 12px; }
+  .inspector { border-top: 6px solid var(--forest-900); }
+}
+@media (max-width: 620px) {
+  .topbar h1 { font-size: 22px; }
+  .batch-mini { text-align: left; }
+  .batch-mini .lvl { justify-content: flex-start; }
+  .board { grid-template-columns: 1fr; }
+  .board-controls { display: grid; grid-template-columns: 1fr; }
+  .search-field, .sector-filter { width: 100%; }
+  .form-row, .detail-facts { grid-template-columns: 1fr; }
+  .dialog { width: calc(100vw - 20px); max-height: calc(100vh - 20px); }
+  .case-btn { min-height: 40px; }
+  .close-button { width: 40px; height: 40px; }
+  .footer { padding: 8px 16px; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Saltar al tablero de acciones</a>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">F</span>
+      <span>
+        <strong>FireWatch</strong>
+        <small>Prevención municipal</small>
+      </span>
+    </div>
+    <div>
+      <h1>Mesa de prevención</h1>
+      <p class="sub">Valparaíso · comuna 05101 · escenario ilustrativo de maqueta</p>
+    </div>
+    <div class="top-actions">
+      <div class="batch-mini" aria-label="Lote del escenario">
+        <div class="lvl">ALTO <span class="level level-on-dark">NIVEL INFORMADO</span></div>
+        <p>Lote b-7f3c9a21 · pub. 18 nov · vig. 21 nov</p>
+      </div>
+      <button type="button" class="primary-button" id="open-create">Nueva acción</button>
+    </div>
+  </header>
+
+  <div class="coverage-strip" role="note">
+    <span class="strip-label">PROTOTIPO G6 · COBERTURA POR SECTOR</span>
+    <span class="g6-tag">V1-P-01 / V1-P-02</span>
+    <div class="coverage-items" aria-label="Cobertura de evaluación por sector, cifras de prototipo">
+      <span>Cerro La Campana <span class="meter" aria-hidden="true"><i style="width:71%"></i></span> 71 %</span>
+      <span>Quebrada Verde <span class="meter" aria-hidden="true"><i style="width:48%"></i></span> 48 %</span>
+      <span>Playa Ancha <span class="meter" aria-hidden="true"><i style="width:84%"></i></span> 84 %</span>
+      <span>Rodelillo <span class="meter" aria-hidden="true"><i style="width:39%"></i></span> 39 %</span>
+      <span>Centro <span class="meter" aria-hidden="true"><i style="width:92%"></i></span> 92 %</span>
+    </div>
+    <span class="no-service">No son datos ni servicios existentes. Nada se guarda.</span>
+  </div>
+
+  <div class="workspace">
+    <aside class="territory-rail" tabindex="0" role="region" aria-label="Panel de territorio">
+      <div class="panel-title">
+        <div>
+          <p class="eyebrow">TERRITORIO</p>
+          <h2 id="territory-title">Sectores y evidencia</h2>
+        </div>
+        <span class="proto-tag">G6 · prototipo</span>
+      </div>
+
+      <figure class="mini-map">
+        <svg viewBox="0 0 260 150" role="img" aria-labelledby="mini-title mini-desc">
+          <title id="mini-title">Esquema mínimo de los cinco sectores</title>
+          <desc id="mini-desc">Figura esquemática, no cartografía oficial. Los controles y sus niveles están en la lista de sectores.</desc>
+          <rect width="260" height="150" fill="#eef2e8"></rect>
+          <path d="M0 0 H46 C58 34 52 66 44 94 C36 118 40 136 50 150 H0 Z" fill="var(--level-neutral-fill)" stroke="var(--level-neutral-line)"></path>
+          <path data-zone-shape="cerro-la-campana" d="M86 12 L185 8 L216 36 L206 68 L166 82 L104 76 L86 44 Z" fill="var(--level-high-fill)" stroke="var(--level-high-line)" stroke-width="1.5"></path>
+          <path data-zone-shape="quebrada-verde" d="M222 12 L258 22 L257 70 L218 82 L208 52 Z" fill="var(--level-high-fill)" stroke="var(--level-high-line)" stroke-width="1.5"></path>
+          <path data-zone-shape="playa-ancha" d="M49 78 L88 70 L102 92 L94 122 L62 134 L48 112 Z" fill="var(--level-medium-fill)" stroke="var(--level-medium-line)" stroke-width="1.5"></path>
+          <path data-zone-shape="rodelillo" d="M108 84 L174 80 L210 94 L200 130 L154 142 L112 128 Z" fill="var(--level-medium-fill)" stroke="var(--level-medium-line)" stroke-width="1.5"></path>
+          <path data-zone-shape="centro" d="M50 136 L108 132 L150 142 L152 150 L49 150 Z" fill="var(--level-low-fill)" stroke="var(--level-low-line)" stroke-width="1.5"></path>
+          <path d="M102 8 C112 40 106 72 92 98 C82 116 72 130 68 150" fill="none" stroke="#d7aa73" stroke-width="2"></path>
+          <circle cx="178" cy="46" r="5" fill="#fffefa" stroke="#102c2d" stroke-width="2"></circle>
+        </svg>
+        <figcaption>Esquema mínimo; los controles accesibles están en la lista.</figcaption>
+      </figure>
+
+      <div id="zone-list" class="sector-list" aria-labelledby="territory-title">
+        <button type="button" class="sector-btn" data-zone="cerro-la-campana" data-name="Cerro La Campana" data-level="ALTO" data-level-class="level-alto" data-coverage="71" data-priority="ALTA" data-summary="Combustible fino continuo en la quebrada; viento sostenido del suroeste y baja humedad relativa." aria-pressed="true">
+          <span class="row"><span class="name">Cerro La Campana</span><span class="level level-alto">ALTO</span></span>
+          <span class="meta"><span class="cov-inline">Cobertura <span class="cov-bar" aria-hidden="true"><i style="width:71%"></i></span> 71 %</span><span class="priority">Prioridad <strong>ALTA</strong></span></span>
+        </button>
+        <button type="button" class="sector-btn" data-zone="quebrada-verde" data-name="Quebrada Verde" data-level="ALTO" data-level-class="level-alto" data-coverage="48" data-priority="ALTA" data-summary="Interfaz urbano-forestal con accesos estrechos; lectura parcial de la cobertura del sector." aria-pressed="false">
+          <span class="row"><span class="name">Quebrada Verde</span><span class="level level-alto">ALTO</span></span>
+          <span class="meta"><span class="cov-inline">Cobertura <span class="cov-bar" aria-hidden="true"><i style="width:48%"></i></span> 48 %</span><span class="priority">Prioridad <strong>ALTA</strong></span></span>
+        </button>
+        <button type="button" class="sector-btn" data-zone="playa-ancha" data-name="Playa Ancha" data-level="MEDIO" data-level-class="level-medio" data-coverage="84" data-priority="MEDIA" data-summary="Vegetación de quebrada junto a construcciones antiguas; la cobertura de evaluación es la más completa del sector." aria-pressed="false">
+          <span class="row"><span class="name">Playa Ancha</span><span class="level level-medio">MEDIO</span></span>
+          <span class="meta"><span class="cov-inline">Cobertura <span class="cov-bar" aria-hidden="true"><i style="width:84%"></i></span> 84 %</span><span class="priority">Prioridad <strong>MEDIA</strong></span></span>
+        </button>
+        <button type="button" class="sector-btn" data-zone="rodelillo" data-name="Rodelillo" data-level="MEDIO" data-level-class="level-medio" data-coverage="39" data-priority="MEDIA" data-summary="Laderas con rastrojos y viviendas dispersas; la lectura del sector está incompleta." aria-pressed="false">
+          <span class="row"><span class="name">Rodelillo</span><span class="level level-medio">MEDIO</span></span>
+          <span class="meta"><span class="cov-inline">Cobertura <span class="cov-bar" aria-hidden="true"><i style="width:39%"></i></span> 39 %</span><span class="priority">Prioridad <strong>MEDIA</strong></span></span>
+        </button>
+        <button type="button" class="sector-btn" data-zone="centro" data-name="Centro" data-level="BAJO" data-level-class="level-bajo" data-coverage="92" data-priority="BAJA" data-summary="Borde urbano consolidado; menor continuidad de combustible y accesos más amplios." aria-pressed="false">
+          <span class="row"><span class="name">Centro</span><span class="level level-bajo">BAJO</span></span>
+          <span class="meta"><span class="cov-inline">Cobertura <span class="cov-bar" aria-hidden="true"><i style="width:92%"></i></span> 92 %</span><span class="priority">Prioridad <strong>BAJA</strong></span></span>
+        </button>
+      </div>
+
+      <div class="selected-sector" aria-labelledby="selected-sector-name">
+        <p class="micro">SECTOR SELECCIONADO · MAQUETA</p>
+        <h3 id="selected-sector-name">Cerro La Campana</h3>
+        <p><span id="selected-sector-level" class="level level-on-dark">ALTO</span> <span id="selected-sector-coverage-text" class="micro">Cobertura 71 %</span></p>
+        <p id="selected-sector-summary">Combustible fino continuo en la quebrada; viento sostenido del suroeste y baja humedad relativa.</p>
+        <p class="micro">Prioridad contextual <span id="selected-sector-priority">ALTA</span> · prototipo V1-P-02</p>
+        <div class="link-row">
+          <button type="button" class="text-button" id="filter-by-sector">Ver acciones del sector →</button>
+          <button type="button" class="text-button" id="prepare-zone">Usar como base de alta →</button>
+        </div>
+        <p class="sr-only" role="status" id="zone-live">Sector seleccionado: Cerro La Campana, nivel alto.</p>
+      </div>
+
+      <div class="rail-card">
+        <h3>Estado del lote</h3>
+        <p class="source-note"><strong>Escenario ilustrativo.</strong> Lote sintético b-7f3c9a21. No es una observación real ni una alerta oficial.</p>
+        <dl class="freshness">
+          <div><dt>Publicado</dt><dd><time datetime="2026-11-18T14:20">18 nov 2026 · 14:20</time></dd></div>
+          <div><dt>Vigencia</dt><dd><time datetime="2026-11-21T14:20">21 nov 2026 · 14:20</time></dd></div>
+          <div><dt>Lectura</dt><dd><time datetime="2026-11-18T14:26">18 nov 2026 · 14:26</time></dd></div>
+          <div><dt>Modelo</dt><dd>fw-rule-v3.2</dd></div>
+          <div><dt>Política</dt><dd>FW-RISK-004</dd></div>
+          <div><dt>Estado</dt><dd>Sintético · no calibrado</dd></div>
+        </dl>
+      </div>
+
+      <details>
+        <summary>Evidencia del lote (2 referencias)</summary>
+        <div class="evidence-list">
+          <p><strong>Acta DR-2026-114</strong><span>Dirección de Gestión de Riesgo · referencia simulada, sin enlace externo.</span></p>
+          <p><strong>Registro de poda 2026-031</strong><span>Dirección de Aseo y Ornato · referencia simulada, sin enlace externo.</span></p>
+          <p><span>Revisión de suficiencia: pendiente en este escenario. Una revisión anterior no cuenta después de nueva evidencia.</span></p>
+        </div>
+      </details>
+
+      <div class="rail-card">
+        <h3>Recomendaciones</h3>
+        <div class="rec-mini">
+          <div class="rec-mini-item" data-rec="R-08" data-title="Reforzar la restricción de fogatas y chispas por viento">
+            <div class="rec-top"><span class="rec-id">R-08</span><span class="micro">Factor viento</span></div>
+            <p>Con viento, no hagas fogatas ni quemas y no uses herramientas que produzcan chispas.</p>
+            <button type="button" class="text-button" data-prepare="R-08">Usar como base →</button>
+          </div>
+          <div class="rec-mini-item" data-rec="R-06" data-title="Evitar trabajos con chispas en días calurosos">
+            <div class="rec-top"><span class="rec-id">R-06</span><span class="micro">Factor temperatura</span></div>
+            <p>En días calurosos, evita herramientas y trabajos que generen chispas al aire libre.</p>
+            <button type="button" class="text-button" data-prepare="R-06">Usar como base →</button>
+          </div>
+          <div class="rec-mini-item" data-rec="R-04" data-title="Coordinar una revisión de vías de salida con la comunidad">
+            <div class="rec-top"><span class="rec-id">R-04</span><span class="micro">Nivel alto</span></div>
+            <p>Coordina con la municipalidad o la junta de vecinos una revisión de las vías de salida.</p>
+            <button type="button" class="text-button" data-prepare="R-04">Usar como base →</button>
+          </div>
+        </div>
+        <p class="micro" style="margin-top:7px;">La lista completa del informe tiene cuatro sugerencias. No son una alerta ni una orden; la maqueta no crea acciones por sí sola.</p>
+      </div>
+
+      <p class="proto-note"><strong>PROTOTIPO G6 · V1-P-01 / V1-P-02.</strong> Cobertura y prioridad contextual por sector no existen en el servicio actual. Los niveles por sector también son ficticios: el servicio publica nivel por comuna. Nada de esta mesa se guarda.</p>
+    </aside>
+
+    <main id="main" class="board-pane" tabindex="0" role="region" aria-label="Tablero de acciones">
+      <div class="board-controls">
+        <label class="field search-field" for="action-search">Buscar acción por título
+          <input id="action-search" type="search" placeholder="Ej.: despeje, fogatas, vías" autocomplete="off" />
+        </label>
+        <label class="field sector-filter" for="action-sector-filter">Sector
+          <select id="action-sector-filter">
+            <option value="">Todos los sectores</option>
+            <option value="cerro-la-campana">Cerro La Campana</option>
+            <option value="quebrada-verde">Quebrada Verde</option>
+            <option value="playa-ancha">Playa Ancha</option>
+            <option value="rodelillo">Rodelillo</option>
+            <option value="centro">Centro</option>
+          </select>
+        </label>
+        <div style="flex:0 1 auto;">
+          <p class="micro" id="result-count">4 de 4 acciones</p>
+          <button type="button" class="text-button" id="clear-filters">Limpiar filtros</button>
+        </div>
+      </div>
+      <p class="board-status" id="board-status" role="status" aria-live="polite">Cuatro acciones del escenario. Ningún dato del servicio.</p>
+
+      <div class="board-wrap" tabindex="0" role="region" aria-label="Columnas de acciones por estado">
+        <div class="board" id="action-board">
+          <section class="column column-propuesta" aria-labelledby="col-propuesta">
+            <div class="column-head"><h2 id="col-propuesta">Propuesta</h2><span class="count" data-count="propuesta">1</span></div>
+            <ul class="column-list">
+              <li>
+                <button type="button" class="card" data-action="acc-1044">
+                  <span class="card-top"><span class="code">ACC-1044</span><span class="priority-flag priority-media">Media</span></span>
+                  <span class="title">Difusión de la restricción de fogatas en ferias vecinales</span>
+                  <span class="assignee">Responsable <strong>Sin asignar</strong></span>
+                  <span class="due">Vence 2 dic 2026 · Playa Ancha</span>
+                </button>
+              </li>
+            </ul>
+            <p class="column-empty" data-empty="propuesta" hidden>Sin acciones con este filtro.</p>
+          </section>
+
+          <section class="column column-asignada" aria-labelledby="col-asignada">
+            <div class="column-head"><h2 id="col-asignada">Asignada</h2><span class="count" data-count="asignada">1</span></div>
+            <ul class="column-list">
+              <li>
+                <button type="button" class="card" data-action="acc-1042" aria-current="true">
+                  <span class="card-top"><span class="code">ACC-1042</span><span class="priority-flag priority-alta">Alta</span></span>
+                  <span class="title">Despeje de vegetación seca en el borde norte del Cerro La Campana</span>
+                  <span class="assignee">Responsable <strong>Camila Rojas Fuentes</strong></span>
+                  <span class="due">Vence 27 nov 2026 · Cerro La Campana</span>
+                </button>
+              </li>
+            </ul>
+            <p class="column-empty" data-empty="asignada" hidden>Sin acciones con este filtro.</p>
+          </section>
+
+          <section class="column column-en-curso" aria-labelledby="col-en-curso">
+            <div class="column-head"><h2 id="col-en-curso">En curso</h2><span class="count" data-count="en_curso">1</span></div>
+            <ul class="column-list">
+              <li>
+                <button type="button" class="card" data-action="acc-1043">
+                  <span class="card-top"><span class="code">ACC-1043</span><span class="priority-flag priority-alta">Alta</span></span>
+                  <span class="title">Revisión de vías de evacuación en Quebrada Verde</span>
+                  <span class="assignee">Responsable <strong>Jorge Muñoz Salinas</strong></span>
+                  <span class="due">Vence 24 nov 2026 · Quebrada Verde</span>
+                </button>
+              </li>
+            </ul>
+            <p class="column-empty" data-empty="en_curso" hidden>Sin acciones con este filtro.</p>
+          </section>
+
+          <section class="column column-bloqueada" aria-labelledby="col-bloqueada">
+            <div class="column-head"><h2 id="col-bloqueada">Bloqueada</h2><span class="count" data-count="bloqueada">1</span></div>
+            <ul class="column-list">
+              <li>
+                <button type="button" class="card" data-action="acc-1045">
+                  <span class="card-top"><span class="code">ACC-1045</span><span class="priority-flag priority-alta">Alta</span></span>
+                  <span class="title">Inspección de conexiones eléctricas informales en Playa Ancha</span>
+                  <span class="assignee">Responsable <strong>Valentina Díaz Paredes</strong></span>
+                  <span class="due">Vence 22 nov 2026 · Playa Ancha</span>
+                </button>
+              </li>
+            </ul>
+            <p class="column-empty" data-empty="bloqueada" hidden>Sin acciones con este filtro.</p>
+          </section>
+        </div>
+      </div>
+
+      <div class="empty-board" id="empty-board" hidden>
+        <strong>No hay acciones que coincidan con la búsqueda o el sector.</strong>
+        Los cuatro registros del escenario no cambiaron: solo se ocultaron en esta vista.
+        <br />
+        <button type="button" class="text-button" id="clear-filters-empty">Limpiar búsqueda y sector</button>
+      </div>
+      <p class="board-footnote">Columnas de estado del contrato actual. La prioridad contextual es prototipo G6; la prioridad “Alta/Media” es el texto libre que el servicio ya acepta. La maqueta no mueve tarjetas ni cambia estados.</p>
+    </main>
+
+    <aside class="inspector" tabindex="0" role="region" aria-label="Ficha de la acción seleccionada">
+      <div class="panel-title">
+        <div>
+          <p class="eyebrow">ACCIÓN SELECCIONADA</p>
+          <h2>Ficha operativa</h2>
+        </div>
+        <span class="proto-tag">MAQUETA</span>
+      </div>
+
+      <article class="detail-card" id="action-detail" aria-labelledby="detail-title">
+        <div class="detail-head">
+          <p class="eyebrow">DETALLE · ESCENARIO</p>
+          <h2 id="detail-title">Despeje de vegetación seca en el borde norte del Cerro La Campana</h2>
+        </div>
+        <div class="detail-body">
+          <dl class="detail-facts">
+            <div><dt>Código</dt><dd id="detail-code">ACC-1042</dd></div>
+            <div><dt>Estado</dt><dd><span class="status-chip chip-asignada" id="detail-status">Asignada</span></dd></div>
+            <div><dt>Sector</dt><dd id="detail-sector">Cerro La Campana</dd></div>
+            <div><dt>Vence</dt><dd id="detail-due">27 nov 2026</dd></div>
+            <div><dt>Prioridad (texto libre)</dt><dd id="detail-priority">Alta</dd></div>
+            <div><dt>Prioridad contextual · prototipo</dt><dd id="detail-context-priority">ALTA</dd></div>
+          </dl>
+          <div class="assignee-box" id="detail-assignee-box">
+            <p class="label">Responsable</p>
+            <p class="name"><span id="detail-assignee-name">Camila Rojas Fuentes</span><span class="unassigned-flag" id="detail-unassigned" hidden>Sin asignar</span></p>
+            <p class="role" id="detail-assignee-role">Dirección de Aseo y Ornato · identificador u-8f3a</p>
+          </div>
+          <p class="detail-evidence" id="detail-evidence">2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.</p>
+          <div class="detail-actions">
+            <button type="button" class="secondary-button" id="view-sector">Ver sector en el territorio ↑</button>
+          </div>
+          <p class="sr-only" role="status" aria-live="polite" id="detail-live"></p>
+          <p class="micro" style="margin-top:9px;">El inspector muestra el responsable tal como se lee en la acción. La asignación de una acción existente no se simula: el alta es el único flujo de esta maqueta.</p>
+        </div>
+      </article>
+
+      <div class="rail-card" style="margin-top:10px;">
+        <h3>Casos de responsable en el tablero</h3>
+        <p><strong>Asignada:</strong> ACC-1042 y ACC-1043 muestran nombre y dirección.</p>
+        <p><strong>Sin asignar:</strong> ACC-1044 muestra “Sin asignar” en la tarjeta y en esta ficha.</p>
+        <p><strong>Directorio no disponible:</strong> se prueba en el alta con el botón “Nueva acción” → “Directorio no disponible”.</p>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="footer">
+    <span><strong>Fuente de la maqueta:</strong> lote sintético b-7f3c9a21 · publicado 18 nov 2026 14:20 · vigencia declarada 21 nov 2026 14:20 · lectura simulada 14:26.</span>
+    <span><strong>Sin red:</strong> este documento no carga fuentes, imágenes ni datos externos.</span>
+    <span><strong>G6:</strong> cobertura y prioridad por sector son prototipo (V1-P-01, V1-P-02); no son datos ni servicios existentes.</span>
+  </footer>
+</div>
+
+<dialog class="dialog" id="create-dialog" aria-labelledby="dialog-title">
+  <div class="dialog-head">
+    <div>
+      <p class="eyebrow">ALTA · MAQUETA</p>
+      <h2 id="dialog-title">Nueva acción preventiva</h2>
+    </div>
+    <button type="button" class="close-button" id="close-dialog" aria-label="Cerrar el formulario de alta">×</button>
+  </div>
+  <div class="dialog-body">
+    <p class="dialog-note">El alta real exige el rol admin y valida el directorio. Esta maqueta no llama a ningún servicio, no guarda y no envía red.</p>
+    <form id="create-form" class="form-grid" novalidate>
+      <div class="case-switch">
+        <span class="field-label" id="case-label">Casos del selector de responsable · maqueta</span>
+        <div class="case-buttons" role="group" aria-labelledby="case-label">
+          <button type="button" class="case-btn" id="case-assigned" data-case="assigned" aria-pressed="true">Con directorio</button>
+          <button type="button" class="case-btn" id="case-unassigned" data-case="unassigned" aria-pressed="false">Sin asignar</button>
+          <button type="button" class="case-btn" id="case-unavailable" data-case="unavailable" aria-pressed="false">Directorio no disponible</button>
+        </div>
+      </div>
+      <label class="field" for="assignee-select">Responsable
+        <select id="assignee-select" name="assignee">
+          <option value="">Sin asignar (se crea sin responsable)</option>
+          <option value="u-8f3a" selected>Camila Rojas Fuentes · Dirección de Aseo y Ornato</option>
+          <option value="u-2c91">Jorge Muñoz Salinas · Dirección de Gestión de Riesgo</option>
+          <option value="u-6d47">Valentina Díaz Paredes · Oficina de Emergencia</option>
+          <option value="u-9b02">Rodrigo Salinas Vega · Dirección de Obras Municipales</option>
+          <option value="u-4e18">Paula Herrera León · DIDECO · enlace vecinal</option>
+        </select>
+      </label>
+      <p class="assignee-hint" id="assignee-hint">Se asignaría a Camila Rojas Fuentes (u-8f3a). La lista es ficticia.</p>
+      <div class="directory-failure" id="directory-failure" role="status" aria-live="polite" hidden>
+        <strong>No se pudo leer el directorio.</strong>
+        Respuesta simulada: 503 directory_unavailable. No se inventó una lista de personas. Puedes crear la acción sin responsable o reintentar.
+        <br />
+        <button type="button" class="secondary-button" id="directory-retry" style="margin-top:6px;">Reintentar lectura</button>
+      </div>
+
+      <label class="field" for="create-title">Título
+        <input id="create-title" name="title" type="text" placeholder="Ej.: Despeje de vegetación seca" />
+      </label>
+      <label class="field" for="create-description">Descripción
+        <textarea id="create-description" name="description" placeholder="Trabajo, sector y referencia de evidencia."></textarea>
+      </label>
+      <div class="form-row">
+        <label class="field" for="create-sector">Sector
+          <select id="create-sector" name="sector">
+            <option value="cerro-la-campana">Cerro La Campana</option>
+            <option value="quebrada-verde">Quebrada Verde</option>
+            <option value="playa-ancha">Playa Ancha</option>
+            <option value="rodelillo">Rodelillo</option>
+            <option value="centro">Centro</option>
+          </select>
+        </label>
+        <label class="field" for="create-due">Fecha límite
+          <input id="create-due" name="due" type="date" value="2026-11-27" />
+        </label>
+      </div>
+      <label class="field" for="create-priority">Prioridad (texto libre)
+        <input id="create-priority" name="priority" type="text" value="Alta" />
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="primary-button" id="create-submit">Crear acción (simulacro)</button>
+        <button type="button" class="secondary-button" id="cancel-dialog">Cancelar</button>
+      </div>
+      <p class="micro">No guarda nada: es una maqueta interactiva sin red ni persistencia.</p>
+      <div class="feedback" id="form-feedback" role="status" aria-live="polite" tabindex="-1" hidden>
+        <strong id="feedback-title"></strong>
+        <span id="feedback-body"></span>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+
+  var zones = {
+    'cerro-la-campana': { name: 'Cerro La Campana', level: 'ALTO', levelClass: 'level-alto', coverage: '71', priority: 'ALTA', summary: 'Combustible fino continuo en la quebrada; viento sostenido del suroeste y baja humedad relativa.' },
+    'quebrada-verde': { name: 'Quebrada Verde', level: 'ALTO', levelClass: 'level-alto', coverage: '48', priority: 'ALTA', summary: 'Interfaz urbano-forestal con accesos estrechos; lectura parcial de la cobertura del sector.' },
+    'playa-ancha': { name: 'Playa Ancha', level: 'MEDIO', levelClass: 'level-medio', coverage: '84', priority: 'MEDIA', summary: 'Vegetación de quebrada junto a construcciones antiguas; la cobertura de evaluación es la más completa del sector.' },
+    'rodelillo': { name: 'Rodelillo', level: 'MEDIO', levelClass: 'level-medio', coverage: '39', priority: 'MEDIA', summary: 'Laderas con rastrojos y viviendas dispersas; la lectura del sector está incompleta.' },
+    'centro': { name: 'Centro', level: 'BAJO', levelClass: 'level-bajo', coverage: '92', priority: 'BAJA', summary: 'Borde urbano consolidado; menor continuidad de combustible y accesos más amplios.' }
+  };
+
+  var actions = {
+    'acc-1042': { title: 'Despeje de vegetación seca en el borde norte del Cerro La Campana', code: 'ACC-1042', status: 'Asignada', statusClass: 'chip-asignada', sector: 'cerro-la-campana', sectorName: 'Cerro La Campana', due: '27 nov 2026', priority: 'Alta', context: 'ALTA', assigneeName: 'Camila Rojas Fuentes', assigneeRole: 'Dirección de Aseo y Ornato · identificador u-8f3a', evidence: '2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.' },
+    'acc-1043': { title: 'Revisión de vías de evacuación en Quebrada Verde', code: 'ACC-1043', status: 'En curso', statusClass: 'chip-en-curso', sector: 'quebrada-verde', sectorName: 'Quebrada Verde', due: '24 nov 2026', priority: 'Alta', context: 'ALTA', assigneeName: 'Jorge Muñoz Salinas', assigneeRole: 'Dirección de Gestión de Riesgo · identificador u-2c91', evidence: 'Evidencia pendiente: la acción aún no registra una instantánea. Revisión de suficiencia: no iniciada.' },
+    'acc-1044': { title: 'Difusión de la restricción de fogatas en ferias vecinales', code: 'ACC-1044', status: 'Propuesta', statusClass: 'chip-propuesta', sector: 'playa-ancha', sectorName: 'Playa Ancha', due: '2 dic 2026', priority: 'Media', context: 'MEDIA', assigneeName: 'Sin asignar', assigneeRole: 'No hay responsable registrado. La acción puede asignarse después de crearla.', evidence: 'Sin evidencia registrada. El criterio de suficiencia lo define una persona autorizada.' },
+    'acc-1045': { title: 'Inspección de conexiones eléctricas informales en Playa Ancha', code: 'ACC-1045', status: 'Bloqueada', statusClass: 'chip-bloqueada', sector: 'playa-ancha', sectorName: 'Playa Ancha', due: '22 nov 2026', priority: 'Alta', context: 'ALTA', assigneeName: 'Valentina Díaz Paredes', assigneeRole: 'Oficina de Emergencia · identificador u-6d47', evidence: '1 referencia · acta OE-2026-057. Bloqueada: falta la autorización de la empresa distribuidora en este escenario.' }
+  };
+
+  var directory = {
+    'u-8f3a': 'Camila Rojas Fuentes · Dirección de Aseo y Ornato',
+    'u-2c91': 'Jorge Muñoz Salinas · Dirección de Gestión de Riesgo',
+    'u-6d47': 'Valentina Díaz Paredes · Oficina de Emergencia',
+    'u-9b02': 'Rodrigo Salinas Vega · Dirección de Obras Municipales',
+    'u-4e18': 'Paula Herrera León · DIDECO · enlace vecinal'
+  };
+
+  var selectedZone = 'cerro-la-campana';
+  var selectedAction = 'acc-1042';
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var lastOpener = null;
+  var dialog = document.getElementById('create-dialog');
+  var zoneButtons = Array.prototype.slice.call(document.querySelectorAll('[data-zone]'));
+  var actionButtons = Array.prototype.slice.call(document.querySelectorAll('[data-action]'));
+  var searchInput = document.getElementById('action-search');
+  var sectorFilter = document.getElementById('action-sector-filter');
+  var board = document.getElementById('action-board');
+  var emptyBoard = document.getElementById('empty-board');
+  var resultCount = document.getElementById('result-count');
+  var boardStatus = document.getElementById('board-status');
+  var assigneeSelect = document.getElementById('assignee-select');
+  var assigneeHint = document.getElementById('assignee-hint');
+  var failure = document.getElementById('directory-failure');
+  var feedback = document.getElementById('form-feedback');
+  var feedbackTitle = document.getElementById('feedback-title');
+  var feedbackBody = document.getElementById('feedback-body');
+  var caseButtons = Array.prototype.slice.call(document.querySelectorAll('.case-btn'));
+  var lastGoodAssignee = assigneeSelect.value;
+  var form = document.getElementById('create-form');
+  var titleInput = document.getElementById('create-title');
+  var descriptionInput = document.getElementById('create-description');
+  var sectorSelect = document.getElementById('create-sector');
+
+  function setLevel(el, text, className) {
+    el.className = 'level ' + className;
+    el.textContent = text;
+  }
+
+  function selectZone(id, options) {
+    var zone = zones[id];
+    if (!zone) return;
+    selectedZone = id;
+    zoneButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-zone') === id));
+    });
+    document.querySelectorAll('[data-zone-shape]').forEach(function (shape) {
+      var selected = shape.getAttribute('data-zone-shape') === id;
+      shape.style.strokeWidth = selected ? '3.5' : '1.5';
+      shape.style.stroke = selected ? 'var(--forest-950)' : '';
+    });
+    document.getElementById('selected-sector-name').textContent = zone.name;
+    setLevel(document.getElementById('selected-sector-level'), zone.level, 'level-on-dark');
+    document.getElementById('selected-sector-coverage-text').textContent = 'Cobertura ' + zone.coverage + ' %';
+    document.getElementById('selected-sector-priority').textContent = zone.priority;
+    document.getElementById('selected-sector-summary').textContent = zone.summary;
+    document.getElementById('zone-live').textContent = 'Sector seleccionado: ' + zone.name + ', nivel ' + zone.level.toLowerCase() + '. Cobertura de prototipo ' + zone.coverage + ' por ciento.';
+    sectorSelect.value = id;
+    if (options && options.filterBoard) {
+      sectorFilter.value = id;
+      applyFilter();
+      boardStatus.textContent = 'Acciones filtradas por ' + zone.name + '. La maqueta no consultó el servicio.';
+      var firstVisible = actionButtons.find(function (button) {
+        return !button.closest('li').hidden;
+      });
+      if (firstVisible) firstVisible.focus();
+    }
+  }
+
+  function applyFilter() {
+    var query = searchInput.value.trim().toLowerCase();
+    var sector = sectorFilter.value;
+    var visible = 0;
+    var counts = { propuesta: 0, asignada: 0, en_curso: 0, bloqueada: 0 };
+    actionButtons.forEach(function (button) {
+      var data = actions[button.getAttribute('data-action')];
+      var li = button.closest('li');
+      var matches = (query === '' || data.title.toLowerCase().indexOf(query) !== -1) && (sector === '' || data.sector === sector);
+      if (li) li.hidden = !matches;
+      if (matches) {
+        visible += 1;
+        var key = data.status === 'En curso' ? 'en_curso' : data.status.toLowerCase();
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    });
+    Object.keys(counts).forEach(function (key) {
+      var count = document.querySelector('[data-count="' + key + '"]');
+      var empty = document.querySelector('[data-empty="' + key + '"]');
+      if (count) count.textContent = String(counts[key]);
+      if (empty) empty.hidden = counts[key] !== 0;
+    });
+    resultCount.textContent = visible + ' de 4 acciones';
+    boardStatus.textContent = visible === 4
+      ? 'Cuatro acciones del escenario. Ningún dato del servicio.'
+      : visible + ' de 4 acciones con el filtro actual. Los registros del escenario no cambiaron.';
+    board.hidden = visible === 0;
+    emptyBoard.hidden = visible !== 0;
+  }
+
+  function renderAction(id) {
+    var data = actions[id];
+    if (!data) return;
+    selectedAction = id;
+    actionButtons.forEach(function (button) {
+      if (button.getAttribute('data-action') === id) button.setAttribute('aria-current', 'true');
+      else button.removeAttribute('aria-current');
+    });
+    document.getElementById('detail-title').textContent = data.title;
+    document.getElementById('detail-code').textContent = data.code;
+    var status = document.getElementById('detail-status');
+    status.className = 'status-chip ' + data.statusClass;
+    status.textContent = data.status;
+    document.getElementById('detail-sector').textContent = data.sectorName;
+    document.getElementById('detail-due').textContent = data.due;
+    document.getElementById('detail-priority').textContent = data.priority;
+    document.getElementById('detail-context-priority').textContent = data.context + ' · prototipo';
+    document.getElementById('detail-assignee-name').textContent = data.assigneeName;
+    document.getElementById('detail-unassigned').hidden = data.assigneeName !== 'Sin asignar';
+    document.getElementById('detail-assignee-role').textContent = data.assigneeRole;
+    var box = document.getElementById('detail-assignee-box');
+    box.style.background = data.assigneeName === 'Sin asignar' ? 'var(--gold-soft)' : '#f8faf7';
+    box.style.borderColor = data.assigneeName === 'Sin asignar' ? '#f0dfb9' : 'var(--line)';
+    document.getElementById('detail-evidence').textContent = data.evidence;
+    document.getElementById('detail-live').textContent = 'Ficha de ' + data.code + ' actualizada.';
+  }
+
+  function directoryState(state) {
+    caseButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-case') === state));
+    });
+    if (state === 'unavailable') {
+      assigneeSelect.disabled = true;
+      assigneeSelect.value = '';
+      failure.hidden = false;
+      assigneeHint.textContent = 'Directorio no disponible: el alta seguiría sin responsable. No se inventó una lista.';
+      return;
+    }
+    assigneeSelect.disabled = false;
+    failure.hidden = true;
+    assigneeSelect.value = state === 'unassigned' ? '' : (lastGoodAssignee || 'u-8f3a');
+    updateAssigneeHint();
+  }
+
+  function updateAssigneeHint() {
+    var value = assigneeSelect.value;
+    if (!value) {
+      assigneeHint.textContent = 'Se crearía sin responsable. La acción puede asignarse después; el servidor real acepta omitir assignee_id.';
+      return;
+    }
+    assigneeHint.textContent = 'Se asignaría a ' + directory[value] + ' (identificador ' + value + '). La lista es ficticia y no se consulta ningún directorio real.';
+  }
+
+  function openCreate(opener, prefill) {
+    lastOpener = opener || document.getElementById('open-create');
+    feedback.hidden = true;
+    document.getElementById('dialog-title').textContent = prefill && prefill.title ? 'Nueva acción desde una recomendación' : 'Nueva acción preventiva';
+    document.getElementById('create-submit').textContent = 'Crear acción (simulacro)';
+    titleInput.value = prefill && prefill.title ? prefill.title : '';
+    descriptionInput.value = prefill && prefill.description ? prefill.description : '';
+    sectorSelect.value = prefill && prefill.sector ? prefill.sector : selectedZone;
+    directoryState('assigned');
+    dialog.showModal();
+    titleInput.focus();
+  }
+
+  function closeCreate() {
+    dialog.close();
+  }
+
+  zoneButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      selectZone(button.getAttribute('data-zone'));
+    });
+  });
+  actionButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      renderAction(button.getAttribute('data-action'));
+    });
+  });
+  searchInput.addEventListener('input', applyFilter);
+  sectorFilter.addEventListener('change', applyFilter);
+  document.getElementById('clear-filters').addEventListener('click', function () {
+    searchInput.value = '';
+    sectorFilter.value = '';
+    applyFilter();
+    searchInput.focus();
+  });
+  document.getElementById('clear-filters-empty').addEventListener('click', function () {
+    searchInput.value = '';
+    sectorFilter.value = '';
+    applyFilter();
+    searchInput.focus();
+  });
+  document.getElementById('filter-by-sector').addEventListener('click', function () {
+    selectZone(selectedZone, { filterBoard: true });
+  });
+  document.getElementById('view-sector').addEventListener('click', function () {
+    var data = actions[selectedAction];
+    selectZone(data.sector);
+    var heading = document.getElementById('selected-sector-name');
+    heading.setAttribute('tabindex', '-1');
+    heading.focus({ preventScroll: false });
+    boardStatus.textContent = 'Territorio actualizado al sector ' + data.sectorName + '. No se consultó el servicio.';
+  });
+
+  document.getElementById('prepare-zone').addEventListener('click', function () {
+    var zone = zones[selectedZone];
+    openCreate(this, {
+      title: 'Revisión preventiva del sector ' + zone.name,
+      description: 'Acción de prevención para el sector ' + zone.name + ' a partir de la lectura de maqueta del lote b-7f3c9a21. Nivel del sector: ' + zone.level + '. Cobertura de prototipo: ' + zone.coverage + ' por ciento.',
+      sector: selectedZone
+    });
+  });
+  Array.prototype.slice.call(document.querySelectorAll('[data-prepare]')).forEach(function (button) {
+    button.addEventListener('click', function () {
+      var item = button.closest('.rec-mini-item');
+      var zone = zones[selectedZone];
+      openCreate(this, {
+        title: item.getAttribute('data-title') + ' · ' + zone.name,
+        description: item.querySelector('p').textContent + ' Sector: ' + zone.name + ' · nivel ' + zone.level + ' (lectura de maqueta). Referencia: lote b-7f3c9a21.',
+        sector: selectedZone
+      });
+    });
+  });
+
+  document.getElementById('open-create').addEventListener('click', function () {
+    openCreate(this, null);
+  });
+  document.getElementById('close-dialog').addEventListener('click', closeCreate);
+  document.getElementById('cancel-dialog').addEventListener('click', closeCreate);
+  dialog.addEventListener('close', function () {
+    if (lastOpener && typeof lastOpener.focus === 'function') lastOpener.focus();
+  });
+
+  caseButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      directoryState(button.getAttribute('data-case'));
+      if (button.getAttribute('data-case') !== 'unavailable') assigneeSelect.focus();
+    });
+  });
+  document.getElementById('directory-retry').addEventListener('click', function () {
+    directoryState('assigned');
+    assigneeSelect.focus();
+  });
+  assigneeSelect.addEventListener('change', function () {
+    if (!assigneeSelect.disabled && assigneeSelect.value) lastGoodAssignee = assigneeSelect.value;
+    updateAssigneeHint();
+  });
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var title = titleInput.value.trim();
+    if (title === '') {
+      feedback.hidden = false;
+      feedbackTitle.textContent = 'Falta el título.';
+      feedbackBody.textContent = 'Escribe un título para continuar. La maqueta no guardó nada.';
+      feedback.focus();
+      titleInput.setAttribute('aria-invalid', 'true');
+      return;
+    }
+    titleInput.removeAttribute('aria-invalid');
+    var assignee = assigneeSelect.disabled || assigneeSelect.value === '' ? null : directory[assigneeSelect.value];
+    var sectorName = zones[sectorSelect.value].name;
+    feedback.hidden = false;
+    feedbackTitle.textContent = 'Maqueta: no se guardó nada ni salió ninguna solicitud.';
+    feedbackBody.textContent = 'Se habría creado «' + title + '» en 05101 · ' + sectorName + ', ' + (assignee ? 'con responsable ' + assignee : 'sin responsable') + '. Ninguna escritura llegó a un almacenamiento, cookie o servicio. En el producto real, el servidor valida el rol, el directorio y las reglas antes de guardar.';
+    feedback.focus();
+  });
+
+  updateAssigneeHint();
+  applyFilter();
+  renderAction('acc-1042');
+})();
+</script>
+</body>
+</html>

@@ -290,6 +290,97 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/history.csv:
+    get:
+      operationId: exportRiskHistoryCSV
+      description: >-
+        Viewer/admin. The same bounded history that GET /v1/risk/history serves,
+        rendered as a CSV attachment: one zone_id parameter, the same accepted
+        zone catalogue, up to 100 batches in descending request-time order and
+        the same access policy. No filter is added, no row the JSON read serves
+        is dropped, and the JSON route is unchanged. The body always starts with
+        the header row zone_id,batch_id,job_id,requested_at,published_at,
+        valid_until,model_version,risk_level,data_status,synthetic,scenario_id,
+        evaluated_at, and then carries up to 100 records. The format is exactly
+        what encoding/csv writes with its default settings, not RFC 4180: UTF-8
+        text, comma-delimited, every record terminated by a bare LF, a field
+        quoted only when it needs to be (it contains a comma, a quote, a CR or an
+        LF, or it begins with whitespace), and a quote inside a quoted field
+        doubled. A CRLF inside a cell is written raw inside
+        its quoted field, while a CSV reader may normalise that CRLF to LF when it
+        parses the file, so re-serialising parsed values need not reproduce the
+        bytes. Every row declares its own provenance: the zone it belongs to, the
+        publication instant published_at and synthetic (yes/no), which is derived
+        from the batch demo flag and never inferred from the environment. Instants
+        are RFC 3339 in UTC, and evaluated_at is empty for a row that recorded
+        none. An empty history is 200 with the header row alone, never 404. A
+        failure is never a CSV document: it is the shared JSON error body of the
+        route this one mirrors. A cell that a spreadsheet could read as a formula
+        is prefixed with an apostrophe, which covers the four symbol prefixes and
+        a leading tab, carriage return or line feed, because a spreadsheet may
+        discard those before parsing the rest of the cell; the exported columns
+        are otherwise scalar and drawn from bounded vocabularies (uuid
+        identifiers, registry versions, enums, yes/no, synthetic profile ids). The
+        200 response carries the no-store Cache-Control directive and an
+        attachment Content-Disposition whose filename is
+        risk-history-<zone>-<newest published_at as 20060102T150405Z>.csv, or
+        -empty.csv when the history holds no row; the zone segment is reduced to
+        filename-safe bytes and is never echoed verbatim from the request. A
+        proxy in front of this service may append its own no-store to the same
+        response, so that header is a directive that must be present rather than
+        an exact value with a single occurrence. Content-Disposition is
+        informational for non-browser clients: the cross-origin browser page does
+        not read it and names the downloaded file locally from the selected zone,
+        so no CORS exposure is needed or promised.
+      parameters: [{$ref: '#/components/parameters/Zone'}]
+      responses:
+        '200':
+          description: >-
+            Header row plus one row per batch in the bounded window, or the
+            header row alone when the zone has no batch.
+          headers:
+            Cache-Control:
+              description: >-
+                no-store is the directive this service sets for the export. A
+                proxy may append its own no-store to the same response, so the
+                header may carry the directive more than once: clients must treat
+                it as a directive that is present, not as an exact value or a
+                guaranteed single occurrence.
+              schema:
+                type: string
+                example: no-store
+            Content-Disposition:
+              description: >-
+                attachment header with a fixed filename shape declaring the
+                validated zone and the newest publication instant in the file.
+                Informational for non-browser clients: the cross-origin page does
+                not read this header (it is not exposed) and names the file
+                locally from the selected zone.
+              schema:
+                type: string
+                example: 'attachment; filename="risk-history-05101-20261102T080100Z.csv"'
+          content:
+            text/csv:
+              schema: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503':
+          description: >-
+            The dependency this operation reads was unavailable, or the gateway
+            could not record the read its upstream already answered. The answer
+            is always the shared JSON error body, code storage_unavailable,
+            never a CSV document: a failed export carries no attachment
+            Content-Disposition and no header row, so a caller is never handed a
+            download whose read was not written down.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
   /v1/risk/batches:
     get:
       operationId: listLatestBatchesPerZone
@@ -315,6 +406,92 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/alerts:
+    get:
+      operationId: listRiskAlerts
+      description: >-
+        Viewer/admin. One page of the persisted PM-07 level-change alerts, newest
+        first by default. Every element is a transition stored in the risk
+        database, read back with its zone label and its batch provenance: this
+        route invents no alert, generates no stand-in and serves no count. The
+        order is the stable keyset (occurred_at, id) in the selected direction, so
+        a page boundary neither repeats nor skips a row when two alerts share an
+        instant. An empty timeline is 200 with an empty array and a null cursor,
+        never 404, because nothing stored is an answer.
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: >-
+            Page size. A value outside 1..100, a non-integer, an empty value or a
+            repeated value is refused 400 invalid_alert_query before anything is
+            read.
+        - in: query
+          name: order
+          required: false
+          schema:
+            type: string
+            enum: [desc, asc]
+            default: desc
+          description: >-
+            Timeline direction: desc is newest first, asc oldest first. The
+            accepted values are exactly these two literals, so any other
+            spelling, including an upper-case one, is refused 400.
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+          description: >-
+            Opaque value copied verbatim from the preceding response's
+            next_cursor. Omit it to read the first page. Opaque means
+            unstructured: the value is not for the client to interpret or
+            construct, and it is not signed, so it is not proof that this service
+            produced it. It is validated for structure and for the direction it
+            encodes, so a value that is empty, undecodable, of the wrong shape, or
+            encoded for the other order is refused 400 invalid_alert_query instead
+            of being read as the first page.
+      responses:
+        '200':
+          description: >-
+            One page of stored alerts, ordered by (occurred_at, id) in the
+            requested direction. items is empty when nothing is stored, and
+            next_cursor is null on the last page.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AlertCollection'}
+        '400':
+          description: >-
+            Malformed query; nothing was read. An unknown or repeated parameter,
+            a limit outside 1..100, an order other than desc or asc, a cursor that
+            is empty, undecodable, structurally invalid or encoded for the other
+            order, or a query whose percent-encoding cannot be read. The encoding
+            case is answered at the public boundary, because a proxy that
+            sanitises the forwarded query would otherwise drop the pair and serve
+            a different question than the one sent.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                additionalProperties: false
+                properties:
+                  code: {type: string, enum: [invalid_alert_query]}
+                  request_id: {type: string, format: uuid}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
   /v1/risk/synthetic-scenarios:
     get:
       operationId: listSyntheticScenarios
@@ -332,6 +509,32 @@ paths:
               schema:
                 type: array
                 items: {$ref: '#/components/schemas/SyntheticScenario'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /v1/risk/infrastructure:
+    get:
+      operationId: listInfrastructure
+      description: >-
+        Viewer/admin. The embedded fictional infrastructure catalogue for the
+        PM-11 demo: one declared entity, zone, geometry and source per element.
+        It is not the mandante's real catalogue, no coordinate is a real asset
+        location, and `source` is `synthetic_fixture`. Each element contributes
+        1 provisional demo point regardless of type; the zone score is the sum
+        of its per-type counts and is not a risk classification. Counts always
+        carry all five types, zero included, and are computed from the embedded
+        entries. Zones are ordered by descending score, then ascending zone_id.
+        The route reads no database or broker and does not change the risk
+        classifier.
+      responses:
+        '200':
+          description: >-
+            Frozen synthetic fixture. Zone IDs are seeded commune codes; the
+            geometry-less legacy valparaiso-demo row is not used.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InfrastructureCatalogue'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
@@ -494,6 +697,19 @@ paths:
         completes with that earlier version, so the active row here and the
         version recorded on the newest batch can legitimately differ until the
         next publication is resolved.
+
+        The additive `effective` object reports the classifier the NEXT
+        publication would resolve at read time, using the same runtime source the
+        publisher uses. It is not a claim about the last publication, about
+        inference availability or about an artifact having been published:
+        `{"status":"rule","version":"...","params_hash":"..."}` appears only
+        when the resolved classifier is a rule whose own policy fingerprint is a
+        canonical lowercase SHA-256 and, for a frozen identifier, matches the
+        frozen expectation. A resolved trained classifier is
+        `{"status":"non_rule"}` with no identity. A missing resolver, an
+        unreadable registry, an unresolvable active version, a fingerprint error
+        or any other missing evidence is `{"status":"unavailable"}`, and it never
+        changes the registry list's `200` or its `models` array.
       responses:
         '200':
           description: Model registry ordered active first, then by version.
@@ -597,8 +813,23 @@ paths:
     get:
       operationId: listAudit
       description: >-
-        Admin only. Last 100 audit records; application role cannot update or
-        delete audit rows.
+        Admin only. Last 100 audit records, newest first. Every row carries a
+        durable event id derived from the audit table's own identity, the
+        verified display name captured when the event was written (null when no
+        verified human name exists: legacy rows and system events such as
+        batch.published), a server-generated free-text detail and a closed event
+        kind. A query is recorded with event_kind query and keeps job_id null; a
+        mutation keeps the job it changed. Historical rows written before these
+        fields existed keep their original actor_id, action, job_id, trace_id
+        and occurred_at, and their actor_name and detail are null rather than a
+        synthesized name. The application role can only select and insert audit
+        rows; it cannot update or delete them. The gateway records successful
+        GETs for latest risk, historical risk and its CSV export, aggregate
+        published batches, observations, and the preventive-action collection
+        and detail. It does not record this endpoint, catalogues, geometry
+        requests, or failed upstream reads. If recording a selected successful
+        result fails, that read returns 503 storage_unavailable instead of the
+        upstream success.
       responses:
         '200':
           description: Audit entries
@@ -608,13 +839,57 @@ paths:
                 type: array
                 items:
                   type: object
-                  required: [actor_id, action, job_id, trace_id, occurred_at]
+                  required: [event_id, actor_id, actor_name, action, event_kind, detail, job_id, trace_id, occurred_at]
                   properties:
+                    event_id:
+                      type: string
+                      pattern: '^audit-[0-9]+$'
+                      description: >-
+                        Stable identifier of this audit row, derived from the
+                        audit table's own identity. It is never the job or the
+                        trace id.
+                      example: audit-42
                     actor_id: {type: string}
+                    actor_name:
+                      type: string
+                      nullable: true
+                      description: >-
+                        Display name resolved from the verified token claims at
+                        write time. Null when no verified name was captured;
+                        clients fall back to actor_id and never synthesize a
+                        name.
                     action:
                       type: string
-                      enum: [job.requested, batch.published]
-                    job_id: {type: string, format: uuid}
+                      description: >-
+                        The action the event records. The mutation actions
+                        written by the job transitions are job.requested and
+                        batch.published. The query actions are risk.current.read
+                        (GET /v1/risk/latest), risk.history.read (GET /v1/risk/history
+                        or its CSV export at GET /v1/risk/history.csv),
+                        risk.batches.read (GET /v1/risk/batches),
+                        prevention.observations.read (GET /v1/prevention/observations),
+                        and prevention.actions.read (GET /v1/prevention/actions or
+                        its action detail). Request query parameters, tokens and
+                        resource IDs are not copied into the record.
+                    event_kind:
+                      type: string
+                      enum: [mutation, query]
+                      description: >-
+                        'mutation' for an applied write, 'query' for a recorded
+                        read. A read is never recorded as a mutation.
+                    detail:
+                      type: string
+                      nullable: true
+                      description: >-
+                        Server-generated free-text context for the event. Null
+                        on historical rows written before the field existed.
+                    job_id:
+                      type: string
+                      format: uuid
+                      nullable: true
+                      description: >-
+                        The affected job, or null for a query record that has no
+                        job.
                     trace_id: {type: string, format: uuid}
                     occurred_at: {type: string, format: date-time}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -1268,6 +1543,223 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/prevention/observations:
+    get:
+      operationId: listPreventionObservations
+      description: >-
+        Viewer/admin. PM-09 field observations, newest first, capped at 200
+        rows. `type` is the only query parameter and is an optional filter: an
+        omitted or empty one narrows nothing, and an empty result is a valid
+        answer rather than an error. A repeated parameter, a parameter this
+        operation does not define, or a type outside the closed catalogue is
+        refused 422 invalid_query before anything is read, because an
+        unrecognised type would otherwise read as "no such observations"
+        instead of "no such type". `zone_name` is read from the zone catalogue
+        by the same query, never stored as a second copy of the name.
+      parameters:
+        - in: query
+          name: type
+          required: false
+          schema: {$ref: '#/components/schemas/PreventiveObservationType'}
+      responses:
+        '200':
+          description: >-
+            Observations matching the filter, newest first by observation date
+            and then creation; [] when none matches.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PreventiveObservation'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422':
+          description: Invalid query; nothing was read.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                properties:
+                  code: {type: string, enum: [invalid_query]}
+                  request_id: {type: string, format: uuid}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+    post:
+      operationId: createPreventionObservation
+      description: >-
+        Admin only; a viewer is refused 403. Records one field observation. The
+        author is the verified token subject: the body has no author field, and
+        an unknown field — including a client-sent created_by, author, id or
+        zone_name — is refused rather than ignored. The type must be a member of
+        the closed catalogue; there is no free-text type. zone_id must be a code
+        the authoritative zone catalogue holds: the insert selects the zone from
+        that catalogue, so a code it does not hold is refused 422 zone_not_found
+        and nothing is written. observed_on is a calendar date, not an instant.
+        Observations are append-only: PM-09 publishes no detail, update or
+        delete route, so the answer is the created representation and no
+        Location header names a URI this contract does not serve.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PreventiveObservationCreate'}
+      responses:
+        '201':
+          description: The created observation, with its zone name from the catalogue.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PreventiveObservation'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '415':
+          description: JSON content type required.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                properties:
+                  code: {type: string, enum: [json_required]}
+                  request_id: {type: string, format: uuid}
+        '422':
+          description: >-
+            Invalid input; nothing was written. A missing or blank field, a type
+            outside the closed catalogue, an observed_on that is not a calendar
+            date, a description longer than 240 characters, an unknown field, or
+            a body that is not one JSON document is refused as
+            invalid_observation_request. A zone_id the zone catalogue does not
+            hold is refused as zone_not_found. In both cases no row is added.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                properties:
+                  code:
+                    type: string
+                    enum: [invalid_observation_request, zone_not_found]
+                  request_id: {type: string, format: uuid}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/prevention/observations/{id}/adoption:
+    post:
+      operationId: adoptPreventionObservation
+      description: >-
+        Admin only. Explicitly confirms that an existing non-cancelled action
+        is needed and records the field observation supporting it. The action
+        may still be proposed; this operation does not assign personnel or
+        change its status. An observation can support at most one action, and
+        several observations may support the same action. Repeating the same
+        link returns the stored observation without rewriting the confirmation,
+        even if the action was cancelled later.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the existing field observation.
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action_id]
+              properties:
+                action_id: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The persisted observation with its adopted action ID.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PreventiveObservation'}
+        '400':
+          description: Invalid observation UUID (invalid_observation_id).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404':
+          description: The observation does not exist (observation_not_found).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '409':
+          description: >-
+            A fresh link to a cancelled action (action_cancelled) or an attempt
+            to replace an existing link (observation_already_adopted). No link
+            is changed.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '415':
+          description: JSON content type required (json_required).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '422':
+          description: >-
+            The body is not a single valid adoption request of at most 1024
+            bytes (invalid_adoption_request), or references an action that
+            does not exist (action_not_found). No confirmation is recorded.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/prevention/observations/zones:
+    get:
+      operationId: listPreventionObservationZones
+      description: >-
+        Viewer/admin. The zone options the observation form offers, read from the
+        authoritative zone catalogue — the `zones` table the risk migrations
+        create and seed — and ordered by name then code. Every catalogue zone is
+        listed, including the zones that carry no geometry and are therefore
+        absent from the GeoJSON map layer, because a registration form must be
+        able to name every zone the catalogue holds. The page must populate its
+        select from this route instead of a literal list.
+      responses:
+        '200':
+          description: >-
+            The zone catalogue in display order; [] only when the catalogue
+            really is empty.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PreventiveObservationZone'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
   /v1/users:
     get:
       operationId: listRealmUsers
@@ -1546,11 +2038,58 @@ components:
         whose parameter set is not reconstructible.
     ModelList:
       type: object
-      required: [models]
+      required: [models, effective]
       properties:
         models:
           type: array
           items: {$ref: '#/components/schemas/ModelVersion'}
+        effective:
+          $ref: '#/components/schemas/EffectiveClassifier'
+    EffectiveClassifier:
+      description: >-
+        Additive projection of the classifier the next publication would resolve
+        at read time. Exactly one shape applies. Identity belongs to the rule
+        state alone; unavailable is the fail-closed answer, not an error, and it
+        can coexist with a successful registry list.
+      oneOf:
+        - $ref: '#/components/schemas/EffectiveRuleClassifier'
+        - $ref: '#/components/schemas/EffectiveNonRuleClassifier'
+        - $ref: '#/components/schemas/EffectiveUnavailableClassifier'
+    EffectiveRuleClassifier:
+      type: object
+      required: [status, version, params_hash]
+      additionalProperties: false
+      properties:
+        status: {type: string, enum: [rule]}
+        version:
+          type: string
+          minLength: 1
+          description: The resolved rule's identifier, as the runtime selected it.
+        params_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: >-
+            The resolved rule's own verified policy fingerprint. It is canonical
+            lowercase SHA-256 and, for a frozen identifier, equal to the frozen
+            expectation; it is not a registry row copied blindly.
+    EffectiveNonRuleClassifier:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status: {type: string, enum: [non_rule]}
+      description: >-
+        A resolved trained or otherwise non-rule classifier. Its identity is
+        omitted because this projection does not present a model as a rule.
+    EffectiveUnavailableClassifier:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status: {type: string, enum: [unavailable]}
+      description: >-
+        Missing evidence or a resolution failure. No version or fingerprint is
+        claimed, and the registry list itself remains a successful 200.
     ErrorResponse:
       type: object
       description: >-
@@ -1719,6 +2258,142 @@ components:
       properties:
         id: {$ref: '#/components/schemas/SyntheticScenarioID'}
         description: {type: string}
+    InfrastructureCatalogue:
+      type: object
+      description: >-
+        Frozen PM-11 demo body. `source` is the declared origin every element
+        shares; `points_per_element` is the provisional demo weight, not an
+        approved production weight.
+      required: [source, points_per_element, zones]
+      properties:
+        source: {type: string, enum: [synthetic_fixture]}
+        points_per_element:
+          type: integer
+          enum: [1]
+          description: >-
+            Provisional demo weight: exactly one point per element, regardless
+            of type. The client's boundary guard rejects any other value.
+        zones:
+          type: array
+          description: >-
+            Ordered by descending score, then ascending zone_id. One element per
+            seeded zone that carries at least one fictional asset in the fixture.
+          items: {$ref: '#/components/schemas/InfrastructureZone'}
+    InfrastructureZone:
+      type: object
+      required: [zone_id, score, counts, elements]
+      properties:
+        zone_id:
+          type: string
+          example: '05101'
+          description: >-
+            Seeded catalogue commune code. The fixture never uses the
+            geometry-less legacy valparaiso-demo row.
+        score:
+          type: integer
+          minimum: 0
+          description: >-
+            points_per_element multiplied by the zone's fixture element count.
+            It describes demo exposure; it is not a risk classification.
+        counts: {$ref: '#/components/schemas/InfrastructureCounts'}
+        elements:
+          type: array
+          items: {$ref: '#/components/schemas/InfrastructureElement'}
+    InfrastructureCounts:
+      type: object
+      description: >-
+        Per-type count computed from the zone's fixture entries. All five keys
+        are always present; a type with no element is reported as zero rather
+        than omitted.
+      required: [colegio, vivienda, hospital, ruta, hidrante]
+      additionalProperties: false
+      properties:
+        colegio: {type: integer, minimum: 0}
+        vivienda: {type: integer, minimum: 0}
+        hospital: {type: integer, minimum: 0}
+        ruta: {type: integer, minimum: 0}
+        hidrante: {type: integer, minimum: 0}
+    InfrastructureElement:
+      description: >-
+        One fictional asset. `id` is a stable fixture identifier, not a real
+        asset identifier, and `geometry` links the element to the territory of
+        its seeded zone. The declared `type` selects the geometry the producer
+        serves: `ruta` is the only LineString type, and the four building and
+        hydrant types are Points.
+      oneOf:
+        - $ref: '#/components/schemas/InfrastructurePointElement'
+        - $ref: '#/components/schemas/InfrastructureLineStringElement'
+    InfrastructureElementBase:
+      type: object
+      description: >-
+        The fields every fictional element carries. `type` and `geometry` are
+        narrowed by the element branch below instead of being restated here, so
+        the point and line shapes cannot drift into divergent definitions.
+      required: [id, type, geometry]
+      properties:
+        id: {type: string, example: fixture-05101-colegio-1}
+    InfrastructurePointElement:
+      allOf:
+        - $ref: '#/components/schemas/InfrastructureElementBase'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [colegio, vivienda, hospital, hidrante]
+            geometry: {$ref: '#/components/schemas/InfrastructurePointGeometry'}
+    InfrastructureLineStringElement:
+      allOf:
+        - $ref: '#/components/schemas/InfrastructureElementBase'
+        - type: object
+          properties:
+            type: {type: string, enum: [ruta]}
+            geometry: {$ref: '#/components/schemas/InfrastructureLineStringGeometry'}
+    InfrastructureGeometry:
+      description: >-
+        RFC 7946 geometry restricted to the two shapes this catalogue uses:
+        Point for buildings and hydrants, LineString for routes. The declared
+        `type` selects the coordinate shape the producer serves: a Point is one
+        position of exactly two numbers and a LineString is two or more positions
+        of exactly two numbers. Coordinates
+        are [longitude, latitude] WGS84 degrees and are fictional, not real asset
+        locations. Kept separate from Geometry because that schema serves the
+        catalogue polygons and must not gain a LineString member. Coordinate
+        ranges are a documented limit of this layer: OpenAPI 3.0 has no
+        per-index tuple validation, so a single uniform range on the position
+        numbers would accept an impossible latitude or reject a valid longitude.
+        The client's parser enforces [-180, 180] for the first number and
+        [-90, 90] for the second; this document pins the two-number shape the
+        producer always serves.
+      oneOf:
+        - $ref: '#/components/schemas/InfrastructurePointGeometry'
+        - $ref: '#/components/schemas/InfrastructureLineStringGeometry'
+    InfrastructurePointGeometry:
+      type: object
+      description: One fictional asset location as a single RFC 7946 position.
+      required: [type, coordinates]
+      properties:
+        type: {type: string, enum: [Point]}
+        coordinates:
+          type: array
+          description: One [longitude, latitude] position.
+          minItems: 2
+          maxItems: 2
+          items: {type: number}
+    InfrastructureLineStringGeometry:
+      type: object
+      description: One fictional route as an RFC 7946 LineString of positions.
+      required: [type, coordinates]
+      properties:
+        type: {type: string, enum: [LineString]}
+        coordinates:
+          type: array
+          description: Two or more [longitude, latitude] positions.
+          minItems: 2
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: {type: number}
     Job:
       type: object
       required: [id, zone_id, state, requested_at, attempts]
@@ -1904,6 +2579,92 @@ components:
             One element per zone with at least one published batch, ordered by
             zone_id ascending. A zone with no published batch is absent.
           items: {$ref: '#/components/schemas/ZoneBatch'}
+    AlertLevel:
+      type: string
+      description: >-
+        A determined risk level. `desconocido` is deliberately absent: it records
+        that the inputs were insufficient rather than a severity, so an alert
+        naming it is refused by this schema exactly as the table refuses it.
+      enum: [bajo, medio, alto]
+    Alert:
+      type: object
+      description: >-
+        One stored level change of one zone, as PM-07 persisted it. It is evidence
+        that a transition happened: it carries no read state, no delivery attempt
+        and no synthetic stand-in.
+      required:
+        - id
+        - zone_id
+        - zone_name
+        - previous_level
+        - new_level
+        - threshold
+        - occurred_at
+        - demo
+      additionalProperties: false
+      properties:
+        id: {type: string, format: uuid}
+        zone_id:
+          type: string
+          description: >-
+            Catalogue zone code of the transition. The accepted set is whatever
+            the catalogue holds, so it is deliberately not an enum here: an enum
+            would drift from the table.
+        zone_name:
+          type: string
+          nullable: true
+          description: >-
+            Current catalogue label of the zone, joined at read time. It is null
+            when the catalogue no longer names the zone: the alert is still
+            served, because it records a transition rather than projecting the
+            catalogue, and a label is never invented.
+        previous_level: {$ref: '#/components/schemas/AlertLevel'}
+        new_level: {$ref: '#/components/schemas/AlertLevel'}
+        threshold:
+          type: integer
+          minimum: 1
+          description: >-
+            The agreed threshold stored with the row rather than assumed at read
+            time: one severity step, the smallest change two determined levels
+            can have. A later policy applies to the rows written with it, never
+            retroactively to these.
+        occurred_at:
+          type: string
+          format: date-time
+          description: >-
+            UTC instant of the assessment that produced the transition. It is the
+            alert's ordering key together with the identifier.
+        demo:
+          type: boolean
+          description: >-
+            Read from the batch that produced the alert, never stamped here. True
+            means the transition came from a synthetic demonstration input, so a
+            real transition cannot be labelled synthetic and a synthetic one is
+            never silently unlabelled.
+    AlertCollection:
+      type: object
+      description: >-
+        One page of the alert timeline. items is never null: an empty timeline is
+        an empty array with 200, never 404, because nothing stored is an answer.
+      required: [items, next_cursor]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          description: >-
+            Up to limit alerts in the requested direction. The order is
+            (occurred_at, id) so a page boundary is stable when two alerts share
+            an instant.
+          items: {$ref: '#/components/schemas/Alert'}
+        next_cursor:
+          type: string
+          nullable: true
+          description: >-
+            Opaque cursor for the next page in the same direction, or null when
+            this page reached the end. It is bound to the direction it encodes, so
+            a client resets its cursor history when the order changes. Opaque means
+            unstructured, not secret or signed: echo it verbatim and do not
+            interpret it.
     Geometry:
       type: object
       description: >-
@@ -2285,3 +3046,111 @@ components:
             The server-produced job whose published batch is the reassessment.
             The batch, version, risk level and synthetic flag are never accepted
             from the client.
+    PreventiveObservationType:
+      type: string
+      description: >-
+        PM-09's closed observation catalogue. A value outside it is refused 422
+        and nothing is written; there is no free-text type. The Spanish labels
+        the page renders are presentation, not wire values: vegetacion_seca =
+        "Vegetación seca", microbasural = "Microbasural", quema = "Quema",
+        acceso_bloqueado = "Acceso bloqueado", otro = "Otro".
+      enum:
+        - vegetacion_seca
+        - microbasural
+        - quema
+        - acceso_bloqueado
+        - otro
+    PreventiveObservation:
+      type: object
+      description: >-
+        One append-only field observation. There is no update and no delete: the
+        row is the record of what an operator saw on a day.
+      required:
+        - id
+        - type
+        - zone_id
+        - zone_name
+        - observed_on
+        - description
+        - created_by
+        - created_at
+      properties:
+        id: {type: string, format: uuid}
+        type: {$ref: '#/components/schemas/PreventiveObservationType'}
+        zone_id:
+          type: string
+          description: >-
+            Code of the catalogue zone the observation was recorded in. The
+            accepted set is the zone catalogue, served by the observation zones
+            route; it is deliberately not an enum, because an enum would drift
+            from the table.
+        zone_name:
+          type: string
+          nullable: true
+          description: >-
+            The name the zone catalogue reports for zone_id, read by the same
+            query. Null means the catalogue no longer holds the code: the
+            observation is historical, so its record is kept and the missing
+            name is reported instead of invented.
+        observed_on:
+          type: string
+          description: >-
+            Calendar date (YYYY-MM-DD) of the observation, not an instant. No
+            calendar bound is imposed: the design's sample range is a mock
+            artefact and is not part of this contract.
+        description:
+          type: string
+          description: >-
+            What was seen, as sent. Non-blank and at most 240 characters, the
+            size the design states for the field.
+        created_by:
+          type: string
+          description: >-
+            The author: verified token subject of the admin who recorded the
+            observation. Never a client-supplied identity.
+        created_at: {type: string, format: date-time}
+        adopted_action_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            ID of the action confirmed as necessary based on this observation,
+            or null when there is no link. Later cancellation does not erase
+            the recorded association.
+    PreventiveObservationCreate:
+      type: object
+      additionalProperties: false
+      required: [zone_id, type, observed_on, description]
+      properties:
+        zone_id:
+          type: string
+          description: >-
+            Catalogue zone code. It must exist in the zone catalogue; a code it
+            does not hold is refused 422 zone_not_found and nothing is written.
+        type: {$ref: '#/components/schemas/PreventiveObservationType'}
+        observed_on:
+          type: string
+          description: >-
+            Calendar date (YYYY-MM-DD); a date-time is refused. There is no
+            accepted range: any real calendar date is valid.
+        description:
+          type: string
+          maxLength: 240
+          description: Non-blank, at most 240 characters.
+    PreventiveObservationZone:
+      type: object
+      description: >-
+        One zone option of the observation form, read from the authoritative
+        catalogue. This projection carries no geometry, so the zones the map
+        layer omits are still offered here.
+      required: [code, name, province]
+      properties:
+        code: {type: string}
+        name: {type: string}
+        province:
+          type: string
+          nullable: true
+          description: >-
+            Province the catalogue records, or null when it records none. The
+            empty string is not substituted, because "no province recorded" and
+            "a province with an empty name" are different facts.

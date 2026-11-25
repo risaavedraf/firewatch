@@ -217,6 +217,9 @@ func run() error {
 	// activation (the activation record ActivateModel writes) wins; otherwise the
 	// MODEL_ID selection above is the bootstrap. A version this binary cannot
 	// execute, or a frozen fingerprint mismatch, fails the publication closed.
+	// The same configured source is handed to the read routes, so GET /v1/models
+	// projects the selection the next publication would resolve through it; the
+	// read never resolves by parsing registry rows on its own.
 	classifierSource := service.RegistryClassifierSource{Models: store, Registry: classifiers, Bootstrap: active}
 	publisher := service.Publisher{Provider: provider, Classifiers: classifierSource, Store: store, Outcomes: outcomes, Model: featureSource}
 	// Validate both bounds before starting any broker worker.
@@ -253,7 +256,7 @@ func run() error {
 	snapshot := func() messaging.DeadLetterSnapshot { return broker.Snapshot(time.Now(), dlqReadyMaxAge) }
 	mux := http.NewServeMux()
 	check := statusEvaluator(db.Ping, snapshot, dlqReadyMaxDepth, dlqReadyMaxAge)
-	mux.Handle("/v1/", handler.NewWithCycle(store, verifier, check, cycleRunner, publisher.Provider))
+	mux.Handle("/v1/", handler.NewWithCycleAndClassifier(store, verifier, check, cycleRunner, classifierSource, publisher.Provider))
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
 	mux.Handle("GET /health/ready", healthHandler(check))
 	var requests atomic.Uint64

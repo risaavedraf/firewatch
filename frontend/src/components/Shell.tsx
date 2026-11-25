@@ -47,6 +47,13 @@ function updateCheckedText(lastSettled: SettledReview | null): string {
     : `el gateway no respondió en la última revisión (${lastSettled.at})`;
 }
 
+// The card's probe travels on its own lane. The sources view probes the same
+// route inside its bounded cycle, and one shared sequence let the probe started
+// last discard this card's healthy answer — a false outage on a working gateway.
+function probeGateway(signal?: AbortSignal): Promise<Outcome<null>> {
+  return ready(signal, 'shell');
+}
+
 // The gateway probe proves gateway availability and nothing else: the page says so
 // in the card itself, because a superficial readiness answer is not pipeline proof
 // and the verifiable pipeline state lives in its own panel.
@@ -83,7 +90,7 @@ export function Shell({ route, children }: { route: RouteDefinition; children: R
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
-    void ready(controller.signal).then((outcome) => {
+    void probeGateway(controller.signal).then((outcome) => {
       if (!active) return;
       setReadiness(readinessFrom(outcome));
       setLastSettled({ ok: outcome.ok, at: nowLabel() });
@@ -96,7 +103,7 @@ export function Shell({ route, children }: { route: RouteDefinition; children: R
 
   const checkReadiness = () => {
     setReadiness({ state: 'checking', message: CHECKING });
-    void ready().then((outcome) => {
+    void probeGateway().then((outcome) => {
       setReadiness(readinessFrom(outcome));
       setLastSettled({ ok: outcome.ok, at: nowLabel() });
     });

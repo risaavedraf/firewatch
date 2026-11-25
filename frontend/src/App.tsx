@@ -8,7 +8,10 @@ import { ActionsView } from './views/ActionsView';
 import { AuditView } from './views/AuditView';
 import { AuthView } from './views/AuthView';
 import { HistoryView } from './views/HistoryView';
+import { InfrastructureView } from './views/InfrastructureView';
 import { JobsView } from './views/JobsView';
+import { NotificationsView } from './views/NotificationsView';
+import { ObservationsView } from './views/ObservationsView';
 import { OverviewView } from './views/OverviewView';
 import { PendingView } from './views/PendingView';
 import { SessionView } from './views/SessionView';
@@ -16,11 +19,14 @@ import { SourcesView } from './views/SourcesView';
 
 const views: Record<ViewId, () => ReactElement> = {
   overview: OverviewView,
+  infrastructure: InfrastructureView,
   history: HistoryView,
   actions: ActionsView,
+  observations: ObservationsView,
   sources: SourcesView,
   jobs: JobsView,
   session: SessionView,
+  notifications: NotificationsView,
   pending: PendingView,
   audit: AuditView,
 };

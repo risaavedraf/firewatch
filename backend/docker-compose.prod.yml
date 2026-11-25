@@ -81,6 +81,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
       JOBS_DB_PASSWORD: ${JOBS_DB_PASSWORD:?required}
       RISK_DB_PASSWORD: ${RISK_DB_PASSWORD:?required}
+      # PM-10 amendment, added after the supersession note above and not a
+      # correction of anything it describes: the gateway records the selected
+      # business reads through its own insert-only role, so the stack needs that
+      # role's password here and in the gateway service below. Without both the
+      # gateway refuses to start, which is why they are `:?` and not optional.
+      AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD:?required}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -257,11 +263,25 @@ services:
       JOBS_URL: http://jobs:8080
       RISK_URL: http://risk:8080
       PREVENTION_URL: http://prevention:8084
+      # PM-10 amendment. verify-full against the CA the pod mounts, because the
+      # recorder credential writes the audit trail: sslmode=disable would be
+      # refused by the gateway's own transport guard outside development. This is
+      # the same string deploy/k8s/bootstrap-secrets.sh puts in audit-runtime, and
+      # it is the reason this file cannot run as it stands: the postgres service
+      # below serves no certificate, which the header already records.
+      AUDIT_DATABASE_URL: postgres://audit_query_app:${AUDIT_DB_PASSWORD:?required}@postgres:5432/jobs?sslmode=verify-full&sslrootcert=/etc/tls/ca.crt
       # The page origin exactly as the browser spells it. It must equal the
       # identity provider's registered web origin and the frontend's
       # `VITE_REDIRECT_URI`, scheme included.
       WEB_ORIGIN: https://${FIREWATCH_DOMAIN:?required}
-    depends_on: [jobs, risk, prevention, identity]
+    depends_on:
+      jobs: {condition: service_started}
+      risk: {condition: service_started}
+      prevention: {condition: service_started}
+      identity: {condition: service_started}
+      # PM-10 amendment: the writer function the recorder calls is created by the
+      # jobs migrations.
+      jobs-migrate: {condition: service_completed_successfully}
 
   # The single public edge. It terminates TLS with a certificate Caddy obtains
   # and renews itself (no wildcard: one certificate per configured name), serves
@@ -397,6 +417,8 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?required}@postgres:5432/risk_test?sslmode=disable
     depends_on:
+      # Serialize migrations on risk_test and seed the zone catalog first.
+      risk-test-migrate: {condition: service_completed_successfully}
       postgres: {condition: service_healthy}
 
 networks:

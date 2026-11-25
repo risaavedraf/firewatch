@@ -1,0 +1,1351 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FireWatch · Dirección 01 · Mapa operativo (maqueta)</title>
+<style>
+:root {
+  color-scheme: light;
+  --forest-950: #102c2d;
+  --forest-900: #173c3b;
+  --forest-700: #285e56;
+  --forest-500: #638579;
+  --canvas: #f5f5ef;
+  --paper: #fffefa;
+  --ink: #233b39;
+  --muted: #5c6c65;
+  --line: #dde3da;
+  --soft: #eef1e9;
+  --terracotta: #a74d34;
+  --terracotta-soft: #f7e9e2;
+  --gold: #85691e;
+  --gold-soft: #f7f0d9;
+  --level-low-fill: #84ab8e;
+  --level-low-line: #5c8467;
+  --level-medium-fill: #d0b756;
+  --level-medium-line: #a99850;
+  --level-high-fill: #c77454;
+  --level-high-line: #b36647;
+  --level-unknown-fill: #c3cbcd;
+  --level-unknown-line: #6b7a80;
+  --level-neutral-fill: #e6ecea;
+  --level-neutral-line: #9fb3ab;
+  --radius: 12px;
+  --shadow: 0 3px 14px rgb(24 52 40 / 3%);
+  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--canvas); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p, dl, dd, ol, ul, figure { margin-top: 0; }
+h1, h2, h3, h4 { line-height: 1.2; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--forest-950); outline-offset: 3px; }
+.on-dark :focus-visible,
+.topbar :focus-visible,
+.map-stage :focus-visible,
+.selected-brief :focus-visible,
+.cutoff-box :focus-visible,
+.proto-strip :focus-visible { outline-color: #cf7d4f; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+.skip-link { position: fixed; top: -80px; left: 16px; z-index: 50; padding: 10px 14px; border-radius: 8px; background: var(--paper); color: var(--ink); font-weight: 700; box-shadow: var(--shadow); }
+.skip-link:focus { top: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.app { min-height: 100vh; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 28px; align-items: center; padding: 18px 32px; background: var(--forest-900); color: #f6fff9; border-bottom: 4px solid var(--gold); }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 11px; background: #d7aa73; color: var(--forest-900); font-family: Georgia, serif; font-size: 24px; font-style: italic; }
+.brand strong { display: block; color: var(--paper); font-size: 17px; font-weight: 650; letter-spacing: -.4px; }
+.brand small { display: block; color: #a8c2b7; font-size: 8px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+.title-block .eyebrow { color: #d7aa73; }
+h1 { margin: 2px 0 0; color: var(--paper); font-size: clamp(23px, 2.2vw, 31px); font-weight: 600; letter-spacing: -1px; }
+.sub { margin: 2px 0 0; color: #c3d6cf; font-size: 9px; }
+.batch-stamp { min-width: 268px; padding: 10px 14px; border: 1px solid #41625b; border-radius: 9px; background: var(--forest-950); }
+.stamp-label { margin: 0 0 4px; color: #c3d6cf; font-size: 8px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.stamp-line { display: flex; align-items: center; gap: 8px; }
+.big-level { margin: 0; color: var(--paper); font-size: 23px; font-weight: 650; letter-spacing: -.8px; }
+.stamp-meta { margin: 2px 0 0; color: #c3d6cf; font-size: 9px; line-height: 1.5; }
+.stamp-meta time { color: #f6fff9; font-weight: 650; }
+
+.proto-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 9px 32px; background: var(--gold-soft); color: #5f4717; border-bottom: 1px solid #f0dfb9; font-size: 10px; }
+.proto-strip strong { font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.proto-strip .g6-tag { margin-left: auto; padding: 3px 8px; border: 1px dashed #7d6c3f; border-radius: 6px; font-family: var(--mono); font-size: 9px; }
+
+.workspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 462px; }
+.territory-pane { min-width: 0; overflow: auto; padding: 22px 28px 30px 32px; }
+.actions-pane { min-width: 0; overflow: auto; padding: 20px 22px 30px; border-left: 1px solid var(--line); background: var(--soft); }
+.territory-pane:focus-visible, .actions-pane:focus-visible { outline-offset: -4px; }
+.eyebrow { margin: 0 0 5px; color: var(--forest-700); font-size: 9px; font-weight: 800; letter-spacing: 1.35px; text-transform: uppercase; }
+.micro { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+
+.map-stage { padding: 18px; border: 1px solid var(--forest-700); border-radius: var(--radius); background: var(--forest-900); color: #f6fff9; box-shadow: var(--shadow); }
+.stage-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.stage-head .eyebrow { color: #d7aa73; }
+.stage-head h2 { margin: 0; color: var(--paper); font-size: 24px; font-weight: 600; letter-spacing: -.7px; }
+.proto-badge { flex: none; padding: 5px 9px; border-radius: 6px; background: var(--gold-soft); color: #5f4717; font-size: 8px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.stage-note { max-width: 78ch; margin: 7px 0 0; color: #c3d6cf; font-size: 10px; line-height: 1.55; }
+
+.cutoff-box { margin-top: 13px; padding: 10px 12px 11px; border: 1px solid #41625b; border-radius: 8px; background: var(--forest-950); }
+.cutoff-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.cutoff-head label { color: var(--paper); font-size: 10px; font-weight: 750; }
+.cutoff-head output { color: #d7aa73; font-family: var(--mono); font-size: 10px; font-weight: 650; }
+.cutoff-box input[type="range"] { display: block; width: 100%; height: 30px; margin: 4px 0 0; accent-color: #d7aa73; cursor: pointer; }
+.cutoff-ticks { display: flex; justify-content: space-between; gap: 12px; color: #c3d6cf; font-family: var(--mono); font-size: 8px; }
+.cutoff-note { margin: 5px 0 0; color: #c3d6cf; font-size: 9px; line-height: 1.5; }
+
+.map-grid { display: grid; grid-template-columns: minmax(0, 1fr) 306px; gap: 14px; margin-top: 14px; }
+.map-figure { margin: 0; padding: 8px; border: 1px solid #d4dfd0; border-radius: 9px; background: #eef2e8; }
+.map-canvas { position: relative; }
+.map-canvas > svg { display: block; width: 100%; height: auto; }
+.map-controls { position: absolute; inset: 0; pointer-events: none; }
+.map-focus { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; display: grid; gap: 1px; max-width: 190px; min-height: 44px; padding: 7px 9px; border: 1px solid #9fb3ab; border-radius: 6px; background: var(--paper); color: var(--ink); text-align: left; box-shadow: var(--shadow); }
+.map-focus:hover { background: var(--soft); }
+.map-focus[aria-pressed="true"] { border: 3px solid var(--forest-950); background: var(--paper); }
+.map-focus .mf-name { font-size: 10px; font-weight: 750; line-height: 1.25; }
+.map-focus .mf-level { color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .04em; }
+.map-focus.mf-foco { left: 50%; top: 41%; }
+.map-focus.mf-borde { left: 17%; top: 76%; }
+.map-focus.mf-sin { left: 82%; top: 69%; }
+.map-focus:focus-visible { outline-color: var(--forest-950); }
+figcaption { padding: 6px 2px 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--line); color: var(--ink); font-size: 9px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.swatch { width: 12px; height: 12px; flex: none; border: 1px solid var(--level-neutral-line); border-radius: 3px; }
+.swatch-low { background: var(--level-low-fill); border-color: var(--level-low-line); }
+.swatch-medium { background: var(--level-medium-fill); border-color: var(--level-medium-line); }
+.swatch-high { background: var(--level-high-fill); border-color: var(--level-high-line); }
+.swatch-no-data { background: var(--level-neutral-fill); border: 2px dashed var(--level-neutral-line); }
+.swatch-boundary { width: 18px; height: 0; border: 0; border-top: 2px dashed var(--gold); border-radius: 0; }
+
+.sector-rail { padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink); }
+.sector-rail-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.sector-rail h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
+.sector-rail .count { padding: 2px 7px; border-radius: 999px; background: var(--soft); color: var(--ink); font-size: 9px; font-weight: 700; }
+.zone-list { display: grid; gap: 6px; margin-top: 9px; }
+.zone-btn { display: grid; gap: 2px; width: 100%; min-height: 62px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); color: var(--ink); text-align: left; }
+.zone-btn:hover { background: var(--soft); }
+.zone-btn[aria-pressed="true"] { border-color: var(--forest-950); background: var(--soft); box-shadow: inset 3px 0 0 var(--forest-950); }
+.zone-name { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 10.5px; font-weight: 750; letter-spacing: -.1px; }
+.zone-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--muted); font-size: 8.5px; }
+.zone-muni { color: var(--muted); font-size: 8px; line-height: 1.35; }
+.zone-priority { color: var(--muted); font-size: 8px; }
+.zone-priority strong { color: var(--ink); font-weight: 750; }
+
+.selected-brief { margin-top: 10px; padding: 12px; border-radius: 8px; background: var(--forest-950); color: var(--paper); }
+.selected-brief .micro { color: #c3d6cf; }
+.selected-brief h3 { margin: 3px 0 5px; color: var(--paper); font-size: 17px; font-weight: 600; letter-spacing: -.4px; }
+.selected-brief .brief-level { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 5px; }
+.selected-brief p { margin: 0 0 6px; color: #d5e1db; font-size: 10px; line-height: 1.55; }
+.selected-brief p:last-of-type { margin-bottom: 4px; }
+.focus-facts { display: grid; gap: 5px; margin: 8px 0 9px; padding: 8px 0; border-top: 1px solid #41625b; border-bottom: 1px solid #41625b; }
+.focus-facts div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 7px; }
+.focus-facts dt { color: #c3d6cf; font-size: 7.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.focus-facts dd { margin: 0; color: #f6fff9; font-size: 8.5px; line-height: 1.35; }
+.focus-facts dd.muni { color: #f6fff9; font-weight: 650; }
+.text-button { min-height: 32px; padding: 4px 0; border: 0; background: transparent; color: var(--forest-700); font-size: 10px; font-weight: 750; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.selected-brief .text-button { color: #d7aa73; }
+.text-button:hover { color: var(--forest-900); }
+.selected-brief .text-button:hover { color: var(--paper); }
+
+.level { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 5px; font-size: 8.5px; font-weight: 800; letter-spacing: .05em; line-height: 1.2; }
+.level::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.level-alto { background: var(--terracotta-soft); color: #9c472f; }
+.level-medio { background: var(--gold-soft); color: #7f641e; }
+.level-bajo { background: #e7f0e6; color: #396246; }
+.level-neutral { background: var(--soft); color: var(--ink); }
+.level-on-dark { background: var(--paper); color: var(--forest-900); }
+
+.reading-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+.panel { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 15px 17px 12px; border-bottom: 1px solid var(--line); }
+.panel-head h2 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.35px; }
+.panel-body { padding: 14px 17px 17px; }
+.panel-body > :last-child { margin-bottom: 0; }
+.panel-note { margin: 10px 0 0; color: var(--muted); font-size: 9px; line-height: 1.6; }
+.source-line { margin-bottom: 12px; padding: 8px 10px; border-left: 3px solid var(--gold); background: var(--gold-soft); color: #5f4717; font-size: 9px; line-height: 1.55; }
+.source-line strong { font-weight: 800; }
+.freshness { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0 0 12px; }
+.freshness div { padding-bottom: 7px; border-bottom: 1px solid #eef1ee; }
+.freshness dt { color: var(--muted); font-size: 8px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.freshness dd { margin: 2px 0 0; color: var(--ink); font-size: 10px; font-weight: 600; }
+.freshness dd .mono { font-family: var(--mono); font-size: 9px; font-weight: 500; }
+.subhead { margin: 14px 0 5px; color: var(--forest-700); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.copy-small { margin: 0; color: var(--ink); font-size: 10px; line-height: 1.6; }
+.factor-head { display: grid; grid-template-columns: 122px minmax(0, 1fr) 82px; gap: 10px; color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.factor-list { display: grid; gap: 2px; }
+.factor { display: grid; grid-template-columns: 122px minmax(0, 1fr) 82px; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid #eef1ee; }
+.factor-name { color: var(--ink); font-size: 9px; font-weight: 700; }
+.factor-contrib { color: var(--muted); font-size: 8.5px; text-align: right; }
+.factor-track { height: 7px; overflow: hidden; border-radius: 4px; background: #e8e9df; }
+.factor-track span { display: block; height: 100%; border-radius: 4px; background: var(--forest-700); }
+.evidence-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.evidence-list li { padding: 8px 0; border-top: 1px solid #eef1ee; }
+.evidence-list li:first-child { border-top: 0; padding-top: 0; }
+.evidence-list strong { display: block; font-size: 10px; font-weight: 700; }
+.evidence-list span { display: block; color: var(--muted); font-size: 8.5px; }
+.empty-inline { margin: 6px 0 0; padding: 9px 10px; border: 1px dashed #c8bda0; border-radius: 6px; background: #faf7ee; color: #7d6c3f; font-size: 9px; line-height: 1.55; }
+.status-line { margin: 0 0 9px; color: var(--ink); font-size: 10px; line-height: 1.55; }
+.rec-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.rec-item { padding: 9px 11px; border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 7px; background: var(--paper); }
+.rec-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
+.rec-id { color: var(--gold); font-family: var(--mono); font-size: 9px; font-weight: 700; }
+.rec-source { padding: 2px 6px; border-radius: 4px; background: var(--soft); color: var(--ink); font-size: 7.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.rec-item p { margin: 0 0 4px; font-size: 10.5px; line-height: 1.55; }
+.rec-item .text-button { min-height: 32px; font-size: 9px; }
+
+.actions-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.actions-head h2 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -.6px; }
+.actions-head .eyebrow { color: var(--forest-700); }
+.actions-count { flex: none; padding: 3px 9px; border-radius: 999px; background: var(--forest-900); color: var(--paper); font-size: 9px; font-weight: 700; }
+.actions-intro { margin: 4px 0 12px; color: var(--muted); font-size: 9px; line-height: 1.55; }
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 7px; }
+.field { display: grid; gap: 4px; color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.field input, .field select, .field textarea { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #ced8cb; border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.field textarea { min-height: 74px; resize: vertical; line-height: 1.5; }
+.field input::placeholder, .field textarea::placeholder { color: var(--muted); opacity: 1; }
+.field select:disabled, .field input:disabled { background: var(--soft); color: var(--muted); }
+.filter-status { min-height: 15px; margin: 0 0 7px; color: var(--forest-700); font-size: 9px; font-weight: 650; }
+.action-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.action-list li[hidden] { display: none; }
+.action-btn { display: grid; gap: 4px; width: 100%; min-height: 64px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); text-align: left; }
+.action-btn:hover { background: var(--soft); }
+.action-btn[aria-current="true"] { border-color: var(--forest-900); background: #f0eee0; box-shadow: inset 4px 0 0 var(--forest-900); }
+.action-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.action-title { margin: 0; font-size: 11px; font-weight: 700; line-height: 1.35; }
+.action-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; color: var(--muted); font-size: 8.5px; }
+.action-meta strong { color: var(--ink); font-weight: 700; }
+.status-chip { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 4px; font-size: 7.5px; font-weight: 800; letter-spacing: .04em; line-height: 1.2; text-transform: uppercase; white-space: nowrap; }
+.status-chip::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.chip-propuesta { background: var(--soft); color: var(--ink); }
+.chip-asignada { background: #e7f0e6; color: #396246; }
+.chip-en-curso { background: #e3efef; color: #32686a; }
+.chip-bloqueada { background: var(--gold-soft); color: #7f641e; }
+.empty-state { margin-top: 8px; padding: 14px; border: 1px dashed #c8bda0; border-radius: 7px; background: #faf7ee; color: #7d6c3f; font-size: 10px; }
+.empty-state button { margin-top: 6px; }
+
+.detail { margin-top: 14px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); }
+.detail-head { padding: 12px 14px; background: var(--forest-900); color: var(--paper); }
+.detail-head .eyebrow { color: #d7aa73; }
+.detail-head h3 { margin: 0; color: var(--paper); font-size: 15px; font-weight: 600; letter-spacing: -.3px; }
+.detail-body { padding: 12px 14px 14px; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0 0 11px; }
+.detail-grid div { min-width: 0; }
+.detail-grid dt { color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.detail-grid dd { margin: 2px 0 0; color: var(--ink); font-size: 10px; font-weight: 600; overflow-wrap: anywhere; }
+.assignee-box { margin: 10px 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; background: #f8faf7; }
+.assignee-box .label { margin: 0 0 2px; color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.assignee-name { margin: 0; color: var(--ink); font-size: 12px; font-weight: 700; }
+.assignee-role { margin: 1px 0 0; color: var(--muted); font-size: 9px; }
+.detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.create-block { margin-top: 16px; padding: 14px; border: 1px solid var(--line); border-top: 3px solid var(--gold); border-radius: 9px; background: var(--paper); }
+.create-block h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.4px; }
+.create-note { margin: 4px 0 12px; color: var(--muted); font-size: 9px; line-height: 1.55; }
+.form-grid { display: grid; gap: 9px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.case-switch { margin-top: 2px; padding: 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); }
+.case-switch .field-label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.case-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.case-btn { min-height: 34px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 9px; font-weight: 700; line-height: 1.3; }
+.case-btn[aria-pressed="true"] { background: var(--forest-900); color: var(--paper); border-color: var(--forest-900); }
+.assignee-hint { margin: 6px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.directory-failure { margin-top: 7px; padding: 9px 10px; border: 1px solid #f0dfb9; border-radius: 7px; background: var(--gold-soft); color: #705d35; font-size: 9px; line-height: 1.55; }
+.directory-failure strong { display: block; color: #5f4717; font-size: 10px; }
+.directory-failure .retry { margin-top: 6px; }
+.primary-button, .secondary-button { min-height: 44px; padding: 10px 14px; border-radius: 7px; font-size: 11px; font-weight: 750; }
+.primary-button { border: 1px solid var(--forest-900); background: var(--forest-900); color: #fcfcf2; }
+.primary-button:hover { background: var(--forest-700); border-color: var(--forest-700); }
+.secondary-button { border: 1px solid #ced8cb; background: var(--paper); color: var(--forest-700); }
+.secondary-button:hover { background: var(--soft); }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 2px; }
+.form-actions .micro { max-width: 190px; }
+.feedback { margin-top: 10px; padding: 10px; border: 1px solid #dfe8d8; border-radius: 7px; background: #eef3ea; color: #56705d; font-size: 9.5px; line-height: 1.55; }
+.feedback strong { display: block; color: #396246; font-size: 10px; }
+.feedback:focus-visible { outline-offset: 2px; }
+
+.footer { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 5px 18px; padding: 10px 32px; border-top: 1px solid var(--line); background: var(--paper); color: var(--muted); font-size: 8.5px; line-height: 1.5; }
+.footer strong { color: var(--ink); }
+
+@media (max-width: 1180px) {
+  .workspace { grid-template-columns: minmax(0, 1fr) 410px; }
+  .map-grid { grid-template-columns: 1fr; }
+  .map-figure { max-width: 100%; }
+}
+@media (max-width: 900px) {
+  .app { display: block; }
+  .topbar { grid-template-columns: auto minmax(0, 1fr); padding: 16px 20px; }
+  .batch-stamp { grid-column: 1 / -1; min-width: 0; }
+  .workspace { display: block; }
+  .territory-pane, .actions-pane { overflow: visible; padding: 18px 20px 24px; }
+  .actions-pane { border-left: 0; border-top: 8px solid var(--forest-900); }
+  .reading-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .map-controls { display: none; }
+  .map-canvas > svg text { display: none; }
+}
+@media (max-width: 620px) {
+  h1 { font-size: 24px; }
+  .topbar { padding: 14px 16px; gap: 12px; }
+  .brand-mark { width: 38px; height: 38px; font-size: 21px; }
+  .proto-strip { padding: 8px 16px; }
+  .proto-strip .g6-tag { margin-left: 0; }
+  .territory-pane, .actions-pane { padding: 14px 16px 22px; }
+  .map-stage { padding: 13px; }
+  .stage-head { flex-direction: column; gap: 8px; }
+  .cutoff-head { display: grid; gap: 3px; }
+  .map-grid { margin-top: 10px; }
+  .focus-facts div { grid-template-columns: 1fr; gap: 1px; }
+  .reading-grid { gap: 12px; margin-top: 12px; }
+  .freshness, .detail-grid, .filters, .form-row { grid-template-columns: 1fr; }
+  .factor, .factor-head { grid-template-columns: 100px minmax(0, 1fr) 64px; gap: 7px; }
+  .case-btn { min-height: 40px; }
+  .footer { padding: 10px 16px; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Saltar al contenido principal</a>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">F</span>
+      <span>
+        <strong>FireWatch</strong>
+        <small>Prevención municipal</small>
+      </span>
+    </div>
+    <div class="title-block">
+      <p class="eyebrow">PREVENCIÓN · FOCO TERRITORIAL · ESCENARIO ILUSTRATIVO</p>
+      <h1>Territorio en foco: Valparaíso</h1>
+      <p class="sub">Un foco continuo entre Valparaíso, Viña del Mar y Quilpué.</p>
+    </div>
+    <div class="batch-stamp" aria-label="Estado del foco seleccionado en la maqueta">
+      <p class="stamp-label">FOCO SELECCIONADO · MAQUETA</p>
+      <div class="stamp-line">
+        <p class="big-level" id="stamp-level">ALTO</p>
+        <span class="level level-on-dark" id="stamp-level-label">NIVEL INFORMADO</span>
+      </div>
+      <p class="stamp-meta">Último lote ≤ corte <time id="stamp-lot">18 nov 2026 · 14:20</time><br />Corte compartido <time id="stamp-cutoff">18 nov 2026 · 18:00</time></p>
+    </div>
+  </header>
+
+  <div class="proto-strip" role="note">
+    <strong>MAQUETA INTERACTIVA · ESCENARIO ILUSTRATIVO</strong>
+    <span>Foco, municipios, lotes y niveles inventados. Nada se guarda, se envía ni se persiste.</span>
+    <span class="g6-tag">PROTOTIPO G6 · V1-P-01 / V1-P-02</span>
+  </div>
+
+  <div class="workspace">
+    <main id="main" class="territory-pane" tabindex="0" role="region" aria-label="Panel de territorio">
+      <section class="map-stage" aria-labelledby="map-title">
+        <div class="stage-head">
+          <div>
+            <p class="eyebrow">LECTURA TERRITORIAL · CORTE COMPARTIDO</p>
+            <h2 id="map-title">Un foco continuo entre municipios</h2>
+          </div>
+          <span class="proto-badge">Foco + corte · prototipo G6</span>
+        </div>
+        <p class="stage-note">El área de riesgo es un foco continuo que cruza Valparaíso, Viña del Mar y Quilpué. Las líneas municipales son contexto de navegación, no la unidad de esta lectura. Esquema ilustrativo: sin geometrías reales ni evaluación del terreno.</p>
+
+        <div class="cutoff-box">
+          <div class="cutoff-head">
+            <label for="cutoff">Corte compartido del territorio</label>
+            <output id="cutoff-value" for="cutoff">18 nov 2026 · 18:00</output>
+          </div>
+          <input id="cutoff" type="range" min="0" max="1" step="1" value="0" aria-describedby="cutoff-note" />
+          <div class="cutoff-ticks" aria-hidden="true"><span>18 nov · 18:00</span><span>21 nov · 18:00</span></div>
+          <p class="cutoff-note" id="cutoff-note">Para cada foco se muestra el último lote publicado en o antes de este corte. Cambiar el corte conserva el foco seleccionado.</p>
+          <p class="sr-only" role="status" id="cutoff-live"></p>
+        </div>
+
+        <div class="map-grid">
+          <figure class="map-figure">
+            <div class="map-canvas">
+              <svg viewBox="0 0 760 420" role="img" aria-labelledby="map-svg-title map-svg-desc">
+                <title id="map-svg-title">Esquema de un foco de riesgo que cruza tres municipios</title>
+                <desc id="map-svg-desc">Figura esquemática sin geometrías reales. Un foco continuo de nivel alto cruza Valparaíso, Viña del Mar y Quilpué; un borde costero cercano aparece en nivel bajo; un interior sin lectura aparece sin evaluación. Las líneas municipales son contexto y no dividen el foco. Los controles accesibles están en los botones sobre el mapa y en la lista sincronizada.</desc>
+                <rect width="760" height="420" fill="#eef2e8"></rect>
+                <path d="M0 0 H120 C150 74 140 154 116 230 C96 300 106 364 132 420 H0 Z" fill="var(--level-neutral-fill)" stroke="var(--level-neutral-line)" stroke-width="1.5"></path>
+                <text x="22" y="200" transform="rotate(-90 22 200)" fill="#233b39" font-family="Inter, sans-serif" font-size="10" letter-spacing="1.1">OCÉANO PACÍFICO · ESQUEMA</text>
+
+                <g fill="none" stroke="#d4dfd0" stroke-width="1.3">
+                  <path d="M160 54 C260 28 370 48 470 32 S630 30 720 62"></path>
+                  <path d="M154 108 C262 76 366 102 472 82 S636 82 734 116"></path>
+                  <path d="M150 174 C260 140 370 166 478 144 S646 148 744 182"></path>
+                  <path d="M150 252 C268 218 380 244 492 222 S654 226 752 262"></path>
+                  <path d="M154 334 C274 300 390 326 506 304 S664 310 760 344"></path>
+                </g>
+
+                <g fill="none" stroke="#85691e" stroke-width="2" stroke-dasharray="8 6">
+                  <path d="M118 156 C250 136 390 162 640 122"></path>
+                  <path d="M430 0 C438 126 462 258 500 420"></path>
+                  <path d="M566 0 C548 102 610 202 760 246"></path>
+                </g>
+
+                <g data-map-label="vinamar">
+                  <rect x="250" y="24" width="108" height="22" rx="3" fill="#fffefa" stroke="#dde3da"></rect>
+                  <text x="258" y="39" fill="#233b39" font-family="Inter, sans-serif" font-size="9" font-weight="800" letter-spacing=".6">VIÑA DEL MAR</text>
+                </g>
+                <g data-map-label="valparaiso">
+                  <rect x="132" y="368" width="102" height="22" rx="3" fill="#fffefa" stroke="#dde3da"></rect>
+                  <text x="140" y="383" fill="#233b39" font-family="Inter, sans-serif" font-size="9" font-weight="800" letter-spacing=".6">VALPARAÍSO</text>
+                </g>
+                <g data-map-label="quilpue">
+                  <rect x="640" y="34" width="88" height="22" rx="3" fill="#fffefa" stroke="#dde3da"></rect>
+                  <text x="648" y="49" fill="#233b39" font-family="Inter, sans-serif" font-size="9" font-weight="800" letter-spacing=".6">QUILPUÉ</text>
+                </g>
+
+                <path data-map-shape="foco-quebrada-este" d="M236 132 C292 78 402 68 486 96 C560 120 622 168 592 234 C566 292 470 322 380 312 C296 304 232 268 214 210 C202 172 210 150 236 132 Z" fill="var(--level-high-fill)" stroke="var(--level-high-line)" stroke-width="2.5"></path>
+                <g fill="none" stroke="var(--level-high-line)" stroke-width="1.4" stroke-dasharray="4 5">
+                  <path d="M264 156 C316 112 410 104 478 128 C538 150 576 184 558 228 C538 276 454 294 386 286 C320 278 264 250 250 210 C242 188 248 170 264 156 Z"></path>
+                  <path d="M292 178 C334 146 408 138 462 156 C508 172 534 196 522 226 C506 258 442 270 390 264 C344 258 302 238 292 212 C286 200 286 188 292 178 Z"></path>
+                  <path d="M322 198 C356 176 410 170 448 182 C478 192 492 208 484 226 C472 246 426 252 392 248 C360 244 332 230 326 214 C322 206 320 202 322 198 Z"></path>
+                </g>
+
+                <path data-map-shape="borde-costero-norte" d="M104 280 C160 258 216 286 236 334 C248 368 222 398 168 404 C122 408 96 380 94 342 C92 318 96 292 104 280 Z" fill="var(--level-low-fill)" stroke="var(--level-low-line)" stroke-width="2"></path>
+
+                <path data-map-shape="interior-sin-lectura" d="M594 270 L704 258 L728 338 L676 396 L588 382 L566 330 Z" fill="var(--level-neutral-fill)" stroke="var(--level-neutral-line)" stroke-width="3" stroke-dasharray="8 5"></path>
+                <g fill="none" stroke="#9fb3ab" stroke-width="1.2">
+                  <path d="M604 300 L642 340"></path>
+                  <path d="M638 286 L680 330"></path>
+                  <path d="M670 294 L700 326"></path>
+                </g>
+
+                <path d="M300 26 C326 112 306 194 266 256 C236 302 210 360 198 420" fill="none" stroke="#d7aa73" stroke-width="3.5"></path>
+                <path d="M300 26 C326 112 306 194 266 256 C236 302 210 360 198 420" fill="none" stroke="#85691e" stroke-width="1.1" stroke-dasharray="5 6"></path>
+                <text x="240" y="300" transform="rotate(-64 240 300)" fill="#5f4717" font-family="Inter, sans-serif" font-size="8" font-weight="700">AV. ALEMANIA · ESQUEMA</text>
+
+                <g transform="translate(712 376)">
+                  <circle r="16" fill="#fffefa" stroke="#9fb3ab"></circle>
+                  <path d="M0 -8 L5 6 L0 3 L-5 6 Z" fill="#102c2d"></path>
+                  <text x="0" y="15" text-anchor="middle" fill="#233b39" font-family="Inter, sans-serif" font-size="7" font-weight="700">N</text>
+                </g>
+                <g transform="translate(24 386)">
+                  <rect width="92" height="20" rx="3" fill="#fffefa" stroke="#dde3da"></rect>
+                  <path d="M8 10 H36" stroke="#233b39" stroke-width="2"></path>
+                  <path d="M8 7 V13 M36 7 V13" stroke="#233b39" stroke-width="2"></path>
+                  <text x="44" y="13" fill="#233b39" font-family="Inter, sans-serif" font-size="8">1 km · esquema</text>
+                </g>
+              </svg>
+              <div class="map-controls" role="group" aria-label="Seleccionar foco en el mapa, sincronizado con la lista">
+                <button type="button" class="map-focus mf-foco" data-map-focus="foco-quebrada-este" aria-pressed="true">
+                  <span class="mf-name">Foco Quebrada del Este</span>
+                  <strong class="mf-level"><span id="map-level-foco-quebrada-este">ALTO</span> · concentración</strong>
+                </button>
+                <button type="button" class="map-focus mf-borde" data-map-focus="borde-costero-norte" aria-pressed="false">
+                  <span class="mf-name">Borde costero de Viña del Mar</span>
+                  <strong class="mf-level"><span id="map-level-borde-costero-norte">BAJO</span> · cercano</strong>
+                </button>
+                <button type="button" class="map-focus mf-sin" data-map-focus="interior-sin-lectura" aria-pressed="false">
+                  <span class="mf-name">Interior de Quilpué</span>
+                  <strong class="mf-level"><span id="map-level-interior-sin-lectura">SIN EVALUACIÓN</span> · sin lectura</strong>
+                </button>
+              </div>
+            </div>
+            <figcaption>Esquema territorial ilustrativo: el foco, el borde y el interior son áreas inventadas; no son geometrías exactas, riesgo observado ni una evaluación del terreno. Las líneas municipales son contexto. En pantallas angostas se ocultan los controles sobre el mapa: la lista sincronizada conserva la selección.</figcaption>
+            <div class="legend" aria-label="Leyenda de la lectura territorial">
+              <span><i class="swatch swatch-high"></i>FOCO CONTINUO · ALTO</span>
+              <span><i class="swatch swatch-low"></i>BORDE CERCANO · BAJO</span>
+              <span><i class="swatch swatch-no-data"></i>SIN LECTURA · SIN EVALUACIÓN</span>
+              <span><i class="swatch swatch-boundary"></i>LÍMITE MUNICIPAL · CONTEXTO</span>
+            </div>
+          </figure>
+
+          <div class="sector-rail">
+            <div class="sector-rail-head">
+              <h3 id="focus-list-title">Focos del territorio</h3>
+              <span class="count">3</span>
+            </div>
+            <p class="micro">Selección sincronizada con el mapa. El corte compartido se aplica a los tres.</p>
+            <div id="focus-list" class="zone-list" aria-labelledby="focus-list-title">
+              <button type="button" class="zone-btn" data-focus="foco-quebrada-este" aria-pressed="true">
+                <span class="zone-name">Foco Quebrada del Este <span class="level level-alto" id="list-level-foco-quebrada-este">ALTO</span></span>
+                <span class="zone-meta"><span>Lectura 100 %</span><span id="list-lot-foco-quebrada-este">Lote 18 nov · 14:20</span></span>
+                <span class="zone-muni">Valparaíso · Viña del Mar · Quilpué</span>
+                <span class="zone-priority">Prioridad contextual <strong>ALTA</strong> · prototipo</span>
+              </button>
+              <button type="button" class="zone-btn" data-focus="borde-costero-norte" aria-pressed="false">
+                <span class="zone-name">Borde costero de Viña del Mar <span class="level level-bajo" id="list-level-borde-costero-norte">BAJO</span></span>
+                <span class="zone-meta"><span>Lectura 100 %</span><span id="list-lot-borde-costero-norte">Lote 17 nov · 09:10</span></span>
+                <span class="zone-muni">Viña del Mar</span>
+                <span class="zone-priority">Prioridad contextual <strong>BAJA</strong> · prototipo</span>
+              </button>
+              <button type="button" class="zone-btn" data-focus="interior-sin-lectura" aria-pressed="false">
+                <span class="zone-name">Interior de Quilpué <span class="level level-neutral" id="list-level-interior-sin-lectura">SIN EVALUACIÓN</span></span>
+                <span class="zone-meta"><span>Lectura 0 %</span><span id="list-lot-interior-sin-lectura">Sin lote ≤ corte</span></span>
+                <span class="zone-muni">Quilpué</span>
+                <span class="zone-priority">Prioridad contextual <strong>SIN PRIORIDAD</strong> · prototipo</span>
+              </button>
+            </div>
+
+            <div class="selected-brief" aria-labelledby="selected-focus-name">
+              <p class="micro">FOCO SELECCIONADO · DATOS DE MAQUETA</p>
+              <h3 id="selected-focus-name">Foco Quebrada del Este</h3>
+              <p class="brief-level"><span id="selected-focus-level" class="level level-on-dark">ALTO</span><span class="micro" id="selected-focus-priority">Prioridad contextual ALTA · prototipo</span></p>
+              <p id="selected-focus-summary">Área continua de vegetación seca y viviendas en ladera que cruza tres municipios; los límites administrativos no separan el combustible.</p>
+              <dl class="focus-facts">
+                <div><dt>Municipios afectados</dt><dd id="selected-focus-municipalities">Valparaíso · Viña del Mar · Quilpué</dd></div>
+                <div><dt>Último lote ≤ corte</dt><dd id="selected-focus-lot">18 nov 2026 · 14:20</dd></div>
+                <div><dt>Antigüedad al corte</dt><dd id="selected-focus-age">3 h 40 min</dd></div>
+                <div><dt>Cobertura de lectura</dt><dd id="selected-focus-coverage">100 % · prototipo V1-P-01</dd></div>
+              </dl>
+              <button type="button" class="text-button" id="view-focus-actions">Ver acciones del foco →</button>
+              <p class="micro">Los límites municipales solo contextualizan la navegación: el cálculo se lee sobre el foco continuo.</p>
+              <p class="sr-only" role="status" id="focus-live">Foco seleccionado: Foco Quebrada del Este, nivel alto.</p>
+            </div>
+            <p class="micro" style="margin-top:9px;">Cobertura y prioridad contextual: prototipo G6 (V1-P-01, V1-P-02), no servicios existentes.</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="reading-grid">
+        <article class="panel" aria-labelledby="reading-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">TRAZABILIDAD DEL FOCO</p>
+              <h2 id="reading-title">Lectura del foco seleccionado</h2>
+            </div>
+            <span class="level level-alto" id="read-level">ALTO</span>
+          </div>
+          <div class="panel-body">
+            <div class="source-line" id="read-source"><strong>Escenario ilustrativo:</strong> último lote del foco en o antes del corte. No es una observación real ni una alerta oficial.</div>
+            <dl class="freshness">
+              <div><dt>Último lote ≤ corte</dt><dd id="read-lot-date">18 nov 2026 · 14:20</dd></div>
+              <div><dt>Corte compartido</dt><dd id="read-cutoff">18 nov 2026 · 18:00</dd></div>
+              <div><dt>Antigüedad al corte</dt><dd id="read-age">3 h 40 min</dd></div>
+              <div><dt>Estado del dato</dt><dd id="read-status">Sintético · no calibrado</dd></div>
+            </dl>
+            <p class="subhead">Factores del foco</p>
+            <div class="factor-head" aria-hidden="true"><span>Factor</span><span>Contribución</span><span>Peso</span></div>
+            <div class="factor-list" id="factor-rows">
+              <div class="factor"><span class="factor-name">temperatura</span><div class="factor-track"><span id="bar-temperatura" style="width: 90%"></span></div><span class="factor-contrib" id="val-temperatura">31,4 °C · 0,28</span></div>
+              <div class="factor"><span class="factor-name">humedad_relativa</span><div class="factor-track"><span id="bar-humedad_relativa" style="width: 71%"></span></div><span class="factor-contrib" id="val-humedad_relativa">24 % · 0,22</span></div>
+              <div class="factor"><span class="factor-name">viento</span><div class="factor-track"><span id="bar-viento" style="width: 100%"></span></div><span class="factor-contrib" id="val-viento">38 km/h SO · 0,31</span></div>
+              <div class="factor"><span class="factor-name">cobertura_vegetal</span><div class="factor-track"><span id="bar-cobertura_vegetal" style="width: 61%"></span></div><span class="factor-contrib" id="val-cobertura_vegetal">0,72 · 0,19</span></div>
+              <div class="factor"><span class="factor-name">incendios_historicos</span><div class="factor-track"><span id="bar-incendios_historicos" style="width: 39%"></span></div><span class="factor-contrib" id="val-incendios_historicos">4 en 10 años · 0,12</span></div>
+            </div>
+            <p class="empty-inline" id="factor-empty" hidden>Sin factores: no hay lote publicado en o antes del corte para este foco.</p>
+
+            <p class="subhead">Municipios afectados</p>
+            <p class="copy-small" id="read-municipalities">Valparaíso · Viña del Mar · Quilpué</p>
+
+            <p class="subhead">Evidencia disponible</p>
+            <ul class="evidence-list" id="evidence-list">
+              <li><strong id="evidence-1-title">Acta DR-2026-114</strong><span id="evidence-1-note">Dirección de Gestión de Riesgo · referencia simulada, sin enlace externo</span></li>
+              <li><strong id="evidence-2-title">Registro de poda 2026-031</strong><span id="evidence-2-note">Dirección de Aseo y Ornato · referencia simulada, sin enlace externo</span></li>
+            </ul>
+            <p class="empty-inline" id="evidence-empty" hidden>Sin evidencia publicada para este foco en o antes del corte.</p>
+
+            <div id="model-block">
+              <p class="subhead">Modelo y política</p>
+              <p class="copy-small" id="model-copy">Modelo <strong>fw-rule-v3.2</strong> · política <strong>FW-RISK-004</strong> · hash informado <span class="mono">sha256:9c1e…4b07</span> (no verificado). Clasificación calculada por una regla propia no oficial.</p>
+            </div>
+            <p class="empty-inline" id="model-empty" hidden>Sin lote ≤ corte: no se consultó modelo ni política en esta maqueta.</p>
+            <p class="panel-note">No se ejecutó un modelo ni un servicio: los niveles, factores y lotes son datos inventados para probar la lectura. La causa de los niveles bajos del modelo actual no se prueba aquí. “INFORMACIÓN INSUFICIENTE” no es una severidad y “SIN EVALUACIÓN” no es un nivel bajo.</p>
+          </div>
+        </article>
+
+        <article class="panel" aria-labelledby="recommendations-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">PREVENCIÓN</p>
+              <h2 id="recommendations-title">Recomendaciones</h2>
+            </div>
+            <span class="level level-alto" id="recommendation-badge">ALTO</span>
+          </div>
+          <div class="panel-body">
+            <p class="status-line" id="recommendation-status">Sugerencias compuestas desde el nivel y los factores del foco seleccionado.</p>
+            <ul class="rec-list" aria-label="Sugerencias de prevención">
+              <li class="rec-item" data-rec="R-08" data-requires="viento" data-title="Reforzar la restricción de fogatas y chispas por viento">
+                <div class="rec-top"><span class="rec-id">R-08</span><span class="rec-source">Factor viento</span></div>
+                <p>Con viento, no hagas fogatas ni quemas y no uses herramientas que produzcan chispas.</p>
+                <button type="button" class="text-button" data-prepare="R-08">Preparar acción desde esta sugerencia →</button>
+              </li>
+              <li class="rec-item" data-rec="R-06" data-requires="temperatura" data-title="Evitar trabajos con chispas en días calurosos">
+                <div class="rec-top"><span class="rec-id">R-06</span><span class="rec-source">Factor temperatura</span></div>
+                <p>En días calurosos, evita herramientas y trabajos que generen chispas al aire libre, sobre todo cerca de vegetación.</p>
+                <button type="button" class="text-button" data-prepare="R-06">Preparar acción desde esta sugerencia →</button>
+              </li>
+              <li class="rec-item" data-rec="R-03" data-requires="nivel-alto" data-title="Restringir fogatas y quema de desechos">
+                <div class="rec-top"><span class="rec-id">R-03</span><span class="rec-source">Nivel alto</span></div>
+                <p>Restringe fogatas, parrillas, quema de desechos y otras fuentes de calor cerca de vegetación.</p>
+                <button type="button" class="text-button" data-prepare="R-03">Preparar acción desde esta sugerencia →</button>
+              </li>
+              <li class="rec-item" data-rec="R-04" data-requires="nivel-alto" data-title="Coordinar una revisión de vías de salida con la comunidad">
+                <div class="rec-top"><span class="rec-id">R-04</span><span class="rec-source">Nivel alto</span></div>
+                <p>Coordina con la municipalidad o la junta de vecinos una revisión del entorno y de las vías de salida.</p>
+                <button type="button" class="text-button" data-prepare="R-04">Preparar acción desde esta sugerencia →</button>
+              </li>
+            </ul>
+            <p class="panel-note" id="recommendation-empty" hidden>Este foco no tiene sugerencias derivadas de una lectura: no hay lote ≤ corte o sus factores no cruzan los umbrales. La prevención general sigue vigente.</p>
+            <p class="panel-note" id="recommendation-note">El ítem de observación directa R-05 no se incluye como hallazgo: la maqueta no sabe si hay vegetación en contacto con líneas eléctricas. La correspondencia entre medidas y niveles es una decisión de FireWatch y no está validada por SENAPRED ni MINVU.</p>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <aside id="actions-pane" class="actions-pane" tabindex="0" role="region" aria-label="Panel de acciones preventivas">
+      <div class="actions-head">
+        <div>
+          <p class="eyebrow">ACCIONES</p>
+          <h2 id="actions-title">Mesa de acciones</h2>
+        </div>
+        <span class="actions-count" id="actions-count">4 de 4</span>
+      </div>
+      <p class="actions-intro">El estado y el responsable reproducen la forma que ya expone el servicio. La prioridad contextual es un prototipo G6 y no existe todavía en el servicio actual. Las acciones no cambian con el corte: son trabajo operativo de la maqueta.</p>
+
+      <div class="filters">
+        <label class="field" for="action-filter">Estado
+          <select id="action-filter">
+            <option value="">Todos los estados</option>
+            <option value="propuesta">Propuesta</option>
+            <option value="asignada">Asignada</option>
+            <option value="en_curso">En curso</option>
+            <option value="bloqueada">Bloqueada</option>
+          </select>
+        </label>
+        <label class="field" for="action-sector-filter">Foco
+          <select id="action-sector-filter">
+            <option value="">Todos los focos</option>
+            <option value="foco-quebrada-este">Foco Quebrada del Este</option>
+            <option value="borde-costero-norte">Borde costero de Viña del Mar</option>
+            <option value="interior-sin-lectura">Interior de Quilpué</option>
+          </select>
+        </label>
+      </div>
+      <p class="filter-status" id="filter-status" role="status" aria-live="polite">4 acciones en el escenario.</p>
+
+      <ul class="action-list" id="action-list" aria-label="Acciones preventivas del escenario">
+        <li>
+          <button type="button" class="action-btn" data-action="acc-1042" aria-current="true">
+            <span class="action-top"><span class="action-title">Despeje de vegetación seca en el borde del foco Quebrada del Este</span><span class="status-chip chip-asignada">Asignada</span></span>
+            <span class="action-meta"><span>ACC-1042</span><span>Foco <strong>Quebrada del Este</strong></span><span>Prioridad <strong>Alta</strong></span></span>
+            <span class="action-meta"><span>Responsable <strong>Camila Rojas Fuentes</strong></span><span>Vence 27 nov 2026</span></span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="action-btn" data-action="acc-1043">
+            <span class="action-top"><span class="action-title">Revisión de vías de evacuación en el cruce Valparaíso–Viña del Mar</span><span class="status-chip chip-en-curso">En curso</span></span>
+            <span class="action-meta"><span>ACC-1043</span><span>Foco <strong>Quebrada del Este</strong></span><span>Prioridad <strong>Alta</strong></span></span>
+            <span class="action-meta"><span>Responsable <strong>Jorge Muñoz Salinas</strong></span><span>Vence 24 nov 2026</span></span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="action-btn" data-action="acc-1044">
+            <span class="action-top"><span class="action-title">Difusión de la restricción de fogatas en ferias de Viña del Mar</span><span class="status-chip chip-propuesta">Propuesta</span></span>
+            <span class="action-meta"><span>ACC-1044</span><span>Foco <strong>Borde costero</strong></span><span>Prioridad <strong>Media</strong></span></span>
+            <span class="action-meta"><span>Responsable <strong>Sin asignar</strong></span><span>Vence 2 dic 2026</span></span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="action-btn" data-action="acc-1045">
+            <span class="action-top"><span class="action-title">Inspección de conexiones eléctricas informales en el interior de Quilpué</span><span class="status-chip chip-bloqueada">Bloqueada</span></span>
+            <span class="action-meta"><span>ACC-1045</span><span>Foco <strong>Interior de Quilpué</strong></span><span>Prioridad <strong>Alta</strong></span></span>
+            <span class="action-meta"><span>Responsable <strong>Valentina Díaz Paredes</strong></span><span>Vence 22 nov 2026</span></span>
+          </button>
+        </li>
+      </ul>
+
+      <div class="empty-state" id="empty-actions" hidden>
+        <strong>No hay acciones que coincidan con este filtro.</strong> El filtro no cambió los datos: son solo cuatro acciones de ejemplo.
+        <br />
+        <button type="button" class="text-button" id="clear-action-filter">Limpiar filtros</button>
+      </div>
+
+      <article class="detail" id="action-detail" aria-labelledby="detail-title">
+        <div class="detail-head">
+          <p class="eyebrow">ACCIÓN SELECCIONADA · MAQUETA</p>
+          <h3 id="detail-title">Despeje de vegetación seca en el borde del foco Quebrada del Este</h3>
+        </div>
+        <div class="detail-body">
+          <dl class="detail-grid">
+            <div><dt>Código</dt><dd id="detail-code">ACC-1042</dd></div>
+            <div><dt>Estado</dt><dd><span class="status-chip chip-asignada" id="detail-status">Asignada</span></dd></div>
+            <div><dt>Foco</dt><dd id="detail-sector">Foco Quebrada del Este</dd></div>
+            <div><dt>Vence</dt><dd id="detail-due">27 nov 2026</dd></div>
+            <div><dt>Prioridad (texto libre)</dt><dd id="detail-priority">Alta</dd></div>
+            <div><dt>Prioridad contextual · prototipo</dt><dd id="detail-context-priority">ALTA</dd></div>
+          </dl>
+          <div class="assignee-box" id="detail-assignee-box">
+            <p class="label">Responsable</p>
+            <p class="assignee-name" id="detail-assignee-name">Camila Rojas Fuentes</p>
+            <p class="assignee-role" id="detail-assignee-role">Dirección de Aseo y Ornato · identificador u-8f3a</p>
+          </div>
+          <p class="label" style="margin:0 0 3px;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">Evidencia y suficiencia</p>
+          <p class="copy-small" id="detail-evidence">2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.</p>
+          <div class="detail-actions">
+            <button type="button" class="text-button" id="view-sector">Ver el foco en el territorio ↑</button>
+            <span class="micro" id="detail-live" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="create-block" id="create-block" aria-labelledby="create-heading">
+        <h3 id="create-heading">Nueva acción preventiva</h3>
+        <p class="create-note">Formulario de maqueta. El alta real exige el rol admin, valida el directorio y registra una comuna; el foco es una lectura que puede cruzar municipios. La acción pertenece a la comuna que la registra —05101 · Valparaíso—, no al municipio donde ocurre el foco. Aquí no se llama a ningún servicio.</p>
+        <form id="create-form" class="form-grid" novalidate>
+          <div class="form-row">
+            <label class="field" for="create-community">Comunidad que registra la acción (CUT)
+              <input id="create-community" name="community" type="text" value="05101 · Valparaíso" readonly />
+            </label>
+            <label class="field" for="create-sector">Foco
+              <select id="create-sector" name="sector">
+                <option value="foco-quebrada-este">Foco Quebrada del Este</option>
+                <option value="borde-costero-norte">Borde costero de Viña del Mar</option>
+                <option value="interior-sin-lectura">Interior de Quilpué</option>
+              </select>
+            </label>
+          </div>
+          <label class="field" for="create-title">Título
+            <input id="create-title" name="title" type="text" placeholder="Ej.: Despeje de vegetación seca en el foco" />
+          </label>
+          <label class="field" for="create-description">Descripción
+            <textarea id="create-description" name="description" placeholder="Describe el trabajo, el foco y la referencia de evidencia."></textarea>
+          </label>
+          <div class="form-row">
+            <label class="field" for="create-priority">Prioridad (texto libre)
+              <input id="create-priority" name="priority" type="text" value="Alta" />
+            </label>
+            <label class="field" for="create-due">Fecha límite
+              <input id="create-due" name="due" type="date" value="2026-11-27" />
+            </label>
+          </div>
+
+          <div class="case-switch">
+            <span class="field-label" id="case-label">Casos del selector de responsable · maqueta</span>
+            <div class="case-buttons" role="group" aria-labelledby="case-label">
+              <button type="button" class="case-btn" id="case-assigned" data-case="assigned" aria-pressed="true">Con directorio</button>
+              <button type="button" class="case-btn" id="case-unassigned" data-case="unassigned" aria-pressed="false">Sin asignar</button>
+              <button type="button" class="case-btn" id="case-unavailable" data-case="unavailable" aria-pressed="false">Directorio no disponible</button>
+            </div>
+          </div>
+
+          <label class="field" for="assignee-select">Responsable
+            <select id="assignee-select" name="assignee">
+              <option value="">Sin asignar (se crea sin responsable)</option>
+              <option value="u-8f3a" selected>Camila Rojas Fuentes · Dirección de Aseo y Ornato</option>
+              <option value="u-2c91">Jorge Muñoz Salinas · Dirección de Gestión de Riesgo</option>
+              <option value="u-6d47">Valentina Díaz Paredes · Oficina de Emergencia</option>
+              <option value="u-9b02">Rodrigo Salinas Vega · Dirección de Obras Municipales</option>
+              <option value="u-4e18">Paula Herrera León · DIDECO · enlace vecinal</option>
+            </select>
+          </label>
+          <p class="assignee-hint" id="assignee-hint">Se asignaría a Camila Rojas Fuentes (u-8f3a). La lista es ficticia y no se consulta ningún directorio real.</p>
+
+          <div class="directory-failure" id="directory-failure" role="status" aria-live="polite" hidden>
+            <strong>No se pudo leer el directorio.</strong>
+            Respuesta simulada: 503 directory_unavailable. No se inventó una lista de personas. Puedes crear la acción sin responsable o reintentar la lectura.
+            <br />
+            <button type="button" class="secondary-button retry" id="directory-retry">Reintentar lectura (maqueta)</button>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button" id="create-submit">Crear acción (simulacro)</button>
+            <p class="micro">No guarda nada: es una maqueta interactiva sin red ni persistencia.</p>
+          </div>
+          <div class="feedback" id="form-feedback" role="status" aria-live="polite" tabindex="-1" hidden>
+            <strong id="feedback-title"></strong>
+            <span id="feedback-body"></span>
+          </div>
+          <p class="sr-only" id="prefill-status" role="status" aria-live="polite"></p>
+        </form>
+      </article>
+    </aside>
+  </div>
+
+  <footer class="footer">
+    <span><strong>Fuente de la maqueta:</strong> escenario ficticio de Valparaíso, Viña del Mar y Quilpué; corte compartido <span id="footer-cutoff">18 nov 2026 · 18:00</span>. Lotes, factores y geometrías inventados.</span>
+    <span><strong>Sin red:</strong> este documento no carga fuentes, imágenes ni datos externos.</span>
+    <span><strong>G6:</strong> cobertura y prioridad por foco son prototipo (V1-P-01, V1-P-02); no son datos ni servicios existentes. La causa de los niveles del modelo no se prueba aquí.</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SNAPSHOTS = [
+    { id: 'corte-18', cutoff: '2026-11-18T18:00:00-03:00', label: '18 nov 2026 · 18:00' },
+    { id: 'corte-21', cutoff: '2026-11-21T18:00:00-03:00', label: '21 nov 2026 · 18:00' }
+  ];
+
+  var FACTORS = [
+    { key: 'temperatura', bar: 'bar-temperatura', value: 'val-temperatura' },
+    { key: 'humedad_relativa', bar: 'bar-humedad_relativa', value: 'val-humedad_relativa' },
+    { key: 'viento', bar: 'bar-viento', value: 'val-viento' },
+    { key: 'cobertura_vegetal', bar: 'bar-cobertura_vegetal', value: 'val-cobertura_vegetal' },
+    { key: 'incendios_historicos', bar: 'bar-incendios_historicos', value: 'val-incendios_historicos' }
+  ];
+
+  var areas = {
+    'foco-quebrada-este': {
+      name: 'Foco Quebrada del Este',
+      municipalities: ['Valparaíso', 'Viña del Mar', 'Quilpué'],
+      coverage: '100 %',
+      priority: 'ALTA',
+      summary: 'Área continua de vegetación seca y viviendas en ladera que cruza tres municipios; los límites administrativos no separan el combustible.',
+      lots: [
+        {
+          date: '2026-11-18T14:20:00-03:00', dateLabel: '18 nov 2026 · 14:20', level: 'ALTO', levelClass: 'level-alto', batch: 'b-7f3c9a21',
+          factors: [
+            { key: 'temperatura', value: '31,4 °C · 0,28', bar: 90 },
+            { key: 'humedad_relativa', value: '24 % · 0,22', bar: 71 },
+            { key: 'viento', value: '38 km/h SO · 0,31', bar: 100 },
+            { key: 'cobertura_vegetal', value: '0,72 · 0,19', bar: 61 },
+            { key: 'incendios_historicos', value: '4 en 10 años · 0,12', bar: 39 }
+          ],
+          refs: [
+            { title: 'Acta DR-2026-114', note: 'Dirección de Gestión de Riesgo · referencia simulada, sin enlace externo' },
+            { title: 'Registro de poda 2026-031', note: 'Dirección de Aseo y Ornato · referencia simulada, sin enlace externo' }
+          ]
+        },
+        {
+          date: '2026-11-20T16:05:00-03:00', dateLabel: '20 nov 2026 · 16:05', level: 'ALTO', levelClass: 'level-alto', batch: 'b-9c2d4e77',
+          factors: [
+            { key: 'temperatura', value: '29,8 °C · 0,24', bar: 78 },
+            { key: 'humedad_relativa', value: '28 % · 0,18', bar: 58 },
+            { key: 'viento', value: '41 km/h SO · 0,35', bar: 100 },
+            { key: 'cobertura_vegetal', value: '0,72 · 0,19', bar: 61 },
+            { key: 'incendios_historicos', value: '4 en 10 años · 0,12', bar: 39 }
+          ],
+          refs: [
+            { title: 'Acta DR-2026-131', note: 'Dirección de Gestión de Riesgo · referencia simulada, sin enlace externo' },
+            { title: 'Registro de poda 2026-038', note: 'Dirección de Aseo y Ornato · referencia simulada, sin enlace externo' }
+          ]
+        }
+      ]
+    },
+    'borde-costero-norte': {
+      name: 'Borde costero de Viña del Mar',
+      municipalities: ['Viña del Mar'],
+      coverage: '100 %',
+      priority: 'BAJA',
+      summary: 'Franja costera cercana al foco, con menor continuidad de combustible y accesos más amplios. El corte y los factores se leen como una unidad aparte.',
+      lots: [
+        {
+          date: '2026-11-17T09:10:00-03:00', dateLabel: '17 nov 2026 · 09:10', level: 'BAJO', levelClass: 'level-bajo', batch: 'b-4a1f8c02',
+          factors: [
+            { key: 'temperatura', value: '22,1 °C · 0,12', bar: 40 },
+            { key: 'humedad_relativa', value: '58 % · 0,08', bar: 27 },
+            { key: 'viento', value: '14 km/h O · 0,09', bar: 30 },
+            { key: 'cobertura_vegetal', value: '0,34 · 0,10', bar: 34 },
+            { key: 'incendios_historicos', value: '1 en 10 años · 0,04', bar: 13 }
+          ],
+          refs: [
+            { title: 'Acta DR-2026-097', note: 'Dirección de Gestión de Riesgo · referencia simulada, sin enlace externo' }
+          ]
+        },
+        {
+          date: '2026-11-21T08:40:00-03:00', dateLabel: '21 nov 2026 · 08:40', level: 'BAJO', levelClass: 'level-bajo', batch: 'b-8e5a1d40',
+          factors: [
+            { key: 'temperatura', value: '21,4 °C · 0,10', bar: 34 },
+            { key: 'humedad_relativa', value: '61 % · 0,07', bar: 24 },
+            { key: 'viento', value: '17 km/h O · 0,11', bar: 36 },
+            { key: 'cobertura_vegetal', value: '0,34 · 0,10', bar: 34 },
+            { key: 'incendios_historicos', value: '1 en 10 años · 0,04', bar: 13 }
+          ],
+          refs: [
+            { title: 'Acta DR-2026-138', note: 'Dirección de Gestión de Riesgo · referencia simulada, sin enlace externo' }
+          ]
+        }
+      ]
+    },
+    'interior-sin-lectura': {
+      name: 'Interior de Quilpué',
+      municipalities: ['Quilpué'],
+      coverage: '0 %',
+      priority: 'SIN PRIORIDAD',
+      summary: 'Área interior sin lote publicado en o antes del corte. La ausencia de lectura no es un nivel bajo: no hay nivel, factores ni evidencia que describir.',
+      lots: []
+    }
+  };
+
+  var actions = {
+    'acc-1042': { title: 'Despeje de vegetación seca en el borde del foco Quebrada del Este', code: 'ACC-1042', status: 'Asignada', statusClass: 'chip-asignada', focus: 'foco-quebrada-este', focusName: 'Foco Quebrada del Este', due: '27 nov 2026', priority: 'Alta', context: 'ALTA', assigneeName: 'Camila Rojas Fuentes', assigneeRole: 'Dirección de Aseo y Ornato · identificador u-8f3a', evidence: '2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.' },
+    'acc-1043': { title: 'Revisión de vías de evacuación en el cruce Valparaíso–Viña del Mar', code: 'ACC-1043', status: 'En curso', statusClass: 'chip-en-curso', focus: 'foco-quebrada-este', focusName: 'Foco Quebrada del Este', due: '24 nov 2026', priority: 'Alta', context: 'ALTA', assigneeName: 'Jorge Muñoz Salinas', assigneeRole: 'Dirección de Gestión de Riesgo · identificador u-2c91', evidence: 'Evidencia pendiente: la acción aún no registra una instantánea. Revisión de suficiencia: no iniciada.' },
+    'acc-1044': { title: 'Difusión de la restricción de fogatas en ferias de Viña del Mar', code: 'ACC-1044', status: 'Propuesta', statusClass: 'chip-propuesta', focus: 'borde-costero-norte', focusName: 'Borde costero de Viña del Mar', due: '2 dic 2026', priority: 'Media', context: 'BAJA', assigneeName: 'Sin asignar', assigneeRole: 'No hay responsable registrado. La acción puede asignarse después de crearla.', evidence: 'Sin evidencia registrada. El criterio de suficiencia lo define una persona autorizada.' },
+    'acc-1045': { title: 'Inspección de conexiones eléctricas informales en el interior de Quilpué', code: 'ACC-1045', status: 'Bloqueada', statusClass: 'chip-bloqueada', focus: 'interior-sin-lectura', focusName: 'Interior de Quilpué', due: '22 nov 2026', priority: 'Alta', context: 'SIN PRIORIDAD', assigneeName: 'Valentina Díaz Paredes', assigneeRole: 'Oficina de Emergencia · identificador u-6d47', evidence: '1 referencia · acta OE-2026-057. Bloqueada: falta la autorización de la empresa distribuidora en este escenario.' }
+  };
+
+  var directory = {
+    'u-8f3a': 'Camila Rojas Fuentes · Dirección de Aseo y Ornato',
+    'u-2c91': 'Jorge Muñoz Salinas · Dirección de Gestión de Riesgo',
+    'u-6d47': 'Valentina Díaz Paredes · Oficina de Emergencia',
+    'u-9b02': 'Rodrigo Salinas Vega · Dirección de Obras Municipales',
+    'u-4e18': 'Paula Herrera León · DIDECO · enlace vecinal'
+  };
+
+  var state = { focus: 'foco-quebrada-este', cutoff: 0 };
+  var selectedAction = 'acc-1042';
+  var lastGoodAssignee = document.getElementById('assignee-select').value;
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  var focusButtons = Array.prototype.slice.call(document.querySelectorAll('[data-focus]'));
+  var mapFocusButtons = Array.prototype.slice.call(document.querySelectorAll('[data-map-focus]'));
+  var mapShapes = Array.prototype.slice.call(document.querySelectorAll('[data-map-shape]'));
+  var actionButtons = Array.prototype.slice.call(document.querySelectorAll('[data-action]'));
+  var statusFilter = document.getElementById('action-filter');
+  var focusFilter = document.getElementById('action-sector-filter');
+  var count = document.getElementById('actions-count');
+  var filterStatus = document.getElementById('filter-status');
+  var emptyActions = document.getElementById('empty-actions');
+  var cutoff = document.getElementById('cutoff');
+  var cutoffValue = document.getElementById('cutoff-value');
+  var cutoffLive = document.getElementById('cutoff-live');
+  var createBlock = document.getElementById('create-block');
+  var createForm = document.getElementById('create-form');
+  var titleInput = document.getElementById('create-title');
+  var descriptionInput = document.getElementById('create-description');
+  var sectorSelect = document.getElementById('create-sector');
+  var assigneeSelect = document.getElementById('assignee-select');
+  var assigneeHint = document.getElementById('assignee-hint');
+  var feedback = document.getElementById('form-feedback');
+  var feedbackTitle = document.getElementById('feedback-title');
+  var feedbackBody = document.getElementById('feedback-body');
+  var prefillStatus = document.getElementById('prefill-status');
+  var failure = document.getElementById('directory-failure');
+  var caseButtons = Array.prototype.slice.call(document.querySelectorAll('.case-btn'));
+
+  function snapshot() { return SNAPSHOTS[state.cutoff]; }
+
+  function factorBar(lot, key) {
+    for (var i = 0; i < lot.factors.length; i += 1) {
+      if (lot.factors[i].key === key) return lot.factors[i].bar;
+    }
+    return 0;
+  }
+
+  function lotFor(area) {
+    var cutoffTime = new Date(snapshot().cutoff).getTime();
+    var eligible = (area.lots || []).filter(function (lot) {
+      return new Date(lot.date).getTime() <= cutoffTime;
+    });
+    eligible.sort(function (left, right) {
+      return new Date(right.date).getTime() - new Date(left.date).getTime();
+    });
+    return eligible.length > 0 ? eligible[0] : null;
+  }
+
+  function ageLabel(lot) {
+    if (lot === null) return '—';
+    var ms = new Date(snapshot().cutoff).getTime() - new Date(lot.date).getTime();
+    var hours = Math.floor(ms / 3600000);
+    var minutes = Math.round((ms % 3600000) / 60000);
+    return hours + ' h ' + minutes + ' min';
+  }
+
+  function fillFor(level) {
+    if (level === 'ALTO') return 'var(--level-high-fill)';
+    if (level === 'MEDIO') return 'var(--level-medium-fill)';
+    if (level === 'BAJO') return 'var(--level-low-fill)';
+    if (level === 'INFORMACIÓN INSUFICIENTE') return 'var(--level-unknown-fill)';
+    return 'var(--level-neutral-fill)';
+  }
+
+  function lineFor(level) {
+    if (level === 'ALTO') return 'var(--level-high-line)';
+    if (level === 'MEDIO') return 'var(--level-medium-line)';
+    if (level === 'BAJO') return 'var(--level-low-line)';
+    if (level === 'INFORMACIÓN INSUFICIENTE') return 'var(--level-unknown-line)';
+    return 'var(--level-neutral-line)';
+  }
+
+  function levelClassFor(level) {
+    if (level === 'ALTO') return 'level-alto';
+    if (level === 'MEDIO') return 'level-medio';
+    if (level === 'BAJO') return 'level-bajo';
+    return 'level-neutral';
+  }
+
+  function setLevel(el, level) {
+    el.className = 'level ' + levelClassFor(level);
+    el.textContent = level;
+  }
+
+  function paintMap() {
+    areas['foco-quebrada-este']._lot = lotFor(areas['foco-quebrada-este']);
+    mapShapes.forEach(function (shape) {
+      var id = shape.getAttribute('data-map-shape');
+      var area = areas[id];
+      var lot = area ? lotFor(area) : null;
+      var level = lot ? lot.level : 'SIN EVALUACIÓN';
+      shape.setAttribute('fill', fillFor(level));
+      shape.setAttribute('stroke', lineFor(level));
+      shape.setAttribute('stroke-dasharray', lot ? '' : '8 5');
+    });
+    mapFocusButtons.forEach(function (button) {
+      var id = button.getAttribute('data-map-focus');
+      var area = areas[id];
+      var lot = area ? lotFor(area) : null;
+      var level = lot ? lot.level : 'SIN EVALUACIÓN';
+      var label = document.getElementById('map-level-' + id);
+      if (label) label.textContent = level;
+    });
+  }
+
+  function renderFocusList() {
+    Object.keys(areas).forEach(function (id) {
+      var area = areas[id];
+      var lot = lotFor(area);
+      var level = lot ? lot.level : 'SIN EVALUACIÓN';
+      var levelEl = document.getElementById('list-level-' + id);
+      if (levelEl) {
+        levelEl.className = 'level ' + levelClassFor(level);
+        levelEl.textContent = level;
+      }
+      var lotEl = document.getElementById('list-lot-' + id);
+      if (lotEl) lotEl.textContent = lot ? 'Lote ' + lot.dateLabel : 'Sin lote ≤ corte';
+    });
+  }
+
+  function applySelection() {
+    focusButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-focus') === state.focus));
+    });
+    mapFocusButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-map-focus') === state.focus));
+    });
+    mapShapes.forEach(function (shape) {
+      var selected = shape.getAttribute('data-map-shape') === state.focus;
+      if (selected) {
+        shape.setAttribute('stroke', 'var(--forest-950)');
+        shape.setAttribute('stroke-width', '5');
+        shape.setAttribute('stroke-dasharray', '');
+      } else {
+        shape.setAttribute('stroke-width', '2.5');
+        var area = areas[shape.getAttribute('data-map-shape')];
+        var lot = area ? lotFor(area) : null;
+        shape.setAttribute('stroke', lineFor(lot ? lot.level : 'SIN EVALUACIÓN'));
+        shape.setAttribute('stroke-dasharray', lot ? '' : '8 5');
+      }
+    });
+  }
+
+  function renderSelected() {
+    var area = areas[state.focus];
+    var lot = lotFor(area);
+    var level = lot ? lot.level : 'SIN EVALUACIÓN';
+    document.getElementById('selected-focus-name').textContent = area.name;
+    setLevel(document.getElementById('selected-focus-level'), level);
+    document.getElementById('selected-focus-level').className = 'level level-on-dark';
+    document.getElementById('selected-focus-priority').textContent = 'Prioridad contextual ' + area.priority + ' · prototipo';
+    document.getElementById('selected-focus-summary').textContent = area.summary;
+    document.getElementById('selected-focus-municipalities').textContent = area.municipalities.join(' · ');
+    document.getElementById('selected-focus-lot').textContent = lot ? lot.dateLabel : 'Sin lote publicado ≤ corte';
+    document.getElementById('selected-focus-age').textContent = ageLabel(lot);
+    document.getElementById('selected-focus-coverage').textContent = area.coverage + ' · prototipo V1-P-01';
+  }
+
+  function renderReading() {
+    var area = areas[state.focus];
+    var lot = lotFor(area);
+    var level = lot ? lot.level : 'SIN EVALUACIÓN';
+    var badge = document.getElementById('read-level');
+    badge.className = 'level ' + levelClassFor(level);
+    badge.textContent = level;
+    document.getElementById('read-lot-date').textContent = lot ? lot.dateLabel : 'Sin lote ≤ corte';
+    document.getElementById('read-cutoff').textContent = snapshot().label;
+    document.getElementById('read-age').textContent = ageLabel(lot);
+    document.getElementById('read-status').textContent = lot ? 'Sintético · no calibrado' : 'Sin lote ≤ corte';
+    document.getElementById('read-municipalities').textContent = area.municipalities.join(' · ');
+    document.getElementById('read-source').textContent = lot
+      ? 'Escenario ilustrativo: último lote del foco en o antes del corte (' + lot.dateLabel + '). No es una observación real ni una alerta oficial.'
+      : 'Escenario ilustrativo: no hay lote publicado para este foco en o antes del corte. La ausencia no es un nivel bajo.';
+
+    var factorRows = document.getElementById('factor-rows');
+    var factorEmpty = document.getElementById('factor-empty');
+    factorRows.hidden = lot === null;
+    factorEmpty.hidden = lot !== null;
+    if (lot) {
+      FACTORS.forEach(function (factor) {
+        var data = lot.factors.filter(function (entry) { return entry.key === factor.key; })[0];
+        if (!data) return;
+        document.getElementById(factor.bar).style.width = data.bar + '%';
+        document.getElementById(factor.value).textContent = data.value;
+      });
+    }
+
+    var evidenceList = document.getElementById('evidence-list');
+    var evidenceEmpty = document.getElementById('evidence-empty');
+    evidenceList.hidden = !lot || lot.refs.length === 0;
+    evidenceEmpty.hidden = !!lot && lot.refs.length > 0;
+    if (lot) {
+      [1, 2].forEach(function (index) {
+        var item = lot.refs[index - 1];
+        var li = evidenceList.querySelector('li:nth-child(' + index + ')');
+        if (li) li.hidden = !item;
+        if (item) {
+          document.getElementById('evidence-' + index + '-title').textContent = item.title;
+          document.getElementById('evidence-' + index + '-note').textContent = item.note;
+        }
+      });
+    }
+
+    document.getElementById('model-block').hidden = lot === null;
+    document.getElementById('model-empty').hidden = lot !== null;
+    if (lot) {
+      document.getElementById('model-copy').textContent = 'Modelo fw-rule-v3.2 · política FW-RISK-004 · lote ' + lot.batch + ' · hash informado sha256:9c1e…4b07 (no verificado). Clasificación calculada por una regla propia no oficial.';
+    }
+
+    var recommendationBadge = document.getElementById('recommendation-badge');
+    recommendationBadge.className = 'level ' + levelClassFor(level);
+    recommendationBadge.textContent = level;
+    document.getElementById('recommendation-status').textContent = lot
+      ? 'Sugerencias compuestas desde el nivel y los factores del foco seleccionado.'
+      : 'Sin lote ≤ corte: no hay nivel ni factores para ordenar sugerencias. Se mantiene la prevención general.';
+    document.getElementById('recommendation-note').textContent = lot
+      ? 'El ítem de observación directa R-05 no se incluye como hallazgo: la maqueta no sabe si hay vegetación en contacto con líneas eléctricas. La correspondencia entre medidas y niveles es una decisión de FireWatch y no está validada por SENAPRED ni MINVU.'
+      : 'La prevención general sigue siendo válida, pero no se deriva de una lectura de este foco: no hay lote ≤ corte. Ante un incendio en curso, sigue las instrucciones de la autoridad.';
+
+    var applicable = {
+      viento: !!lot && factorBar(lot, 'viento') >= 70,
+      temperatura: !!lot && factorBar(lot, 'temperatura') >= 70,
+      'nivel-alto': !!lot && lot.level === 'ALTO'
+    };
+    var applicableCount = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('.rec-item[data-requires]'), function (item) {
+      var on = applicable[item.getAttribute('data-requires')] === true;
+      item.hidden = !on;
+      if (on) applicableCount += 1;
+    });
+    document.getElementById('recommendation-empty').hidden = applicableCount > 0;
+  }
+
+  function renderStamp() {
+    var area = areas[state.focus];
+    var lot = lotFor(area);
+    document.getElementById('stamp-level').textContent = lot ? lot.level : 'SIN EVALUACIÓN';
+    document.getElementById('stamp-level-label').textContent = lot ? 'NIVEL INFORMADO' : 'SIN LECTURA';
+    document.getElementById('stamp-lot').textContent = lot ? lot.dateLabel : 'Sin lote ≤ corte';
+    document.getElementById('stamp-cutoff').textContent = snapshot().label;
+    cutoffValue.textContent = snapshot().label;
+    document.getElementById('footer-cutoff').textContent = snapshot().label;
+  }
+
+  function renderAll() {
+    renderFocusList();
+    paintMap();
+    renderSelected();
+    renderReading();
+    renderStamp();
+    applySelection();
+  }
+
+  function selectFocus(id, options) {
+    if (!areas[id]) return;
+    state.focus = id;
+    renderAll();
+    sectorSelect.value = id;
+    var area = areas[id];
+    var lot = lotFor(area);
+    document.getElementById('focus-live').textContent = 'Foco seleccionado: ' + area.name + ', ' + (lot ? 'nivel ' + lot.level.toLowerCase() : 'sin lote publicado en o antes del corte') + '.';
+    if (options && options.filterActions) {
+      setFocusFilter(id);
+      var firstVisible = actionButtons.find(function (button) {
+        return !button.closest('li').hidden;
+      });
+      if (firstVisible) firstVisible.focus();
+    }
+  }
+
+  function setFocusFilter(id) {
+    focusFilter.value = id;
+    applyFilter();
+    filterStatus.textContent = 'Acciones filtradas por ' + areas[id].name + '. La maqueta no consultó el servicio.';
+  }
+
+  function applyFilter() {
+    var status = statusFilter.value;
+    var focus = focusFilter.value;
+    var visible = 0;
+    actionButtons.forEach(function (button) {
+      var data = actions[button.getAttribute('data-action')];
+      var li = button.closest('li');
+      var show = (status === '' || data.status.toLowerCase().replace(/\s+/g, '_') === status) && (focus === '' || data.focus === focus);
+      if (li) li.hidden = !show;
+      if (show) visible += 1;
+    });
+    count.textContent = visible + ' de 4';
+    emptyActions.hidden = visible !== 0;
+    filterStatus.textContent = visible === 4
+      ? '4 acciones en el escenario.'
+      : visible + ' de 4 acciones con el filtro actual. No se ocultó ningún dato del servicio: son ejemplos.';
+  }
+
+  function renderAction(id) {
+    var data = actions[id];
+    if (!data) return;
+    selectedAction = id;
+    actionButtons.forEach(function (button) {
+      if (button.getAttribute('data-action') === id) button.setAttribute('aria-current', 'true');
+      else button.removeAttribute('aria-current');
+    });
+    document.getElementById('detail-title').textContent = data.title;
+    document.getElementById('detail-code').textContent = data.code;
+    var status = document.getElementById('detail-status');
+    status.className = 'status-chip ' + data.statusClass;
+    status.textContent = data.status;
+    document.getElementById('detail-sector').textContent = data.focusName;
+    document.getElementById('detail-due').textContent = data.due;
+    document.getElementById('detail-priority').textContent = data.priority;
+    document.getElementById('detail-context-priority').textContent = data.context + ' · prototipo';
+    document.getElementById('detail-assignee-name').textContent = data.assigneeName;
+    document.getElementById('detail-assignee-role').textContent = data.assigneeRole;
+    var box = document.getElementById('detail-assignee-box');
+    box.style.borderColor = data.assigneeName === 'Sin asignar' ? '#f0dfb9' : 'var(--line)';
+    box.style.background = data.assigneeName === 'Sin asignar' ? 'var(--gold-soft)' : '#f8faf7';
+    document.getElementById('detail-evidence').textContent = data.evidence;
+    document.getElementById('detail-live').textContent = 'Ficha de ' + data.code + ' actualizada.';
+  }
+
+  function directoryState(value) {
+    caseButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-case') === value));
+    });
+    if (value === 'unavailable') {
+      assigneeSelect.disabled = true;
+      assigneeSelect.value = '';
+      failure.hidden = false;
+      assigneeHint.textContent = 'Directorio no disponible: el alta seguiría sin responsable. No se inventó una lista.';
+      return;
+    }
+    assigneeSelect.disabled = false;
+    failure.hidden = true;
+    assigneeSelect.value = value === 'unassigned' ? '' : (lastGoodAssignee || 'u-8f3a');
+    updateAssigneeHint();
+  }
+
+  function updateAssigneeHint() {
+    var value = assigneeSelect.value;
+    if (!value) {
+      assigneeHint.textContent = 'Se crearía sin responsable. La acción puede asignarse después; el servidor real acepta omitir assignee_id.';
+      return;
+    }
+    assigneeHint.textContent = 'Se asignaría a ' + directory[value] + ' (identificador ' + value + '). La lista es ficticia y no se consulta ningún directorio real.';
+  }
+
+  function prefillFromRecommendation(button) {
+    var item = button.closest('.rec-item');
+    var area = areas[state.focus];
+    var lot = lotFor(area);
+    titleInput.value = item.getAttribute('data-title') + ' · ' + area.name;
+    descriptionInput.value = item.querySelector('p').textContent + ' Foco: ' + area.name + ' · nivel ' + (lot ? lot.level : 'SIN EVALUACIÓN') + ' (lectura de maqueta). Corte: ' + snapshot().label + '.';
+    sectorSelect.value = state.focus;
+    createBlock.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
+    titleInput.focus({ preventScroll: true });
+    prefillStatus.textContent = 'Sugerencia ' + item.getAttribute('data-rec') + ' trasladada al formulario. Nada se ha guardado.';
+    feedback.hidden = true;
+  }
+
+  focusButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      selectFocus(button.getAttribute('data-focus'));
+    });
+  });
+  mapFocusButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      selectFocus(button.getAttribute('data-map-focus'));
+    });
+  });
+  actionButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      renderAction(button.getAttribute('data-action'));
+    });
+  });
+  statusFilter.addEventListener('change', applyFilter);
+  focusFilter.addEventListener('change', applyFilter);
+  document.getElementById('clear-action-filter').addEventListener('click', function () {
+    statusFilter.value = '';
+    focusFilter.value = '';
+    applyFilter();
+    statusFilter.focus();
+  });
+  document.getElementById('view-focus-actions').addEventListener('click', function () {
+    selectFocus(state.focus, { filterActions: true });
+  });
+  document.getElementById('view-sector').addEventListener('click', function () {
+    var data = actions[selectedAction];
+    selectFocus(data.focus);
+    var heading = document.getElementById('selected-focus-name');
+    heading.setAttribute('tabindex', '-1');
+    heading.focus({ preventScroll: false });
+    document.getElementById('detail-live').textContent = 'Territorio actualizado al foco ' + data.focusName + '.';
+  });
+  cutoff.addEventListener('input', function () {
+    state.cutoff = Number(cutoff.value);
+    renderAll();
+    cutoffLive.textContent = 'Corte ' + snapshot().label + '. Se mantiene el foco ' + areas[state.focus].name + '.';
+  });
+
+  caseButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      directoryState(button.getAttribute('data-case'));
+      if (button.getAttribute('data-case') !== 'unavailable') assigneeSelect.focus();
+    });
+  });
+  document.getElementById('directory-retry').addEventListener('click', function () {
+    directoryState('assigned');
+    assigneeSelect.focus();
+  });
+  assigneeSelect.addEventListener('change', function () {
+    if (!assigneeSelect.disabled && assigneeSelect.value) lastGoodAssignee = assigneeSelect.value;
+    updateAssigneeHint();
+  });
+
+  Array.prototype.slice.call(document.querySelectorAll('[data-prepare]')).forEach(function (button) {
+    button.addEventListener('click', function () {
+      prefillFromRecommendation(button);
+    });
+  });
+
+  createForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var title = titleInput.value.trim();
+    if (title === '') {
+      feedback.hidden = false;
+      feedbackTitle.textContent = 'Falta el título.';
+      feedbackBody.textContent = 'Escribe un título para continuar. La maqueta no guardó nada.';
+      feedback.focus();
+      titleInput.setAttribute('aria-invalid', 'true');
+      return;
+    }
+    titleInput.removeAttribute('aria-invalid');
+    var assignee = assigneeSelect.disabled || assigneeSelect.value === '' ? null : directory[assigneeSelect.value];
+    var focusName = areas[sectorSelect.value].name;
+    feedback.hidden = false;
+    feedbackTitle.textContent = 'Maqueta: no se guardó nada ni salió ninguna solicitud.';
+    feedbackBody.textContent = 'Se habría creado «' + title + '» registrada en 05101 · Valparaíso, con foco ' + focusName + ', ' + (assignee ? 'con responsable ' + assignee : 'sin responsable') + '. La comuna que registra la acción no cambia porque el foco cruce otros municipios. Ninguna escritura llegó a un almacenamiento, cookie o servicio. En el producto real, el servidor valida el rol, el directorio y las reglas antes de guardar.';
+    feedback.focus();
+    prefillStatus.textContent = 'Formulario de maqueta enviado. No se guardó ninguna acción.';
+  });
+
+  updateAssigneeHint();
+  renderAction('acc-1042');
+  renderAll();
+})();
+</script>
+</body>
+</html>

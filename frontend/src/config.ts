@@ -74,10 +74,21 @@ export const routes = {
   zones: '/v1/risk/zones',
   latest: '/v1/risk/latest',
   history: '/v1/risk/history',
+  // The export is the same bounded read as `history`, rendered as a CSV
+  // document. It is a separate route because it is a separate representation:
+  // the page downloads it as-is and never re-encodes it.
+  historyCsv: '/v1/risk/history.csv',
   // The aggregate read that colours the whole territory on load: the newest
   // published batch of every zone that has one, answered in a single request.
   batches: '/v1/risk/batches',
+  // PM-11 — the embedded fictional infrastructure catalogue. Read-only and
+  // authenticated by the existing risk prefix; there is no mutation route.
+  infrastructure: '/v1/risk/infrastructure',
   sources: '/v1/risk/sources',
+  // PM-08's frozen read: persisted PM-07 risk alerts, newest first by default,
+  // keyset-paginated through the opaque `cursor` the previous page returned.
+  // The server owns the default page size (50); the client sends no `limit`.
+  alerts: '/v1/risk/alerts',
   riskStatus: '/v1/risk/status',
   jobsStatus: '/v1/jobs/status',
   scenarios: '/v1/risk/synthetic-scenarios',
@@ -86,6 +97,11 @@ export const routes = {
   // are reached through the gateway, the only origin the page's `connect-src`
   // allows besides the identity provider.
   preventiveActions: '/v1/prevention/actions',
+  // PM-09 field observations. Both routes are served by the prevention service
+  // through the gateway; the zones read is the REAL catalogue, including zones
+  // without map geometry, so the form never invents a sector.
+  observations: '/v1/prevention/observations',
+  observationZones: '/v1/prevention/observations/zones',
   models: '/v1/models',
   // The realm's user directory (V1-U-04). Admin-only and read-only: it is what
   // fills the assignee selector, and what an `assignee_id` is resolved against.
@@ -104,6 +120,12 @@ export function preventiveActionRoute(id: string): string {
 
 export function preventiveTransitionRoute(id: string): string {
   return `${preventiveActionRoute(id)}/transitions`;
+}
+
+// PM-10: the one link operation of S4. The observation is addressed by the path
+// and the existing action by the body, so neither can be exchanged for the other.
+export function observationAdoptionRoute(id: string): string {
+  return `${routes.observations}/${encodeURIComponent(id)}/adoption`;
 }
 
 // Bounds and deadlines the retired page enforced. They are policy, not

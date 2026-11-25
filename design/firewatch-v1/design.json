@@ -1,0 +1,28 @@
+{
+  "title": "FireWatch v1 · Territorio y Acciones preventivas",
+  "brief": "Tres direcciones visuales para la ruta #overview «Territorio» y el flujo de Acciones con selector de responsable (V1-U-04), con el mismo escenario municipal ficticio de Valparaíso. Más color y estructura dentro de los tokens activos; los niveles por sector, la cobertura y la prioridad contextual se declaran prototipo G6.",
+  "feature": "odd/tasks/v1-gentle-design.md",
+  "artboards": [
+    {
+      "file": "01-mapa-operativo.html",
+      "title": "Mapa operativo",
+      "tradeoff": "El territorio ocupa la pantalla y las acciones viven en un panel lateral fijo: el foco continuo entre municipios y el corte compartido se leen de inmediato y el trabajo de acciones queda en paralelo, a costa de una densidad alta y de dos paneles con desplazamiento propio.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-informe-territorial.html",
+      "title": "Informe territorial",
+      "tradeoff": "Arquitectura editorial de lectura secuencial con anexo operativo: máxima claridad de evidencia, frescura y fuentes, a costa de más desplazamiento vertical y menos inmediatez para operar muchas acciones.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-mesa-prevencion.html",
+      "title": "Mesa de prevención",
+      "tradeoff": "Tablero de triage por estado con territorio, ficha y alta en diálogo: visión operativa de la carga de trabajo y filtros rápidos, a costa de columnas estrechas y de una lectura territorial menos protagonista.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

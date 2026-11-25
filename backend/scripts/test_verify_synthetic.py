@@ -67,6 +67,7 @@ def fake_container_id(name: str) -> str:
 # A fake Docker CLI. It records every invocation as one JSON line, returns a
 # deterministic container id derived from ``--name`` for create/run, and decides
 # success/failure/sleep from a comma-separated FAKE_DOCKER_SCENARIO value.
+# Migration failure scenarios never fire on the earlier broker topology setup.
 # This is a raw string so the ``\n`` escapes reach the written script verbatim.
 FAKE_DOCKER = r'''\
 import hashlib
@@ -82,12 +83,26 @@ with open(_log, "a", encoding="utf-8") as _handle:
     _handle.write(json.dumps(_argv) + "\n")
 
 
-def _container_id():
-    for index, part in enumerate(_argv):
-        if part == "--name" and index + 1 < len(_argv):
-            return hashlib.sha256(_argv[index + 1].encode("utf-8")).hexdigest()
-    seed = "anon-" + " ".join(_argv)
+def _name(args):
+    if "--name" in args:
+        return args[args.index("--name") + 1]
+    return ""
+
+
+def _container_id(args):
+    seed = _name(args) or "anon-" + " ".join(args)
     return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
+def _is_migration_start():
+    if len(_argv) != 3 or _argv[1] != "--attach":
+        return False
+    with open(_log, encoding="utf-8") as calls:
+        for line in calls:
+            args = json.loads(line)
+            if args[:1] == ["create"] and _name(args).endswith("-migrate") and _container_id(args) == _argv[2]:
+                return True
+    return False
 
 
 if not _argv:
@@ -103,7 +118,7 @@ if _command == "network" and len(_argv) > 1:
     if _argv[1] == "rm":
         sys.exit(1 if "network_rm" in _scenario else 0)
 if _command == "start":
-    if "start_sleep" in _scenario:
+    if "start_sleep" in _scenario and _is_migration_start():
         # Simulate an attached start that outlives the harness subprocess bound.
         # Closing both pipe fds keeps the timeout prompt when the process is killed.
         for _fd in (1, 2):
@@ -113,7 +128,7 @@ if _command == "start":
                 pass
         time.sleep(6)
         os._exit(0)
-    if "start" in _scenario:
+    if "start" in _scenario and _is_migration_start():
         sys.stderr.write("start failed\n")
         sys.exit(1)
     sys.exit(0)
@@ -127,13 +142,13 @@ if _command == "exec" and any(part == "psql" for part in _argv):
 if _command == "exec":
     sys.exit(0)
 if _command == "create":
-    if "create" in _scenario:
+    if "create" in _scenario and _name(_argv).endswith("-migrate"):
         sys.stderr.write("container name already in use\n")
         sys.exit(1)
-    print(_container_id())
+    print(_container_id(_argv))
     sys.exit(0)
 if _command == "run":
-    print(_container_id())
+    print(_container_id(_argv))
     sys.exit(0)
 sys.exit(0)
 '''
@@ -332,6 +347,28 @@ class KeycloakReadinessTests(unittest.TestCase):
         self.assertFalse(verify_synthetic.keycloak_ready(self.port, timeout=2))
 
 
+class QueryAuditProvisioningTests(unittest.TestCase):
+    def test_disposable_stack_provisions_a_separate_gateway_audit_role(self):
+        from unittest.mock import patch
+
+        harness = verify_synthetic.Harness(verify_synthetic.argparse.Namespace(timeout=30))
+        with patch.object(harness, '_start_container') as start, patch.object(
+            verify_synthetic, 'free_loopback_ports', return_value=(10001, 10002, 10003)
+        ):
+            harness.start_infrastructure()
+            harness.start_services()
+        by_alias = {call.kwargs['alias']: call.kwargs['env'] for call in start.call_args_list}
+        password = by_alias['postgres'].get('AUDIT_DB_PASSWORD')
+        self.assertIsNotNone(password)
+        self.assertIn(password, harness.redactions)
+        self.assertNotEqual(password, by_alias['postgres']['JOBS_DB_PASSWORD'])
+        self.assertEqual(
+            by_alias['gateway'].get('AUDIT_DATABASE_URL'),
+            f'postgres://audit_query_app:{password}@postgres:5432/jobs?sslmode=disable',
+        )
+        self.assertNotIn('DATABASE_URL', by_alias['gateway'])
+
+
 class ResourceOwnershipTests(unittest.TestCase):
     """Only resources this run successfully created may be removed."""
 
@@ -378,7 +415,7 @@ class ResourceOwnershipTests(unittest.TestCase):
     def test_failed_migration_create_never_deletes_a_preexisting_name(self):
         result, calls = self._run("create")
         self.assertEqual(result.returncode, 1, result.stderr)
-        attempted = self._names(calls, "create")
+        attempted = [name for name in self._names(calls, "create") if name.endswith("-migrate")]
         self.assertTrue(attempted, f"no migration create was attempted: {calls}")
         removed = self._targets(calls, "rm", "--force")
         started = self._targets(calls, "start", "--attach")

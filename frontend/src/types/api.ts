@@ -129,6 +129,40 @@ export interface ServiceSnapshot {
   };
 }
 
+// ── Effective classifier (`GET /v1/models`, PM-16 / S1) ──────────────────────
+//
+// The additive `effective` projection of the classifier the NEXT publication
+// would resolve, published beside the unchanged registry `models` list (frozen
+// backend contract, L6). These are declarations, not guarantees: `models` is
+// never an identity source here, and `core/active-rule.ts` validates the three
+// shapes before anything is shown. An absent or malformed projection is
+// `unknown`, not an inferred identity.
+export interface EffectiveRuleClassifier {
+  status: 'rule';
+  version: string;
+  params_hash: string;
+}
+
+export interface EffectiveNonRuleClassifier {
+  status: 'non_rule';
+}
+
+export interface EffectiveUnavailableClassifier {
+  status: 'unavailable';
+}
+
+export type EffectiveClassifier =
+  | EffectiveRuleClassifier
+  | EffectiveNonRuleClassifier
+  | EffectiveUnavailableClassifier;
+
+export interface ModelRegistry {
+  /** The registry rows, kept for the overview panel; never an identity source. */
+  models: unknown[];
+  /** Declared `unknown` on purpose: the client fails closed on an absent or malformed projection. */
+  effective?: unknown;
+}
+
 export interface Job {
   id: string;
   zone_id: string;
@@ -148,10 +182,20 @@ export interface Scenario {
   description: string;
 }
 
+// The durable audit row returned by `GET /v1/audit`. `event_id` is the row's own
+// stable identity (never the job or trace id), so two events of one job remain
+// distinguishable. `actor_name` is the display name captured from verified token
+// claims; it is null when no name was captured, and the view falls back to the
+// opaque `actor_id` instead of synthesizing one. `detail` is server-generated
+// free text and `job_id` is null on a query record.
 export interface AuditEntry {
+  event_id: string;
   actor_id: string;
+  actor_name: string | null;
   action: string;
-  job_id: string;
+  event_kind: 'mutation' | 'query';
+  detail: string | null;
+  job_id: string | null;
   trace_id: string;
   occurred_at: string;
 }
@@ -225,6 +269,52 @@ export interface PreventiveEvidenceReview {
   reviewer_sub?: string;
   note?: string;
   reviewed_at?: string;
+}
+
+// ── Field observations (PM-09) ──────────────────────────────────────────────
+//
+// The frozen seam is `GET|POST /v1/prevention/observations` and
+// `GET /v1/prevention/observations/zones`. The type is a closed catalogue on the
+// wire: the labels are the Spanish words of S2/S3 and the values are what the
+// server accepts. `created_by` is the verified token `sub`; the client never
+// sends it and never invents one.
+
+export type ObservationType = 'vegetacion_seca' | 'microbasural' | 'quema' | 'acceso_bloqueado' | 'otro';
+
+export const OBSERVATION_TYPES: readonly ObservationType[] = [
+  'vegetacion_seca',
+  'microbasural',
+  'quema',
+  'acceso_bloqueado',
+  'otro',
+];
+
+export interface Observation {
+  id: string;
+  // The closed catalogue of PM-09. The transport refuses a served value outside
+  // it as a contract change, so the Spanish label map always covers the type.
+  type: ObservationType;
+  zone_id: string;
+  // Nullable on the wire: a catalog zone without a name answers `null`.
+  zone_name: string | null;
+  // `YYYY-MM-DD`; the observation's own date, not its creation instant.
+  observed_on: string;
+  description: string;
+  created_by: string;
+  created_at: string;
+  // PM-10 (S4): the preventive action this observation was durably confirmed to
+  // justify, as the service reports it on every observation read. `null` (or an
+  // absent field in an older payload) means no confirmation has been recorded.
+  // It is an identifier and not a copy of the action: the record is historical,
+  // so it keeps naming the adopted action after that action is cancelled.
+  adopted_action_id?: string | null;
+}
+
+export interface ObservationZone {
+  // `code` is the catalogue key the creation posts as `zone_id`.
+  code: string;
+  name: string;
+  province: string | null;
 }
 
 export interface PreventiveReassessment {

@@ -1,0 +1,384 @@
+{
+  "format": "firewatch-model-data-handoff/v1",
+  "dataset_id": "firewatch-synthetic-handoff-v1",
+  "provenance": "synthetic",
+  "time_zone": "America/Santiago",
+  "generator": "design/firewatch-v1-vuelo/model-data/generate.py",
+  "commands": {
+    "panel": "python design/firewatch-v1-vuelo/model-data/generate.py --emit panel > design/firewatch-v1-vuelo/model-data/panel-synthetic.csv",
+    "sectors": "python design/firewatch-v1-vuelo/model-data/generate.py --emit sectors > design/firewatch-v1-vuelo/model-data/sector-fixture.json",
+    "manifest": "python design/firewatch-v1-vuelo/model-data/generate.py --emit manifest > design/firewatch-v1-vuelo/model-data/manifest.json",
+    "verify": "python design/firewatch-v1-vuelo/model-data/generate.py --check"
+  },
+  "panel": {
+    "file": "panel-synthetic.csv",
+    "bytes": 3251,
+    "sha256": "e24ea6bb7afedff20adfe5b8c52f67d7c19ccc376bd3afb3b7d28297758867ff",
+    "rows": 36,
+    "columns": [
+      "cut",
+      "comuna",
+      "comuna_unresolved",
+      "provincia",
+      "region",
+      "local_date",
+      "fire_today",
+      "fire_count",
+      "burned_ha",
+      "meteorology_readings",
+      "temp_max",
+      "temp_min",
+      "humidity_rel",
+      "wind_speed",
+      "wind_dir",
+      "precip_sum",
+      "radiation_sol"
+    ],
+    "key": [
+      "cut",
+      "local_date"
+    ],
+    "comunas": [
+      {
+        "cut": "05101",
+        "comuna": "Valparaíso",
+        "provincia": "Valparaíso",
+        "region": "Valparaiso"
+      },
+      {
+        "cut": "05109",
+        "comuna": "Viña del Mar",
+        "provincia": "Valparaíso",
+        "region": "Valparaiso"
+      },
+      {
+        "cut": "05801",
+        "comuna": "Quilpué",
+        "provincia": "Marga Marga",
+        "region": "Valparaiso"
+      }
+    ],
+    "local_dates": {
+      "first": "2026-11-09",
+      "last": "2026-11-20",
+      "days": 12
+    },
+    "labels": {
+      "fire_rows": 4,
+      "quiet_rows": 32
+    },
+    "reading_coverage": {
+      "temp_max": {
+        "present": 34,
+        "missing": 2,
+        "missing_on_event_rows": 1,
+        "missing_on_quiet_rows": 1
+      },
+      "temp_min": {
+        "present": 34,
+        "missing": 2,
+        "missing_on_event_rows": 1,
+        "missing_on_quiet_rows": 1
+      },
+      "humidity_rel": {
+        "present": 33,
+        "missing": 3,
+        "missing_on_event_rows": 1,
+        "missing_on_quiet_rows": 2
+      },
+      "wind_speed": {
+        "present": 34,
+        "missing": 2,
+        "missing_on_event_rows": 1,
+        "missing_on_quiet_rows": 1
+      },
+      "wind_dir": {
+        "present": 33,
+        "missing": 3,
+        "missing_on_event_rows": 1,
+        "missing_on_quiet_rows": 2
+      },
+      "precip_sum": {
+        "present": 32,
+        "missing": 4,
+        "missing_on_event_rows": 1,
+        "missing_on_quiet_rows": 3
+      },
+      "radiation_sol": {
+        "present": 34,
+        "missing": 2,
+        "missing_on_event_rows": 1,
+        "missing_on_quiet_rows": 1
+      }
+    },
+    "missing_cells": [
+      {
+        "cut": "05101",
+        "comuna": "Valparaíso",
+        "local_date": "2026-11-16",
+        "feature": "radiation_sol",
+        "reason": "piranómetro sin registro durante el día"
+      },
+      {
+        "cut": "05101",
+        "comuna": "Valparaíso",
+        "local_date": "2026-11-17",
+        "feature": "precip_sum",
+        "reason": "ventana de siete días incompleta: falta la lectura diaria de 2026-11-17; se declara nula en vez de una suma menor"
+      },
+      {
+        "cut": "05101",
+        "comuna": "Valparaíso",
+        "local_date": "2026-11-18",
+        "feature": "wind_speed",
+        "reason": "anemómetro fuera de servicio"
+      },
+      {
+        "cut": "05101",
+        "comuna": "Valparaíso",
+        "local_date": "2026-11-18",
+        "feature": "wind_dir",
+        "reason": "anemómetro fuera de servicio"
+      },
+      {
+        "cut": "05101",
+        "comuna": "Valparaíso",
+        "local_date": "2026-11-18",
+        "feature": "precip_sum",
+        "reason": "ventana de siete días incompleta: falta la lectura diaria de 2026-11-17; se declara nula en vez de una suma menor"
+      },
+      {
+        "cut": "05101",
+        "comuna": "Valparaíso",
+        "local_date": "2026-11-19",
+        "feature": "humidity_rel",
+        "reason": "sensor de humedad sin lectura"
+      },
+      {
+        "cut": "05101",
+        "comuna": "Valparaíso",
+        "local_date": "2026-11-19",
+        "feature": "precip_sum",
+        "reason": "ventana de siete días incompleta: falta la lectura diaria de 2026-11-17; se declara nula en vez de una suma menor"
+      },
+      {
+        "cut": "05101",
+        "comuna": "Valparaíso",
+        "local_date": "2026-11-20",
+        "feature": "precip_sum",
+        "reason": "ventana de siete días incompleta: falta la lectura diaria de 2026-11-17; se declara nula en vez de una suma menor"
+      },
+      {
+        "cut": "05109",
+        "comuna": "Viña del Mar",
+        "local_date": "2026-11-14",
+        "feature": "humidity_rel",
+        "reason": "sensor de humedad sin lectura"
+      },
+      {
+        "cut": "05109",
+        "comuna": "Viña del Mar",
+        "local_date": "2026-11-16",
+        "feature": "wind_dir",
+        "reason": "calma medida: la velocidad es 0 y la dirección no está definida, no es 0°"
+      },
+      {
+        "cut": "05109",
+        "comuna": "Viña del Mar",
+        "local_date": "2026-11-20",
+        "feature": "humidity_rel",
+        "reason": "estación costera sin registro de humedad"
+      },
+      {
+        "cut": "05109",
+        "comuna": "Viña del Mar",
+        "local_date": "2026-11-20",
+        "feature": "radiation_sol",
+        "reason": "estación costera sin registro de radiación"
+      },
+      {
+        "cut": "05801",
+        "comuna": "Quilpué",
+        "local_date": "2026-11-11",
+        "feature": "wind_speed",
+        "reason": "anemómetro sin lectura"
+      },
+      {
+        "cut": "05801",
+        "comuna": "Quilpué",
+        "local_date": "2026-11-11",
+        "feature": "wind_dir",
+        "reason": "anemómetro sin lectura"
+      },
+      {
+        "cut": "05801",
+        "comuna": "Quilpué",
+        "local_date": "2026-11-12",
+        "feature": "temp_max",
+        "reason": "estación sin registro de temperatura"
+      },
+      {
+        "cut": "05801",
+        "comuna": "Quilpué",
+        "local_date": "2026-11-12",
+        "feature": "temp_min",
+        "reason": "estación sin registro de temperatura"
+      },
+      {
+        "cut": "05801",
+        "comuna": "Quilpué",
+        "local_date": "2026-11-17",
+        "feature": "temp_max",
+        "reason": "estación sin registro de temperatura"
+      },
+      {
+        "cut": "05801",
+        "comuna": "Quilpué",
+        "local_date": "2026-11-17",
+        "feature": "temp_min",
+        "reason": "estación sin registro de temperatura"
+      }
+    ],
+    "meteorology_readings": {
+      "value": 0,
+      "code": "no_event_attached_readings"
+    }
+  },
+  "features": [
+    {
+      "name": "temp_max",
+      "unit": "degC",
+      "source_unit": "degC",
+      "training_aggregation": "máximo de las lecturas de la temperatura del día civil completo",
+      "serving_aggregation": "máximo de las lecturas almacenadas del día civil en curso al publicar",
+      "serving_window_days": 1
+    },
+    {
+      "name": "temp_min",
+      "unit": "degC",
+      "source_unit": "degC",
+      "training_aggregation": "mínimo de las lecturas de la temperatura del día civil completo",
+      "serving_aggregation": "mínimo de las lecturas almacenadas del día civil en curso al publicar",
+      "serving_window_days": 1
+    },
+    {
+      "name": "humidity_rel",
+      "unit": "%",
+      "source_unit": "%",
+      "training_aggregation": "media de las lecturas de humedad relativa del día civil",
+      "serving_aggregation": "última lectura instantánea del día civil en curso",
+      "serving_window_days": 1
+    },
+    {
+      "name": "wind_speed",
+      "unit": "m/s",
+      "source_unit": "km/h",
+      "conversion": "÷ 3.6, la misma que aplica el clasificador al pasar km/h a m/s",
+      "training_aggregation": "media de las lecturas diarias del viento, convertida a m/s",
+      "serving_aggregation": "última lectura instantánea, convertida de km/h a m/s",
+      "serving_window_days": 1
+    },
+    {
+      "name": "wind_dir",
+      "unit": "deg",
+      "source_unit": "deg",
+      "training_aggregation": "dirección dominante del día civil, en grados desde donde sopla",
+      "serving_aggregation": "última lectura instantánea, en grados desde donde sopla",
+      "serving_window_days": 1
+    },
+    {
+      "name": "precip_sum",
+      "unit": "mm",
+      "source_unit": "mm",
+      "training_aggregation": "suma de los siete días civiles que terminan en la fecha de referencia, incluida",
+      "serving_aggregation": "suma de los últimos siete días locales del historial, incluido el día en curso",
+      "serving_window_days": 7
+    },
+    {
+      "name": "radiation_sol",
+      "unit": "W/m2",
+      "source_unit": "W/m2",
+      "training_aggregation": "media diaria de irradiancia en W/m2; no es una integral diaria",
+      "serving_aggregation": "última lectura instantánea en W/m2; no se convierte a integral diaria",
+      "serving_window_days": 1
+    }
+  ],
+  "sector_fixture": {
+    "file": "sector-fixture.json",
+    "bytes": 1729,
+    "sha256": "9ff5eaa81951f9707cc7560448a3aa1b2b18678b092feb2d863a93d77cfa342b",
+    "sectors": [
+      {
+        "sector_id": "quebrada-este",
+        "name": "Quebrada del Este",
+        "local_date": "2026-11-20",
+        "weather_fields_present": 7,
+        "missing_weather_fields": [],
+        "terrain_present": true
+      },
+      {
+        "sector_id": "borde-costero",
+        "name": "Borde costero",
+        "local_date": "2026-11-20",
+        "weather_fields_present": 5,
+        "missing_weather_fields": [
+          "humidity_rel",
+          "radiation_sol"
+        ],
+        "terrain_present": true
+      },
+      {
+        "sector_id": "interior-sin-lectura",
+        "name": "Interior sin lectura",
+        "local_date": "2026-11-20",
+        "weather_fields_present": 0,
+        "missing_weather_fields": [
+          "temp_max",
+          "temp_min",
+          "humidity_rel",
+          "wind_speed",
+          "wind_dir",
+          "precip_sum",
+          "radiation_sol"
+        ],
+        "terrain_present": false
+      }
+    ]
+  },
+  "contract_sources": {
+    "panel_columns": "backend/training/assemble.py PANEL_COLUMNS",
+    "feature_order_and_units": "backend/services/inference/testdata/logistic.json",
+    "serving_window_and_coverage": "backend/services/risk/internal/features/features.go",
+    "serving_units_and_conversions": "backend/services/risk/internal/classify/inference.go",
+    "tracked_comuna_cut": "backend/training/data/comunas-valparaiso-centroids.json"
+  },
+  "excluded_from_features": [
+    "fire_today",
+    "fire_count",
+    "burned_ha"
+  ],
+  "label_blockers": [
+    {
+      "source": "DOI 10.71578/UXAUN5 (Dataverse, producto CONAF 2010-2025)",
+      "identifier": "10.71578/UXAUN5",
+      "access_state": "access_request_required",
+      "evidence": "odd/tasks/plan-produccion/aws-ml-delivery.md L5"
+    },
+    {
+      "source": "Geoportal CONAF 2010-2025",
+      "identifier": "01d06ae3-122e-41fc-9512-1dd2b5067112",
+      "access_state": "metadata_without_distribution",
+      "evidence": "odd/tasks/plan-produccion/aws-ml-delivery.md L5"
+    },
+    {
+      "source": "muestra abierta del repositorio FONDEF (una temporada de una región)",
+      "identifier": "maule-2018-2019",
+      "access_state": "partial_open_sample",
+      "evidence": "backend/training/README.md"
+    }
+  ],
+  "limits": [
+    "no llama a proveedores, no lee credenciales y no toca frontend/ ni backend/",
+    "no se ejecutó el modelo; no hay inferencia, ni activación, ni despliegue"
+  ]
+}
