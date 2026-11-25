@@ -1,0 +1,28 @@
+-- 018: time-led index for the granular history series read (PM-04).
+--
+-- The series read asks one question the existing indexes cannot serve: "every
+-- publication whose requested_at falls in [from, to), for one zone or for all of
+-- them", and then keeps the newest row per zone and bucket.
+--
+-- 001_initial.sql created batches_latest ON batches(zone_id, requested_at DESC, id DESC).
+-- That index is exactly right for the per-zone reads - equality on zone_id, then a
+-- descending scan of the instant - and it is NOT touched here. It cannot serve the
+-- ALL-ZONE window: its leading column is zone_id, so a range on requested_at alone
+-- has no prefix to seek and PostgreSQL would read the whole table for every series
+-- request as the table grows.
+--
+-- This index leads with the instant, so the window is a single index range scan for
+-- both shapes: the all-zone read seeks on requested_at, and a zone-filtered read can
+-- use this index's (requested_at, zone_id) pair or batches_latest, whichever the
+-- planner prefers. There is deliberately no third index solely for the zone case:
+-- one migration, one purpose.
+--
+-- It is additive. It creates no table, rewrites no row, backfills nothing, renames
+-- nothing and drops nothing. CREATE INDEX CONCURRENTLY is deliberately not used: it
+-- cannot run inside the transaction a migrator opens, and the ledger's migrations
+-- apply in order during a deploy rather than against live write traffic.
+--
+-- The measurement that validates it, if it is ever reconsidered: the plan of the
+-- series read over a 31 day window on a database holding more than one publication
+-- per zone per day. A sequential scan of batches is the symptom this index removes.
+CREATE INDEX IF NOT EXISTS batches_requested_zone ON batches(requested_at, zone_id);

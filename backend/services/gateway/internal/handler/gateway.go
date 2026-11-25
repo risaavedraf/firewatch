@@ -265,13 +265,17 @@ func newGateway(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin st
 			r = r.WithContext(withPendingQuery(r.Context(), recorder, QueryRecord{ActorID: actorID, ActorName: actorName, Action: route.Action, TraceID: id}))
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 8192)
-		// The alert timeline is the one route whose query this gateway judges itself;
-		// see alertQueryUnreadable for why. Every sibling route keeps the forwarding
-		// behaviour it already has, and the guard sits after the bearer gate and both
-		// quotas so an unauthenticated caller still learns nothing about its own query.
+		// These exact reads reject unreadable query pairs before ReverseProxy can
+		// drop them. Semantic validation stays with the upstream service.
 		if alertQueryUnreadable(r) {
 			failure(w, http.StatusBadRequest, "invalid_alert_query")
 			return
+		}
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/risk/history/series" {
+			if _, err := url.ParseQuery(r.URL.RawQuery); err != nil {
+				failure(w, http.StatusBadRequest, "invalid_series_query")
+				return
+			}
 		}
 		mux.ServeHTTP(w, r)
 	})
