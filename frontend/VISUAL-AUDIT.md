@@ -127,3 +127,33 @@ Headings, landmarks and form labels are spoken. Each view exposes its level-2 he
 Announcement test: on History the probe set the search box to a non-matching value without moving focus. The table went from 1 to 0 rows and the visible count from `1 de 1` to `0 de 1` at both widths, and the reader logged **no new phrase**. History has no live region for the count or the rows, so a reader user gets no feedback that filtering emptied the table. This is a product finding, not a harness defect. The probe now waits for the history read to settle before mutating; the first run changed the box before the table loaded and measured a meaningless empty result.
 
 Limits: a DOM reader is not assistive technology, so announcement timing, interruption and verbosity in a real screen reader remain unverified. The reading is capped at 45 shell plus 60 view steps and stops before the Actions creation fields. Only these states were sampled; the other five views, populated actions and error states were not read, and the filter-change announcement was the only dynamic change exercised.
+
+## Before and after capture set
+
+Chromium **149.0.7827.55** (Playwright 1.61.1 driving the full Chromium build, headless), **2026-11-25**, disposable `firewatch-g1-audit` stack (gateway 18380, identity 18381, static web 14375) with one real admin session. Both sets use the same browser build and the same two viewports, **1280×720** and **390×844**, and each file is a full-page PNG written by `tmp/g1-browser-baseline/workspace-audit.mjs`. Every path is registered in the table below.
+
+Run flags: `FW_PLAYWRIGHT=<playwright-core 1.61.1> FW_CHROMIUM_PATH=<scratch full Chromium, chromium-1228> FW_CAPTURE_SET=1 FW_TAG_GATE=1 FW_MAP_GATE=1 FW_POPULATED=1`. The neutral-tag gate stayed on, and the populated path published **one synthetic lot** in that disposable stack only, so Overview and History were captured with a real risk card and two history rows instead of an empty shell.
+
+The `before-*` files come from the baseline `742e760`, before the corrections recorded above; the sign-in baseline is `auth-<width>.png` from the same Chromium and viewports. The after set is dated — `after-2026-11-25-<route>-<width>.png` — so no `before-`, `after-` or `auth-` capture is overwritten; the probe now fails the preflight instead of replacing an existing file, and `FW_CAPTURE_LABEL` shifts the date for a later run.
+
+| View | 1280×720 before / after | 390×844 before / after |
+| --- | --- | --- |
+| Actions | `tmp/g1-browser-baseline/before-actions-1280.png` / `tmp/g1-browser-baseline/after-2026-11-25-actions-1280.png` | `tmp/g1-browser-baseline/before-actions-390.png` / `tmp/g1-browser-baseline/after-2026-11-25-actions-390.png` |
+| Audit | `tmp/g1-browser-baseline/before-audit-1280.png` / `tmp/g1-browser-baseline/after-2026-11-25-audit-1280.png` | `tmp/g1-browser-baseline/before-audit-390.png` / `tmp/g1-browser-baseline/after-2026-11-25-audit-390.png` |
+| History | `tmp/g1-browser-baseline/before-history-1280.png` / `tmp/g1-browser-baseline/after-2026-11-25-history-1280.png` | `tmp/g1-browser-baseline/before-history-390.png` / `tmp/g1-browser-baseline/after-2026-11-25-history-390.png` |
+| Jobs | `tmp/g1-browser-baseline/before-jobs-1280.png` / `tmp/g1-browser-baseline/after-2026-11-25-jobs-1280.png` | `tmp/g1-browser-baseline/before-jobs-390.png` / `tmp/g1-browser-baseline/after-2026-11-25-jobs-390.png` |
+| Overview | `tmp/g1-browser-baseline/before-overview-1280.png` / `tmp/g1-browser-baseline/after-2026-11-25-overview-1280.png` | `tmp/g1-browser-baseline/before-overview-390.png` / `tmp/g1-browser-baseline/after-2026-11-25-overview-390.png` |
+| Pending | `tmp/g1-browser-baseline/before-pending-1280.png` / `tmp/g1-browser-baseline/after-2026-11-25-pending-1280.png` | `tmp/g1-browser-baseline/before-pending-390.png` / `tmp/g1-browser-baseline/after-2026-11-25-pending-390.png` |
+| Session | `tmp/g1-browser-baseline/before-session-1280.png` / `tmp/g1-browser-baseline/after-2026-11-25-session-1280.png` | `tmp/g1-browser-baseline/before-session-390.png` / `tmp/g1-browser-baseline/after-2026-11-25-session-390.png` |
+| Sources | `tmp/g1-browser-baseline/before-sources-1280.png` / `tmp/g1-browser-baseline/after-2026-11-25-sources-1280.png` | `tmp/g1-browser-baseline/before-sources-390.png` / `tmp/g1-browser-baseline/after-2026-11-25-sources-390.png` |
+| Sign-in | `tmp/g1-browser-baseline/auth-1280.png` / `tmp/g1-browser-baseline/signin-1280.png` | `tmp/g1-browser-baseline/auth-390.png` / `tmp/g1-browser-baseline/signin-390.png` |
+
+Structural validation, without inspecting the images: all 18 expected files exist, begin with the PNG signature and exceed 10 KB — 18 of 18, smallest `after-2026-11-25-audit-390.png` at 46,727 bytes, largest `after-2026-11-25-overview-1280.png` at 281,759 bytes; the 1280 files decode as 1280px wide and the 390 files as 390px wide. The run exited 0 with `pageErrors: 0` at both widths and `overflow: false` in all 16 route samples.
+
+What the set proves: that each view, and the public sign-in, rendered in this Chromium build at both viewports at a single moment on 2026-11-25, with no page error and no horizontal page overflow.
+
+What it does not prove:
+
+- **Not settled asynchronous data.** A screenshot is one rendered state. History was allowed to settle on its loaded label and Overview on the published batch id, but two reads were throttled during the pass (`/v1/risk/synthetic-scenarios` at 1280, `/v1/audit` at 390) and `/v1/users` returned 503, so Actions shows its directory-unavailable state and the throttled panels show a service state rather than rows.
+- **Not a pixel diff.** No image comparison was computed. The two sets come from different commits *and* different data states — the baseline set was captured before any synthetic lot existed — so a size or colour difference cannot be attributed to one change, and visual regression is not measured.
+- **Not WCAG evidence by itself.** A PNG cannot demonstrate contrast thresholds, focus order, announcements, reflow or zoom behavior. Those claims rest on their own sections: measured contrast, axe scans, keyboard passes and the virtual screen reader.
