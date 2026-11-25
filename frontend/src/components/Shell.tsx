@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { navigationGroups, routes, type RouteDefinition } from '../app/routes';
 import { sessionDetailCopy } from '../app/sessionCopy';
@@ -75,6 +75,10 @@ export function Shell({ route, children }: { route: RouteDefinition; children: R
   const signedIn = session.status === 'signed-in';
   const [readiness, setReadiness] = useState<Readiness>({ state: 'checking', message: CHECKING });
   const [lastSettled, setLastSettled] = useState<SettledReview | null>(null);
+  // The content region is a focus target, never a Tab stop: `tabIndex={-1}` below
+  // makes it programmatically focusable while keeping it out of the sequential
+  // order, so the only way in is the skip link itself.
+  const contentRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -102,7 +106,24 @@ export function Shell({ route, children }: { route: RouteDefinition; children: R
 
   return (
     <>
-      <a className="skip-link" href="#content">
+      {/* A fragment link in a hash-routed page is a trap: `#content` is not a
+          declared route, so the browser's own navigation wrote it into the address
+          bar and the router replaced it with the default view — the reader was
+          moved to Overview and never reached the content. The link therefore keeps
+          its anchor role, its name and its keyboard activation (Enter fires the
+          same click) but stops the browser's navigation and moves focus itself,
+          which leaves the open view's fragment where it was. */}
+      <a
+        className="skip-link"
+        href="#content"
+        onClick={event => {
+          // A modified click is the browser's to handle — the shell takes over only
+          // the plain activation the skip link exists for.
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          contentRef.current?.focus();
+        }}
+      >
         Saltar al contenido
       </a>
       <div className="app-shell">
@@ -219,7 +240,7 @@ export function Shell({ route, children }: { route: RouteDefinition; children: R
               Entrada sintética · aviso de alcance
             </a>
           </div>
-          <main id="content">
+          <main id="content" ref={contentRef} tabIndex={-1}>
             {children}
             <footer>
               <span>FireWatch · La API no realiza predicciones ni recomendaciones operativas.</span>

@@ -15,7 +15,7 @@ single-file, framework-free page; the reasons and the parity obligations are rec
 | `src/app/routes.ts` | The eight views and their four navigation groups |
 | `src/views/AuthView.tsx` | The sign-in and sign-up screen shown instead of the workspace while there is no session. Both buttons open Keycloak; the page renders no credential field |
 | `src/app/useHashRoute.ts` | Hash routing: reads the view from the address bar, follows back/forward, normalises an unknown hash |
-| `src/components/Shell.tsx` | Sidebar, topbar, update bar and footer |
+| `src/components/Shell.tsx` | Sidebar, topbar, update bar and footer, and the workspace skip link that moves focus into `#content` |
 | `src/components/ui.tsx` | Presentation primitives: `Icon`, `Chip`, `Metric`, `PanelHeading`, `DataList`, `StatusCopy`, `EmptyState`, the "not implemented" markers |
 | `src/components/map/` | Territorial map projection and level colouring |
 | `src/core/api.ts` | Transport: one function per consumed route, absolute gateway URLs, sequence fences, deadlines |
@@ -273,6 +273,16 @@ or if the 720 px breakpoint stops dropping that height. **The geometry itself is
 nothing**: jsdom has no layout engine, so no suite here can tell whether the controls actually
 fit. That part is measured in a browser. The sign-in control's `disabled` state is the contrast:
 it is ordinary rendered behaviour, and it is asserted in `tests/views/session.test.tsx`.
+
+The workspace **Saltar al contenido** link is pinned in exactly two halves. The content region is a
+focus target and never a Tab stop — `tests/a11y/shell-sidebar-accessibility.test.tsx` walks the whole
+shell with Tab and then activates the link from the keyboard; and the activation must leave the open
+view alone — `tests/app/router.test.tsx` asserts that the fragment still names the view that was open,
+for a non-default view and for the default one, since a fallback to Overview is invisible from Overview.
+Both halves exist because the link used to be a plain fragment link: `#content` is not a declared
+route, so the browser wrote it into the address bar and the router replaced it with the default view.
+What no suite here can establish is the rendered half — that Chromium scrolls the region into view and
+paints the shared focus ring on it — because jsdom has neither layout nor fragment scrolling.
 
 ## History
 
