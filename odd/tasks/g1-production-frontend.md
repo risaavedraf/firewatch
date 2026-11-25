@@ -1,0 +1,21 @@
+# G1 — Production frontend
+Local worktree: `.worktrees/g1-production-frontend`, starting at the cached `origin/dev` (`742e760`).
+Use the existing design reference without changing the prototype delivery or any live product review branch.
+
+## Specs
+- S1 — «no tenemos tiempo para seguir haciendo el diseño»
+- S2 — «vamos full a terminar el front de la pagina, plan producción tomando en cuenta el nuevo diseño que estamos usando»
+
+## Tasks
+- T1 · S1–S2 · parent · Establish the production baseline and document existing tokens, consumers and measured contrast (V1-D-01) · commit pending.
+- T2 · S2 · parent · Audit the plan views against the existing new design and capture comparable before evidence (V1-D-02/05) · commit pending.
+- T3 · S2 · route from audit evidence · Implement and verify prioritized UI corrections, accessibility and after evidence (V1-D-03–05) · commit pending.
+- T4 · S2 · parent · Reconcile G1 product PMs with their acceptance gates, then slice remaining implementable frontend work without fabricating backend data · commit pending.
+
+## Log
+- L1 — «no tenemos tiempo para seguir haciendo el diseño asi que vamos full a terminar el front de la pagina, plan producción tomando en cuenta el nuevo diseño que estamos usando»
+- L2 — Local Git confirms preventive recommendations commit `eee885d` already exists in cached `origin/dev`; do not reimplement PM-18 or assume its formal R6 gate is cleared. `dev` at `b6282b8` includes separate pending product work and is not the starting ref. Committed prototype reference: `docs/pitch-g1-design` (`d651459`); no bulk import of its dirty worktree. No publishing or merge authorized.
+- L3 — T1 in progress: `frontend/VISUAL-BASELINE.md` inventories 27 verified token values and 60 source-level WCAG contrast ratios (11 below their listed thresholds). Structural verification passed (source links, counts, whitespace). No browser evidence; gradients, inheritance and state-dependent coverage remain open. Read-only explorer `mww4qbfr-3-lk43` confirmed rendered coverage gaps.
+- L4 — `job-2` passed `npm ci` and `npm run verify` (40 files, 428 tests, lint, types, local build, source gate and smoke). `job-3` rendered the public sign-in in Chromium at 1280×720 and 390×844, without horizontal overflow or uncaught page errors, and recorded first-Tab focus and two ignored screenshots. No session, workspace routes or WCAG sign-off. Explorer `mww4v3va-4-3s9k` is gathering the static eight-view audit in parallel; T1 and T2 remain open.
+- L5 — Disposable `firewatch-g1-audit` started with isolated credentials, project-scoped network/volumes and loopback ports; gateway returned 204 and Keycloak issuer matched (`job-4`). `job-5` compiled for that stack. Harness-only failures `job-6`–`job-9` were corrected without product changes. `job-10` reached all eight routes with a real session at both widths; 16 before PNGs verified. `frontend/VISUAL-AUDIT.md` records the sampled state, with no claim of settled or full route coverage.
+- L6 — T3 first correction: `job-11` RED reproduced neutral-tag 4.27:1 in Overview, Audit, Sources and Session at both widths. `job-12` GREEN measured 4.87:1 in those eight samples and unchanged Actions (10.51:1 at both widths), produced 16 after captures, passed 428 frontend tests and completed lint, types, local build, source gate, smoke and `git diff --check`. This closes the neutral-tag finding only. Full design alignment, remaining contrast, keyboard and WCAG criteria stay open.

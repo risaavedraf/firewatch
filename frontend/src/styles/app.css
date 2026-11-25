@@ -114,7 +114,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .dataset-badge, .neutral-tag, .admin-tag, .count-badge, .small-label { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid transparent; border-radius: 6px; font-size: 8px; font-weight: 850; letter-spacing: .06em; white-space: nowrap; }
 .dataset-badge { color: #236852; background: #e8f5ef; }
 .dataset-badge i { width: 6px; height: 6px; border-radius: 50%; background: #2f9b70; }
-.neutral-tag { color: #64747a; background: #edf1f2; }
+.neutral-tag { color: var(--muted); background: #edf1f2; }
 .count-badge { color: #52646b; background: #edf1f2; }
 .admin-tag { color: #755a22; background: var(--gold-soft); }
 .small-label { border-color: var(--line); color: var(--muted); font-weight: 600; letter-spacing: 1px; }
