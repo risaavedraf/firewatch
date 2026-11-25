@@ -167,6 +167,22 @@ func history(store Repository) http.HandlerFunc {
 	}
 }
 
+// NewWithCycleAndClassifier is the additive form of NewWithCycle: it wires the
+// classifier source the publisher already uses, so GET /v1/models can project
+// the runtime selection instead of guessing it from the registry. The existing
+// constructors keep their behaviour; without a source the projection reports
+// unavailable. Authentication, roles and every other route are unchanged: the
+// source is attached to the request context and only the models read consumes it.
+func NewWithCycleAndClassifier(store Repository, verifier Verifier, check StatusCheck, runner CycleRunner, classifiers ClassifierSource, providers ...DescriptorProvider) http.Handler {
+	handler := NewWithCycle(store, verifier, check, runner, providers...)
+	if classifiers == nil {
+		return handler
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r.WithContext(withClassifierSource(r.Context(), classifiers)))
+	})
+}
+
 // batchCollection is the aggregate read's body. Batches is never nil, so an empty
 // publication state serialises as {"batches":[]} rather than JSON null: nothing
 // published is an answer, not a failure, and it is never a 404.
