@@ -74,6 +74,10 @@ export const routes = {
   zones: '/v1/risk/zones',
   latest: '/v1/risk/latest',
   history: '/v1/risk/history',
+  // The export is the same bounded read as `history`, rendered as a CSV
+  // document. It is a separate route because it is a separate representation:
+  // the page downloads it as-is and never re-encodes it.
+  historyCsv: '/v1/risk/history.csv',
   // The aggregate read that colours the whole territory on load: the newest
   // published batch of every zone that has one, answered in a single request.
   batches: '/v1/risk/batches',
