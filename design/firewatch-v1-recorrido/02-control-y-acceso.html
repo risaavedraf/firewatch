@@ -846,6 +846,7 @@ code {
         <div class="chips">
           <span class="chip chip-neutral">Datos sintéticos</span>
           <span class="chip chip-g6">Prototipo G6 · V1-P-05</span>
+          <span class="chip chip-g6">PM-16 · estado de servicios</span>
         </div>
       </div>
       <div class="layout">
@@ -948,6 +949,32 @@ code {
                 <strong>Modelo de clasificación</strong>
                 <span class="chip chip-gold">No validado</span>
                 <p class="status-text">Regla académica no oficial y no calibrada contra incendios observados; ninguna vista de esta maqueta valida el modelo.</p>
+              </div>
+              <div class="status-row" id="svc-rule">
+                <strong>Regla activa</strong>
+                <span class="chip chip-neutral">Identificador del código</span>
+                <p class="status-text" id="svc-rule-text">
+                  <code>academic-rule-v1</code> · regla académica propia, no oficial y no calibrada: es una regla determinista, no un modelo
+                  entrenado. Versión de parámetros y hash: <strong>no informados en esta maqueta</strong>, que no ejecuta el servicio; no se
+                  muestran valores que no provengan de una lectura real.
+                </p>
+              </div>
+              <div class="proto-block" id="pm16-verdict">
+                <p class="eyebrow">PM-16 · VEREDICTO DE LA DEMOSTRACIÓN</p>
+                <h4 id="pm16-verdict-title">Demostración sin verificación operativa</h4>
+                <p class="status-text" id="pm16-verdict-text">
+                  No es un tablero de producción: la maqueta no consultó la API, no integró una fuente meteorológica y no comprobó los
+                  controles ni los servicios dependientes. El veredicto es ilustrativo y no sustituye la vigilancia de CONAF ni de
+                  SENAPRED.
+                </p>
+                <dl class="facts">
+                  <div><dt>API de riesgo</dt><dd>Sin consultar: la maqueta no llama a <code>/v1/risk/status</code>.</dd></div>
+                  <div><dt>Fuente meteorológica</dt><dd>No integrada: el producto clasifica un lote sintético, no clima en vivo.</dd></div>
+                  <div><dt>Controles y trabajos</dt><dd>Sin consultar: publicar, avanzar y reevaluar requieren admin y no existen como endpoint hoy.</dd></div>
+                  <div><dt>Regla activa</dt><dd><code>academic-rule-v1</code> · versión de parámetros y hash no informados en esta maqueta.</dd></div>
+                  <div><dt>Veredicto</dt><dd>Demostración, no producción: datos sintéticos y servicios sin verificar. Ningún estado de esta sección es una lectura en vivo.</dd></div>
+                </dl>
+                <p class="micro">Una sola vista de estado: PM-16 no abre una segunda pantalla de salud. La maqueta no define el contrato de PM-16 ni cierra su fila.</p>
               </div>
             </div>
           </article>
