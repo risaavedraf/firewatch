@@ -7,7 +7,7 @@ import { completeLogin, resetSession } from '../../src/core/session';
 
 import { createCryptoStub, createFetchStub, flush, jwt } from '../core/harness';
 
-// N4 — the nine real areas are now seven views, and exactly one of them is
+// N4 — the nine real areas are now nine views, and exactly one of them is
 // rendered at a time. The retired page stacked all nine sections in one scroll,
 // which is the symptom the user reported ("puedo scrolleando ver toda la info,
 // no por separado").
@@ -45,16 +45,18 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the ten views are declared once, with the two merged pairs and no duplicate hash', () => {
+test('the eleven views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
   // (Acceso) and the sidebar order is the declared order. `#actions` joins
-  // Prevención beside the territory and the batch history (T12); `#observations`
-  // follows it as the PM-09 field-observation page, and `#notifications` joins
+  // Prevención beside the territory and the batch history (T12), and PM-11 adds
+  // the dedicated synthetic-infrastructure demo in the same group; `#observations`
+  // follows as the PM-09 field-observation page, and `#notifications` joins
   // Coordinación beside the activity register (PM-08).
   expect(ids).toEqual([
     'overview',
+    'infrastructure',
     'history',
     'actions',
     'observations',
@@ -128,4 +130,17 @@ test('the notification centre has its own hash and navigation entry', () => {
   const link = screen.getByRole('link', { name: /notificaciones/i });
   expect(link).toHaveAttribute('href', '#notifications');
   expect(link).toHaveAttribute('aria-current', 'true');
+});
+
+// PM-11 — the synthetic infrastructure demo is a dedicated view, not a panel
+// appended to the territory overview. It keeps its own hash and navigation entry.
+test('the synthetic infrastructure demo has a dedicated #infrastructure route and navigation entry', () => {
+  render(<App />);
+
+  expect(screen.getByRole('link', { name: /infraestructura/i })).toHaveAttribute('href', '#infrastructure');
+
+  navigate('#infrastructure');
+  expect(renderedViews()).toEqual(['infrastructure']);
+  expect(document.getElementById('infrastructure-title')?.textContent).toBe('Infraestructura prioritaria');
+  expect(document.getElementById('infrastructure-synthetic')).not.toBeNull();
 });

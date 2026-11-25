@@ -422,6 +422,32 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /v1/risk/infrastructure:
+    get:
+      operationId: listInfrastructure
+      description: >-
+        Viewer/admin. The embedded fictional infrastructure catalogue for the
+        PM-11 demo: one declared entity, zone, geometry and source per element.
+        It is not the mandante's real catalogue, no coordinate is a real asset
+        location, and `source` is `synthetic_fixture`. Each element contributes
+        1 provisional demo point regardless of type; the zone score is the sum
+        of its per-type counts and is not a risk classification. Counts always
+        carry all five types, zero included, and are computed from the embedded
+        entries. Zones are ordered by descending score, then ascending zone_id.
+        The route reads no database or broker and does not change the risk
+        classifier.
+      responses:
+        '200':
+          description: >-
+            Frozen synthetic fixture. Zone IDs are seeded commune codes; the
+            geometry-less legacy valparaiso-demo row is not used.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InfrastructureCatalogue'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/risk/sources:
     get:
       operationId: getRiskSources
@@ -2079,6 +2105,89 @@ components:
       properties:
         id: {$ref: '#/components/schemas/SyntheticScenarioID'}
         description: {type: string}
+    InfrastructureCatalogue:
+      type: object
+      description: >-
+        Frozen PM-11 demo body. `source` is the declared origin every element
+        shares; `points_per_element` is the provisional demo weight, not an
+        approved production weight.
+      required: [source, points_per_element, zones]
+      properties:
+        source: {type: string, enum: [synthetic_fixture]}
+        points_per_element:
+          type: integer
+          minimum: 1
+          description: >-
+            Provisional demo weight: one point per element, regardless of type.
+        zones:
+          type: array
+          description: >-
+            Ordered by descending score, then ascending zone_id. One element per
+            seeded zone that carries at least one fictional asset in the fixture.
+          items: {$ref: '#/components/schemas/InfrastructureZone'}
+    InfrastructureZone:
+      type: object
+      required: [zone_id, score, counts, elements]
+      properties:
+        zone_id:
+          type: string
+          example: '05101'
+          description: >-
+            Seeded catalogue commune code. The fixture never uses the
+            geometry-less legacy valparaiso-demo row.
+        score:
+          type: integer
+          minimum: 0
+          description: >-
+            points_per_element multiplied by the zone's fixture element count.
+            It describes demo exposure; it is not a risk classification.
+        counts: {$ref: '#/components/schemas/InfrastructureCounts'}
+        elements:
+          type: array
+          items: {$ref: '#/components/schemas/InfrastructureElement'}
+    InfrastructureCounts:
+      type: object
+      description: >-
+        Per-type count computed from the zone's fixture entries. All five keys
+        are always present; a type with no element is reported as zero rather
+        than omitted.
+      required: [colegio, vivienda, hospital, ruta, hidrante]
+      additionalProperties: false
+      properties:
+        colegio: {type: integer, minimum: 0}
+        vivienda: {type: integer, minimum: 0}
+        hospital: {type: integer, minimum: 0}
+        ruta: {type: integer, minimum: 0}
+        hidrante: {type: integer, minimum: 0}
+    InfrastructureElement:
+      type: object
+      description: >-
+        One fictional asset. `id` is a stable fixture identifier, not a real
+        asset identifier, and `geometry` links the element to the territory of
+        its seeded zone.
+      required: [id, type, geometry]
+      properties:
+        id: {type: string, example: fixture-05101-colegio-1}
+        type:
+          type: string
+          enum: [colegio, vivienda, hospital, ruta, hidrante]
+        geometry: {$ref: '#/components/schemas/InfrastructureGeometry'}
+    InfrastructureGeometry:
+      type: object
+      description: >-
+        RFC 7946 geometry restricted to the two shapes this catalogue uses:
+        Point for buildings and hydrants, LineString for routes. Coordinates are
+        [longitude, latitude] WGS84 degrees and are fictional, not real asset
+        locations. Kept separate from Geometry because that schema serves the
+        catalogue polygons and must not gain a LineString member.
+      required: [type, coordinates]
+      properties:
+        type: {type: string, enum: [Point, LineString]}
+        coordinates:
+          description: >-
+            For Point, one RFC 7946 position [longitude, latitude]. For
+            LineString, an array of two or more positions. The standard defines
+            the shape for the declared type, so it is not restated here.
     Job:
       type: object
       required: [id, zone_id, state, requested_at, attempts]
