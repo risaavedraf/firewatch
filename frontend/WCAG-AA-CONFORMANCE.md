@@ -34,17 +34,17 @@ The rendered-pixel probe validates itself against independent arithmetic: it rep
 | 1.2.1–1.2.5 Time-based Media (A/AA) | Not applicable | No prerecorded audio or video, no captions, no audio description. |
 | 1.3.1 Info and Relationships (A) | Partly met | One `main` and one `navigation` landmark per route; heading hierarchy corrected to h1→h2→h3; tables use `th` with a caption. axe leaves `th-has-data-cells` *incomplete* on `#actions-table` because the sampled state had no data rows. Two structural defects remain: the shell footer exposes `contentinfo` nested inside `main`, and the History result count is a bare number with no accessible name. |
 | 1.3.2 Meaningful Sequence (A) | Meets (sampled) | Territory leads with the map in both rendered and DOM order, asserted by a public DOM test; reading order recorded by the virtual-screen-reader pass. |
-| 1.3.3 Sensory Characteristics (A) | Not evaluated | Instruction copy was not reviewed for reliance on shape, size or position. |
-| 1.3.4 Orientation (AA) | Not evaluated | Neither viewport tested locks orientation; both portrait and landscape layouts were rendered at the audited widths. |
+| 1.3.3 Sensory Characteristics (A) | Meets (source review) | Every instruction was reviewed for reliance on shape, size, position or colour, and none relies on one alone: the map legend names each level in text, the risk card states the level in words, and no copy points at a control by position. Colours never carry a meaning the text does not repeat. |
+| 1.3.4 Orientation (AA) | Meets (sampled) | No orientation lock and no orientation-conditioned style exists in the application; the audited widths cover the landscape and portrait layouts, and both rendered without restriction. |
 | 1.3.5 Identify Input Purpose (AA) | Partly met | Every audited input has a visible label; no `autocomplete` token audit was performed. |
 | 1.4.1 Use of Color (A) | Partly met | Risk levels, statuses and action states pair colour with text. Map fills encode level and the level is also stated in the risk card; the legend and inset text were not reviewed for colour-only reliance. |
 | 1.4.3 Contrast (Minimum) (AA) | Meets (sampled) | axe-core 4.10.3: zero violations across eight views at two widths. Rendered-pixel probe: 93 samples over the sign-in gradients, translucent sidebar surfaces, tags, table headers, eyebrows and navigation; every text surface meets 4.5:1, or 3:1 for large text. The single sub-threshold sample is the decorative `aria-hidden` `⌑` at 4.03:1. |
-| 1.4.4 Resize Text (AA) | Partly met | Chromium tab zoom at 200% (1280→640 CSS px) passed on all eight routes. Text-only resizing — the actual 1.4.4 condition — was not tested; zoom is a proxy. |
+| 1.4.4 Resize Text (AA) | Partly met | Chromium tab zoom at 200% (1280→640 CSS px) passed on all eight routes. Text-only resizing — the actual 1.4.4 condition — is not supported by the current type scale: `src/styles/*.css` carries 123 `font-size` declarations in absolute units and `rem` appears twice, so a browser default-font-size change cannot scale the text. Meeting 1.4.4 means moving the type scale to relative units, which is a design-system change, not a local fix. |
 | 1.4.5 Images of Text (AA) | Meets (sampled) | No raster text in the shell or the audited views; the brand mark is a text glyph, and headings are real text. |
 | 1.4.10 Reflow (AA) | Meets (sampled) | At 320 CSS px all eight routes measured a 320 px document scroll width, and at 200% zoom a 640 px width. Pending, Session and Audit expose one internal horizontal scroller each, reachable with Tab and movable with ArrowRight. |
 | 1.4.11 Non-text Contrast (AA) | Partly met | Focus indicators pass (5.11:1, 44 instances). Several map boundaries and fills are documented below 3:1 against the map surface: medium fill 1.75:1, neutral fill 1.45:1, low fill 2.26:1, unknown fill 1.45:1, medium boundary 2.54:1, neutral boundary 1.95:1. Whether a fill is "required to identify" the level in context is a product judgement this pass does not settle. |
-| 1.4.12 Text Spacing (AA) | Not evaluated | No text-spacing override test was run. |
-| 1.4.13 Content on Hover or Focus (AA) | Not evaluated | No dismissable or hoverable overlay content was tested. |
+| 1.4.12 Text Spacing (AA) | Not evaluated | The 1.4.12 override (line height 1.5, letter spacing 0.12em, word spacing 0.16em, paragraph spacing 2em) was not applied in a browser, so content loss under the override is unmeasured. |
+| 1.4.13 Content on Hover or Focus (AA) | Meets (source review) | The application creates no overlay that appears on hover or focus: there is no tooltip, popover, dropdown menu or hover-revealed content in `src/`. The only `title` attribute is the native tooltip on the map container, which the page does not position or dismiss. |
 
 ## Operable
 
@@ -52,7 +52,7 @@ The rendered-pixel probe validates itself against independent arithmetic: it rep
 | --- | --- | --- |
 | 2.1.1 Keyboard (A) | Partly met | Verified: primary navigation (8 routes, Tab+Enter), skip link, History search/status/reset, Territory map shapes (Enter and Space), table scrollers, create-form validation. Not verified: every control on every view. |
 | 2.1.2 No Keyboard Trap (A) | Meets (sampled) | Tab cycles completed in each audited route without trapping focus; the skip link always returns to the top of the shell. |
-| 2.1.4 Character Key Shortcuts (A) | Not evaluated | No single-character shortcut is known, but the binding surface was not enumerated. |
+| 2.1.4 Character Key Shortcuts (A) | Meets (source review) | The binding surface is enumerated: two keyboard handlers exist, map shapes activated with `Enter` and `Space` (button activation, not a shortcut) and the `Tab` cycle in the sign-in form. No handler maps a single character, printable or not, so there is no shortcut to disable. |
 | 2.2.1 Timing Adjustable (A) | Not evaluated | Session and token expiry behaviour was not exercised. |
 | 2.2.2 Pause, Stop, Hide (A) | Partly met | The navigation background animation was removed to keep menu labels readable mid-route-change. No other auto-moving or auto-updating content was audited. |
 | 2.3.1 Three Flashes or Below Threshold (A) | Not applicable | No flashing content. |
@@ -101,13 +101,14 @@ Three defects were found by reading the live accessibility tree, not by automate
 
 Items 2 and 3 are recorded, not fixed: neither is a 4.1.3 status-message failure, and both need a decision on the shared shell markup rather than a local edit.
 
-## What blocks a conformance claim
+## What still blocks a conformance claim
 
-1. **State coverage.** Population, empty, loading, error and partial-failure states were sampled, not enumerated. The audit stack had no published lot for several runs and no data rows in the actions table.
-2. **No assistive technology.** A DOM virtual screen reader shows what the accessibility tree exposes and what a mutation announces; it is not NVDA, JAWS, VoiceOver or TalkBack.
-3. **Text-only resize and text spacing** (1.4.4, 1.4.12) were approximated with browser zoom at 200%, which is a different condition.
-4. **Map non-text contrast** (1.4.11) has documented sub-3:1 fill and boundary pairs whose essential-or-decorative status is a product decision.
-5. **Hover, focus and disabled states** were measured where a probe existed, not for every control.
+1. **Text-only resize (1.4.4).** The type scale is absolute: 123 `font-size` declarations in `src/styles/*.css`, `rem` twice. Browser zoom at 200% passes, but the criterion's own condition — text resized without zooming the layout — is not supported. Scope of a fix: move the type scale to relative units and re-verify every view at both widths.
+2. **Text spacing (1.4.12).** The 1.4.12 override was never applied in a browser, so content loss under it is unmeasured. It needs the same rendered run the other probes use.
+3. **Map non-text contrast (1.4.11).** Fill and boundary pairs remain below 3:1 (medium 1.75:1, neutral 1.45:1, low 2.26:1). Whether each pair is essential or decorative is a product decision that changes the map palette, not a local style fix.
+4. **Two reader findings stay open.** The shell footer nests `contentinfo` inside `main`, and the History count badge speaks a bare number. Both need a decision on the shared shell markup, not a per-view edit.
+5. **State coverage.** Population, loading, error and partial-failure states were sampled, not enumerated. Four empty and filter states were corrected on 2026-11-25 (Overview without a lot, History empty, History filtered to nothing, Actions filtered to nothing and directory unavailable) and carry public-DOM tests only: no capture or reader pass covers them.
+6. **No assistive technology.** A DOM virtual screen reader shows what the accessibility tree exposes and what a mutation announces; it is not NVDA, JAWS, VoiceOver or TalkBack.
 
 ## How to reproduce
 
