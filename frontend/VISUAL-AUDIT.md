@@ -248,6 +248,16 @@ Both fixes keep their public DOM test (`the footer is a landmark outside the mai
 
 ### Scope after the merge with `origin/dev`
 
-This audit, its captures and its axe scans were taken when the application routed eight views. The merge with `origin/dev` added three routed views — `InfrastructureView`, `ObservationsView` and `NotificationsView` — plus `ObservationAdoption` and the CSV export control inside the History panel. **None of the new surfaces has a capture, an axe scan or a reader pass.** The eleven routed views are `overview`, `infrastructure`, `history`, `actions`, `observations`, `sources`, `jobs`, `pending`, `session`, `notifications` and `audit`; the evidence in this document and in `WCAG-AA-CONFORMANCE.md` covers the eight that existed before the merge.
+The merge added three routed views — `InfrastructureView`, `ObservationsView` and `NotificationsView` — plus `ObservationAdoption` and the CSV export control inside History. The harness route list now names all eleven routed views, and the three new ones were sampled for the first time on 2026-11-25.
 
-The four probe runs repeated after the merge (`FW_STRUCTURE_AUDIT`, `FW_HISTORY_GATE` with and without the keyboard path, `FW_DIRECTORY_FAILURE`, `FW_TEXT_SPACING` with its gate) all exited 0 at 1280×720 and 390×844, but the harness route list still names the original eight, so the new views were not sampled either.
+| Probe | Result on the eleven routes | What it proves |
+| --- | --- | --- |
+| `FW_STRUCTURE_AUDIT` | 22 of 22 samples, exit 0 | One `main`, one `navigation` and one `contentinfo` per route, heading hierarchy unchanged |
+| `FW_AXE_AUDIT` with `FW_EYEBROW_GATE` | 22 scans, exit 0, **zero violations** | The three new views had one contrast defect each, now fixed (below) |
+| `FW_TEXT_SPACING` with its gate | 22 of 22 samples, exit 0 | No overflow and no clipped content under the 1.4.12 override |
+| `FW_MIXED_SURFACES` with its gate | 118 samples, exit 0, **zero failing** | Every rendered text surface meets 1.4.3, including the merged views |
+| `FW_VIRTUAL_READER` with `FW_VO_ROUTES` | 6 samples, exit 0, no unannounced mutation | The three new views expose a readable document order |
+
+Two product changes came out of it. The eyebrow colour rule was scoped to the views that existed when it landed, so the merged views inherited `#638579` at **3.71:1**; the selector now targets `.intro-row .eyebrow` structurally and the per-view list is gone. The decorative `⌑` in Session (`.lock-mark`, `aria-hidden`) measured **4.03:1** against the canvas, so it now uses the same readable token: the mixed-surface gate no longer needs an exception that could one day hide real text.
+
+**What this does not prove.** The disposable `firewatch-g1-audit` stack predates the merge: its gateway, risk and prevention images have no `/v1/risk/alerts`, `/v1/risk/infrastructure` or `/v1/prevention/observations` route, so all three views rendered their not-found state during these runs. The evidence therefore covers their failure and empty states, not their populated ones. Reaching the populated states needs the stack rebuilt from the merged backend and seeded — a separate step, with the backend session.
