@@ -386,6 +386,38 @@ test('an action without a responsible is created without assignee_id and shown a
   expect(text('actions-rows')).toContain('Sin asignar');
 });
 
+// A filtered read that returns no row is not a dead end: the filters are the
+// reason, so the panel offers clearing them where it reports the empty answer.
+test('a filtered read with no row offers an in-panel reset of the filters', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList([actionFixture()]);
+  await waitFor(() => expect(text('actions-rows')).toContain('Despeje de vegetación'));
+
+  const filtered = `${ACTIONS_URL}?community_code=99999`;
+  await userEvent.type(document.getElementById('actions-community-filter') as HTMLElement, '99999');
+  await userEvent.click(document.getElementById('actions-apply-filters') as HTMLButtonElement);
+  await waitFor(() => expect(fetchStub.callsFor(filtered)).toHaveLength(1));
+  await act(async () => {
+    fetchStub.answer(filtered, []);
+    await flush();
+  });
+  await waitFor(() => expect(text('actions-status')).toMatch(/no devolvió acciones preventivas/i));
+
+  const reset = document.getElementById('actions-clear-filters') as HTMLButtonElement;
+  expect(reset).not.toBeNull();
+  expect(reset).toHaveTextContent('Limpiar filtros');
+
+  await userEvent.click(reset);
+  expect((document.getElementById('actions-community-filter') as HTMLInputElement).value).toBe('');
+  expect((document.getElementById('actions-status-filter') as HTMLSelectElement).value).toBe('');
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL).length).toBeGreaterThanOrEqual(2));
+  await answerList([]);
+  // Without an applied filter the block has nothing to clear and disappears.
+  expect(document.getElementById('actions-clear-filters')).toBeNull();
+});
+
 test('an unavailable directory keeps the unassigned option, offers a retry and invents nobody', async () => {
   await connect(ADMIN_TOKEN);
   render(<ActionsView />);
@@ -394,9 +426,10 @@ test('an unavailable directory keeps the unassigned option, offers a retry and i
   await answerUsers({ code: 'directory_unavailable' }, 503, 'req-dir-503');
 
   // The selector keeps exactly one meaning — unassigned — and the refusal is
-  // rendered with the status, the code and the request id the server sent.
+  // rendered with the status, the code and the request id the server sent. It is
+  // disabled while there is no directory to choose from, as the artboard shows.
   expect(optionValues()).toEqual(['']);
-  expect(assigneeSelect().disabled).toBe(false);
+  expect(assigneeSelect().disabled).toBe(true);
   const status = text('create-assignee-status');
   expect(status).toMatch(/503/);
   expect(status).toMatch(/directory_unavailable/);
@@ -426,6 +459,7 @@ test('an unavailable directory keeps the unassigned option, offers a retry and i
   await waitFor(() => expect(fetchStub.callsFor(USERS_URL)).toHaveLength(2));
   await answerUsers(DIRECTORY);
   expect(optionValues()).toEqual(['', USER_ADMIN, USER_REVIEWER]);
+  expect(assigneeSelect().disabled).toBe(false);
   expect(document.getElementById('retry-directory')).toBeNull();
   expect(text('create-assignee-status')).toMatch(/2 usuario/i);
 });

@@ -603,6 +603,18 @@ export function ActionsView() {
     setApplied({ communityCode: communityFilter.trim(), status: statusFilter.trim() });
   }
 
+  // A filtered read that returned no row is explained where it happened, and the
+  // way out is the filters themselves. Clearing the applied pair re-reads the
+  // unfiltered list, so the control describes exactly what it changes.
+  function clearFilters(): void {
+    setCommunityFilter('');
+    setStatusFilter('');
+    setApplied({ communityCode: '', status: '' });
+  }
+
+  const filteredToNothing =
+    list.phase === 'read' && list.actions.length === 0 && (applied.communityCode !== '' || applied.status !== '');
+
   function openDetail(id: string): void {
     setNotice('');
     setTransitionNote('');
@@ -971,6 +983,22 @@ export function ActionsView() {
             Actualizar lista
           </button>
         </form>
+
+        {filteredToNothing ? (
+          <div id="actions-filter-empty" className="empty-state">
+            <strong>No hay acciones que coincidan con este filtro.</strong>
+            <p>Quita los filtros para consultar la lista completa del servicio.</p>
+            <button
+              id="actions-clear-filters"
+              className="secondary-button"
+              type="button"
+              disabled={!signedIn || writePending}
+              onClick={clearFilters}
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        ) : null}
 
         <TableWrap label="Listado de acciones preventivas">
           <table id="actions-table">
@@ -1418,7 +1446,10 @@ export function ActionsView() {
             <select
               id="create-assignee"
               value={form.assigneeId}
-              disabled={!admin || writePending}
+              // With no directory there is nobody to choose: the artboard disables
+              // the control and keeps creating without a responsible possible, so
+              // the value this form already holds (empty) is what it sends.
+              disabled={!admin || writePending || directoryState.phase === 'failed'}
               // The state of the directory is part of the control's own
               // description: a keyboard or screen-reader user hears the same
               // thing a sighted user reads under the form.
