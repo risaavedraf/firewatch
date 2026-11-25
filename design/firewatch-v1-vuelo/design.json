@@ -1,0 +1,21 @@
+{
+  "title": "FireWatch v1 · Vista aérea de Valparaíso",
+  "brief": "Exploración de Mapa operativo: relieve esquemático, navegación aérea y cenital, construcciones planas y capa sintética de riesgo por sector, con temas claro y oscuro.",
+  "feature": "odd/tasks/v1-gentle-design.md",
+  "artboards": [
+    {
+      "file": "01-vista-aerea.html",
+      "title": "Vista aérea · claro y oscuro",
+      "tradeoff": "El mapa ocupa todo el encuadre. La vista aérea muestra altura y construcciones; la cenital ayuda a comparar el riesgo sin la distorsión de la inclinación. El relieve y los datos son ilustrativos.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-vista-regional.html",
+      "title": "Vista regional · Contornos y relleno",
+      "tradeoff": "Mapa continental basado en el contorno regional simplificado, con Rapa Nui y Juan Fernández en recuadros. La huella urbana agrupada se lee mejor con zoom; los contornos dejan ver el relieve y el relleno ayuda a localizar el foco. Uso interno, pendiente de revisión cartográfica.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}
