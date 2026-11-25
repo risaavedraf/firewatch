@@ -654,20 +654,32 @@ export function OverviewView() {
           <p id="batch-origin">{originText}</p>
           <p id="batch-notice">{noticeText}</p>
           <StatusCopy id="batch-validity">{validityText}</StatusCopy>
-          <h4>Factores</h4>
-          <ul id="risk-factors">
-            {factorRows.map((row) => (
-              <li key={row.key}>
-                {row.text}
-                {row.widthPercent !== null ? (
-                  <div className="factor-track">
-                    <span style={{ width: `${row.widthPercent}%` }} />
-                  </div>
+          {/* With no reading and no omission the card has nothing to put under a
+              "Factores" heading, and a heading over an empty list reads as a
+              broken widget. The artboard names no heading here: it states the
+              absence in one muted sentence, which is what the card does. */}
+          {factorRows.length > 0 || showFactorOmission ? (
+            <>
+              <h4>Factores</h4>
+              <ul id="risk-factors">
+                {factorRows.map((row) => (
+                  <li key={row.key}>
+                    {row.text}
+                    {row.widthPercent !== null ? (
+                      <div className="factor-track">
+                        <span style={{ width: `${row.widthPercent}%` }} />
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+                {showFactorOmission ? (
+                  <li>Factores ausentes o inválidos; solo se muestran entradas válidas.</li>
                 ) : null}
-              </li>
-            ))}
-            {showFactorOmission ? <li>Factores ausentes o inválidos; solo se muestran entradas válidas.</li> : null}
-          </ul>
+              </ul>
+            </>
+          ) : (
+            <p className="panel-note">No hay factores disponibles para este sector.</p>
+          )}
           <h4>Cómo lo calculó la regla</h4>
           <p id="risk-rationale">{rationaleText}</p>
           <h4>Política informada</h4>
