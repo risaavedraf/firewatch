@@ -232,6 +232,23 @@ test('filters that hide every returned row offer the whole period back', async (
   expect(document.getElementById('history-show-period')).toBeNull();
 });
 
+// The badge spoke a bare number, so its meaning depended on where it sat on the
+// page. The name travels with it in document order, before the number it names.
+test('the count badge is named for a reader before its number', async () => {
+  const { fetchStub } = await connect();
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, [batch('lote-uno')]);
+  await waitFor(() => expect(count()).toBe('1'));
+
+  const label = document.querySelector('#history .intro-row > .sr-only');
+  expect(label).toHaveTextContent('Lotes devueltos:');
+  expect(label?.nextElementSibling?.id).toBe('history-count');
+  expect(count()).toBe('1');
+});
+
 // 4.1.3 — the result count is the only copy that reports what survived the// filters, and a search that drops every row changes it without moving focus,
 // so the count must expose itself as a status message instead of a silently
 // repainted span. No other live region in the view repeats it.

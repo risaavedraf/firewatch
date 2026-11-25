@@ -165,6 +165,9 @@ export function HistoryView() {
           <p className="eyebrow">TRAZABILIDAD</p>
           <h2 id="history-title">Historial de lotes</h2>
         </div>
+        {/* The badge shows a number; a reader needs the noun. The name sits in the
+            document before the number, so the reading matches what the badge means. */}
+        <span className="sr-only">Lotes devueltos: </span>
         <span className="count-badge" id="history-count">
           {countLabel}
         </span>
