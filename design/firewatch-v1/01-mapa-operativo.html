@@ -579,27 +579,28 @@ figcaption { padding: 6px 2px 0; color: var(--muted); font-size: 9px; line-heigh
           <div class="panel-body">
             <p class="status-line" id="recommendation-status">Sugerencias compuestas desde el nivel y los factores del foco seleccionado.</p>
             <ul class="rec-list" aria-label="Sugerencias de prevención">
-              <li class="rec-item" data-rec="R-08" data-title="Reforzar la restricción de fogatas y chispas por viento">
+              <li class="rec-item" data-rec="R-08" data-requires="viento" data-title="Reforzar la restricción de fogatas y chispas por viento">
                 <div class="rec-top"><span class="rec-id">R-08</span><span class="rec-source">Factor viento</span></div>
                 <p>Con viento, no hagas fogatas ni quemas y no uses herramientas que produzcan chispas.</p>
                 <button type="button" class="text-button" data-prepare="R-08">Preparar acción desde esta sugerencia →</button>
               </li>
-              <li class="rec-item" data-rec="R-06" data-title="Evitar trabajos con chispas en días calurosos">
+              <li class="rec-item" data-rec="R-06" data-requires="temperatura" data-title="Evitar trabajos con chispas en días calurosos">
                 <div class="rec-top"><span class="rec-id">R-06</span><span class="rec-source">Factor temperatura</span></div>
                 <p>En días calurosos, evita herramientas y trabajos que generen chispas al aire libre, sobre todo cerca de vegetación.</p>
                 <button type="button" class="text-button" data-prepare="R-06">Preparar acción desde esta sugerencia →</button>
               </li>
-              <li class="rec-item" data-rec="R-03" data-title="Restringir fogatas y quema de desechos">
+              <li class="rec-item" data-rec="R-03" data-requires="nivel-alto" data-title="Restringir fogatas y quema de desechos">
                 <div class="rec-top"><span class="rec-id">R-03</span><span class="rec-source">Nivel alto</span></div>
                 <p>Restringe fogatas, parrillas, quema de desechos y otras fuentes de calor cerca de vegetación.</p>
                 <button type="button" class="text-button" data-prepare="R-03">Preparar acción desde esta sugerencia →</button>
               </li>
-              <li class="rec-item" data-rec="R-04" data-title="Coordinar una revisión de vías de salida con la comunidad">
+              <li class="rec-item" data-rec="R-04" data-requires="nivel-alto" data-title="Coordinar una revisión de vías de salida con la comunidad">
                 <div class="rec-top"><span class="rec-id">R-04</span><span class="rec-source">Nivel alto</span></div>
                 <p>Coordina con la municipalidad o la junta de vecinos una revisión del entorno y de las vías de salida.</p>
                 <button type="button" class="text-button" data-prepare="R-04">Preparar acción desde esta sugerencia →</button>
               </li>
             </ul>
+            <p class="panel-note" id="recommendation-empty" hidden>Este foco no tiene sugerencias derivadas de una lectura: no hay lote ≤ corte o sus factores no cruzan los umbrales. La prevención general sigue vigente.</p>
             <p class="panel-note" id="recommendation-note">El ítem de observación directa R-05 no se incluye como hallazgo: la maqueta no sabe si hay vegetación en contacto con líneas eléctricas. La correspondencia entre medidas y niveles es una decisión de FireWatch y no está validada por SENAPRED ni MINVU.</p>
           </div>
         </article>
@@ -704,10 +705,10 @@ figcaption { padding: 6px 2px 0; color: var(--muted); font-size: 9px; line-heigh
 
       <article class="create-block" id="create-block" aria-labelledby="create-heading">
         <h3 id="create-heading">Nueva acción preventiva</h3>
-        <p class="create-note">Formulario de maqueta. El alta real exige el rol admin, valida el directorio y registra una comuna; el foco es una lectura que puede cruzar municipios. Aquí no se llama a ningún servicio.</p>
+        <p class="create-note">Formulario de maqueta. El alta real exige el rol admin, valida el directorio y registra una comuna; el foco es una lectura que puede cruzar municipios. La acción pertenece a la comuna que la registra —05101 · Valparaíso—, no al municipio donde ocurre el foco. Aquí no se llama a ningún servicio.</p>
         <form id="create-form" class="form-grid" novalidate>
           <div class="form-row">
-            <label class="field" for="create-community">Comunidad (CUT)
+            <label class="field" for="create-community">Comunidad que registra la acción (CUT)
               <input id="create-community" name="community" type="text" value="05101 · Valparaíso" readonly />
             </label>
             <label class="field" for="create-sector">Foco
@@ -930,6 +931,13 @@ figcaption { padding: 6px 2px 0; color: var(--muted); font-size: 9px; line-heigh
 
   function snapshot() { return SNAPSHOTS[state.cutoff]; }
 
+  function factorBar(lot, key) {
+    for (var i = 0; i < lot.factors.length; i += 1) {
+      if (lot.factors[i].key === key) return lot.factors[i].bar;
+    }
+    return 0;
+  }
+
   function lotFor(area) {
     var cutoffTime = new Date(snapshot().cutoff).getTime();
     var eligible = (area.lots || []).filter(function (lot) {
@@ -1111,6 +1119,19 @@ figcaption { padding: 6px 2px 0; color: var(--muted); font-size: 9px; line-heigh
     document.getElementById('recommendation-note').textContent = lot
       ? 'El ítem de observación directa R-05 no se incluye como hallazgo: la maqueta no sabe si hay vegetación en contacto con líneas eléctricas. La correspondencia entre medidas y niveles es una decisión de FireWatch y no está validada por SENAPRED ni MINVU.'
       : 'La prevención general sigue siendo válida, pero no se deriva de una lectura de este foco: no hay lote ≤ corte. Ante un incendio en curso, sigue las instrucciones de la autoridad.';
+
+    var applicable = {
+      viento: !!lot && factorBar(lot, 'viento') >= 70,
+      temperatura: !!lot && factorBar(lot, 'temperatura') >= 70,
+      'nivel-alto': !!lot && lot.level === 'ALTO'
+    };
+    var applicableCount = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('.rec-item[data-requires]'), function (item) {
+      var on = applicable[item.getAttribute('data-requires')] === true;
+      item.hidden = !on;
+      if (on) applicableCount += 1;
+    });
+    document.getElementById('recommendation-empty').hidden = applicableCount > 0;
   }
 
   function renderStamp() {
@@ -1316,7 +1337,7 @@ figcaption { padding: 6px 2px 0; color: var(--muted); font-size: 9px; line-heigh
     var focusName = areas[sectorSelect.value].name;
     feedback.hidden = false;
     feedbackTitle.textContent = 'Maqueta: no se guardó nada ni salió ninguna solicitud.';
-    feedbackBody.textContent = 'Se habría creado «' + title + '» en 05101 · ' + focusName + ', ' + (assignee ? 'con responsable ' + assignee : 'sin responsable') + '. Ninguna escritura llegó a un almacenamiento, cookie o servicio. En el producto real, el servidor valida el rol, el directorio y las reglas antes de guardar.';
+    feedbackBody.textContent = 'Se habría creado «' + title + '» registrada en 05101 · Valparaíso, con foco ' + focusName + ', ' + (assignee ? 'con responsable ' + assignee : 'sin responsable') + '. La comuna que registra la acción no cambia porque el foco cruce otros municipios. Ninguna escritura llegó a un almacenamiento, cookie o servicio. En el producto real, el servidor valida el rol, el directorio y las reglas antes de guardar.';
     feedback.focus();
     prefillStatus.textContent = 'Formulario de maqueta enviado. No se guardó ninguna acción.';
   });

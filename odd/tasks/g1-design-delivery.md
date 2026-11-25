@@ -20,3 +20,7 @@ The gallery cut exceeds the review guideline because its generated snapshots tra
 ```text
 dev <- design tracker <- 01 baseline <- 02 terrain <- 03 workflows <- 04 quick actions <- 05 gallery <- 06 synthetic data
 ```
+
+## Focus corrections after delivery (2026-11-25)
+
+Board 01 kept its recommendation cards fixed while the selected focus changed, and the action form did not say which commune owns the action. Both are corrected in this change, verified in headless Chromium: the high-risk focus shows all four suggestions, the low-risk focus and the focus without a reading show none and explain why the derived advice is absent, and the form names `05101 · Valparaíso` as the commune that registers the action regardless of the territory the focus crosses.
