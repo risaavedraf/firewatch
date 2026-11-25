@@ -124,6 +124,14 @@ func newGateway(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin st
 	mux.Handle("/v1/jobs", proxy(jobs))
 	mux.Handle("/v1/jobs/", proxy(jobs))
 	mux.Handle("/v1/audit", proxy(jobs))
+	// The multi-service status is the one /v1 route this gateway answers itself
+	// instead of proxying. It is a bounded, parallel read of the status surfaces the
+	// services already publish, and the evidence about inference is published by
+	// risk, the only service that reaches it. It sits next to the proxies so it is
+	// admitted by the same bearer gate and the same quotas, and so no existing
+	// service route changes. Its own viewer/admin policy runs inside the handler,
+	// before any probe, because that policy belongs to this boundary.
+	mux.HandleFunc("GET /v1/status", multiserviceStatusHandler(multiserviceStatusProbes(jobs, risk, prevention, rootCAs), statusAggregateBudget))
 	mux.Handle("/v1/risk/", proxy(risk))
 	// The model registry lives in the risk service, but the page reaches it
 	// through this origin because its CSP allows no other. `GET /v1/models` is the
@@ -249,6 +257,10 @@ func newGateway(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin st
 			rejectUnauthenticated(w, anonymous)
 			return
 		}
+		// The aggregate is the one route that reads the verified token's realm roles
+		// itself, because its declared role policy is part of this boundary. Attaching
+		// the token here changes nothing for the routes that only forward a request.
+		r = r.WithContext(withVerifiedIDToken(r.Context(), token))
 		// The subject only exists after Verify, so this quota can only be
 		// charged here, after authentication.
 		if !subject.Allow(token.Subject) {
