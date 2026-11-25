@@ -129,6 +129,40 @@ export interface ServiceSnapshot {
   };
 }
 
+// ── Effective classifier (`GET /v1/models`, PM-16 / S1) ──────────────────────
+//
+// The additive `effective` projection of the classifier the NEXT publication
+// would resolve, published beside the unchanged registry `models` list (frozen
+// backend contract, L6). These are declarations, not guarantees: `models` is
+// never an identity source here, and `core/active-rule.ts` validates the three
+// shapes before anything is shown. An absent or malformed projection is
+// `unknown`, not an inferred identity.
+export interface EffectiveRuleClassifier {
+  status: 'rule';
+  version: string;
+  params_hash: string;
+}
+
+export interface EffectiveNonRuleClassifier {
+  status: 'non_rule';
+}
+
+export interface EffectiveUnavailableClassifier {
+  status: 'unavailable';
+}
+
+export type EffectiveClassifier =
+  | EffectiveRuleClassifier
+  | EffectiveNonRuleClassifier
+  | EffectiveUnavailableClassifier;
+
+export interface ModelRegistry {
+  /** The registry rows, kept for the overview panel; never an identity source. */
+  models: unknown[];
+  /** Declared `unknown` on purpose: the client fails closed on an absent or malformed projection. */
+  effective?: unknown;
+}
+
 export interface Job {
   id: string;
   zone_id: string;
