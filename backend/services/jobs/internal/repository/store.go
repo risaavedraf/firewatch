@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	v1 "firewatch.local/contracts/events/v1"
@@ -48,13 +50,71 @@ type Job struct {
 	FailureReason *string    `json:"failure_reason,omitempty"`
 	FailedAt      *time.Time `json:"failed_at,omitempty"`
 }
+
+// AuditEventMutation is the kind of an audit row written by an applied change.
+// AuditEventQuery is the kind of a recorded read; the query recorder sets it
+// explicitly so a read is never mistaken for a mutation.
+const (
+	AuditEventMutation = "mutation"
+	AuditEventQuery    = "query"
+)
+
+// AuditEventKinds returns the closed vocabulary shared by the event_kind CHECK
+// constraint and the read contract.
+func AuditEventKinds() []string { return []string{AuditEventMutation, AuditEventQuery} }
+
+// Actor is a verified caller identity: the token subject plus the display name
+// the identity provider asserted for it. Name is empty when the verified token
+// carried no name claim, and it is never derived from ID.
+type Actor struct {
+	ID   string
+	Name string
+}
+
+// Audit is the durable read view of one audit row. EventID comes from the audit
+// table's own identity, not from the job or trace: two events of the same job
+// stay distinguishable and the identifier survives a re-read. ActorName and
+// Detail are nullable on historical rows and on events recorded without a
+// verified human name; a client falls back to ActorID and never invents a name.
+// JobID is nullable because a query record is not attached to a job.
 type Audit struct {
+	EventID    string    `json:"event_id"`
 	ActorID    string    `json:"actor_id"`
+	ActorName  *string   `json:"actor_name"`
 	Action     string    `json:"action"`
-	JobID      string    `json:"job_id"`
+	EventKind  string    `json:"event_kind"`
+	Detail     *string   `json:"detail"`
+	JobID      *string   `json:"job_id"`
 	TraceID    string    `json:"trace_id"`
 	OccurredAt time.Time `json:"occurred_at"`
 }
+
+// auditEventID is the read view of the audit row's identity column. It is stable
+// for the row and independent of the job and trace it mentions.
+func auditEventID(id int64) string { return "audit-" + strconv.FormatInt(id, 10) }
+
+// auditActorName keeps an absent verified name NULL instead of storing an empty
+// string as if it were a name.
+func auditActorName(name string) *string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	return &name
+}
+
+func jobRequestedDetail(zone, scenario string) string {
+	if scenario == "" {
+		return "Solicitud de trabajo para la zona " + zone
+	}
+	return "Solicitud de trabajo para la zona " + zone + " con escenario sintético " + scenario
+}
+
+func batchPublishedDetail(zone, batch string) string {
+	return "Lote " + batch + " publicado para la zona " + zone
+}
+
+func replayDetail() string { return "Reenvío manual del trabajo a la cola de procesamiento" }
 
 // requestEvent builds the jobs.requested.v1 envelope FROM the stored row, so the
 // event and the job can never disagree about the scenario or its instant. A
@@ -71,12 +131,19 @@ func requestEvent(job Job, actor, zone, trace string) v1.Event {
 	return event
 }
 
-// Create is idempotent per (actor, idempotency_key). The optional scenario is
+// Create keeps the pre-existing call contract for callers that have no verified
+// display name. The transport uses CreateAs with the identity it verified.
+func (s Store) Create(ctx context.Context, actor, key, zone, trace string, scenarioID ...string) (Job, error) {
+	return s.CreateAs(ctx, Actor{ID: actor}, key, zone, trace, scenarioID...)
+}
+
+// CreateAs is idempotent per (actor, idempotency_key). The optional scenario is
 // variadic so legacy callers keep compiling. A scenario-bearing job gets one
 // server-assigned UTC instant; on a conflict the STORED row is returned with its
 // original scenario and instant, so a retry with a different scenario neither
-// replaces the job nor writes a second outbox row.
-func (s Store) Create(ctx context.Context, actor, key, zone, trace string, scenarioID ...string) (Job, error) {
+// replaces the job nor writes a second outbox row. The audit row captures the
+// verified display name from actor, or NULL when the token carried no name.
+func (s Store) CreateAs(ctx context.Context, actor Actor, key, zone, trace string, scenarioID ...string) (Job, error) {
 	scenario := ""
 	if len(scenarioID) > 0 {
 		scenario = scenarioID[0]
@@ -98,9 +165,9 @@ func (s Store) Create(ctx context.Context, actor, key, zone, trace string, scena
 	}
 	err = tx.QueryRow(ctx, `INSERT INTO jobs(id, actor_id, idempotency_key, zone_id, state, scenario_id, evaluated_at)
 		VALUES($1,$2,$3,$4,'queued',$5,$6) ON CONFLICT(actor_id,idempotency_key) DO NOTHING
-		RETURNING `+jobColumns, id, actor, key, zone, scenarioArg, evaluatedArg).Scan(&job.ID, &job.ZoneID, &job.State, &job.BatchID, &job.RequestedAt, &job.ScenarioID, &job.EvaluatedAt, &job.Attempts, &job.FailureReason, &job.FailedAt)
+		RETURNING `+jobColumns, id, actor.ID, key, zone, scenarioArg, evaluatedArg).Scan(&job.ID, &job.ZoneID, &job.State, &job.BatchID, &job.RequestedAt, &job.ScenarioID, &job.EvaluatedAt, &job.Attempts, &job.FailureReason, &job.FailedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		err = tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE actor_id=$1 AND idempotency_key=$2`, actor, key).Scan(&job.ID, &job.ZoneID, &job.State, &job.BatchID, &job.RequestedAt, &job.ScenarioID, &job.EvaluatedAt, &job.Attempts, &job.FailureReason, &job.FailedAt)
+		err = tx.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE actor_id=$1 AND idempotency_key=$2`, actor.ID, key).Scan(&job.ID, &job.ZoneID, &job.State, &job.BatchID, &job.RequestedAt, &job.ScenarioID, &job.EvaluatedAt, &job.Attempts, &job.FailureReason, &job.FailedAt)
 		if err != nil {
 			return Job{}, err
 		}
@@ -111,7 +178,7 @@ func (s Store) Create(ctx context.Context, actor, key, zone, trace string, scena
 		return Job{}, err
 	}
 	job.EvaluatedAt = canonicalEvaluatedAt(job.EvaluatedAt)
-	event := requestEvent(job, actor, zone, trace)
+	event := requestEvent(job, actor.ID, zone, trace)
 	body, err := json.Marshal(event)
 	if err != nil {
 		return Job{}, err
@@ -119,7 +186,8 @@ func (s Store) Create(ctx context.Context, actor, key, zone, trace string, scena
 	if _, err = tx.Exec(ctx, `INSERT INTO outbox(id,routing_key,payload) VALUES($1,$2,$3)`, event.ID, event.Type, body); err != nil {
 		return Job{}, err
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO audit(actor_id,action,job_id,trace_id) VALUES($1,'job.requested',$2,$3)`, actor, job.ID, trace); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO audit(actor_id,actor_name,action,event_kind,detail,job_id,trace_id)
+		VALUES($1,$2,'job.requested',$3,$4,$5,$6)`, actor.ID, auditActorName(actor.Name), AuditEventMutation, jobRequestedDetail(zone, scenario), job.ID, trace); err != nil {
 		return Job{}, err
 	}
 	return job, tx.Commit(ctx)
@@ -136,7 +204,7 @@ func (s Store) Get(ctx context.Context, id string) (Job, error) {
 }
 
 func (s Store) Audit(ctx context.Context) ([]Audit, error) {
-	rows, err := s.DB.Query(ctx, `SELECT actor_id,action,job_id::text,trace_id::text,occurred_at FROM audit ORDER BY id DESC LIMIT 100`)
+	rows, err := s.DB.Query(ctx, `SELECT id,actor_id,actor_name,action,event_kind,detail,job_id::text,trace_id::text,occurred_at FROM audit ORDER BY id DESC LIMIT 100`)
 	if err != nil {
 		return nil, err
 	}
@@ -144,9 +212,11 @@ func (s Store) Audit(ctx context.Context) ([]Audit, error) {
 	items := make([]Audit, 0)
 	for rows.Next() {
 		var a Audit
-		if err := rows.Scan(&a.ActorID, &a.Action, &a.JobID, &a.TraceID, &a.OccurredAt); err != nil {
+		var id int64
+		if err := rows.Scan(&id, &a.ActorID, &a.ActorName, &a.Action, &a.EventKind, &a.Detail, &a.JobID, &a.TraceID, &a.OccurredAt); err != nil {
 			return nil, err
 		}
+		a.EventID = auditEventID(id)
 		items = append(items, a)
 	}
 	return items, rows.Err()
@@ -181,7 +251,8 @@ func (s Store) Complete(ctx context.Context, event v1.Event) error {
 		return err
 	}
 	if result.RowsAffected() == 1 {
-		_, err = tx.Exec(ctx, `INSERT INTO audit(actor_id,action,job_id,trace_id) VALUES($1,'batch.published',$2,$3)`, event.ActorID, event.JobID, event.TraceID)
+		_, err = tx.Exec(ctx, `INSERT INTO audit(actor_id,actor_name,action,event_kind,detail,job_id,trace_id)
+			VALUES($1,NULL,'batch.published',$2,$3,$4,$5)`, event.ActorID, AuditEventMutation, batchPublishedDetail(event.ZoneID, event.BatchID), event.JobID, event.TraceID)
 		if err != nil {
 			return err
 		}
@@ -253,10 +324,16 @@ func replayGate(state string, confirmQueued bool) error {
 	}
 }
 
-// Replay returns a failed job, or a queued one the operator confirmed, to queued
-// in one guarded transaction. The update matches a failed row, or a queued row
-// only when the re-dispatch was confirmed, so two concurrent replays cannot both
-// succeed: the loser matches no row and is answered 409.
+// Replay keeps the pre-existing call contract for callers that have no verified
+// display name. The transport uses ReplayAs with the identity it verified.
+func (s Store) Replay(ctx context.Context, id, actor, trace string, confirmQueued bool) (Job, error) {
+	return s.ReplayAs(ctx, id, Actor{ID: actor}, trace, confirmQueued)
+}
+
+// ReplayAs returns a failed job, or a queued one the operator confirmed, to
+// queued in one guarded transaction. The update matches a failed row, or a
+// queued row only when the re-dispatch was confirmed, so two concurrent replays
+// cannot both succeed: the loser matches no row and is answered 409.
 //
 // The row is reset and its side effects are written together, exactly as Create
 // does. attempts returns to 0 because a re-dispatch spends a fresh budget, while
@@ -268,11 +345,12 @@ func replayGate(state string, confirmQueued bool) error {
 // The outgoing jobs.requested.v1 event is rebuilt FROM the stored row with the
 // STORED actor and zone, so the re-dispatched request still matches the job the
 // way Complete expects; a fresh event id makes it a new dispatch rather than a
-// redelivery. The audit names the operator who triggered the replay. Duplicate
-// effects are prevented downstream by the existing inbox and batch uniqueness -
-// and, for a request whose batch already exists, by the completion re-emitted in
-// risk's Publish -, never by this write trusting itself.
-func (s Store) Replay(ctx context.Context, id, actor, trace string, confirmQueued bool) (Job, error) {
+// redelivery. The audit names the operator who triggered the replay, including
+// the verified display name when the token carried one. Duplicate effects are
+// prevented downstream by the existing inbox and batch uniqueness - and, for a
+// request whose batch already exists, by the completion re-emitted in risk's
+// Publish -, never by this write trusting itself.
+func (s Store) ReplayAs(ctx context.Context, id string, actor Actor, trace string, confirmQueued bool) (Job, error) {
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
 		return Job{}, err
@@ -308,7 +386,8 @@ func (s Store) Replay(ctx context.Context, id, actor, trace string, confirmQueue
 	if _, err = tx.Exec(ctx, `INSERT INTO outbox(id,routing_key,payload) VALUES($1,$2,$3)`, event.ID, event.Type, body); err != nil {
 		return Job{}, err
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO audit(actor_id,action,job_id,trace_id) VALUES($1,'job.requested',$2,$3)`, actor, job.ID, trace); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO audit(actor_id,actor_name,action,event_kind,detail,job_id,trace_id)
+		VALUES($1,$2,'job.requested',$3,$4,$5,$6)`, actor.ID, auditActorName(actor.Name), AuditEventMutation, replayDetail(), job.ID, trace); err != nil {
 		return Job{}, err
 	}
 	return job, tx.Commit(ctx)

@@ -131,6 +131,16 @@ spec:
                 secretKeyRef:
                   name: postgres-credentials
                   key: RISK_DB_PASSWORD
+            # The gateway's query-recorder credential (PM-10 S3). The init script
+            # below only runs on an empty volume, so an existing cluster gains this
+            # role from the jobs migration and needs the documented
+            # `ALTER ROLE audit_query_app LOGIN PASSWORD` step in
+            # deploy/k8s/README.md.
+            - name: AUDIT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: AUDIT_DB_PASSWORD
             - name: KEYCLOAK_DB_PASSWORD
               valueFrom:
                 secretKeyRef:

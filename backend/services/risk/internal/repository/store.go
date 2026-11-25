@@ -180,6 +180,12 @@ func (s Store) persist(ctx context.Context, request v1.Event, assessment Assessm
 		return err
 	}
 	defer tx.Rollback(ctx)
+	// The whole publication of one zone is serialized from here to the commit, so
+	// the batch this transaction stores and the level it compares against cannot
+	// interleave with another publication of the same zone. See lockZoneTransition.
+	if err = lockZoneTransition(ctx, tx, request.ZoneID); err != nil {
+		return err
+	}
 	result, err := tx.Exec(ctx, `INSERT INTO inbox(id) VALUES($1) ON CONFLICT DO NOTHING`, request.ID)
 	if err != nil {
 		return err
@@ -259,6 +265,15 @@ func (s Store) persist(ctx context.Context, request v1.Event, assessment Assessm
 			return err
 		}
 		return tx.Commit(ctx)
+	}
+	// The batch is stored, so this transaction now decides whether it is the zone's
+	// effective level. The alert is written here - after the insert, before both
+	// settlement branches and therefore for a scheduled publication as well as for
+	// an explicitly requested one - so it shares the batch's transaction: neither a
+	// rolled-back batch with an alert nor a stored transition without one is a
+	// reachable state. See recordTransitionAlert.
+	if err = recordTransitionAlert(ctx, tx, request.ZoneID, batchID, request.RequestedAt, assessment.RiskLevel); err != nil {
+		return err
 	}
 	if settlement == persistOnly {
 		// The batch is stored, and that is all an automatic cycle reports. Emitting

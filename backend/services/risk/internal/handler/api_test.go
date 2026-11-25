@@ -40,6 +40,12 @@ type fakeStore struct {
 	latestPerZone []repository.Batch
 	aggregateErr  error
 	aggregateCall int
+	// Alert timeline state for the PM-08 read route. alertQueries records what the
+	// route asked for, so a test can prove the page window and the keyset boundary
+	// reached storage instead of being dropped or replaced by defaults.
+	alertPage    repository.AlertPage
+	alertErr     error
+	alertQueries []repository.AlertPageQuery
 }
 
 func (s *fakeStore) ListModels(context.Context) ([]repository.ModelVersion, error) {
@@ -80,6 +86,16 @@ func (s *fakeStore) LatestPerZone(context.Context) ([]repository.Batch, error) {
 		return nil, s.aggregateErr
 	}
 	return s.latestPerZone, nil
+}
+
+// ListAlerts stands in for the timeline read so the route's ordering, empty state,
+// navigation and failure vocabulary are exercised without a database.
+func (s *fakeStore) ListAlerts(_ context.Context, query repository.AlertPageQuery) (repository.AlertPage, error) {
+	s.alertQueries = append(s.alertQueries, query)
+	if s.alertErr != nil {
+		return repository.AlertPage{}, s.alertErr
+	}
+	return s.alertPage, nil
 }
 
 // ZoneExists stands in for the zones catalogue so the handler path that decides
