@@ -521,11 +521,17 @@ echo "namespace/$namespace"
 postgres_password="$(random_hex)"
 jobs_db_password="$(random_hex)"
 risk_db_password="$(random_hex)"
+# The gateway's query recorder (PM-10 S3). It is a credential like the others and
+# it is generated here, never written: the role itself is created by the jobs
+# migration, and deploy/k8s/README.md carries the one statement an existing
+# cluster needs to attach this password to it.
+audit_db_password="$(random_hex)"
 keycloak_db_password="$(random_hex)"
 apply_generic postgres-credentials \
 	"POSTGRES_PASSWORD=$postgres_password" \
 	"JOBS_DB_PASSWORD=$jobs_db_password" \
 	"RISK_DB_PASSWORD=$risk_db_password" \
+	"AUDIT_DB_PASSWORD=$audit_db_password" \
 	"KEYCLOAK_DB_PASSWORD=$keycloak_db_password"
 
 # If the secret already existed, the generated values above are not the ones in
@@ -537,6 +543,11 @@ read_secret() {
 postgres_password="$(read_secret postgres-credentials POSTGRES_PASSWORD)"
 jobs_db_password="$(read_secret postgres-credentials JOBS_DB_PASSWORD)"
 risk_db_password="$(read_secret postgres-credentials RISK_DB_PASSWORD)"
+audit_db_password="$(read_secret postgres-credentials AUDIT_DB_PASSWORD)"
+if [ -z "$audit_db_password" ]; then
+	printf "%s\n" "postgres-credentials is missing AUDIT_DB_PASSWORD; add the new key through your secret manager without replacing existing keys (see deploy/k8s/README.md)." >&2
+	exit 1
+fi
 
 apply_generic broker-credentials \
 	"RABBITMQ_PASSWORD=$(random_hex)" \
@@ -722,6 +733,16 @@ apply_generic risk-runtime \
 apply_generic prevention-runtime \
 	"DATABASE_URL=postgres://risk_app:$risk_db_password@postgres:5432/risk$tls_suffix"
 
+# The gateway's recorder (PM-10 S3). One key, and it is the DSN of the insert-only
+# role the jobs migration creates: audit_query_app may execute one function in the
+# jobs database and read nothing. base/workloads.yaml mounts this Secret on the
+# gateway, which refuses to start without AUDIT_DATABASE_URL; the role has no
+# password until an operator attaches this one on an existing cluster, which
+# deploy/k8s/README.md spells out. The trust settings are the same suffix every
+# other DSN here carries.
+apply_generic audit-runtime \
+	"AUDIT_DATABASE_URL=postgres://audit_query_app:$audit_db_password@postgres:5432/jobs$tls_suffix"
+
 # The identity provider's first administrator. Keycloak reads these two variables
 # only on a first start against an empty database; from then on the account lives
 # in the `identity` database and the Secret is never read again. Without it no
@@ -784,6 +805,8 @@ done
 
 echo
 echo "done. jobs-runtime and risk-runtime carry DATABASE_URL and AMQP_URL;"
-echo "prevention-runtime carries DATABASE_URL only. The TLS file mounts belong to the"
-echo "workload wiring (T7.7), and its mounts must keep the paths these URLs name:"
-echo "/etc/tls/ca.crt."
+echo "prevention-runtime carries DATABASE_URL only; audit-runtime carries the gateway's"
+echo "query-recorder DSN (PM-10 S3), whose role the jobs migration creates. An existing"
+echo "cluster needs the one ALTER ROLE step in deploy/k8s/README.md before that role can"
+echo "log in. The TLS file mounts belong to the workload wiring (T7.7), and its mounts"
+echo "must keep the paths these URLs name: /etc/tls/ca.crt."

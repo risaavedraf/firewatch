@@ -108,6 +108,33 @@ export function evaluateServiceStatus(input: ServiceStatusInput, now: number): S
   };
 }
 
+// The gateway probe (PM-16). `GET /health/ready` is unauthenticated and answers
+// 204 when the gateway process is up; it says nothing about the risk or jobs
+// pipeline, and it is not the authenticated snapshot either. The view keeps this
+// evidence in its own row so a green gateway can never green the pipeline.
+export interface GatewayProbeInput {
+  readonly ok: boolean;
+  readonly status?: number;
+}
+
+export interface GatewayProbeDecision {
+  readonly answered: boolean;
+  readonly label: string;
+}
+
+const GATEWAY_SCOPE = 'Solo disponibilidad del gateway: un 204 no acredita el pipeline ni autentica al usuario.';
+
+export function evaluateGatewayProbe(input: GatewayProbeInput | null): GatewayProbeDecision {
+  if (input === null) {
+    return { answered: false, label: `Sin consultar: no se ejecutó la sonda del gateway. ${GATEWAY_SCOPE}` };
+  }
+  if (input.ok) {
+    return { answered: true, label: `El gateway respondió a \`GET /health/ready\`. ${GATEWAY_SCOPE}` };
+  }
+  const http = input.status !== undefined ? ` (HTTP ${input.status})` : '';
+  return { answered: false, label: `El gateway no respondió${http}. ${GATEWAY_SCOPE}` };
+}
+
 export interface PipelineDecision {
   verified: boolean;
   badge: 'VERIFICADO' | 'SIN VERIFICAR';

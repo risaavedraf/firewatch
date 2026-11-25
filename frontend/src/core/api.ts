@@ -8,17 +8,22 @@
 //
 // Three properties are load-bearing and travel with this code:
 //   1. a monotonic sequence per route kind discards a superseded response, so a
-//      slow answer for zone A can never be shown as the answer for zone B;
+//      slow answer for zone A can never be shown as the answer for zone B, and a
+//      route with two independent consumers probes on one lane per consumer;
 //   2. a response that lands after the view was reset (401, logout, failed
 //      login) is discarded instead of repopulating it;
 //   3. every read honours the caller's `AbortSignal` and a bounded deadline, so
 //      a hung gateway cannot leave a request pending forever.
-import { gatewayOrigin, jobRoute, preventiveActionRoute, preventiveTransitionRoute, routes } from '../config';
+import { gatewayOrigin, jobRoute, observationAdoptionRoute, preventiveActionRoute, preventiveTransitionRoute, routes } from '../config';
 import type {
   ActionHistoryEntry,
   AuditEntry,
   BatchCollection,
   Job,
+  ModelRegistry,
+  Observation,
+  ObservationType,
+  ObservationZone,
   PreventiveAction,
   PreventiveActionDetail,
   PreventiveEvidence,
@@ -30,6 +35,9 @@ import type {
   SourceProvenance,
   ZoneCollection,
 } from '../types/api';
+// The closed type catalogue is a runtime value: the guards compare the served
+// wire spelling against it, so it cannot travel through `import type`.
+import { OBSERVATION_TYPES } from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -73,21 +81,35 @@ type RequestKind =
   | 'recordPreventiveEvidence'
   | 'reviewPreventiveEvidence'
   | 'linkPreventiveReassessment'
+  | 'observations'
+  | 'observationZones'
+  | 'createObservation'
+  | 'adoptObservation'
   | 'models';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
 // together for one selection, so a shared counter would make each treat the
 // other's just-started request as a supersession and discard its own answer.
-const sequences = new Map<RequestKind, number>();
+//
+// A lane is the route kind unless a consumer names its own. `/health/ready` is
+// polled by the shell card and by the sources cycle, and both are entitled to
+// their own answer: on one lane the probe started last discarded the other's
+// healthy response, which the card rendered as an outage and the cycle as an
+// abandoned read.
+const sequences = new Map<string, number>();
 
-function nextSequence(kind: RequestKind): number {
-  const next = (sequences.get(kind) ?? 0) + 1;
-  sequences.set(kind, next);
+function laneKey(kind: RequestKind, lane?: string): string {
+  return lane === undefined ? kind : `${kind}#${lane}`;
+}
+
+function nextSequence(lane: string): number {
+  const next = (sequences.get(lane) ?? 0) + 1;
+  sequences.set(lane, next);
   return next;
 }
 
-function isSuperseded(kind: RequestKind, sequence: number, token: string): boolean {
-  return sequence !== (sequences.get(kind) ?? 0) || token !== getAccessToken();
+function isSuperseded(lane: string, sequence: number, token: string): boolean {
+  return sequence !== (sequences.get(lane) ?? 0) || token !== getAccessToken();
 }
 
 function failureSpec(kind: FailureKind, reason: string, status?: number, requestId?: string): Failure {
@@ -105,6 +127,9 @@ interface TransportRequest {
   method?: string;
   body?: string;
   headers?: Record<string, string>;
+  // Optional independent supersession lane, for a route this build consumes from
+  // more than one place. Absent means the route kind is the lane.
+  lane?: string;
   // `false` only for the unauthenticated gateway probe; every `/v1/*` read
   // carries the bearer even when the token is empty, exactly as the retired
   // page did.
@@ -151,7 +176,8 @@ async function requestJson(
   request: TransportRequest,
   signal?: AbortSignal,
 ): Promise<TransportResult> {
-  const sequence = nextSequence(kind);
+  const lane = laneKey(kind, request.lane);
+  const sequence = nextSequence(lane);
   const token = getAccessToken();
   const controller = new AbortController();
   let stop: 'none' | 'aborted' | 'deadline' = 'none';
@@ -184,7 +210,7 @@ async function requestJson(
     );
     // Supersession is checked BEFORE the status: a superseded 401 must not reset
     // the session of the selection that replaced it.
-    if (isSuperseded(kind, sequence, token)) {
+    if (isSuperseded(lane, sequence, token)) {
       return { state: 'failed', failure: failureSpec('unavailable', 'superseded') };
     }
     const requestId = response.headers.get('X-Request-ID') ?? '';
@@ -202,7 +228,7 @@ async function requestJson(
     }
     if (response.status === 204) return { state: 'empty', status: 204, requestId };
     const body = await abortable(readJson(response), controller.signal);
-    if (isSuperseded(kind, sequence, token)) {
+    if (isSuperseded(lane, sequence, token)) {
       return { state: 'failed', failure: failureSpec('unavailable', 'superseded') };
     }
     if (body === jsonFailure) {
@@ -348,16 +374,22 @@ function isJob(value: unknown): value is Job {
   return true;
 }
 
-// An event is usable only when it states WHAT happened and WHEN. An omitted
-// identifier is labelled in place by the view; it is not a reason to discard
-// the register, and it is never filled in from another field.
+// An event is usable only when it states WHAT happened, WHEN, its own stable id
+// and its kind. A nullable name, detail or job is data, not malformation: the
+// view labels the absence in place and never fills it in from another field.
+// `event_kind` is the closed vocabulary the contract documents, so an unknown
+// kind is refused instead of being guessed as a mutation.
 function isAuditEntry(value: unknown): value is AuditEntry {
   return (
     record(value) &&
+    nonempty(value.event_id) &&
     nonempty(value.action) &&
     nonempty(value.occurred_at) &&
+    (value.event_kind === 'mutation' || value.event_kind === 'query') &&
     optionalString(value.actor_id) &&
-    optionalString(value.job_id) &&
+    nullableString(value.actor_name) &&
+    nullableString(value.detail) &&
+    nullableString(value.job_id) &&
     optionalString(value.trace_id)
   );
 }
@@ -366,8 +398,20 @@ function isAuditEntry(value: unknown): value is AuditEntry {
 
 // Gateway-only availability probe. A 204 proves the gateway process answered;
 // it does not accredit the risk or jobs pipeline, and the view states so.
-export async function ready(signal?: AbortSignal): Promise<Outcome<null>> {
-  const result = await requestJson('ready', `${gatewayOrigin}${routes.ready}`, { authenticated: false }, signal);
+//
+// The consumers of this probe are independent, so each names its own lane: the
+// shell card and the sources cycle overlap, and a shared lane made whichever
+// probe started last discard the other's healthy answer. Omitting the scope
+// keeps the single-lane behaviour every other caller already has.
+export type ReadyProbeScope = 'shell' | 'sources';
+
+export async function ready(signal?: AbortSignal, scope?: ReadyProbeScope): Promise<Outcome<null>> {
+  const result = await requestJson(
+    'ready',
+    `${gatewayOrigin}${routes.ready}`,
+    { authenticated: false, lane: scope },
+    signal,
+  );
   if (result.state === 'ok' || result.state === 'empty') return { ok: true, data: null };
   return resultFailure<null>(result);
 }
@@ -855,6 +899,166 @@ export async function linkPreventiveReassessment(
   return { ok: true, data: result.body };
 }
 
+// --- Field observations (PM-09) --------------------------------------------
+//
+// The observation is authored by the server: `created_by` is the verified token
+// `sub`, and the creation body carries exactly `zone_id`, `type`, `observed_on`
+// and `description`. The type is a closed catalogue the server validates; this
+// transport proves the shape the view can use and passes the served list through
+// in the order the service returned it (newest first).
+
+function isObservationType(value: unknown): boolean {
+  return typeof value === 'string' && OBSERVATION_TYPES.includes(value as ObservationType);
+}
+
+function isObservation(value: unknown): value is Observation {
+  if (!record(value)) return false;
+  if (!nonempty(value.id) || !nonempty(value.zone_id)) return false;
+  // A served type outside the closed catalogue is a contract change: the list is
+  // refused instead of rendering a row this page cannot label or resubmit.
+  if (!isObservationType(value.type)) return false;
+  if (!nullableString(value.zone_name)) return false;
+  if (!nonempty(value.observed_on) || !nonempty(value.description)) return false;
+  // The author and the instant are server facts; a row without them is refused
+  // rather than rendered with an invented attribution.
+  if (!nonempty(value.created_by) || !nonempty(value.created_at)) return false;
+  // PM-10 adds the optional link: null and an absent field are both "no
+  // confirmation recorded", and only a value that is neither null nor a string
+  // is a contract change.
+  if (!nullableString(value.adopted_action_id)) return false;
+  return true;
+}
+
+function isObservationZone(value: unknown): value is ObservationZone {
+  return record(value) && nonempty(value.code) && nonempty(value.name) && nullableString(value.province);
+}
+
+// The full list read is validated element by element: a partially valid answer
+// is refused wholesale, exactly like the preventive-action list.
+function observationList(value: unknown): Observation[] | null {
+  if (!Array.isArray(value)) return null;
+  const entries: Observation[] = [];
+  for (const entry of value) {
+    if (!isObservation(entry)) return null;
+    entries.push(entry);
+  }
+  return entries;
+}
+
+export async function observations(
+  filter: { type?: string } = {},
+  signal?: AbortSignal,
+): Promise<Outcome<Observation[]>> {
+  const query = new URLSearchParams();
+  if (nonempty(filter.type)) query.set('type', filter.type.trim());
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  const result = await requestJson(
+    'observations',
+    `${gatewayOrigin}${routes.observations}${suffix}`,
+    { authenticated: true },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<Observation[]>(result);
+  const entries = observationList(result.body);
+  if (entries === null) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  // The empty list is data: it is passed through, never replaced by an idle state.
+  return { ok: true, data: entries };
+}
+
+export async function observationZones(signal?: AbortSignal): Promise<Outcome<ObservationZone[]>> {
+  const result = await requestJson('observationZones', `${gatewayOrigin}${routes.observationZones}`, { authenticated: true }, signal);
+  if (result.state !== 'ok') return resultFailure<ObservationZone[]>(result);
+  if (!Array.isArray(result.body) || !result.body.every(isObservationZone)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
+}
+
+export interface ObservationInput {
+  readonly zoneId: string;
+  readonly type: string;
+  readonly observedOn: string;
+  readonly description: string;
+}
+
+// The body names the four documented fields. No author travels: reproducing one
+// here would present a client-supplied identity as server-verified authorship.
+export async function createObservation(input: ObservationInput, signal?: AbortSignal): Promise<Outcome<Observation>> {
+  const result = await requestJson(
+    'createObservation',
+    `${gatewayOrigin}${routes.observations}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        zone_id: input.zoneId,
+        type: input.type,
+        observed_on: input.observedOn,
+        description: input.description,
+      }),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<Observation>(result);
+  if (!isObservation(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (result.body.zone_id !== input.zoneId) {
+    return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
+}
+
+// --- PM-10: observation adoption (S1/S4) -----------------------------------
+//
+// The one authorized link operation: an operator states that a recorded
+// observation justifies an existing preventive action. The body carries the
+// action and NOTHING else — the observation is addressed by the path and the
+// confirming actor is the verified token subject, so a client cannot assign the
+// work, move the action, backdate a confirmation or name itself as author. The
+// answer is the observation in its post-link state, so the association the page
+// displays is always the one the service stored.
+//
+// The request kind is its own: a link write must never supersede an in-flight
+// observation or action read, and it must not be superseded by one.
+export async function adoptObservation(
+  observationId: string,
+  actionId: string,
+  signal?: AbortSignal,
+): Promise<Outcome<Observation>> {
+  const result = await requestJson(
+    'adoptObservation',
+    `${gatewayOrigin}${observationAdoptionRoute(observationId)}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ action_id: actionId }),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<Observation>(result);
+  if (!isObservation(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  // A record for another observation, or one that does not state the link that
+  // was requested, is refused: the page must never display an association the
+  // service did not confirm.
+  if (result.body.id !== observationId || !sameIdentifier(result.body.adopted_action_id, actionId)) {
+    return failureOutcome(failureSpec('malformed', 'adoption_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
+}
+
+// A path id is compared byte for byte; an action id is a UUID, whose case is not
+// semantic, so the stored spelling is compared without case.
+function sameIdentifier(left: unknown, right: string): boolean {
+  return nonempty(left) && left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
 // The model registry is passed through as an array of opaque entries: the real
 // `GET /v1/models` body is an OBJECT ENVELOPE (`{"models": [...]}`, see
 // `backend/services/risk/internal/handler/models.go`), so the transport accepts the
@@ -867,4 +1071,19 @@ export async function modelVersions(signal?: AbortSignal): Promise<Outcome<unkno
     return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
   }
   return { ok: true, data: result.body.models };
+}
+
+// The FULL `/v1/models` envelope, additive beside `modelVersions` (which keeps
+// serving the overview panel unchanged). The registry list is still validated so
+// a broken envelope stays a malformed read, but the `effective` projection is
+// passed through UNTOUCHED: `core/active-rule.ts` owns the fail-closed identity
+// decision, and an absent or malformed projection is a truthful unknown rather
+// than a reason to discard the whole read.
+export async function modelRegistry(signal?: AbortSignal): Promise<Outcome<ModelRegistry>> {
+  const result = await requestJson('models', `${gatewayOrigin}${routes.models}`, { authenticated: true }, signal);
+  if (result.state !== 'ok') return resultFailure<ModelRegistry>(result);
+  if (!record(result.body) || !Array.isArray(result.body.models) || !result.body.models.every(record)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  return { ok: true, data: { models: result.body.models, effective: result.body.effective } };
 }

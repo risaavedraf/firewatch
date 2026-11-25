@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"firewatch.local/risk/internal/classify"
 	"firewatch.local/risk/internal/cycle"
 	"firewatch.local/risk/internal/repository"
+	"firewatch.local/risk/internal/service"
 	"firewatch.local/risk/internal/source"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/google/uuid"
@@ -233,4 +235,60 @@ func TestRiskContractEmptyStateResponse(t *testing.T) {
 		t.Fatalf("got %d want %d: %s", w.Code, http.StatusNotFound, w.Body.String())
 	}
 	assertResponseMatchesContract(t, contract, "/v1/risk/latest", http.MethodGet, w)
+}
+
+// PM-16 / S1 (T3): the documented `effective` object has exactly three shapes.
+// Each one is produced through the production resolver and the real authorized
+// handler, then validated against the published contract extract, so the
+// document and the wire body cannot drift apart. The registry list is present in
+// every case, including unavailable, because the projection is additive.
+func TestRiskContractEffectiveProjectionMatchesTheContract(t *testing.T) {
+	contract := loadContract(t)
+	const trainedID = "ml-fixture-v1"
+	const trainedHash = "992bd6ac53c75c2d31829c1126c8d2cb97d5a61cad4348d1047d5c93b15a15b5"
+	registry := effectiveTestRegistry(t, stubTrainedClassifier{id: trainedID, hash: trainedHash})
+	models := []repository.ModelVersion{
+		{Version: classify.FirewatchRuleV2ID, Kind: "rule", ParamsHash: stringPtr(classify.FirewatchRuleV2ParamsHash), Active: true, Metrics: json.RawMessage(`{}`)},
+	}
+
+	for _, tc := range []struct {
+		name      string
+		model     repository.ModelVersion
+		bootstrap classify.Classifier
+		want      string
+	}{
+		{"verified rule", activatedModel(classify.FirewatchRuleV2ID, classify.FirewatchRuleV2ParamsHash), classify.NewAcademicRuleV1(), "rule"},
+		{"resolved non-rule", activatedModel(trainedID, trainedHash), classify.NewAcademicRuleV1(), "non_rule"},
+		{"unavailable", activatedModel(classify.AcademicRuleV1ID, strings.Repeat("0", 64)), classify.NewAcademicRuleV1(), "unavailable"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &fakeStore{models: models}
+			source := service.RegistryClassifierSource{
+				Models:    fixedActiveModel{model: tc.model},
+				Registry:  registry,
+				Bootstrap: tc.bootstrap,
+			}
+			base, token := classifierAuthorizedServer(t, "viewer", store, source)
+			app := withCorrelationID(base)
+			w := request(t, app, token, "/v1/models")
+			if w.Code != http.StatusOK {
+				t.Fatalf("got %d want 200: %s", w.Code, w.Body.String())
+			}
+			assertResponseMatchesContract(t, contract, "/v1/models", http.MethodGet, w)
+
+			var body struct {
+				Models    []repository.ModelVersion `json:"models"`
+				Effective map[string]string         `json:"effective"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode models body: %v", err)
+			}
+			if len(body.Models) != len(models) {
+				t.Fatalf("models = %+v, want the unchanged registry list", body.Models)
+			}
+			if body.Effective["status"] != tc.want {
+				t.Fatalf("effective status = %q, want %q (body %v)", body.Effective["status"], tc.want, body.Effective)
+			}
+		})
+	}
 }

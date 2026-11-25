@@ -17,21 +17,21 @@ import (
 )
 
 type Repository interface {
-	// Create is variadic on purpose: the optional scenario is additive, so every
-	// pre-existing caller and test keeps compiling with the legacy five arguments
-	// and an absent scenario preserves the original fixture path.
-	Create(context.Context, string, string, string, string, ...string) (repository.Job, error)
+	// CreateAs is variadic on purpose: the optional scenario is additive, so an
+	// absent scenario preserves the original fixture path. The Actor carries the
+	// verified token identity, including its display name when one was asserted.
+	CreateAs(context.Context, repository.Actor, string, string, string, ...string) (repository.Job, error)
 	Get(context.Context, string) (repository.Job, error)
 	Audit(context.Context) ([]repository.Audit, error)
 	// ZoneExists reports whether the zone catalogue holds code. Membership is a
 	// property of the data, not of a literal compiled into this service, so the
 	// transport asks the catalogue instead of comparing to a hardcoded zone.
 	ZoneExists(ctx context.Context, code string) (bool, error)
-	// Replay returns a failed job, or a queued one the operator explicitly
+	// ReplayAs returns a failed job, or a queued one the operator explicitly
 	// confirmed, to queued. It is the operator-driven recovery path: the single
 	// guarded store transition also writes the audit record and the outgoing
 	// request event, so the transport only maps its outcome to a status code.
-	Replay(ctx context.Context, id, actor, trace string, confirmQueued bool) (repository.Job, error)
+	ReplayAs(ctx context.Context, id string, actor repository.Actor, trace string, confirmQueued bool) (repository.Job, error)
 }
 
 // replayConfirmToken is the only accepted value of the replay body's confirm
@@ -158,7 +158,7 @@ func New(store Repository, verifier Verifier, checks ...StatusCheck) http.Handle
 			trace = uuid.New()
 		}
 		w.Header().Set("X-Request-ID", trace.String())
-		job, err := store.Create(r.Context(), r.Context().Value(subjectKey{}).(string), key.String(), input.ZoneID, trace.String(), input.ScenarioID)
+		job, err := store.CreateAs(r.Context(), actorFromContext(r.Context()), key.String(), input.ZoneID, trace.String(), input.ScenarioID)
 		if err != nil {
 			slog.Error("create_job_failed", "request_id", trace.String())
 			fail(w, 503, "storage_unavailable")
@@ -205,7 +205,7 @@ func New(store Repository, verifier Verifier, checks ...StatusCheck) http.Handle
 			fail(w, 400, "invalid_replay_request")
 			return
 		}
-		job, err := store.Replay(r.Context(), id.String(), r.Context().Value(subjectKey{}).(string), trace.String(), confirmQueued)
+		job, err := store.ReplayAs(r.Context(), id.String(), actorFromContext(r.Context()), trace.String(), confirmQueued)
 		if errors.Is(err, pgx.ErrNoRows) {
 			fail(w, 404, "job_not_found")
 			return

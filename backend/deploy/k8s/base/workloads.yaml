@@ -64,7 +64,13 @@ spec:
           # the Service and the probes address the port by this name. The
           # number is the contract's 8080, unchanged.
           ports: [{name: https, containerPort: 8080}]
-          envFrom: [{configMapRef: {name: firewatch-config}}]
+          envFrom:
+            - configMapRef: {name: firewatch-config}
+            # AUDIT_DATABASE_URL only (PM-10 S3): the DSN of the insert-only
+            # recorder role. The gateway refuses to start without it, so the
+            # Deployment cannot roll out into a state where a recorded read is
+            # answered without a record.
+            - secretRef: {name: audit-runtime}
           env:
             # The listener's key pair. The gateway is the only service the
             # ingress reaches, so it is the only one whose certificate the

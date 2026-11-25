@@ -21,3 +21,19 @@ var SyntheticScenario string
 //
 //go:embed 004_job_failure_state.sql
 var JobFailureState string
+
+// AuditEventMetadata adds the durable audit event metadata: the verified actor
+// name, a free-text detail, a closed event kind and a nullable job reference for
+// query records. It is forward-only and guarded; historical rows keep a NULL
+// name and detail, and the append-only grants stay unchanged.
+//
+//go:embed 005_audit_event_metadata.sql
+var AuditEventMetadata string
+
+// QueryAuditWriter adds the narrow insert-only surface the gateway records
+// selected business reads through: a dedicated role, no DML on the trail, and one
+// SECURITY DEFINER function that fixes the event kind to 'query'. It is
+// forward-only and guarded, and it never stores a credential.
+//
+//go:embed 006_query_audit_writer.sql
+var QueryAuditWriter string

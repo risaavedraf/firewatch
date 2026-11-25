@@ -12,17 +12,18 @@ single-file, framework-free page; the reasons and the parity obligations are rec
 | `index.html` | Vite entry: the document and the `#root` mount point. No page content lives here |
 | `src/config.ts` | The two external origins, the identity provider, the consumed routes and the timing bounds |
 | `src/types/api.ts` | Declared payload shapes. Declarations, not guarantees: consumers validate at the boundary |
-| `src/app/routes.ts` | The eight views and their four navigation groups |
+| `src/app/routes.ts` | The ten workspace views and their four navigation groups |
 | `src/views/AuthView.tsx` | The sign-in and sign-up screen shown instead of the workspace while there is no session. Both buttons open Keycloak; the page renders no credential field |
 | `src/app/useHashRoute.ts` | Hash routing: reads the view from the address bar, follows back/forward, normalises an unknown hash |
 | `src/components/Shell.tsx` | Sidebar, topbar, update bar and footer |
 | `src/components/ui.tsx` | Presentation primitives: `Icon`, `Chip`, `Metric`, `PanelHeading`, `DataList`, `StatusCopy`, `EmptyState`, the "not implemented" markers |
 | `src/components/map/` | Territorial map projection and level colouring |
 | `src/core/api.ts` | Transport: one function per consumed route, absolute gateway URLs, sequence fences, deadlines |
+| `src/core/history-csv.ts` | The CSV export read: the same bearer and fences as the JSON transport, but the served bytes are downloaded as-is |
 | `src/core/session.ts` | OIDC PKCE, the in-memory token, the unverified role claim, logout |
 | `src/domain/` | Pure rules: validity, level mapping, fail-closed batch and provenance acceptance, readiness, history filters, the PM-18 recommendation catalogue |
-| `src/views/` | The eight views |
-| `src/styles/` | `tokens.css` (palette, level colours, type), `app.css` (layout, components, responsive) and `auth.css` (the sign-in screen) |
+| `src/views/` | The workspace views and the unauthenticated screen |
+| `src/styles/` | `tokens.css` (palette, level colours, type), `app.css` (layout, components, responsive), `auth.css` (sign-in), `observations.css` (PM-09) and `notifications.css` (PM-08) |
 | `scripts/serve.mjs` | Static server for the build output: explicit allowlist, CSP, no directory listing, no SPA fallback |
 | `scripts/smoke.mjs` | Loopback check of that server against the build |
 | `scripts/check.mjs` | Source gate: requires the honesty statement, forbids invented data, requires the real endpoints |
@@ -167,6 +168,167 @@ no item is an official alert, an official risk classification or an order. The c
 and its fallbacks are pinned by `tests/domain/recommendations.test.ts`; the rendered list,
 its states and the no-mutating-request assertion by the PM-18 cases in
 `tests/views/overview.test.tsx`.
+
+The PM-09 observation screen is exercised with mocked HTTP in jsdom; the real cross-origin
+observation write was not run in a browser for this change.
+
+## Field observations (PM-09)
+
+The observations view (`src/views/ObservationsView.tsx`, `#observations`) is the client
+half of the PM-09 seam: `GET|POST /v1/prevention/observations` and
+`GET /v1/prevention/observations/zones`.
+
+- The **zone** picker is the real catalogue read from `/zones`, including zones without
+  map geometry; the page never contributes a sector of its own. An unavailable catalogue
+  empties the picker, disables the form and offers a retry instead of a fallback list.
+- The **type** is the closed catalogue of S2 — `vegetacion_seca`, `microbasural`, `quema`,
+  `acceso_bloqueado`, `otro` — shown with the Spanish labels of S3. There is no free-text
+  type control.
+- The **date** is chosen by the operator: the page declares no fixed calendar bounds, and
+  the description is bounded at the contract's 240 characters with a live count.
+- The **author** is server-authored. The creation body carries only `zone_id`, `type`,
+  `observed_on` and `description`; `created_by` is the verified token `sub`, and every row
+  names the attribution the server stored.
+- The **list** is read from the service newest first and re-read after a saved record. The
+  type filter is a server query (`?type=`), and the empty state distinguishes "the service
+  has no observations" from "this filter matched none", keeping the filter with an explicit
+  way out.
+- A **refusal** keeps every entered value and names the HTTP status, the server `code`
+  (`invalid_observation_request`, `invalid_query`, `zone_not_found`, `forbidden`,
+  `storage_unavailable`) and the `request_id`. The submit control is disabled while a save
+  is in flight, and a token without `admin` reads the list while the form stays disabled.
+  The server remains the only authority.
+
+The transport validators fail closed on a malformed list, catalogue or creation record,
+including a creation that does not echo the selected zone. The cases are pinned by
+`tests/core/observations-api.test.ts` and `tests/views/observations.test.tsx`.
+
+## History CSV export (PM-13)
+
+The history view (`src/views/HistoryView.tsx`) carries the S1–S2 export: the
+**Descargar CSV** control downloads the history of the **selected zone** from
+`GET /v1/risk/history.csv?zone_id=<selected>` (`src/core/history-csv.ts`).
+
+- The request carries the selection and the session bearer, and nothing else —
+  no `limit`, no `offset`, no search term and no data-status filter. The export
+  is the zone's bounded 100-row window in the server's order; the in-memory
+  search and status filter narrow the table only.
+- The served bytes are saved unchanged. The page does not parse and rebuild the
+  document, so a CRLF inside a quoted cell and the server's spreadsheet guard
+  reach the file exactly as the route wrote them. It downloads only a `200`
+  `text/csv` document: a failure is the route's shared JSON error body, never a
+  file, and a `200` that is not CSV (a proxy login page, an empty body) is
+  refused instead of being saved under a `.csv` name. A `206 Partial Content` —
+  or any other 2xx — is a failure too, because a partial document is not the
+  export the contract describes.
+- An empty history is a valid export: the file is the header row alone, the
+  control stays available, and the status sentence says it carries no rows. The
+  table keeps its own, separate statement that the API returned no history.
+- The file is named locally and deterministically from the selected zone
+  (`risk-history-<zone>.csv`, reduced to a filename-safe alphabet). The page does
+  not read the server's `Content-Disposition`: it is not a CORS-exposed header
+  and no CORS exposure is needed or requested. The zone, the publication instant
+  and the synthetic flag are declared inside the file, per row.
+- The lifecycle is the JSON transport's: 401 lowers the session and returns the
+  panel to its connect state, a 403 is named as a denied permission, and a lost
+  or refused read never saves anything. Switching the zone, signing out or
+  unmounting aborts the in-flight export and discards a late answer, so no file
+  can be saved for a selection that is no longer current. The export state
+  belongs to the selection/session instance it was started in — leaving a zone
+  and returning starts from idle instead of restoring an abandoned request's
+  busy state — and the save re-checks the selected zone and the signed-in
+  session against the stores, not against the render that started it.
+- Accessibility: the control is a labelled button described by the note that
+  states the scope; its loading, failure and header-only sentences are announced
+  through a `role="status"` `aria-live="polite"` region. While a read is in
+  flight the button keeps focus through `aria-busy`/`aria-disabled` instead of
+  being disabled mid-interaction, and without a session or a selected zone it is
+  disabled with the reason stated rather than hidden.
+
+The format claim itself, the header-only answer and the parity between the CSV
+and the JSON handler are backend contract, pinned by
+`backend/services/risk/internal/handler/history_csv_test.go` and
+`backend/contracts/openapi/firewatch-v1.yaml`. This client's half is pinned by
+`tests/core/history-csv.test.ts` (transport, bytes, failures, abort/supersede,
+filename) and the PM-13 cases in `tests/views/history.test.tsx` (accessible
+control, downloaded bytes and name, filters not applied, header-only answer,
+errors and stale-context discards). No test here opens a browser: the download
+is observed at the Blob and the anchor's `download` name, which is the seam the
+browser uses, not a real save dialog.
+
+## Sources and services: the operational verdict (PM-16)
+
+`src/views/SourcesView.tsx` is the **only** screen for this: it shows the geographic
+provenance, the authenticated service snapshots, the live gateway probe, the cycle
+freshness and one explicit operational verdict. It opens no second health screen and
+issues no metrics or telemetry scrape; the transport calls are exactly
+`/v1/risk/sources`, `/v1/risk/status`, `/v1/jobs/status`, `/v1/models` and
+`/health/ready`, in the same bounded 30 s cycle.
+
+The "model" row states the **effective rule**, not a model the product does not have.
+Its version and parameter hash come only from the additive `effective` object of
+`GET /v1/models` (frozen backend contract, L6), and the client validates the claim
+before showing it:
+
+- `effective` is `{status:"rule", version, params_hash}` only when the service
+  resolved a rule through the publisher's own classifier source. The row accepts it
+  only with a non-empty version and exactly one canonical lowercase SHA-256
+  (`^[0-9a-f]{64}$`, length checked because JavaScript's `$` also matches before a
+  trailing newline).
+- `{status:"non_rule"}` means the resolved classifier is not a rule. The screen says
+  so (`No es una regla`, `No aplica`) and never prints an identity for it, even if a
+  hostile payload carries one.
+- `{status:"unavailable"}`, an absent `effective`, an unknown status or an invalid
+  version/hash are the same truthful unknown (`No verificable` / `No acreditado`) and
+  never borrow a version or a hash. A 401/403/503 keeps its normal error meaning.
+- **No registry row is an identity source.** `models` remains in the envelope for the
+  overview panel, but an `active` row, a seeded row or even a row carrying an
+  activation record cannot verify the rule on this screen. `GET /v1/models` itself
+  reports resolution **at read time**; it is not proof of a published classification
+  or of inference availability, and the copy says so.
+
+`src/core/active-rule.ts` owns that validation; the additive transport read is
+`modelRegistry` in `src/core/api.ts`, while `modelVersions` keeps serving
+`src/domain/model.ts` and the overview panel unchanged. The verdict composition is
+`src/domain/operational-status.ts`, and the gateway probe rule is
+`evaluateGatewayProbe` in `src/domain/readiness.ts`.
+
+The verdict keeps apart what is often conflated:
+
+| Evidence | What it proves |
+| --- | --- |
+| Live gateway probe (`/health/ready`) | The gateway process answered. A 204 does **not** accredit the risk or jobs pipeline |
+| Authenticated snapshots (`/v1/risk/status`, `/v1/jobs/status`) | Each service earns `ready`, a fresh `checked_at`, a known dead-letter depth inside its bound and three consistent dependencies, or it is unknown |
+| Provenance (`/v1/risk/sources`) | The published provider, attribution, restriction and declared hash match; a failed or mismatched read blocks the verdict |
+| Weather source | **Not integrated**: no consumed contract publishes a weather provider or reading, so the row says so and shows no invented weather |
+| Effective classifier (`/v1/models`) | A validated `rule` only; `non_rule` and `unavailable`/invalid are named as such, never as a rule |
+
+A demo/synthetic input, an unverified or non-rule classifier, a failed gateway probe
+or the missing weather integration keep the verdict out of the verified branch even
+when both services report healthy, so the screen never claims production readiness
+from a green health check.
+
+Session and announcement boundaries are part of the honesty of the panel:
+
+- Evidence is stored with the `SessionState` instance that produced it. A logout and
+  a later login on the same mounted view cannot render the previous session's
+  readings, even before the first new response lands. A superseded or aborted read
+  (including a late completion from the abandoned session) abandons the whole cycle
+  instead of painting a partial snapshot, and the next cycle re-reads under the
+  current session. Shared auth code is untouched.
+- The verdict has one dedicated visually-hidden `role="status"` region that names
+  only the verdict title. Its text is derived from the verdict state, so a same-verdict
+  30 s refresh produces no DOM mutation (no repeated announcement), while a
+  transition updates it once. The visible verdict paragraph is not a live region
+  and the service/provenance paragraphs keep their own regions for their own facts.
+
+The automated suites in `tests/core/active-rule.test.ts`,
+`tests/domain/operational-status.test.ts`, `tests/domain/readiness.test.ts` and
+`tests/views/sources.test.tsx` pin all of the above, including hostile payloads,
+missing/malformed `effective`, logout→login on the same view, late completions and
+the announcement mutation count. They use a stubbed `fetch` and jsdom: **no browser
+was executed for this unit**, so visual and assistive-technology behaviour remains
+unverified here.
 
 ## Quality gates
 
