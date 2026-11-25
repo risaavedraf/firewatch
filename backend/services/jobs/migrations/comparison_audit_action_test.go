@@ -26,7 +26,8 @@ const comparisonAuditLabel = "Consulta comparativa del riesgo entre zonas"
 // every security control of 006 is restated, every existing label and sentence is
 // preserved, and the only addition is the comparison's branch.
 func TestComparisonAuditActionReplacesTheWriterForwardOnly(t *testing.T) {
-	sql := ComparisonAuditAction
+	// The embedded SQL preserves the checkout's line endings.
+	sql := strings.ReplaceAll(ComparisonAuditAction, "\r\n", "\n")
 	for _, fragment := range []string{
 		"CREATE OR REPLACE FUNCTION public.audit_record_query(\n\tp_actor_id text,\n\tp_actor_name text,\n\tp_action text,\n\tp_trace_id text\n) RETURNS bigint",
 		"SECURITY DEFINER",
