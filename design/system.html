@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FireWatch · Sistema de diseño (base T1)</title>
+<style>
+:root {
+  color-scheme: light;
+  --forest-950: #102c2d;
+  --forest-900: #173c3b;
+  --forest-700: #285e56;
+  --forest-500: #638579;
+  --canvas: #f5f5ef;
+  --paper: #fffefa;
+  --ink: #233b39;
+  --muted: #5c6c65;
+  --line: #dde3da;
+  --soft: #eef1e9;
+  --terracotta: #a74d34;
+  --terracotta-soft: #f7e9e2;
+  --gold: #85691e;
+  --gold-soft: #f7f0d9;
+  --level-low-fill: #84ab8e;
+  --level-low-line: #5c8467;
+  --level-medium-fill: #d0b756;
+  --level-medium-line: #a99850;
+  --level-high-fill: #c77454;
+  --level-high-line: #b36647;
+  --level-unknown-fill: #c3cbcd;
+  --level-unknown-line: #6b7a80;
+  --level-neutral-fill: #e6ecea;
+  --level-neutral-line: #9fb3ab;
+  --radius: 12px;
+  --shadow: 0 3px 14px rgb(24 52 40 / 3%);
+  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { background: var(--canvas); }
+
+body {
+  width: 1440px;
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, p, dl, dd, ul, ol { margin-top: 0; }
+h1 { margin-bottom: 0; font-size: 36px; font-weight: 600; line-height: 1.18; letter-spacing: -1.2px; }
+h2 { margin-bottom: 0; font-size: 20px; font-weight: 600; letter-spacing: -.6px; }
+h3 { margin-bottom: 5px; font-size: 15px; font-weight: 650; letter-spacing: -.3px; }
+h4 { margin-bottom: 7px; font-size: 11px; font-weight: 700; letter-spacing: -.1px; }
+a { color: inherit; text-decoration: none; }
+small { display: block; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+caption { text-align: left; }
+
+:focus-visible {
+  outline: 3px solid #cf7d4f;
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: fixed;
+  top: -60px;
+  left: 12px;
+  z-index: 20;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.skip-link:focus { top: 12px; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.board {
+  width: 1440px;
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  background: var(--canvas);
+}
+
+.board-head {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  padding: 30px 34px 28px;
+  background: var(--forest-900);
+  color: #d5e1db;
+}
+
+.brand-line { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #d7aa73;
+  color: var(--forest-900);
+  font-family: Georgia, serif;
+  font-size: 23px;
+  font-style: italic;
+}
+.brand-line strong { display: block; color: var(--paper); font-size: 20px; font-weight: 650; letter-spacing: -.6px; }
+.brand-line small { color: #a8c2b7; font-size: 9px; font-weight: 500; letter-spacing: 1.6px; text-transform: uppercase; }
+.board-head h1 { color: var(--paper); }
+.board-head .lead { max-width: 720px; margin: 12px 0 0; color: #b9cfc6; font-size: 14px; line-height: 1.6; }
+.board-head .eyebrow { color: #d7aa73; }
+.head-stats { display: grid; align-content: start; gap: 8px; min-width: 236px; }
+.stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid #41625b;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 3%);
+  font-size: 10px;
+}
+.stat span { color: #a8c2b7; }
+.stat strong { color: var(--paper); font-size: 11px; font-weight: 700; }
+
+.rail {
+  grid-column: 1;
+  padding: 24px 18px 30px;
+  border-right: 1px solid var(--line);
+  background: var(--paper);
+}
+.rail-group { margin: 0 8px 8px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
+.rail-group:not(:first-child) { margin-top: 22px; }
+.rail a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--forest-700);
+  font-size: 12px;
+}
+.rail a:hover { background: var(--soft); color: var(--forest-900); }
+.rail a.is-current { background: #f0eee0; border-color: #f0eee0; color: var(--forest-900); font-weight: 650; }
+.rail a.is-current:focus-visible { outline-color: #d7aa73; }
+.rail .rail-note { margin: 24px 8px 0; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; line-height: 1.65; }
+
+main { grid-column: 2; padding: 26px 34px 34px; }
+section { margin-bottom: 34px; }
+.section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.eyebrow { margin: 0 0 6px; color: var(--forest-500); font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+.lede { max-width: 760px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
+.section-count { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+
+.panel {
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.panel-body { padding: 18px; }
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 20px 22px 17px; }
+.panel-head p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
+
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grid-5 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+
+.swatch {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+}
+.swatch-color { height: 62px; border-bottom: 1px solid var(--line); }
+.swatch-body { padding: 8px 10px 10px; }
+.swatch-body strong { display: block; font-size: 10px; font-weight: 700; overflow-wrap: anywhere; }
+.swatch-body small { margin-top: 2px; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.token-name { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9px; letter-spacing: .02em; }
+
+.level-card { border: 1px solid var(--line); border-radius: 9px; background: var(--paper); padding: 10px; }
+.level-chip { height: 46px; border-radius: 5px; border: 2px solid transparent; }
+.level-card h4 { margin: 8px 0 3px; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+.level-card p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; }
+.level-low { background: var(--level-low-fill); border-color: var(--level-low-line); }
+.level-medium { background: var(--level-medium-fill); border-color: var(--level-medium-line); }
+.level-high { background: var(--level-high-fill); border-color: var(--level-high-line); }
+.level-unknown { background: var(--level-unknown-fill); border-color: var(--level-unknown-line); }
+.level-neutral { background: var(--level-neutral-fill); border-color: var(--level-neutral-line); }
+
+.stack-note { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #dfe8d8; border-radius: 7px; background: #eef3ea; color: #56705d; font-size: 11px; line-height: 1.6; }
+
+.type-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 240px; gap: 16px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid #eef1ee; }
+.type-row:last-child { border-bottom: 0; }
+.type-row .role { color: var(--muted); font-size: 10px; }
+.type-row .meta { color: var(--muted); font-size: 9px; line-height: 1.55; }
+.s-body { font-size: 14px; }
+.s-title { font-size: 36px; font-weight: 600; line-height: 1.18; letter-spacing: -1.2px; }
+.s-h2 { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+.s-h3 { font-size: 13px; font-weight: 650; }
+.s-metric { font-size: 25px; font-weight: 550; letter-spacing: -.8px; line-height: 1.1; }
+.s-table { font-size: 10px; }
+.s-label { font-size: 9px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
+.s-chip { font-size: 10px; font-weight: 550; }
+.s-badge { font-size: 8px; font-weight: 850; letter-spacing: .06em; }
+.s-tiny { font-size: 7px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+
+.space-row { display: grid; grid-template-columns: 74px 480px minmax(0, 1fr); gap: 14px; align-items: center; padding: 6px 0; }
+.space-row .value { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.space-bar { height: 10px; border-radius: 3px; background: var(--forest-700); }
+.space-row .where { color: var(--muted); font-size: 10px; }
+.radius-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.radius-card { padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); text-align: center; }
+.radius-box { width: 66px; height: 66px; margin: 0 auto 8px; border: 1px solid var(--forest-500); background: var(--soft); }
+.radius-card strong { display: block; font-size: 10px; }
+.radius-card small { color: var(--muted); font-size: 9px; }
+.shadow-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.shadow-card { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }
+.shadow-card.auth-like { box-shadow: 0 18px 50px rgb(16 44 45 / 8%), var(--shadow); }
+.shadow-card.toast-like { border-color: var(--forest-900); background: var(--forest-900); color: var(--paper); box-shadow: 0 8px 30px rgb(16 44 45 / 19%); }
+.shadow-card strong { display: block; font-size: 11px; }
+.shadow-card small { margin-top: 4px; font-size: 9px; line-height: 1.55; }
+.shadow-card.toast-like small { color: #a8c2b7; }
+
+.button-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.button, .primary-button, .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.primary-button { border-color: var(--forest-900); background: var(--forest-900); color: #fcfcf2; }
+.primary-button:hover:not(:disabled) { background: var(--forest-700); border-color: var(--forest-700); }
+.secondary-button { min-height: 29px; background: var(--paper); color: var(--forest-700); }
+.secondary-button:hover:not(:disabled) { background: var(--soft); }
+.button-text { padding: 4px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--forest-700); font-size: 10px; text-align: left; }
+.button-text:hover { background: var(--soft); }
+button:disabled { cursor: not-allowed; opacity: .48; }
+.button-note { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: var(--soft);
+  color: #65736b;
+  font-size: 10px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.chip-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.chip-high { background: var(--terracotta-soft); color: #9c472f; }
+.chip-medium { background: var(--gold-soft); color: #7f641e; }
+.chip-low { background: #e7f0e6; color: #396246; }
+.chip-candidate { background: #e3efef; color: #32686a; }
+.chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid transparent; border-radius: 6px; font-size: 8px; font-weight: 850; letter-spacing: .06em; white-space: nowrap; }
+.dataset-badge { background: #e8f5ef; color: #236852; }
+.dataset-badge i { width: 6px; height: 6px; border-radius: 50%; background: #2f9b70; }
+.neutral-tag { background: #edf1f2; color: #64747a; }
+.admin-tag { background: var(--gold-soft); color: #755a22; }
+.small-label { border-color: var(--line); background: transparent; color: var(--muted); font-weight: 600; letter-spacing: 1px; }
+.unimplemented { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px dashed #c8bda0; border-radius: 6px; background: #faf7ee; color: #7d6c3f; font-size: 8px; font-weight: 800; letter-spacing: .06em; }
+.technical-notice { display: inline-flex; padding: 3px 8px; border: 1px dashed #c8bda0; border-radius: 6px; background: #faf7ee; color: #7d6c3f; font-size: 8px; font-weight: 800; letter-spacing: .06em; }
+.notice-stack { display: grid; gap: 10px; }
+.warning-banner { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border: 1px solid #f0dfb9; border-radius: 10px; background: var(--gold-soft); color: #705d35; }
+.warning-icon { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: 1px solid #c69b48; border-radius: 50%; font-size: 12px; font-weight: 800; }
+.warning-banner p { margin: 0; font-size: 10px; line-height: 1.65; }
+.warning-banner strong { color: #5f4717; }
+.inline-notice { display: flex; align-items: flex-start; gap: 9px; padding: 12px 15px; border: 1px solid #dfe8d8; border-radius: 7px; background: #eef3ea; color: #56705d; font-size: 11px; }
+.icon { width: 17px; height: 17px; flex: 0 0 auto; vertical-align: middle; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.metric { padding: 17px 19px 15px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }
+.metric.attention { border-color: #ead9ca; background: #fcf6f0; }
+.metric-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 15px; color: var(--muted); font-size: 11px; }
+.metric-top .icon { color: var(--forest-500); }
+.metric.attention .metric-top .icon { color: var(--terracotta); }
+.metric > strong { display: block; font-size: 25px; font-weight: 550; letter-spacing: -.8px; line-height: 1.1; }
+.metric.attention > strong { color: var(--terracotta); }
+.metric p { margin: 9px 0 0; color: var(--muted); font-size: 10px; }
+
+.data-list { display: grid; margin: 0; }
+.data-list > div { display: flex; justify-content: space-between; gap: 15px; padding: 8px 0; border-bottom: 1px solid #eef1ee; font-size: 9px; }
+.data-list > div:last-child { border-bottom: 0; }
+.data-list dt { color: var(--muted); }
+.data-list dd { max-width: 62%; margin: 0; color: var(--ink); font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+
+.table-wrap { overflow-x: auto; }
+.table-wrap:focus-visible { outline: 3px solid #cf7d4f; outline-offset: 2px; }
+th { padding: 11px 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #f3f4ed; color: var(--muted); font-size: 9px; font-weight: 550; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
+td { padding: 12px 14px; border-bottom: 1px solid #edf0e7; font-size: 10px; vertical-align: middle; }
+tbody tr:hover { background: #f9faf4; }
+tbody tr.is-selected { background: var(--soft); }
+tbody tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--forest-700); }
+tr:last-child td { border-bottom: 0; }
+td small { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+
+.field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.field { display: grid; gap: 5px; }
+.field label { color: var(--muted); font-size: 10px; }
+input, select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid #ced8cb;
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+input::placeholder { color: #8a968b; font-size: 11px; }
+.check-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; }
+
+.map-sample { padding: 12px; border: 1px solid #d4dfd0; border-radius: 9px; background: #eef2e8; }
+.zone-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.zone-box { height: 54px; border-radius: 4px; }
+.zone-box.low { background: var(--level-low-fill); border: 1px solid var(--level-low-line); }
+.zone-box.medium { background: var(--level-medium-fill); border: 1px solid var(--level-medium-line); }
+.zone-box.high { background: var(--level-high-fill); border: 1px solid var(--level-high-line); }
+.zone-box.unknown { background: var(--level-unknown-fill); border: 1px solid var(--level-unknown-line); }
+.zone-box.neutral { background: var(--level-neutral-fill); border: 1px solid var(--level-neutral-line); }
+.zone-box.selected { border: 3px solid var(--forest-950); }
+.zone-caption { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 7px; }
+.zone-caption span { color: var(--muted); font-size: 9px; line-height: 1.45; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0 0; padding: 0; list-style: none; }
+.map-legend li { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; }
+.legend-swatch { width: 12px; height: 12px; border: 1px solid transparent; border-radius: 3px; }
+.swatch-bajo { background: var(--level-low-fill); border-color: var(--level-low-line); }
+.swatch-medio { background: var(--level-medium-fill); border-color: var(--level-medium-line); }
+.swatch-alto { background: var(--level-high-fill); border-color: var(--level-high-line); }
+.swatch-desconocido { background: var(--level-unknown-fill); border-color: var(--level-unknown-line); }
+.swatch-neutral { background: var(--level-neutral-fill); border-color: var(--level-neutral-line); }
+
+.risk-state { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: #f8faf7; }
+.risk-symbol { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--muted); font-size: 22px; }
+.risk-state strong { display: block; font-size: 15px; }
+.risk-state small { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.risk-pill { padding: 5px 8px; border-radius: 5px; background: var(--soft); color: var(--forest-700); font-size: 8px; font-weight: 850; white-space: nowrap; }
+.factor-list { margin: 12px 0 0; padding: 0; list-style: none; }
+.factor-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; color: var(--muted); font-size: 10px; }
+.factor-track { width: 57px; height: 4px; flex: 0 0 auto; border-radius: 4px; background: #e8e9df; }
+.factor-track span { display: block; height: 100%; border-radius: 4px; background: #a1b49d; }
+
+.shell-sample { display: grid; grid-template-columns: 234px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--line); border-radius: 9px; }
+.shell-side { padding: 18px 16px; background: var(--forest-900); color: #d5e1db; }
+.shell-side .brand-mark { width: 36px; height: 36px; border-radius: 11px; font-size: 20px; margin-bottom: 16px; }
+.workspace { display: flex; gap: 10px; align-items: center; padding: 13px 10px; border: 1px solid #41625b; border-radius: 9px; font-size: 12px; margin-bottom: 18px; }
+.workspace-mark { display: grid; place-items: center; width: 29px; height: 33px; background: #36564e; border-radius: 7px; color: #ebd8b4; }
+.nav-group { margin: 0 4px 6px; color: #90aaa0; font-size: 9px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
+.nav-link { display: flex; align-items: center; gap: 12px; padding: 9px 11px; border: 1px solid transparent; border-radius: 7px; color: #c3d6cf; font-size: 12px; }
+.nav-link.is-active { background: #f0eee0; border-color: #f0eee0; color: var(--forest-900); font-weight: 650; }
+.health-card { margin-top: 14px; padding: 13px; border: 1px solid #41625b; border-radius: 9px; background: rgb(255 255 255 / 3%); }
+.health-head { display: flex; align-items: center; justify-content: space-between; color: #e7faf5; font-size: 11px; }
+.health-dot { width: 8px; height: 8px; border-radius: 50%; background: #a1b3ae; }
+.health-dot.ready { background: #67c99a; }
+.health-dot.down { background: #d77b67; }
+.health-card p { margin: 7px 0; color: #a5c8bf; font-size: 10px; }
+.side-action { padding: 0; border: 0; background: none; color: #a6e1d4; font-size: 10px; }
+.session-card { display: flex; align-items: center; gap: 9px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgb(255 255 255 / 9%); }
+.session-mark { color: #d2ad63; font-size: 11px; }
+.session-card strong { display: block; color: #e7faf5; font-size: 10px; }
+.session-card small { color: #82aba2; font-size: 9px; }
+.shell-main { padding: 0; background: var(--canvas); }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 15px; min-height: 75px; padding: 0 22px; border-bottom: 1px solid var(--line); background: var(--paper); }
+.breadcrumbs { color: var(--muted); font-size: 12px; }
+.topbar h3 { margin: 3px 0 0; font-size: 20px; letter-spacing: -.6px; }
+.zone-chip { display: flex; align-items: center; gap: 9px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
+.zone-chip small { color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: 1px; }
+.zone-chip strong { display: block; font-size: 10px; }
+.shell-body { padding: 14px 18px 18px; }
+.update-bar { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
+
+.toast { margin: 0; padding: 15px 20px; border-radius: 9px; background: var(--forest-900); color: var(--paper); box-shadow: 0 8px 30px rgb(16 44 45 / 19%); font-size: 12px; }
+
+.auth-sample { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--canvas); }
+.auth-hero { padding: 22px; color: #d5e1db; background: radial-gradient(120% 80% at 110% 115%, rgb(215 170 115 / 22%) 0%, transparent 55%), radial-gradient(90% 70% at -10% -10%, rgb(99 133 121 / 35%) 0%, transparent 60%), var(--forest-900); }
+.auth-kicker { margin: 0 0 10px; color: #d7aa73; font-size: 10px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; }
+.auth-hero h3 { margin: 0 0 10px; color: #f6fff9; font-size: 28px; line-height: 1.08; letter-spacing: -1.6px; }
+.auth-hero p { margin: 0; color: #b9cfc6; font-size: 12px; line-height: 1.6; }
+.auth-scope { margin-top: 16px; padding-top: 12px; border-top: 1px solid rgb(255 255 255 / 10%); color: #9fbcb2; font-size: 10px; line-height: 1.6; }
+.auth-main { display: grid; place-items: center; padding: 22px; }
+.auth-card { width: 100%; padding: 22px 20px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); box-shadow: 0 18px 50px rgb(16 44 45 / 8%), var(--shadow); }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 18px; padding: 4px; border-radius: 10px; background: var(--soft); }
+.auth-tab { min-height: 36px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; font-weight: 650; }
+.auth-tab.is-selected { background: var(--paper); color: var(--forest-900); box-shadow: 0 1px 3px rgb(16 44 45 / 12%); }
+.auth-card h3 { margin-bottom: 8px; color: var(--forest-950); font-size: 23px; letter-spacing: -.8px; }
+.auth-lead { margin-bottom: 14px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.auth-primary { width: 100%; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 11px 16px; border: 1px solid var(--forest-900); border-radius: 10px; background: var(--forest-900); color: #fcfcf2; font-size: 13px; font-weight: 700; }
+.auth-steps { display: grid; gap: 10px; margin: 0 0 14px; padding: 0; list-style: none; counter-reset: step; }
+.auth-steps li { position: relative; padding-left: 32px; color: var(--ink); font-size: 12px; line-height: 1.5; counter-increment: step; }
+.auth-steps li::before { content: counter(step); position: absolute; top: -1px; left: 0; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: var(--gold-soft); color: var(--gold); font-size: 10px; font-weight: 800; }
+.auth-status { margin: 14px 0 0; color: var(--forest-700); font-size: 12px; }
+.auth-status.is-error { padding: 10px 12px; border-radius: 8px; background: var(--terracotta-soft); color: var(--terracotta); }
+.auth-privacy { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.55; }
+
+.contrast-table td:first-child { color: var(--muted); }
+.ratio { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ratio.ok { color: var(--forest-700); }
+.ratio.gap { color: var(--terracotta); }
+.read { font-size: 9px; }
+.read.gap { color: var(--terracotta); font-weight: 700; }
+.ratio-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 12px; color: var(--muted); font-size: 10px; }
+.ratio-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.ratio-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+.routes-table td:first-child { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--forest-700); white-space: nowrap; }
+.routes-table td { vertical-align: top; }
+.routes-table td:last-child { color: var(--muted); }
+
+footer { grid-column: 1 / -1; margin: 0 34px; padding: 18px 0 26px; border-top: 1px solid var(--line); color: var(--muted); font-size: 9px; line-height: 1.7; }
+footer strong { color: var(--ink); }
+.limit-list { margin: 0; padding-left: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<!-- Measured ratios, not a certification of WCAG AA conformance. No browser was opened. -->
+<a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+<div class="board">
+  <header class="board-head">
+    <div>
+      <div class="brand-line">
+        <span class="brand-mark" aria-hidden="true">F</span>
+        <span>
+          <strong>FireWatch</strong>
+          <small>Prevención territorial</small>
+        </span>
+      </div>
+      <p class="eyebrow">Base T1 · captura del frontend activo</p>
+      <h1>Sistema de diseño de FireWatch</h1>
+      <p class="lead">
+        Lo que el producto ya usa, medido y sin inventar: 27 variables CSS declaradas, las ocho rutas
+        vigentes y la pantalla de acceso. Sin fuentes históricas, sin cambios de comportamiento y sin
+        assets externos.
+      </p>
+    </div>
+    <div class="head-stats" role="group" aria-label="Resumen de la captura">
+      <div class="stat"><span>Variables CSS</span><strong>27</strong></div>
+      <div class="stat"><span>Paleta</span><strong>14</strong></div>
+      <div class="stat"><span>Niveles de riesgo</span><strong>10</strong></div>
+      <div class="stat"><span>Estructura</span><strong>3</strong></div>
+      <div class="stat"><span>Pares de contraste medidos</span><strong>35</strong></div>
+      <div class="stat"><span>Assets externos</span><strong>0</strong></div>
+    </div>
+  </header>
+
+  <nav class="rail" aria-label="Secciones del sistema">
+    <p class="rail-group">Base</p>
+    <a href="#paleta">Paleta</a>
+    <a href="#niveles">Niveles de riesgo</a>
+    <a href="#tipografia">Tipografía</a>
+    <a href="#espaciado">Espaciado</a>
+    <p class="rail-group">Estructura</p>
+    <a href="#radios">Radios</a>
+    <a href="#sombras">Sombras</a>
+    <a href="#componentes">Componentes</a>
+    <a href="#riesgo">Presentación del riesgo</a>
+    <p class="rail-group">Evidencia</p>
+    <a href="#contraste">Contraste medido</a>
+    <a href="#rutas">Rutas y acceso</a>
+    <a href="#fuentes">Fuentes y límites</a>
+    <p class="rail-note">
+      Tablero de sistema, no una dirección visual. Las etiquetas visibles están en español, como el
+      producto; la documentación técnica vive en <span class="token-name">design/system.md</span>.
+    </p>
+  </nav>
+
+  <main id="contenido">
+    <section id="paleta" aria-labelledby="paleta-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Variables declaradas</p>
+          <h2 id="paleta-title">Paleta</h2>
+          <p class="lede">
+            Catorce propiedades de color de <span class="token-name">frontend/src/styles/tokens.css</span>.
+            Cada muestra usa el valor declarado, sin retoques.
+          </p>
+        </div>
+        <span class="section-count">14 de 27</span>
+      </div>
+      <div class="grid-3">
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--forest-950)"></div>
+          <div class="swatch-body"><strong class="token-name">--forest-950 · #102c2d</strong><small>Trazo de selección del mapa, título del panel de acceso.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--forest-900)"></div>
+          <div class="swatch-body"><strong class="token-name">--forest-900 · #173c3b</strong><small>Barra lateral, botón primario, navegación activa, toast y base del hero de acceso.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--forest-700)"></div>
+          <div class="swatch-body"><strong class="token-name">--forest-700 · #285e56</strong><small>Enlaces, eyebrows, etiquetas del mapa, hover primario y acento de fila seleccionada.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--forest-500)"></div>
+          <div class="swatch-body"><strong class="token-name">--forest-500 · #638579</strong><small>Iconos de métricas, glifo del selector de zona y marca de bloqueo.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--canvas)"></div>
+          <div class="swatch-body"><strong class="token-name">--canvas · #f5f5ef</strong><small>Fondo de página y de la pantalla de acceso.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--paper)"></div>
+          <div class="swatch-body"><strong class="token-name">--paper · #fffefa</strong><small>Paneles, tarjetas, topbar, campos y texto sobre bosque.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--ink)"></div>
+          <div class="swatch-body"><strong class="token-name">--ink · #233b39</strong><small>Texto de cuerpo, valores de tabla y de listas de datos.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--muted)"></div>
+          <div class="swatch-body"><strong class="token-name">--muted · #5c6c65</strong><small>Notas, leyendas, etiquetas y metadatos secundarios.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--line)"></div>
+          <div class="swatch-body"><strong class="token-name">--line · #dde3da</strong><small>Bordes de panel, tarjeta, topbar, footer, tabla y divisores.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--soft)"></div>
+          <div class="swatch-body"><strong class="token-name">--soft · #eef1e9</strong><small>Chip base, fila seleccionada, hover secundario y fondo de pestañas de acceso.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--terracotta)"></div>
+          <div class="swatch-body"><strong class="token-name">--terracotta · #a74d34</strong><small>Métrica con atención, enlace y error de acceso, error de riesgo.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--terracotta-soft)"></div>
+          <div class="swatch-body"><strong class="token-name">--terracotta-soft · #f7e9e2</strong><small>Fondo de chip alto o insuficiente y de error de acceso.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--gold)"></div>
+          <div class="swatch-body"><strong class="token-name">--gold · #85691e</strong><small>Número de paso en el registro y acentos dorados.</small></div>
+        </article>
+        <article class="swatch">
+          <div class="swatch-color" style="background: var(--gold-soft)"></div>
+          <div class="swatch-body"><strong class="token-name">--gold-soft · #f7f0d9</strong><small>Chip medio o pendiente, etiqueta de administración y banner de advertencia.</small></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="niveles" aria-labelledby="niveles-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Variables declaradas</p>
+          <h2 id="niveles-title">Niveles de riesgo</h2>
+          <p class="lede">
+            Diez propiedades de relleno y trazo. El relleno del mapa, la leyenda y los chips leen del
+            mismo lugar para que una leyenda no pueda describir un mapa que ya cambió.
+          </p>
+        </div>
+        <span class="section-count">10 de 27</span>
+      </div>
+      <div class="grid-5">
+        <article class="level-card">
+          <div class="level-chip level-low"></div>
+          <h4>BAJO</h4>
+          <p><span class="token-name">--level-low-fill</span> #84ab8e<br /><span class="token-name">--level-low-line</span> #5c8467</p>
+        </article>
+        <article class="level-card">
+          <div class="level-chip level-medium"></div>
+          <h4>MEDIO</h4>
+          <p><span class="token-name">--level-medium-fill</span> #d0b756<br /><span class="token-name">--level-medium-line</span> #a99850</p>
+        </article>
+        <article class="level-card">
+          <div class="level-chip level-high"></div>
+          <h4>ALTO</h4>
+          <p><span class="token-name">--level-high-fill</span> #c77454<br /><span class="token-name">--level-high-line</span> #b36647</p>
+        </article>
+        <article class="level-card">
+          <div class="level-chip level-unknown"></div>
+          <h4>INFORMACIÓN INSUFICIENTE</h4>
+          <p><span class="token-name">--level-unknown-fill</span> #c3cbcd<br /><span class="token-name">--level-unknown-line</span> #6b7a80</p>
+        </article>
+        <article class="level-card">
+          <div class="level-chip level-neutral"></div>
+          <h4>Sin evaluación para esta zona</h4>
+          <p><span class="token-name">--level-neutral-fill</span> #e6ecea<br /><span class="token-name">--level-neutral-line</span> #9fb3ab</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="tipografia" aria-labelledby="tipografia-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Sin escala declarada</p>
+          <h2 id="tipografia-title">Tipografía</h2>
+          <p class="lede">
+            El único token tipográfico es <span class="token-name">--font</span>. Los tamaños y pesos son
+            literales por selector en <span class="token-name">app.css</span> y
+            <span class="token-name">auth.css</span>; aquí se muestran a su tamaño real.
+          </p>
+        </div>
+        <span class="section-count">1 token · 0 escala</span>
+      </div>
+      <div class="panel">
+        <div class="panel-body">
+          <p class="stack-note">
+            <strong>La pila declarada es Inter, pero Inter no se carga.</strong> No hay declaración de
+            fuente, importación, paquete ni enlace de fuente en el frontend activo: el producto
+            renderiza con las fuentes del sistema. Este tablero tampoco descarga ninguna.
+          </p>
+          <div class="type-row">
+            <span class="role">Título de página</span>
+            <span class="s-title">Estado de la zona</span>
+            <span class="meta">36 px efectivos · peso 600 · línea 1.18 · tracking -1.2 px<br />clamp(27px, 2.5vw, 37px) en app.css</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Título de topbar</span>
+            <span style="font-size: 20px; letter-spacing: -.6px; font-weight: 600">Acciones preventivas</span>
+            <span class="meta">20 px · tracking -0.6 px</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Título de sección</span>
+            <span class="s-h2">Último lote publicado</span>
+            <span class="meta">17 px · peso 600 · tracking -0.3 px</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Subtítulo</span>
+            <span class="s-h3">Factores del lote</span>
+            <span class="meta">13 px · peso 650</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Cuerpo</span>
+            <span class="s-body">La API no realiza predicciones ni recomendaciones operativas.</span>
+            <span class="meta">14 px · línea 1.5 · peso base 400</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Valor de métrica</span>
+            <span class="s-metric">7 comunas</span>
+            <span class="meta">25 px · peso 550 · tracking -0.8 px · línea 1.1</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Texto de tabla</span>
+            <span class="s-table">2026-11-20 09:14 · lote sintético publicado</span>
+            <span class="meta">10 px · celdas</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Etiqueta de grupo</span>
+            <span class="s-label">Prevención</span>
+            <span class="meta">9 px · peso 800 · tracking 1.4 px · mayúsculas</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Chip</span>
+            <span class="s-chip">Publicado</span>
+            <span class="meta">10 px · peso 550</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Badge</span>
+            <span class="s-badge">ENTRADA SINTÉTICA</span>
+            <span class="meta">8 px · peso 850 · tracking 0.06 em</span>
+          </div>
+          <div class="type-row">
+            <span class="role">Etiqueta mínima</span>
+            <span class="s-tiny">Fuente</span>
+            <span class="meta">7 px · peso 850 · tracking 0.08 em</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="espaciado" aria-labelledby="espaciado-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Sin escala declarada</p>
+          <h2 id="espaciado-title">Espaciado</h2>
+          <p class="lede">
+            No hay tokens de espaciado. Las medidas que siguen son las que realmente aparecen en los
+            estilos activos, con la barra dibujada a su ancho exacto en píxeles.
+          </p>
+        </div>
+        <span class="section-count">0 tokens · literales</span>
+      </div>
+      <div class="panel">
+        <div class="panel-body">
+          <div class="space-row"><span class="value">4 px</span><span class="space-bar" style="width: 4px"></span><span class="where">separación interna de chips y etiquetas</span></div>
+          <div class="space-row"><span class="value">8 px</span><span class="space-bar" style="width: 8px"></span><span class="where">filas de lista de datos, botones</span></div>
+          <div class="space-row"><span class="value">12 px</span><span class="space-bar" style="width: 12px"></span><span class="where">gap de iconos y celdas, celdas de tabla</span></div>
+          <div class="space-row"><span class="value">16 px</span><span class="space-bar" style="width: 16px"></span><span class="where">gap de métricas, dashboard y grid inferior</span></div>
+          <div class="space-row"><span class="value">18 px</span><span class="space-bar" style="width: 18px"></span><span class="where">padding del cuerpo de panel</span></div>
+          <div class="space-row"><span class="value">22 px</span><span class="space-bar" style="width: 22px"></span><span class="where">gap de columnas y pipeline; padding de panel</span></div>
+          <div class="space-row"><span class="value">27 px</span><span class="space-bar" style="width: 27px"></span><span class="where">padding superior del contenido principal</span></div>
+          <div class="space-row"><span class="value">34 px</span><span class="space-bar" style="width: 34px"></span><span class="where">margen lateral de topbar, main y footer</span></div>
+          <div class="space-row"><span class="value">44 px</span><span class="space-bar" style="width: 44px"></span><span class="where">padding superior del hero de acceso</span></div>
+          <p class="button-note" style="margin-top: 12px">
+            Barra lateral de 234 px (208 px bajo 1200 px), main de 1500 px máximo, topbar de 75 px mínimo.
+            Cortes: 1200, 1000 y 720 px; en acceso, 900 y 420 px.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="radios" aria-labelledby="radios-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Un token y sus literales</p>
+          <h2 id="radios-title">Radios</h2>
+          <p class="lede">
+            <span class="token-name">--radius</span> vale 12 px y solo lo usan paneles y métricas. El
+            resto de los radios son literales por componente.
+          </p>
+        </div>
+        <span class="section-count">1 token</span>
+      </div>
+      <div class="radius-grid">
+        <div class="radius-card"><div class="radius-box" style="border-radius: 3px"></div><strong>3 px</strong><small>swatch de leyenda</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 5px"></div><strong>5 px</strong><small>chip y pastilla</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 6px"></div><strong>6 px</strong><small>badge y campo</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 7px"></div><strong>7 px</strong><small>botón y nav</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 9px"></div><strong>9 px</strong><small>tarjeta y mapa</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: var(--radius)"></div><strong>12 px</strong><small>panel y métrica</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 16px"></div><strong>16 px</strong><small>tarjeta de acceso</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 10px"></div><strong>10 px</strong><small>aviso y pestañas</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 8px"></div><strong>8 px</strong><small>skip link y error</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 11px"></div><strong>11 px</strong><small>marca de marca</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 4px"></div><strong>4 px</strong><small>barra de factor</small></div>
+        <div class="radius-card"><div class="radius-box" style="border-radius: 50%"></div><strong>50 %</strong><small>puntos de estado</small></div>
+      </div>
+    </section>
+
+    <section id="sombras" aria-labelledby="sombras-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Un token y sus literales</p>
+          <h2 id="sombras-title">Sombras</h2>
+          <p class="lede">
+            <span class="token-name">--shadow</span> es la única sombra declarada. La tarjeta de acceso y
+            el toast agregan su propia elevación.
+          </p>
+        </div>
+        <span class="section-count">1 token</span>
+      </div>
+      <div class="shadow-grid">
+        <div class="shadow-card"><strong>--shadow</strong><small>0 3px 14px rgb(24 52 40 / 3%)<br />Paneles y tarjetas de métrica.</small></div>
+        <div class="shadow-card auth-like"><strong>Tarjeta de acceso</strong><small>0 18px 50px rgb(16 44 45 / 8%), var(--shadow)<br />Solo la tarjeta de la pantalla de acceso.</small></div>
+        <div class="shadow-card toast-like"><strong>Toast</strong><small>0 8px 30px rgb(16 44 45 / 19%)<br />Aviso flotante inferior derecho.</small></div>
+      </div>
+    </section>
+
+    <section id="componentes" aria-labelledby="componentes-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Reglas vigentes</p>
+          <h2 id="componentes-title">Componentes</h2>
+          <p class="lede">
+            Muestras construidas con las reglas de <span class="token-name">app.css</span> y
+            <span class="token-name">auth.css</span>. El foco real se ve al tabular; la muestra de foco
+            solo lo replica.
+          </p>
+        </div>
+        <span class="section-count">13 grupos</span>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head">
+            <div><p class="eyebrow">Acciones</p><h3>Botones</h3></div>
+            <span class="badge neutral-tag">10 px / 700</span>
+          </div>
+          <div class="panel-body">
+            <div class="button-row">
+              <button class="primary-button" type="button">Solicitar lote sintético</button>
+              <button class="secondary-button" type="button">Actualizar estado</button>
+              <button class="button-text" type="button">Ver detalle</button>
+              <button class="primary-button" type="button" disabled>No disponible</button>
+            </div>
+            <p class="button-note">
+              Primario sobre bosque 900 con texto #fcfcf2; hover bosque 700. Secundario de 29 px.
+              Deshabilitado a 0.48 de opacidad y cursor no permitido; el motivo se escribe en el panel.
+            </p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div><p class="eyebrow">Estado</p><h3>Chips y etiquetas</h3></div>
+            <span class="badge neutral-tag">color + texto</span>
+          </div>
+          <div class="panel-body">
+            <div class="chip-list">
+              <span class="chip"><span class="chip-dot" aria-hidden="true"></span>Base</span>
+              <span class="chip chip-high"><span class="chip-dot" aria-hidden="true"></span>Alto</span>
+              <span class="chip chip-medium"><span class="chip-dot" aria-hidden="true"></span>Pendiente</span>
+              <span class="chip chip-low"><span class="chip-dot" aria-hidden="true"></span>Publicado</span>
+              <span class="chip chip-candidate"><span class="chip-dot" aria-hidden="true"></span>En curso</span>
+            </div>
+            <div class="chip-list" style="margin-top: 10px">
+              <span class="badge dataset-badge"><i aria-hidden="true"></i>ENTRADA SINTÉTICA</span>
+              <span class="badge neutral-tag">SIN CONSULTAR</span>
+              <span class="badge admin-tag">ADMIN</span>
+              <span class="badge small-label">ZONA</span>
+              <span class="unimplemented">NO IMPLEMENTADO</span>
+            </div>
+            <p class="button-note" style="margin-top: 10px">
+              El color nunca va solo: cada chip y badge conserva su palabra. El chip base mide 4.36:1 y
+              la etiqueta neutral 4.27:1; se registran como hallazgo, no se corrigen aquí.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Avisos</p><h3>Aviso de alcance, nota y marcador honesto</h3></div>
+          <span class="technical-notice">Entrada sintética · aviso de alcance</span>
+        </div>
+        <div class="panel-body">
+          <div class="notice-stack">
+            <div class="warning-banner">
+              <span class="warning-icon" aria-hidden="true">!</span>
+              <p><strong>Entorno de demostración.</strong> Entrada sintética, sin calibración y no oficial. No reemplaza a CONAF ni a SENAPRED.</p>
+            </div>
+            <div class="inline-notice">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 10 5-10 5L2 8l10-5Zm-10 9 10 5 10-5M2 16l10 5 10-5" /></svg>
+              <span>La procedencia se reproduce tal como la entrega el servicio; una respuesta ilegible no se muestra como fuente saludable.</span>
+            </div>
+            <p style="margin: 0"><span class="unimplemented">NO IMPLEMENTADO</span> <span class="button-note" style="display: inline">Nombre del actor, detalle libre e id de evento: el endpoint entrega identificadores opacos, sin nombre ni detalle.</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Datos</p><h3>Paneles, métricas y listas</h3></div>
+          <span class="badge neutral-tag">densidad media</span>
+        </div>
+        <div class="panel-body">
+          <div class="metric-grid">
+            <article class="metric">
+              <div class="metric-top"><span>Comunas en catálogo</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Zm6-2v16m6-14v16" /></svg></div>
+              <strong>38</strong>
+              <p>Catálogo servido por /v1/risk/zones.</p>
+            </article>
+            <article class="metric">
+              <div class="metric-top"><span>Lotes del historial</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7M3 4v7h7m2-5v6l4 2" /></svg></div>
+              <strong>12</strong>
+              <p>Filas devueltas para la zona seleccionada.</p>
+            </article>
+            <article class="metric attention">
+              <div class="metric-top"><span>Comunas con nivel alto</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Zm-4 9 3 3 5-6" /></svg></div>
+              <strong>2</strong>
+              <p>Solo las niveles que esta sesión realmente leyó.</p>
+            </article>
+          </div>
+          <div class="grid-2" style="margin-top: 16px">
+            <div>
+              <h4>Lista de datos</h4>
+              <dl class="data-list">
+                <div><dt>Zona</dt><dd>Viña del Mar</dd></div>
+                <div><dt>Último lote</dt><dd>batch-2026-11-20-01</dd></div>
+                <div><dt>Vigencia</dt><dd>Vigente hasta 2026-11-21 08:00</dd></div>
+                <div><dt>Procedencia</dt><dd>Lectura verificada</dd></div>
+              </dl>
+            </div>
+            <div>
+              <h4>Foco y deshabilitado</h4>
+              <p class="button-note">
+                Anillo de 3 px en #cf7d4f con desplazamiento de 2 px. Se distingue de la selección: la
+                fila seleccionada usa fondo y barra interior, no el anillo.
+              </p>
+              <div class="button-row" style="margin: 10px 0 0">
+                <button class="secondary-button" type="button" style="outline: 3px solid #cf7d4f; outline-offset: 2px">Foco visible</button>
+                <button class="secondary-button" type="button" disabled>Sin permiso</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Datos tabulares</p><h3>Tabla con fila seleccionada</h3></div>
+          <span class="badge neutral-tag">th 9 px · td 10 px</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Muestra de tabla de acciones preventivas">
+            <table>
+              <caption class="sr-only">Muestra de tabla con encabezado, fila seleccionada y acciones por fila</caption>
+              <thead>
+                <tr><th scope="col">Acción</th><th scope="col">Estado</th><th scope="col">Responsable</th><th scope="col">Vigencia</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Limpieza de combustible en Quebrada Verde<small>acc-2026-11-18-04</small></td>
+                  <td><span class="chip chip-medium"><span class="chip-dot" aria-hidden="true"></span>Pendiente</span></td>
+                  <td>Sin asignar</td>
+                  <td>2026-11-30</td>
+                </tr>
+                <tr class="is-selected">
+                  <td>Revisión de cortafuegos periurbano<small>acc-2026-11-17-02</small></td>
+                  <td><span class="chip chip-low"><span class="chip-dot" aria-hidden="true"></span>Publicado</span></td>
+                  <td>María Fuentes</td>
+                  <td>2026-12-04</td>
+                </tr>
+                <tr>
+                  <td>Señalética en ruta de evacuación<small>acc-2026-11-12-07</small></td>
+                  <td><span class="chip chip-high"><span class="chip-dot" aria-hidden="true"></span>Alto</span></td>
+                  <td>Sin asignar</td>
+                  <td>Vencida</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head">
+            <div><p class="eyebrow">Entrada</p><h3>Campos y filtros</h3></div>
+            <span class="badge neutral-tag">12 px</span>
+          </div>
+          <div class="panel-body">
+            <div class="field-grid">
+              <div class="field">
+                <label for="sample-zone">Zona</label>
+                <select id="sample-zone"><option>Viña del Mar</option></select>
+              </div>
+              <div class="field">
+                <label for="sample-status">Estado del dato</label>
+                <select id="sample-status"><option>Todos</option></select>
+              </div>
+              <div class="field">
+                <label for="sample-search">Buscar en el historial</label>
+                <input id="sample-search" type="search" placeholder="Lote, estado o fecha" />
+              </div>
+              <div class="field">
+                <label for="sample-detail">Detalle de la acción</label>
+                <input id="sample-detail" type="text" placeholder="Descripción breve" />
+              </div>
+            </div>
+            <p class="button-note" style="margin-top: 10px">
+              Borde #ced8cb, radio 6 px, placeholder #8a968b. El anillo de foco es el mismo en campos,
+              botones y enlaces.
+            </p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div><p class="eyebrow">Estado del sistema</p><h3>Gateway y sesión</h3></div>
+            <span class="badge neutral-tag">texto + punto</span>
+          </div>
+          <div class="panel-body">
+            <div class="notice-stack">
+              <div class="health-card" style="margin-top: 0">
+                <div class="health-head"><strong>Gateway</strong><span class="health-dot ready" aria-hidden="true"></span></div>
+                <p>Gateway disponible; solo disponibilidad del gateway, no acredita el pipeline.</p>
+                <button class="side-action" type="button">Actualizar estado</button>
+              </div>
+              <div class="health-card" style="margin-top: 0">
+                <div class="health-head"><strong>Gateway</strong><span class="health-dot down" aria-hidden="true"></span></div>
+                <p>No disponible (HTTP 503); solo disponibilidad del gateway.</p>
+              </div>
+              <div style="padding: 0 0 0 2px">
+                <p class="button-note" style="margin: 0 0 4px">
+                  <span class="s-badge" style="color: var(--forest-700)">SESIÓN CONECTADA</span><br />
+                  Permisos evaluados por el servidor.
+                </p>
+                <p class="button-note" style="margin: 0">Sin conexión: la sesión no se inventa; vuelve la pantalla de acceso.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Territorio</p><h3>Mapa, leyenda y selección</h3></div>
+          <span class="badge neutral-tag">superficie #eef2e8</span>
+        </div>
+        <div class="panel-body">
+          <div class="map-sample">
+            <div class="zone-row" aria-hidden="true">
+              <div class="zone-box low"></div>
+              <div class="zone-box medium"></div>
+              <div class="zone-box high"></div>
+              <div class="zone-box unknown"></div>
+              <div class="zone-box neutral selected"></div>
+            </div>
+            <div class="zone-caption" aria-hidden="true">
+              <span>Bajo</span>
+              <span>Medio</span>
+              <span>Alto</span>
+              <span>Información insuficiente</span>
+              <span>Sin evaluación · seleccionada</span>
+            </div>
+          </div>
+          <ul class="map-legend" aria-label="Leyenda de niveles de riesgo">
+            <li><span class="legend-swatch swatch-bajo" aria-hidden="true"></span>BAJO</li>
+            <li><span class="legend-swatch swatch-medio" aria-hidden="true"></span>MEDIO</li>
+            <li><span class="legend-swatch swatch-alto" aria-hidden="true"></span>ALTO</li>
+            <li><span class="legend-swatch swatch-desconocido" aria-hidden="true"></span>INFORMACIÓN INSUFICIENTE</li>
+            <li><span class="legend-swatch swatch-neutral" aria-hidden="true"></span>Sin evaluación para esta zona</li>
+          </ul>
+          <p class="button-note" style="margin-top: 10px">
+            La zona seleccionada usa trazo bosque 950 de 3 px, incluso cuando no tiene nivel. La leyenda
+            lleva el texto: el relleno nunca es la única señal.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head">
+            <div><p class="eyebrow">Riesgo</p><h3>Ficha y factores</h3></div>
+            <span class="risk-pill">NIVEL INFORMADO</span>
+          </div>
+          <div class="panel-body">
+            <div class="risk-state">
+              <span class="risk-symbol" aria-hidden="true">◔</span>
+              <div>
+                <strong>Medio</strong>
+                <small>INFORMACIÓN SUFICIENTE · VIGENTE</small>
+              </div>
+            </div>
+            <ul class="factor-list">
+              <li><span>Viento</span><span class="factor-track"><span style="width: 72%"></span></span></li>
+              <li><span>Humedad</span><span class="factor-track"><span style="width: 48%"></span></span></li>
+              <li><span>Combustible</span><span class="factor-track"><span style="width: 61%"></span></span></li>
+            </ul>
+            <p class="button-note">La barra solo aparece si el lote trae una contribución real.</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div><p class="eyebrow">Aviso</p><h3>Toast</h3></div>
+            <span class="badge neutral-tag">inferior derecho en el producto</span>
+          </div>
+          <div class="panel-body">
+            <div class="toast" role="status">El estado se actualizó: la revisión del gateway quedó registrada.</div>
+            <p class="button-note" style="margin-top: 10px">
+              Bosque 900 sobre papel, radio 9 px, 12 px. Aquí es una muestra estática; en el producto
+              aparece, se anuncia y se retira sin depender solo del movimiento.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Shell</p><h3>Barra lateral, topbar y selector de zona</h3></div>
+          <span class="badge neutral-tag">234 px · 75 px</span>
+        </div>
+        <div class="panel-body">
+          <div class="shell-sample">
+            <div class="shell-side">
+              <span class="brand-mark" aria-hidden="true">F</span>
+              <div class="workspace">
+                <span class="workspace-mark" aria-hidden="true">V</span>
+                <div>Valparaíso<small style="font-size: 9px; color: #acbfb6">Ámbito regional</small></div>
+              </div>
+              <p class="nav-group">Prevención</p>
+              <span class="nav-link is-active">Territorio</span>
+              <span class="nav-link">Historial de lotes</span>
+              <span class="nav-link">Acciones preventivas</span>
+              <div class="health-card">
+                <div class="health-head"><strong>Gateway</strong><span class="health-dot ready" aria-hidden="true"></span></div>
+                <p>Gateway disponible; solo disponibilidad del gateway.</p>
+                <button class="side-action" type="button">Actualizar estado</button>
+              </div>
+              <div class="session-card">
+                <span class="session-mark" aria-hidden="true">●</span>
+                <div><strong>Sesión conectada</strong><small>Permisos evaluados por el servidor</small></div>
+              </div>
+            </div>
+            <div class="shell-main">
+              <div class="topbar">
+                <div>
+                  <span class="breadcrumbs">FireWatch <span aria-hidden="true">/</span> Prevención</span>
+                  <h3>Estado de la zona</h3>
+                </div>
+                <div class="zone-chip">
+                  <span aria-hidden="true">⌖</span>
+                  <div><small>ZONA</small><strong>Viña del Mar</strong></div>
+                </div>
+              </div>
+              <div class="shell-body">
+                <div class="update-bar">
+                  <span>Información revisada: el gateway respondió en la última revisión (09:14)</span>
+                  <span class="technical-notice" style="margin-left: auto">Entrada sintética · aviso de alcance</span>
+                </div>
+                <p class="button-note" style="margin-top: 14px">
+                  La barra lateral conserva el cierre de sesión dentro del viewport; la navegación es la
+                  región que cede altura y hace scroll.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Acceso</p><h3>Pantalla de inicio de sesión</h3></div>
+          <span class="badge neutral-tag">sin campos de credencial · muestra reducida</span>
+        </div>
+        <div class="panel-body">
+          <div class="auth-sample">
+            <div class="auth-hero">
+              <p class="auth-kicker">Región de Valparaíso · Ámbito regional</p>
+              <h3>El riesgo territorial de incendio, comuna por comuna.</h3>
+              <p>Consulta el estado de cada zona, el historial de lotes publicados y las acciones preventivas, con cada permiso validado por el servidor.</p>
+              <p class="auth-scope">Entorno de demostración: entrada sintética, sin calibración y no oficial. No reemplaza a CONAF ni a SENAPRED.</p>
+            </div>
+            <div class="auth-main">
+              <div class="auth-card">
+                <div class="auth-tabs" role="group" aria-label="Acceso a FireWatch (muestra)">
+                  <button class="auth-tab is-selected" type="button" aria-pressed="true">Iniciar sesión</button>
+                  <button class="auth-tab" type="button" aria-pressed="false">Crear cuenta</button>
+                </div>
+                <h3>Bienvenido de vuelta</h3>
+                <p class="auth-lead">Inicia sesión con tu cuenta del centro de monitoreo. El acceso se realiza en Keycloak.</p>
+                <ol class="auth-steps">
+                  <li>El registro se completa en Keycloak.</li>
+                  <li>Keycloak te devuelve a FireWatch con una sesión.</li>
+                  <li>Los permisos los asigna el reino, no esta página.</li>
+                </ol>
+                <button class="auth-primary" type="button">Continuar con Keycloak</button>
+                <p class="auth-status is-error" role="status">No se completó el acceso: Keycloak no devolvió una sesión válida o el intento se canceló.</p>
+                <p class="auth-privacy">FireWatch nunca ve tu contraseña: se escribe solo en Keycloak. El token permanece en memoria; no se guardan tokens ni se envían cookies.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="riesgo" aria-labelledby="riesgo-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Texto, no solo color</p>
+          <h2 id="riesgo-title">Presentación del riesgo</h2>
+          <p class="lede">
+            Cinco estados, cinco etiquetas visibles. Los valores de máquina son
+            <span class="token-name">bajo</span>, <span class="token-name">medio</span>,
+            <span class="token-name">alto</span> y <span class="token-name">desconocido</span>; cualquier
+            otro valor se muestra como <span class="token-name">SIN CLASIFICAR</span>.
+          </p>
+        </div>
+        <span class="section-count">5 estados</span>
+      </div>
+      <div class="panel">
+        <div class="panel-body">
+          <div class="grid-5">
+            <div class="level-card">
+              <div class="level-chip level-low"></div>
+              <h4>BAJO</h4>
+              <p>Nivel publicado. Relleno bajo y trazo de su propia familia.</p>
+            </div>
+            <div class="level-card">
+              <div class="level-chip level-medium"></div>
+              <h4>MEDIO</h4>
+              <p>Nivel publicado. No se deriva de otro nivel ni de una prioridad.</p>
+            </div>
+            <div class="level-card">
+              <div class="level-chip level-high"></div>
+              <h4>ALTO</h4>
+              <p>Nivel publicado. Su relleno no lleva texto encima; la etiqueta va al lado.</p>
+            </div>
+            <div class="level-card">
+              <div class="level-chip level-unknown"></div>
+              <h4>INFORMACIÓN INSUFICIENTE</h4>
+              <p>Nivel publicado, no una severidad: la información no alcanza para clasificar.</p>
+            </div>
+            <div class="level-card">
+              <div class="level-chip level-neutral"></div>
+              <h4>Sin evaluación para esta zona</h4>
+              <p>Ausencia de nivel publicado. No equivale a riesgo bajo.</p>
+            </div>
+          </div>
+          <p class="button-note" style="margin-top: 12px">
+            La ficha de zona y los chips repiten la palabra; el mapa suma la leyenda textual. El tablero
+            no usa un relleno para afirmar un nivel sin texto que lo respalde.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="contraste" aria-labelledby="contraste-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Medición, no certificación</p>
+          <h2 id="contraste-title">Contraste medido</h2>
+          <p class="lede">
+            Ratios calculados desde los hex declarados con la fórmula de luminancia relativa. Son 35
+            pares medidos de los estilos activos; <strong>no son una certificación</strong> de
+            conformidad WCAG AA. No se abrió navegador ni herramienta de accesibilidad, y los degradados
+            y superficies con alfa no se midieron.
+          </p>
+        </div>
+        <span class="section-count">35 pares</span>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Texto y foco</p><h3>Pares de texto y anillo de foco</h3></div>
+          <span class="badge neutral-tag">objetivo 4.5:1 · foco 3:1</span>
+        </div>
+        <div class="panel-body">
+          <div class="ratio-legend">
+            <span><i class="ratio ok" style="background: var(--forest-700)"></i>cumple el objetivo aplicable</span>
+            <span><i class="ratio gap" style="background: var(--terracotta)"></i>bajo el objetivo aplicable</span>
+          </div>
+          <div class="table-wrap">
+            <table class="contrast-table">
+              <caption class="sr-only">Ratios de contraste medidos para texto y anillo de foco</caption>
+              <thead><tr><th scope="col">Par</th><th scope="col">Ratio</th><th scope="col">Lectura</th></tr></thead>
+              <tbody>
+                <tr><td>ink #233b39 sobre paper #fffefa</td><td class="ratio ok">11.85:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>ink #233b39 sobre canvas #f5f5ef</td><td class="ratio ok">10.93:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>muted #5c6c65 sobre paper #fffefa</td><td class="ratio ok">5.49:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>muted #5c6c65 sobre canvas #f5f5ef</td><td class="ratio ok">5.07:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>muted #5c6c65 sobre soft #eef1e9</td><td class="ratio ok">4.86:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>muted #5c6c65 sobre #edf1f2</td><td class="ratio ok">4.87:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>muted #5c6c65 sobre mapa #eef2e8</td><td class="ratio ok">4.88:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>forest-700 #285e56 sobre paper #fffefa</td><td class="ratio ok">7.36:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>paper #fffefa sobre forest-900 #173c3b</td><td class="ratio ok">11.92:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>#fcfcf2 sobre forest-900 #173c3b</td><td class="ratio ok">11.65:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>#c3d6cf sobre forest-900 #173c3b</td><td class="ratio ok">7.93:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>#a8c2b7 sobre forest-900 #173c3b</td><td class="ratio ok">6.34:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>#7d6c3f sobre #faf7ee</td><td class="ratio ok">4.79:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>Anillo #cf7d4f sobre canvas #f5f5ef</td><td class="ratio gap">2.86:1</td><td class="read gap">bajo 3:1</td></tr>
+                <tr><td>Anillo #cf7d4f sobre paper #fffefa</td><td class="ratio ok">3.11:1</td><td class="read">cumple 3:1</td></tr>
+                <tr><td>Anillo #cf7d4f sobre forest-900 #173c3b</td><td class="ratio ok">3.84:1</td><td class="read">cumple 3:1</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Chips y etiquetas</p><h3>Superficies de estado</h3></div>
+          <span class="badge neutral-tag">8–10 px</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap">
+            <table class="contrast-table">
+              <caption class="sr-only">Ratios de contraste medidos para chips y etiquetas</caption>
+              <thead><tr><th scope="col">Par</th><th scope="col">Ratio</th><th scope="col">Lectura</th></tr></thead>
+              <tbody>
+                <tr><td>#9c472f sobre terracotta-soft #f7e9e2</td><td class="ratio ok">5.28:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>#7f641e sobre gold-soft #f7f0d9</td><td class="ratio ok">4.92:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>#396246 sobre #e7f0e6</td><td class="ratio ok">5.98:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>#32686a sobre #e3efef</td><td class="ratio ok">5.37:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>#65736b chip base sobre soft #eef1e9</td><td class="ratio gap">4.36:1</td><td class="read gap">bajo 4.5:1</td></tr>
+                <tr><td>#64747a etiqueta neutral sobre #edf1f2</td><td class="ratio gap">4.27:1</td><td class="read gap">bajo 4.5:1</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="button-note" style="margin-top: 10px">
+            Hallazgo registrado: el chip base y la etiqueta neutral quedan bajo 4.5:1 en las vistas que
+            no aplican el override de #actions. No se corrige en T1.
+          </p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Mapa y selección</p><h3>Rellenos, trazos y texto sobre relleno</h3></div>
+          <span class="badge neutral-tag">fondo de mapa #eef2e8</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap">
+            <table class="contrast-table">
+              <caption class="sr-only">Ratios de contraste medidos para el mapa de riesgo y su selección</caption>
+              <thead><tr><th scope="col">Par</th><th scope="col">Ratio</th><th scope="col">Lectura</th></tr></thead>
+              <tbody>
+                <tr><td>forest-950 #102c2d sobre high #c77454</td><td class="ratio ok">4.26:1</td><td class="read">cumple 3:1</td></tr>
+                <tr><td>forest-950 #102c2d sobre low #84ab8e</td><td class="ratio ok">5.77:1</td><td class="read">cumple 3:1</td></tr>
+                <tr><td>high #c77454 sobre mapa #eef2e8</td><td class="ratio ok">3.06:1</td><td class="read">cumple 3:1</td></tr>
+                <tr><td>low #84ab8e sobre mapa #eef2e8</td><td class="ratio gap">2.26:1</td><td class="read gap">bajo 3:1</td></tr>
+                <tr><td>medium #d0b756 sobre mapa #eef2e8</td><td class="ratio gap">1.75:1</td><td class="read gap">bajo 3:1</td></tr>
+                <tr><td>unknown #c3cbcd sobre mapa #eef2e8</td><td class="ratio gap">1.45:1</td><td class="read gap">bajo 3:1</td></tr>
+                <tr><td>paper #fffefa sobre high #c77454</td><td class="ratio gap">3.44:1</td><td class="read gap">bajo 4.5:1</td></tr>
+                <tr><td>ink #233b39 sobre high #c77454</td><td class="ratio gap">3.45:1</td><td class="read gap">bajo 4.5:1</td></tr>
+                <tr><td>paper #fffefa sobre medium #d0b756</td><td class="ratio gap">1.97:1</td><td class="read gap">bajo 4.5:1</td></tr>
+                <tr><td>ink #233b39 sobre low #84ab8e</td><td class="ratio ok">4.67:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>ink #233b39 sobre medium #d0b756</td><td class="ratio ok">6.03:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>ink #233b39 sobre unknown #c3cbcd</td><td class="ratio ok">7.26:1</td><td class="read">cumple 4.5:1</td></tr>
+                <tr><td>ink #233b39 sobre neutral #e6ecea</td><td class="ratio ok">9.99:1</td><td class="read">cumple 4.5:1</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="button-note" style="margin-top: 10px">
+            Hallazgo registrado: casi todos los rellenos de nivel quedan bajo 3:1 contra la superficie
+            del mapa, y el relleno alto no admite texto normal encima. Por eso la etiqueta va al lado del
+            swatch y la leyenda conserva la palabra.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="rutas" aria-labelledby="rutas-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Inventario T1</p>
+          <h2 id="rutas-title">Rutas y acceso</h2>
+          <p class="lede">
+            Ocho rutas en cuatro grupos, más la puerta de sesión. El hash es el único estado de
+            navegación y una ruta desconocida cae en <span class="token-name">#overview</span>.
+          </p>
+        </div>
+        <span class="section-count">8 rutas · 1 puerta</span>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Navegación</p><h3>Para qué existe cada pantalla</h3></div>
+          <span class="badge neutral-tag">routes.ts</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap">
+            <table class="routes-table">
+              <caption class="sr-only">Las ocho rutas del producto, su grupo y su propósito</caption>
+              <thead><tr><th scope="col">Hash</th><th scope="col">Etiqueta</th><th scope="col">Grupo</th><th scope="col">Propósito</th></tr></thead>
+              <tbody>
+                <tr><td>#overview</td><td>Territorio</td><td>Prevención</td><td class="read">Estado de la zona: métricas, mapa territorial y último lote publicado con su evidencia.</td></tr>
+                <tr><td>#history</td><td>Historial de lotes</td><td>Prevención</td><td class="read">Lotes de la zona seleccionada; búsqueda y filtro de estado del dato.</td></tr>
+                <tr><td>#actions</td><td>Acciones preventivas</td><td>Prevención</td><td class="read">Lista, detalle, creación, transiciones, evidencia y revisión; aquí se diseña el selector de responsable.</td></tr>
+                <tr><td>#sources</td><td>Fuentes y servicios</td><td>Información</td><td class="read">Alcance, procedencia textual, restricción, integridad y estado de servicios.</td></tr>
+                <tr><td>#jobs</td><td>Procesamiento</td><td>Información</td><td class="read">Solicitar un lote sintético, leer el trabajo y correlacionar la publicación.</td></tr>
+                <tr><td>#pending</td><td>Aún no implementado</td><td>Información</td><td class="read">Inventario de capacidades sin respaldo; no se simula ninguna.</td></tr>
+                <tr><td>#session</td><td>Sesión y permisos</td><td>Acceso</td><td class="read">Acceso por Keycloak y matriz de permisos reales; sin selector de rol.</td></tr>
+                <tr><td>#audit</td><td>Registro de actividad</td><td>Coordinación</td><td class="read">Registro admin con cinco campos; un 403 se muestra explícito.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">AUTH</p><h3>La puerta de sesión</h3></div>
+          <span class="badge neutral-tag">presentación, no autorización</span>
+        </div>
+        <div class="panel-body">
+          <p class="button-note" style="margin-bottom: 8px">
+            <strong>App.tsx</strong> muestra <strong>AuthView.tsx</strong> mientras no hay sesión
+            establecida y vuelve a ella al cerrar sesión, ante un callback rechazado o ante un 401. Es
+            una puerta de presentación: pregunta si hay token, nunca qué rol declara. El servidor sigue
+            decidiendo cada permiso.
+          </p>
+          <p class="button-note" style="margin: 0">
+            Iniciar sesión y crear cuenta son el mismo viaje a Keycloak con Authorization Code + PKCE;
+            #registro abre la pestaña de registro. La pantalla no tiene campos de usuario, contraseña ni
+            correo, y dice que el reino asigna los roles. No se persisten tokens ni se envían cookies.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="fuentes" aria-labelledby="fuentes-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Procedencia</p>
+          <h2 id="fuentes-title">Fuentes y límites</h2>
+          <p class="lede">
+            Solo el frontend activo. Los snapshots históricos bajo referencia-mockup quedan excluidos por
+            el alcance aprobado y no aportan ningún valor aquí.
+          </p>
+        </div>
+        <span class="section-count">0 externos</span>
+      </div>
+      <div class="panel">
+        <div class="panel-body">
+          <div class="grid-2">
+            <div>
+              <h4>Fuentes leídas</h4>
+              <dl class="data-list">
+                <div><dt>Tokens</dt><dd>frontend/src/styles/tokens.css</dd></div>
+                <div><dt>Componentes</dt><dd>frontend/src/styles/app.css</dd></div>
+                <div><dt>Acceso</dt><dd>frontend/src/styles/auth.css</dd></div>
+                <div><dt>Rutas</dt><dd>frontend/src/app/routes.ts</dd></div>
+                <div><dt>Shell</dt><dd>frontend/src/components/Shell.tsx</dd></div>
+                <div><dt>Primitivas</dt><dd>frontend/src/components/ui.tsx</dd></div>
+                <div><dt>Pantalla AUTH</dt><dd>frontend/src/views/AuthView.tsx · App.tsx</dd></div>
+                <div><dt>Vistas</dt><dd>frontend/src/views/*.tsx</dd></div>
+              </dl>
+            </div>
+            <div>
+              <h4>Lo que este tablero no hace</h4>
+              <ul class="limit-list">
+                <li>No es una certificación WCAG AA: los ratios son mediciones de pares declarados.</li>
+                <li>No descarga fuentes ni assets; Inter está declarada, no cargada.</li>
+                <li>No se revisó visualmente en navegador; no se tomaron capturas.</li>
+                <li>No corrige los hallazgos de contraste, ni toca frontend, planes o seguridad.</li>
+                <li>No crea una dirección visual: T2–T4 siguen pendientes.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p style="margin: 0 0 4px"><strong>FireWatch · sistema de diseño, base T1.</strong> 27 variables declaradas (14 paleta, 10 niveles, 3 estructura), 8 rutas, 35 pares de contraste medidos. Documentación técnica en <span class="token-name">design/system.md</span>.</p>
+    <p style="margin: 0">Medido desde los estilos activos; no es una certificación. Commit pendiente: lo registra el flujo principal después de sus comprobaciones.</p>
+  </footer>
+</div>
+</body>
+</html>

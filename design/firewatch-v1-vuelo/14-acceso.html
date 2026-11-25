@@ -1,0 +1,1890 @@
+<!doctype html>
+<!-- Generado por design/firewatch-v1-vuelo/build-artboards.mjs desde firewatch-v1-recorrido/02-control-y-acceso.html (vista acceso). No editar: se regenera con `node build-artboards.mjs`. -->
+<html lang="es" data-theme="night">
+<head>
+<meta charset="utf-8" />
+<meta name="generator" content="design/firewatch-v1-vuelo/build-artboards.mjs" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FireWatch · Control y acceso (maqueta)</title>
+<style>
+:root {
+  /* T1 baseline: the 27 source-backed tokens, preserved verbatim. The aerial
+     prototype extends this palette for this board only; no baseline value is
+     replaced or repurposed here. */
+  color-scheme: light;
+  --forest-950: #102c2d;
+  --forest-900: #173c3b;
+  --forest-700: #285e56;
+  --forest-500: #638579;
+  --canvas: #f5f5ef;
+  --paper: #fffefa;
+  --ink: #233b39;
+  --muted: #5c6c65;
+  --line: #dde3da;
+  --soft: #eef1e9;
+  --terracotta: #a74d34;
+  --terracotta-soft: #f7e9e2;
+  --gold: #85691e;
+  --gold-soft: #f7f0d9;
+  --level-low-fill: #84ab8e;
+  --level-low-line: #5c8467;
+  --level-medium-fill: #d0b756;
+  --level-medium-line: #a99850;
+  --level-high-fill: #c77454;
+  --level-high-line: #b36647;
+  --level-unknown-fill: #c3cbcd;
+  --level-unknown-line: #6b7a80;
+  --level-neutral-fill: #e6ecea;
+  --level-neutral-line: #9fb3ab;
+  --radius: 12px;
+  --shadow: 0 3px 14px rgb(24 52 40 / 3%);
+  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Aerial prototype expansion, approved for the new design artifacts only.
+   Exact printable roles from design/system.md, in both themes. Risk tints are
+   reserved for risk labels and the risk legend; they are not UI decoration. */
+:root[data-theme="night"] {
+  color-scheme: dark;
+  --bg: #152934;
+  --surface: #17222b;
+  --surface-raised: #243341;
+  --text: #f4f1eb;
+  --text-muted: #b8c8d2;
+  --edge: #647b8a;
+  --accent: #94dfda;
+  --accent-label: #121c22;
+  --risk-high: #d97962;
+  --risk-medium: #d7b16a;
+  --risk-low: #72b1a1;
+  --risk-unknown: #c4cbd1;
+  --surface-radius: 14px;
+  --control-radius: 8px;
+}
+:root[data-theme="day"] {
+  color-scheme: light;
+  --bg: #b9d2d9;
+  --surface: #f5f3ee;
+  --surface-raised: #e5e9e8;
+  --text: #1d2c35;
+  --text-muted: #475b65;
+  --edge: #637985;
+  --accent: #125650;
+  --accent-label: #ffffff;
+  --risk-high: #a74434;
+  --risk-medium: #88621d;
+  --risk-low: #176a60;
+  --risk-unknown: #42525e;
+  --surface-radius: 14px;
+  --control-radius: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p, dl, dd, ol, ul, fieldset, figure { margin-top: 0; }
+h1, h2, h3, h4 { line-height: 1.2; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.btn-primary:focus-visible { outline-color: var(--text); }
+.skip-link {
+  position: fixed;
+  top: -80px;
+  left: 16px;
+  z-index: 60;
+  padding: 10px 14px;
+  border: 1px solid var(--edge);
+  border-radius: var(--control-radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+.skip-link:focus { top: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(250px, 310px);
+  gap: 24px;
+  align-items: center;
+  padding: 16px 32px;
+  background: var(--surface);
+  color: var(--text);
+  border-bottom: 1px solid var(--edge);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 34px; height: 34px; flex: none; color: var(--accent); }
+.brand strong { display: block; color: var(--text); font-size: 16px; font-weight: 650; letter-spacing: -.4px; }
+.brand small { display: block; color: var(--text-muted); font-size: 8px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; }
+.title-block { min-width: 0; }
+.title-block .eyebrow { margin: 0 0 3px; color: var(--accent); }
+h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(24px, 2.2vw, 32px);
+  font-weight: 600;
+  letter-spacing: -1.1px;
+}
+.sub { margin: 4px 0 0; max-width: 72ch; color: var(--text-muted); font-size: 9.5px; line-height: 1.5; }
+.context-stamp {
+  min-width: 0;
+  padding: 9px 12px 10px;
+  border: 1px solid var(--edge);
+  border-radius: var(--surface-radius);
+  background: var(--surface-raised);
+}
+.stamp-label { margin: 0 0 3px; color: var(--text-muted); font-size: 8px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.stamp-state { margin: 0; color: var(--text); font-size: 15px; font-weight: 650; letter-spacing: -.3px; }
+.stamp-meta { margin: 3px 0 0; color: var(--text-muted); font-size: 8.5px; line-height: 1.5; }
+.stamp-meta strong { color: var(--text); font-weight: 650; }
+.stamp-meta time { color: var(--text); font-weight: 650; }
+
+.proto-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 8px 32px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--edge);
+  color: var(--text);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+.proto-strip strong { color: var(--accent); font-size: 9px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.proto-strip .g6-tag {
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px dashed var(--edge);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 650;
+  white-space: normal;
+}
+
+.viewnav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 22px;
+  padding: 9px 32px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--edge);
+}
+.nav-groups { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; min-width: 0; }
+.nav-group {
+  padding-right: 3px;
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background-color .15s ease;
+}
+.nav-link:hover { background: var(--surface-raised); color: var(--text); }
+.nav-link[aria-current="page"] {
+  background: var(--surface-raised);
+  border-color: var(--edge);
+  color: var(--text);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.nav-side { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.theme-control { display: flex; align-items: center; gap: 7px; }
+.theme-label { color: var(--text-muted); font-size: 8px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.theme-toggle {
+  min-height: 40px;
+  padding: 7px 11px;
+  border: 1px solid var(--edge);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+}
+.theme-toggle:hover { background: var(--surface-raised); border-color: var(--accent); color: var(--accent); }
+
+main { flex: 1 0 auto; min-width: 0; }
+.view { max-width: 1400px; margin: 0 auto; padding: 24px 32px 34px; }
+.view-head {
+  scroll-margin-top: 86px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 22px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--edge);
+  border-radius: var(--surface-radius);
+  background: var(--surface);
+}
+.view-head .eyebrow { margin: 0 0 4px; }
+.view-title {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(25px, 2.3vw, 32px);
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+.view-lead { margin: 6px 0 0; max-width: 78ch; color: var(--text-muted); font-size: 12.5px; line-height: 1.6; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 368px; gap: 16px; align-items: start; }
+.stack, .side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.chip::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+.chip-neutral { background: var(--surface-raised); color: var(--text); }
+.chip-gold { background: transparent; border-color: var(--edge); color: var(--text-muted); }
+.chip-green { background: transparent; border-color: var(--accent); color: var(--accent); }
+.chip-alert { background: transparent; border-color: var(--text); color: var(--text); }
+.chip-candidate { background: transparent; border-color: var(--accent); color: var(--accent); }
+.chip-g6 { background: transparent; border-color: var(--edge); border-style: dashed; color: var(--text-muted); }
+
+.panel {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: var(--surface-radius);
+  overflow: hidden;
+}
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 14px 16px 11px;
+  border-bottom: 1px solid var(--edge);
+}
+.panel-head > div { min-width: 0; }
+.panel-head .eyebrow { margin: 0 0 3px; }
+.panel-head h3 { margin: 0; color: var(--text); font-size: 15px; font-weight: 600; letter-spacing: -.3px; }
+.panel-head .chip { flex: none; }
+.panel-body { padding: 13px 16px 16px; }
+
+.copy { margin: 0; color: var(--text); font-size: 11.5px; line-height: 1.6; }
+.copy + .copy { margin-top: 8px; }
+.note { margin: 10px 0 0; color: var(--text-muted); font-size: 10px; line-height: 1.55; }
+.micro { margin: 8px 0 0; color: var(--text-muted); font-size: 9px; line-height: 1.55; }
+strong { font-weight: 700; }
+code {
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 9px;
+  overflow-wrap: anywhere;
+}
+
+.facts { margin: 0; display: grid; }
+.facts > div {
+  display: grid;
+  grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+  gap: 2px 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--edge);
+}
+.facts > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.facts dt { color: var(--text-muted); font-size: 9px; font-weight: 700; line-height: 1.45; }
+.facts dd { margin: 0; color: var(--text); font-size: 10.5px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+
+.steps { list-style: none; margin: 10px 0 0; padding: 0; }
+.step {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--edge);
+}
+.step:last-child { border-bottom: 0; padding-bottom: 0; }
+.step-num {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+.step strong { display: block; font-size: 10.5px; font-weight: 700; }
+.step p { margin: 2px 0 0; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.btn {
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.3;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-label); }
+.btn-primary:hover { background: var(--surface-raised); border-color: var(--accent); color: var(--accent); }
+.btn-secondary { background: transparent; border-color: var(--edge); color: var(--text); }
+.btn-secondary:hover { background: var(--surface-raised); border-color: var(--accent); color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--surface-raised); border-color: var(--accent); color: var(--accent); }
+
+.feedback {
+  margin-top: 11px;
+  padding: 10px 12px;
+  border: 1px solid var(--edge);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.feedback strong { display: block; margin-bottom: 2px; color: var(--accent); font-size: 10.5px; }
+
+.tablist { display: flex; gap: 3px; margin-top: 10px; padding: 3px; border-radius: var(--control-radius); background: var(--surface-raised); }
+.tab {
+  flex: 1;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.tab[aria-selected="true"] {
+  background: var(--surface);
+  border-color: var(--edge);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.tabpanel { padding-top: 10px; }
+
+.record-field { margin: 10px 0 0; padding: 0; border: 0; min-width: 0; }
+.record-field legend { padding: 0; color: var(--text-muted); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.record {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  min-height: 48px;
+  margin-top: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--edge);
+  border-radius: var(--control-radius);
+  background: transparent;
+  cursor: pointer;
+}
+.record input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--accent); }
+.record:has(input:checked) { background: var(--surface-raised); border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.record:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+.record strong { display: block; font-size: 10.5px; font-weight: 700; line-height: 1.4; }
+.record-meta { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9px; line-height: 1.45; }
+
+.findings { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--edge); }
+.findings h4 { margin: 0 0 5px; font-size: 11.5px; font-weight: 700; }
+.finding { padding: 7px 0; border-bottom: 1px solid var(--edge); }
+.finding:last-child { border-bottom: 0; padding-bottom: 0; }
+.finding-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.finding-head strong { font-size: 10.5px; font-weight: 700; }
+.finding p { margin: 3px 0 0; color: var(--text-muted); font-size: 9.5px; line-height: 1.5; }
+
+.proto-box {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed var(--edge);
+  border-radius: var(--control-radius);
+  background: transparent;
+}
+.proto-box h4 { margin: 0; color: var(--text); font-size: 13px; font-weight: 650; letter-spacing: -.2px; }
+.proto-box .facts { margin-top: 8px; }
+.proto-box .facts > div { border-bottom-color: var(--edge); }
+
+.level-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--edge);
+}
+.level-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.swatch { width: 14px; height: 14px; margin-top: 2px; border: 1px solid; border-radius: 3px; }
+.swatch-neutral { background: transparent; border: 1px dashed var(--risk-unknown); }
+.swatch-low { background: var(--risk-low); border-color: var(--risk-low); }
+.level-row strong { display: block; color: var(--text); font-size: 10px; font-weight: 700; }
+.level-row p { margin: 1px 0 0; color: var(--text-muted); font-size: 9px; line-height: 1.5; }
+
+.status-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--edge);
+}
+.status-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.status-row strong { font-size: 10.5px; font-weight: 700; }
+.status-row .status-text { grid-column: 1 / -1; margin: 1px 0 0; color: var(--text-muted); font-size: 9.5px; line-height: 1.5; }
+
+.job-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--edge);
+}
+.job-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.job-row strong { font-family: var(--mono); font-size: 10px; font-weight: 700; overflow-wrap: anywhere; }
+.job-row .job-meta { grid-column: 1 / -1; margin: 1px 0 0; color: var(--text-muted); font-size: 9px; line-height: 1.5; }
+
+.event-list { display: grid; gap: 6px; margin-top: 10px; }
+.event-row {
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid var(--edge);
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  transition: background-color .15s ease;
+}
+.event-row:hover { background: var(--surface-raised); }
+.event-row[aria-pressed="true"] { background: var(--surface-raised); border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.event-action { display: block; font-family: var(--mono); font-size: 10px; font-weight: 700; overflow-wrap: anywhere; }
+.event-meta { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9.5px; }
+.event-ids { display: block; margin-top: 2px; color: var(--text-muted); font-family: var(--mono); font-size: 8.5px; overflow-wrap: anywhere; }
+.proto-block { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--edge); }
+.proto-block h4 { margin: 0 0 4px; color: var(--text); font-size: 10.5px; font-weight: 700; }
+
+.matrix { display: grid; margin-top: 8px; }
+.matrix-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px 58px;
+  gap: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--edge);
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.matrix-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px 58px;
+  gap: 2px 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--edge);
+}
+.matrix-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.matrix-row strong { font-size: 10px; font-weight: 700; line-height: 1.45; }
+.matrix-role { font-size: 9px; color: var(--text); font-weight: 650; line-height: 1.45; }
+.matrix-guard { grid-column: 1 / -1; color: var(--text-muted); font-family: var(--mono); font-size: 8px; line-height: 1.5; overflow-wrap: anywhere; }
+
+.details { padding: 0 14px; border: 1px solid var(--edge); border-radius: var(--surface-radius); background: var(--surface); }
+.details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.details summary:hover { color: var(--accent); }
+.details summary::-webkit-details-marker { display: none; }
+.details summary::after { content: "+"; color: var(--text-muted); font-family: var(--mono); font-size: 13px; }
+.details[open] summary::after { content: "−"; }
+.details[open] summary { border-bottom: 1px solid var(--edge); }
+.details-body { padding: 10px 0 12px; }
+
+.cap-list { list-style: none; margin: 0; padding: 0; }
+.cap-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--edge);
+}
+.cap-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.cap-num {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+.cap-row h4 { margin: 0; font-size: 11px; font-weight: 700; line-height: 1.4; }
+.cap-row p { margin: 2px 0 0; color: var(--text-muted); font-size: 9.5px; line-height: 1.5; }
+.cap-where { margin-top: 4px; color: var(--text); }
+.cap-where strong { font-weight: 800; }
+.row-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.row-link:hover { background: var(--surface-raised); border-color: var(--accent); }
+
+.plain-list { margin: 0; padding-left: 17px; display: grid; gap: 6px; }
+.plain-list li { color: var(--text); font-size: 10.5px; line-height: 1.55; }
+.plain-list li span { color: var(--text-muted); }
+.plain-list strong { font-weight: 700; }
+
+.footer {
+  display: grid;
+  gap: 3px;
+  padding: 11px 32px 14px;
+  border-top: 1px solid var(--edge);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 8.5px;
+  line-height: 1.55;
+}
+.footer p { margin: 0; max-width: 1500px; }
+.footer strong { color: var(--text); }
+
+@media (max-width: 1120px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .topbar { grid-template-columns: auto minmax(0, 1fr); padding: 14px 20px; }
+  .context-stamp { grid-column: 1 / -1; }
+  .proto-strip { padding: 8px 20px; }
+  .proto-strip .g6-tag { margin-left: 0; }
+  .viewnav { position: static; flex-direction: column; align-items: flex-start; padding: 9px 20px; }
+  .nav-side { width: 100%; justify-content: space-between; }
+  .view { padding: 20px 20px 28px; }
+  .footer { padding: 10px 20px 13px; }
+}
+@media (max-width: 760px) {
+  .side { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 620px) {
+  h1 { font-size: 24px; }
+  .topbar { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 16px; }
+  .context-stamp { grid-column: auto; }
+  .brand-mark { width: 28px; height: 28px; }
+  .sub { font-size: 9px; }
+  .viewnav { padding: 8px 16px; }
+  .nav-groups { gap: 2px 5px; }
+  .nav-link { min-height: 38px; padding: 6px 8px; font-size: 11px; }
+  .view { padding: 16px 16px 24px; }
+  .view-head { padding: 12px 14px; }
+  .view-lead { font-size: 12px; }
+  .panel-head { padding: 13px 14px 10px; }
+  .panel-body { padding: 12px 14px 14px; }
+  .facts > div { grid-template-columns: minmax(80px, 36%) minmax(0, 1fr); }
+  .matrix-head, .matrix-row { grid-template-columns: minmax(0, 1fr) 48px 48px; gap: 2px 6px; }
+  .footer { padding: 10px 16px 13px; }
+}
+@media (max-width: 420px) {
+  .facts > div { grid-template-columns: minmax(0, 1fr); gap: 1px; }
+  .btn { width: 100%; }
+  .tab { font-size: 10.5px; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="currentColor"/><path d="M6 23l7-12 4 5 4-9 5 16z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>
+      <span>
+        <strong>FireWatch</strong>
+        <small>Prevención municipal</small>
+      </span>
+    </div>
+    <div class="title-block">
+      <p class="eyebrow">ADMINISTRACIÓN Y TRAZABILIDAD · ESCENARIO ILUSTRATIVO</p>
+      <h1>Control y acceso</h1>
+      <p class="sub">Entrada, fuentes, trabajos, sesión y auditoría del foco Quebrada del Este, entre Valparaíso, Viña del Mar y Quilpué.</p>
+    </div>
+    <div class="context-stamp" role="group" aria-label="Sesión y referencia de la maqueta">
+      <p class="stamp-label">SESIÓN DE LA MAQUETA</p>
+      <p class="stamp-state" id="stamp-session">Sin sesión</p>
+      <p class="stamp-meta"><strong>Foco Quebrada del Este</strong><br />Valparaíso · Viña del Mar · Quilpué</p>
+      <p class="stamp-meta">Cortes <time>18 nov 2026 · 18:00</time> y <time>21 nov 2026 · 18:00</time><br />Último lote ≤ corte <time>18 nov 2026 · 14:20</time></p>
+    </div>
+  </header>
+
+  <div class="proto-strip" role="note" aria-label="Aviso de maqueta">
+    <strong>MAQUETA INTERACTIVA · ESCENARIO ILUSTRATIVO</strong>
+    <span>Nada se guarda, se envía ni se persiste; no hay red ni datos reales. Cortes ilustrativos 18 y 21 nov 2026.</span>
+    <span class="g6-tag">PROTOTIPO G6 · V1-P-05 / V1-P-06 / V1-P-07</span>
+  </div>
+
+  <div class="viewnav">
+    <nav class="nav-groups" aria-label="Vistas de este tablero">
+      <span class="nav-group">Entrada</span>
+      <a class="nav-link" id="nav-acceso" data-nav="acceso" href="#acceso" aria-current="page">Acceso</a>
+      <span class="nav-group">Información</span>
+      <a class="nav-link" id="nav-fuentes" data-nav="fuentes" href="#fuentes">Fuentes y servicios</a>
+      <a class="nav-link" id="nav-procesamiento" data-nav="procesamiento" href="#procesamiento">Procesamiento</a>
+      <a class="nav-link" id="nav-pendiente" data-nav="pendiente" href="#pendiente">Aún no implementado</a>
+      <span class="nav-group">Acceso y coordinación</span>
+      <a class="nav-link" id="nav-sesion" data-nav="sesion" href="#sesion">Sesión y permisos</a>
+      <a class="nav-link" id="nav-auditoria" data-nav="auditoria" href="#auditoria">Registro de actividad</a>
+    </nav>
+    <div class="nav-side">
+      <div class="theme-control">
+        <span class="theme-label">Tema</span>
+        <button class="theme-toggle" type="button" id="theme-toggle" aria-label="Cambiar a tema claro">Claro</button>
+      </div>
+    </div>
+  </div>
+
+  <main id="contenido" tabindex="-1">
+    <section class="view" id="acceso" data-view="acceso" aria-labelledby="title-acceso">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">ENTRADA · SIN SESIÓN</p>
+          <h2 class="view-title" id="title-acceso" tabindex="-1">Entrada a FireWatch</h2>
+          <p class="view-lead">Así entra una persona al producto: una redirección a Keycloak, sin campos de credenciales en esta página y sin permisos que la interfaz pueda conceder.</p>
+        </div>
+        <div class="chips">
+          <span class="chip chip-neutral">Entrada sin credenciales</span>
+          <span class="chip chip-neutral">Sin sesión</span>
+          <span class="chip chip-gold">Maqueta</span>
+        </div>
+      </div>
+      <div class="layout">
+        <div class="stack">
+          <article class="panel" aria-labelledby="auth-panel-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">PUERTA DE ENTRADA</p>
+                <h3 id="auth-panel-title">Acceso ilustrativo</h3>
+              </div>
+              <span class="chip chip-neutral">Sin sesión</span>
+            </div>
+            <div class="panel-body">
+              <p class="copy">Las dos pestañas explican los dos recorridos reales. En esta maqueta solo cambian el texto: no autentican ni abren Keycloak.</p>
+              <div class="tablist" role="tablist" aria-label="Modo de entrada">
+                <button class="tab" type="button" id="tab-login" role="tab" aria-selected="true" aria-controls="panel-login" tabindex="0">Iniciar sesión</button>
+                <button class="tab" type="button" id="tab-register" role="tab" aria-selected="false" aria-controls="panel-register" tabindex="-1">Crear cuenta</button>
+              </div>
+              <div class="tabpanel" id="panel-login" role="tabpanel" aria-labelledby="tab-login">
+                <p class="copy">El botón real abriría Keycloak con Authorization Code + PKCE. El token resultante vive en memoria; no se guarda ni se envía en una cookie.</p>
+                <ol class="steps">
+                  <li class="step"><span class="step-num" aria-hidden="true">1</span><div><strong>El navegador va a Keycloak</strong><p>La credencial se escribe solo en la página del proveedor de identidad.</p></div></li>
+                  <li class="step"><span class="step-num" aria-hidden="true">2</span><div><strong>Keycloak vuelve con un código</strong><p>El callback de FireWatch recibe el código de autorización, no la contraseña.</p></div></li>
+                  <li class="step"><span class="step-num" aria-hidden="true">3</span><div><strong>FireWatch canjea el código</strong><p>Obtiene un token en memoria y el servidor, que verifica la firma, decide cada permiso.</p></div></li>
+                </ol>
+                <p class="micro">En el producto, <code>#registro</code> abre la pestaña Crear cuenta. En este tablero no es una ruta.</p>
+              </div>
+              <div class="tabpanel" id="panel-register" role="tabpanel" aria-labelledby="tab-register" hidden>
+                <p class="copy">Crear cuenta es el mismo recorrido de Keycloak: el reino asigna los roles y ninguna página los elige. La cuenta no se crea desde aquí.</p>
+                <p class="note">Google solo aparece si la compilación lo habilita; esta maqueta no lo muestra ni insinúa un proveedor disponible.</p>
+              </div>
+              <div class="btn-row">
+                <button class="btn btn-primary" type="button" id="btn-auth-sim" aria-describedby="auth-hint">Simular apertura de Keycloak (maqueta)</button>
+              </div>
+              <p class="micro" id="auth-hint">No abre ventanas ni envía datos; solo muestra lo que haría el producto.</p>
+              <div class="feedback" id="auth-feedback" role="status" aria-live="polite" hidden>
+                <strong id="auth-feedback-title"></strong>
+                <span id="auth-feedback-body"></span>
+              </div>
+              <p class="note"><strong>Recorrido de la maqueta.</strong> Activa un rótulo de sesión ilustrativa para recorrer las vistas. Es navegación de prototipo, no un inicio de sesión.</p>
+              <div class="btn-row">
+                <button class="btn btn-secondary" type="button" id="btn-demo-session" aria-pressed="false">Continuar con sesión ilustrativa</button>
+              </div>
+              <div class="feedback" id="demo-feedback" role="status" aria-live="polite" hidden>
+                <strong id="demo-feedback-title"></strong>
+                <span id="demo-feedback-body"></span>
+              </div>
+              <p class="micro">No hay cierre de sesión real ni recuperación de contraseña en este tablero.</p>
+            </div>
+          </article>
+        </div>
+        <aside class="side" aria-label="Contexto de la entrada">
+          <article class="panel" aria-labelledby="auth-real-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">CONTRATO ACTUAL</p>
+                <h3 id="auth-real-title">Qué hace el producto real</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <dl class="facts">
+                <div><dt>Proveedor de identidad</dt><dd>Keycloak · Authorization Code + PKCE</dd></div>
+                <div><dt>Credenciales</dt><dd>Se escriben solo en Keycloak; FireWatch nunca las pide</dd></div>
+                <div><dt>Token</dt><dd>En memoria; no se persiste ni viaja en cookie</dd></div>
+                <div><dt>Roles</dt><dd>Los asigna el reino y el servidor los verifica en cada petición</dd></div>
+                <div><dt>Límite de la página</dt><dd>Es una puerta de presentación, no una frontera de autorización</dd></div>
+              </dl>
+            </div>
+          </article>
+          <article class="panel" aria-labelledby="auth-states-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">ESTADOS DE LA ENTRADA</p>
+                <h3 id="auth-states-title">Qué se puede ver</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="plain-list">
+                <li><strong>Sin sesión</strong> <span>· este tablero</span></li>
+                <li><strong>Regresando de Keycloak</strong> <span>· «Completando el acceso»; producto real</span></li>
+                <li><strong>Sesión rechazada</strong> <span>· vuelve a la entrada con el motivo; producto real</span></li>
+                <li><strong>Cancelado</strong> <span>· el intento no se completó; producto real</span></li>
+                <li><strong>Error de credenciales</strong> <span>· no se muestra: la página nunca recibe la credencial</span></li>
+              </ul>
+              <p class="note">La maqueta no simula los estados del producto; los nombra para que el diseño no los oculte.</p>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="fuentes" data-view="fuentes" aria-labelledby="title-fuentes" hidden>
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">INFORMACIÓN · PROCEDENCIA Y CALIDAD</p>
+          <h2 class="view-title" id="title-fuentes" tabindex="-1">Fuentes y servicios</h2>
+          <p class="view-lead">De dónde viene la capa, qué integridad declara el servicio y qué haría falta para revisar e incorporar un registro.</p>
+        </div>
+        <div class="chips">
+          <span class="chip chip-neutral">Datos sintéticos</span>
+          <span class="chip chip-g6">Prototipo G6 · V1-P-05</span>
+          <span class="chip chip-g6">PM-16 · estado de servicios</span>
+        </div>
+      </div>
+      <div class="layout">
+        <div class="stack">
+          <article class="panel" aria-labelledby="source-panel-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">CONTRATO ACTUAL</p>
+                <h3 id="source-panel-title">Fuente e integridad</h3>
+              </div>
+              <span class="chip chip-neutral">Sin consultar</span>
+            </div>
+            <div class="panel-body">
+              <p class="copy">La maqueta no llama a la API. Los valores marcados como ilustrativos no son una lectura real; los campos que el servicio publica se nombran tal como son.</p>
+              <dl class="facts">
+                <div><dt>Proveedor</dt><dd>Capa sintética de demostración · valor ilustrativo</dd></div>
+                <div><dt>Atribución</dt><dd>Se reproduce literalmente desde <code>/v1/risk/sources</code>; la maqueta no inventa una licencia</dd></div>
+                <div><dt>Restricción</dt><dd>Texto de la fuente, sin reinterpretar; no se acredita aprobación externa</dd></div>
+                <div><dt>Registros de la capa</dt><dd>1 248 · ilustrativo</dd></div>
+                <div><dt>Hash derivado (sha256)</dt><dd><code>9f2c…7ab1</code> · ilustrativo</dd></div>
+                <div><dt>Integridad declarada</dt><dd>En el producto, el servicio verifica el hash; aquí el valor es ilustrativo y no se comprueba</dd></div>
+                <div><dt>Corte de fuente</dt><dd>18 nov 2026 · 18:00 · ilustrativo</dd></div>
+                <div><dt>Entrada de riesgo</dt><dd>Lote sintético con regla académica no oficial y no calibrada</dd></div>
+              </dl>
+              <p class="note">El endpoint real publica procedencia e integridad. No existe un catálogo de hallazgos de calidad; por eso el bloque siguiente está marcado Prototipo G6.</p>
+            </div>
+          </article>
+
+          <article class="panel" aria-labelledby="review-panel-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">PROTOTIPO G6 · V1-P-05</p>
+                <h3 id="review-panel-title">Revisión de registros y hallazgos</h3>
+              </div>
+              <span class="chip chip-g6">No existe hoy</span>
+            </div>
+            <div class="panel-body">
+              <p class="copy">Diseño de la capacidad que aún no tiene endpoint. Selecciona un registro para ver hallazgos de calidad ilustrativos; nada se incorpora.</p>
+              <fieldset class="record-field">
+                <legend>Registros sintéticos del corte</legend>
+                <label class="record" for="registro-1">
+                  <input type="radio" id="registro-1" name="registro" value="r-1" />
+                  <span><strong>R-2026-0418 · Parcela 14</strong><span class="record-meta">1,8 ha · geometría válida · capturado 17 nov 2026 · 09:40</span></span>
+                </label>
+                <label class="record" for="registro-2">
+                  <input type="radio" id="registro-2" name="registro" value="r-2" />
+                  <span><strong>R-2026-0419 · Quebrada sector 3</strong><span class="record-meta">Misma geometría que R-2026-0418, desplazada 6 m</span></span>
+                </label>
+                <label class="record" for="registro-3">
+                  <input type="radio" id="registro-3" name="registro" value="r-3" />
+                  <span><strong>R-2026-0420 · Franja interior de Quilpué</strong><span class="record-meta">Sin lote publicado en o antes del corte</span></span>
+                </label>
+              </fieldset>
+              <p class="note" id="reading-note"><strong>Sin evaluación no es Bajo:</strong> en el registro 3 no hay nivel, factores ni evidencia; el registro 1 sí tiene un lote publicado y su nivel es Bajo.</p>
+              <div class="btn-row">
+                <button class="btn btn-primary" type="button" id="btn-review">Revisar registro seleccionado</button>
+                <button class="btn btn-secondary" type="button" id="btn-incorporate">Incorporar a la revisión (simulación)</button>
+                <button class="btn btn-secondary" type="button" id="btn-reset">Quitar selección</button>
+              </div>
+              <div class="findings" id="review-findings" hidden>
+                <h4 id="review-findings-title">Hallazgos de calidad</h4>
+                <div id="review-findings-list"></div>
+              </div>
+              <p class="sr-only" id="review-status" role="status" aria-live="polite"></p>
+              <div class="feedback" id="review-feedback" role="status" aria-live="polite" hidden>
+                <strong id="review-feedback-title"></strong>
+                <span id="review-feedback-body"></span>
+              </div>
+              <p class="micro">Esto no define un contrato: los nombres de hallazgo, la tolerancia de duplicado y la acción de incorporar no existen en la API. V1-P-05 sigue abierto y esta pantalla no lo cierra.</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="side" aria-label="Contexto de fuentes y servicios">
+          <article class="panel" aria-labelledby="services-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">ESTADO COMPROBABLE</p>
+                <h3 id="services-title">Qué se puede consultar</h3>
+              </div>
+              <span class="chip chip-neutral">Sin verificar</span>
+            </div>
+            <div class="panel-body">
+              <div class="status-row">
+                <strong>API de riesgo</strong>
+                <span class="chip chip-neutral">Sin consultar</span>
+                <p class="status-text">Verificable con <code>GET /v1/risk/status</code>; la maqueta no la consulta y no muestra un estado en vivo.</p>
+              </div>
+              <div class="status-row" id="svc-weather">
+                <strong>Fuente meteorológica</strong>
+                <span class="chip chip-gold">No integrada</span>
+                <p class="status-text">El producto no integra un servicio meteorológico: clasifica un lote sintético. La maqueta no muestra clima en vivo ni inventa una fuente.</p>
+              </div>
+              <div class="status-row">
+                <strong>Trabajos y gateway</strong>
+                <span class="chip chip-neutral">Sin consultar</span>
+                <p class="status-text">Verificables; las acciones de trabajo exigen admin. No se simula un servicio caído ni disponible.</p>
+              </div>
+              <div class="status-row">
+                <strong>Modelo de clasificación</strong>
+                <span class="chip chip-gold">No validado</span>
+                <p class="status-text">Regla académica no oficial y no calibrada contra incendios observados; ninguna vista de esta maqueta valida el modelo.</p>
+              </div>
+              <div class="status-row" id="svc-rule">
+                <strong>Regla activa</strong>
+                <span class="chip chip-neutral">Identificador del código</span>
+                <p class="status-text" id="svc-rule-text">
+                  <code>academic-rule-v1</code> · regla académica propia, no oficial y no calibrada: es una regla determinista, no un modelo
+                  entrenado. Versión de parámetros y hash: <strong>no informados en esta maqueta</strong>, que no ejecuta el servicio; no se
+                  muestran valores que no provengan de una lectura real.
+                </p>
+              </div>
+              <div class="proto-block" id="pm16-verdict">
+                <p class="eyebrow">PM-16 · VEREDICTO DE LA DEMOSTRACIÓN</p>
+                <h4 id="pm16-verdict-title">Demostración sin verificación operativa</h4>
+                <p class="status-text" id="pm16-verdict-text">
+                  No es un tablero de producción: la maqueta no consultó la API, no integró una fuente meteorológica y no comprobó los
+                  controles ni los servicios dependientes. El veredicto es ilustrativo y no sustituye la vigilancia de CONAF ni de
+                  SENAPRED.
+                </p>
+                <dl class="facts">
+                  <div><dt>API de riesgo</dt><dd>Sin consultar: la maqueta no llama a <code>/v1/risk/status</code>.</dd></div>
+                  <div><dt>Fuente meteorológica</dt><dd>No integrada: el producto clasifica un lote sintético, no clima en vivo.</dd></div>
+                  <div><dt>Controles y trabajos</dt><dd>Sin consultar: publicar, avanzar y reevaluar requieren admin y no existen como endpoint hoy.</dd></div>
+                  <div><dt>Regla activa</dt><dd><code>academic-rule-v1</code> · versión de parámetros y hash no informados en esta maqueta.</dd></div>
+                  <div><dt>Veredicto</dt><dd>Demostración, no producción: datos sintéticos y servicios sin verificar. Ningún estado de esta sección es una lectura en vivo.</dd></div>
+                </dl>
+                <p class="micro">Una sola vista de estado: PM-16 no abre una segunda pantalla de salud. La maqueta no define el contrato de PM-16 ni cierra su fila.</p>
+              </div>
+            </div>
+          </article>
+          <article class="panel" aria-labelledby="absence-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">LECTURA DEL FOCO</p>
+                <h3 id="absence-title">Cómo leer la ausencia</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="level-row">
+                <span class="swatch swatch-neutral" aria-hidden="true"></span>
+                <div><strong>Sin evaluación</strong><p>No hay lote publicado en o antes del corte: no hay nivel, factores ni evidencia.</p></div>
+              </div>
+              <div class="level-row">
+                <span class="swatch swatch-low" aria-hidden="true"></span>
+                <div><strong>Bajo</strong><p>Hay un lote publicado y su nivel es bajo; no es ausencia de datos.</p></div>
+              </div>
+              <p class="note">La etiqueta va siempre junto al color; el color no decide solo. Foco Quebrada del Este, cortes 18 y 21 nov 2026.</p>
+            </div>
+          </article>
+          <article class="panel" aria-labelledby="sources-handoff-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">HANDOFF</p>
+                <h3 id="sources-handoff-title">Antes y ahora</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <dl class="facts">
+                <div><dt>Hoy</dt><dd>Procedencia, integridad y estado de servicios. No hay catálogo de hallazgos ni acción de incorporar.</dd></div>
+                <div><dt>Prototipo G6</dt><dd>Selección de registro, hallazgos y confirmación simulada; requiere endpoint, permisos y pruebas.</dd></div>
+                <div><dt>Qué no cambia</dt><dd>No se escribe nada y la maqueta no define el contrato ni el resultado científico.</dd></div>
+              </dl>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="procesamiento" data-view="procesamiento" aria-labelledby="title-procesamiento" hidden>
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">INFORMACIÓN · TRABAJOS</p>
+          <h2 class="view-title" id="title-procesamiento" tabindex="-1">Procesamiento</h2>
+          <p class="view-lead">El flujo asíncrono que ya existe y, por separado, las tres acciones que todavía no tienen endpoint.</p>
+        </div>
+        <div class="chips">
+          <span class="chip chip-neutral">Acción administrativa</span>
+          <span class="chip chip-g6">Prototipo G6 · V1-P-06</span>
+        </div>
+      </div>
+      <div class="layout">
+        <div class="stack">
+          <article class="panel" id="flow-current" aria-labelledby="flow-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">HOY</p>
+                <h3 id="flow-title">El servidor decide y publica</h3>
+              </div>
+              <span class="chip chip-neutral">Contrato actual</span>
+            </div>
+            <div class="panel-body">
+              <p class="copy">La página solicita un trabajo sintético y lee su estado; no publica, no avanza el estado ni reevalúa. En esta maqueta no se publica, no se avanza ni se reevalúa nada.</p>
+              <ol class="steps">
+                <li class="step"><span class="step-num" aria-hidden="true">1</span><div><strong>Solicitar lote de la zona</strong><p><code>POST /v1/jobs</code> responde 202 con el trabajo aceptado. Requiere admin; un viewer recibe 403.</p></div></li>
+                <li class="step"><span class="step-num" aria-hidden="true">2</span><div><strong>Esperar y consultar</strong><p><code>GET /v1/jobs/{id}</code> con un número de intentos y un plazo acotados.</p></div></li>
+                <li class="step"><span class="step-num" aria-hidden="true">3</span><div><strong>La publicación la decide el servidor</strong><p>La página no fija el lote ni mueve su estado.</p></div></li>
+                <li class="step"><span class="step-num" aria-hidden="true">4</span><div><strong>Confirmar la lectura</strong><p>Solo se declara publicado si el lote aparece correlacionado en el último lote y en el historial. Un plazo agotado es una publicación sin verificar, nunca un nivel bajo.</p></div></li>
+              </ol>
+            </div>
+          </article>
+
+          <article class="panel" id="queue" aria-labelledby="queue-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">MAQUETA</p>
+                <h3 id="queue-title">Cola y resultados</h3>
+              </div>
+              <span class="chip chip-gold">Ilustrativo</span>
+            </div>
+            <div class="panel-body">
+              <div class="job-row">
+                <strong>j-4c8e21</strong>
+                <span class="chip chip-gold">En cola</span>
+                <p class="job-meta">Foco Quebrada del Este · solicitado 18 nov 2026 · 14:02 · escenario costa-seca</p>
+              </div>
+              <div class="job-row">
+                <strong>j-3b7d10</strong>
+                <span class="chip chip-green">Publicado · verificado</span>
+                <p class="job-meta">Lote b-7f3c9a21 · 18 nov 2026 · 14:20 · nivel Alto en la lectura de maqueta</p>
+              </div>
+              <div class="job-row">
+                <strong>j-2a9c55</strong>
+                <span class="chip chip-neutral">Publicación sin verificar</span>
+                <p class="job-meta">Plazo de consulta agotado · 18 nov 2026 · 14:25 · no es publicado ni bajo</p>
+              </div>
+              <p class="note">Los tres estados son de maqueta; no se consulta <code>/v1/jobs</code>. El estado en vivo no se simula.</p>
+            </div>
+          </article>
+
+          <article class="panel" id="g6-actions" aria-labelledby="g6-actions-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">PROTOTIPO G6 · V1-P-06</p>
+                <h3 id="g6-actions-title">Publicar, avanzar y reevaluar</h3>
+              </div>
+              <span class="chip chip-g6">No existe hoy</span>
+            </div>
+            <div class="panel-body">
+              <p class="copy">Las tres acciones exigen confirmación explícita y autorización por rol en el producto; ninguna tiene endpoint todavía. El rol exacto y su prueba se definen en el contrato, no aquí.</p>
+              <div class="btn-row">
+                <button class="btn btn-primary" type="button" id="btn-publish">Publicar lote</button>
+                <button class="btn btn-secondary" type="button" id="btn-advance">Avanzar estado manualmente</button>
+                <button class="btn btn-secondary" type="button" id="btn-reevaluate">Reevaluar el foco</button>
+              </div>
+              <div class="proto-box" id="g6-preview" aria-labelledby="g6-preview-title" hidden>
+                <h4 id="g6-preview-title">Confirmación</h4>
+                <dl class="facts">
+                  <div><dt>Objetivo</dt><dd id="g6-target"></dd></div>
+                  <div><dt>Corte</dt><dd id="g6-cutoff"></dd></div>
+                  <div><dt>Efecto propuesto</dt><dd id="g6-effect"></dd></div>
+                  <div><dt>Requisito</dt><dd id="g6-requirement"></dd></div>
+                </dl>
+                <div class="btn-row">
+                  <button class="btn btn-primary" type="button" id="btn-confirm">Confirmar (simulación)</button>
+                  <button class="btn btn-secondary" type="button" id="btn-cancel">Cancelar</button>
+                </div>
+              </div>
+              <div class="feedback" id="g6-feedback" role="status" aria-live="polite" hidden>
+                <strong id="g6-feedback-title"></strong>
+                <span id="g6-feedback-body"></span>
+              </div>
+              <p class="micro">La cola y el resultado son ilustrativos. Ninguna de las tres acciones define el contrato, el rol ni la validación del modelo; V1-P-06 sigue abierto.</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="side" aria-label="Contexto de procesamiento">
+          <article class="panel" aria-labelledby="diff-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">HOY FRENTE A G6</p>
+                <h3 id="diff-title">La diferencia, en una frase</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <dl class="facts">
+                <div><dt>Hoy</dt><dd>La página solicita y lee; el servidor decide y publica.</dd></div>
+                <div><dt>Prototipo G6</dt><dd>La página ofrecería publicar, avanzar y reevaluar con confirmación; exigiría endpoints, autoridad por rol y pruebas que no existen.</dd></div>
+                <div><dt>Nada se cierra</dt><dd>Mostrar la acción no la implementa ni cambia el contrato.</dd></div>
+              </dl>
+            </div>
+          </article>
+          <article class="panel" aria-labelledby="job-states-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">ESTADOS Y LÍMITES</p>
+                <h3 id="job-states-title">Qué se declara</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="plain-list">
+                <li><strong>En cola</strong> <span>· el trabajo fue aceptado, no publicado</span></li>
+                <li><strong>Publicado · verificado</strong> <span>· lote correlacionado en dos lecturas</span></li>
+                <li><strong>Publicación sin verificar</strong> <span>· plazo agotado; no es publicado ni bajo</span></li>
+                <li><strong>403 por rol</strong> <span>· producto real; no se simula un permiso</span></li>
+                <li><strong>Sin modelo desplegado</strong> <span>· no se muestra un servicio de clasificación en vivo</span></li>
+                <li><strong>Sin estado en vivo</strong> <span>· no se consulta la API</span></li>
+              </ul>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="sesion" data-view="sesion" aria-labelledby="title-sesion" hidden>
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">ACCESO · SOLO LECTURA</p>
+          <h2 class="view-title" id="title-sesion" tabindex="-1">Sesión y permisos</h2>
+          <p class="view-lead">Lo que la sesión declara, lo que el servidor decide y lo que esta página no puede cambiar.</p>
+        </div>
+        <div class="chips">
+          <span class="chip chip-neutral">Solo lectura</span>
+          <span class="chip chip-neutral">Sesión ilustrativa</span>
+        </div>
+      </div>
+      <div class="layout">
+        <div class="stack">
+          <article class="panel" aria-labelledby="session-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">ESTADO DE LA MAQUETA</p>
+                <h3 id="session-title">Sesión y token</h3>
+              </div>
+              <span class="chip chip-neutral">Sin cambio de usuario</span>
+            </div>
+            <div class="panel-body">
+              <dl class="facts">
+                <div><dt>Estado</dt><dd id="session-state">Sin sesión</dd></div>
+                <div><dt>Rol declarado</dt><dd id="session-role">No disponible (sin sesión)</dd></div>
+                <div><dt>Verificación</dt><dd>La página decodifica el payload sin verificar la firma; el servidor verifica en cada petición.</dd></div>
+                <div><dt>Token</dt><dd>En el producto vive en memoria; la maqueta no emitió ningún token.</dd></div>
+                <div><dt>Cuenta</dt><dd>Contraseña, nombre y correo se cambian en Keycloak; este tablero no enlaza fuera.</dd></div>
+              </dl>
+              <p class="note" id="session-role-note">No hay token de maqueta. En el producto real el rol se lee del claim <code>realm_access.roles</code>; el valor solo informa y no autoriza.</p>
+              <p class="note"><strong>No hay selector de rol, ni cambio de usuario, ni edición de la matriz:</strong> la página no concede permisos y el rol mostrado no altera peticiones, paneles ni decisiones.</p>
+            </div>
+          </article>
+
+          <article class="panel" aria-labelledby="matrix-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">GUARDAS REALES</p>
+                <h3 id="matrix-title">Quién puede qué</h3>
+              </div>
+              <span class="chip chip-neutral">15 filas en total</span>
+            </div>
+            <div class="panel-body">
+              <p class="copy">Documentación verificada contra las guardas del servidor, no contra lo que la interfaz promete. Este tablero muestra las filas que deciden sus vistas.</p>
+              <div class="matrix" role="table" aria-label="Extracto de la matriz de permisos">
+                <div class="matrix-head" role="row"><span role="columnheader">Capacidad</span><span role="columnheader">viewer</span><span role="columnheader">admin</span></div>
+                <div class="matrix-row" role="row">
+                  <strong role="cell">Consultar riesgo y fuentes · <code>GET /v1/risk/*</code></strong>
+                  <span class="matrix-role" role="cell">Sí</span>
+                  <span class="matrix-role" role="cell">Sí</span>
+                  <span class="matrix-guard" role="cell">backend/services/risk/internal/handler/security.go:59</span>
+                </div>
+                <div class="matrix-row" role="row">
+                  <strong role="cell">Solicitar y consultar trabajos · <code>POST/GET /v1/jobs*</code></strong>
+                  <span class="matrix-role" role="cell">No · 403</span>
+                  <span class="matrix-role" role="cell">Sí</span>
+                  <span class="matrix-guard" role="cell">backend/services/jobs/internal/handler/security.go:44</span>
+                </div>
+                <div class="matrix-row" role="row">
+                  <strong role="cell">Consultar registro de actividad · <code>GET /v1/audit</code></strong>
+                  <span class="matrix-role" role="cell">No · 403</span>
+                  <span class="matrix-role" role="cell">Sí</span>
+                  <span class="matrix-guard" role="cell">backend/services/jobs/internal/handler/api.go:228</span>
+                </div>
+                <div class="matrix-row" role="row">
+                  <strong role="cell">Presentar un tercer rol</strong>
+                  <span class="matrix-role" role="cell">No · 403</span>
+                  <span class="matrix-role" role="cell">No · 403</span>
+                  <span class="matrix-guard" role="cell">backend/services/risk/internal/handler/security.go:64</span>
+                </div>
+                <div class="matrix-row" role="row">
+                  <strong role="cell">Rol efectivo entregado por el proveedor</strong>
+                  <span class="matrix-role" role="cell">No verificado</span>
+                  <span class="matrix-role" role="cell">No verificado</span>
+                  <span class="matrix-guard" role="cell">Depende del reino; ningún endpoint lo informa</span>
+                </div>
+              </div>
+              <p class="note">Un viewer que abra el registro recibe un 403 explícito (sin permiso): la página no oculta ni simula los eventos. La maqueta no simula el 403 ni el permiso.</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="side" aria-label="Contexto de sesión y permisos">
+          <details class="details" id="det-verify">
+            <summary id="det-verify-summary">Cómo se verifica el rol</summary>
+            <div class="details-body">
+              <ol class="steps">
+                <li class="step"><span class="step-num" aria-hidden="true">1</span><div><strong>Keycloak emite el token</strong><p>El reino asigna los roles; la página no los elige.</p></div></li>
+                <li class="step"><span class="step-num" aria-hidden="true">2</span><div><strong>El gateway verifica firma y sujeto</strong><p>Un token que no se puede verificar recibe 401.</p></div></li>
+                <li class="step"><span class="step-num" aria-hidden="true">3</span><div><strong>Las guardas del servicio deciden</strong><p>viewer o admin para riesgo; solo admin para trabajos y auditoría.</p></div></li>
+                <li class="step"><span class="step-num" aria-hidden="true">4</span><div><strong>La página solo lee el claim</strong><p>No concede ni eleva permisos; el valor es informativo.</p></div></li>
+              </ol>
+            </div>
+          </details>
+          <article class="panel" aria-labelledby="session-limits-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">LÍMITES</p>
+                <h3 id="session-limits-title">Qué no hace esta vista</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="plain-list">
+                <li>No cambia de usuario.</li>
+                <li>No elige ni eleva un rol.</li>
+                <li>No edita la matriz de permisos.</li>
+                <li>No cierra la sesión ni la abre.</li>
+                <li>No enlaza fuera del tablero.</li>
+              </ul>
+              <p class="note">Estas ausencias son deliberadas: un selector de rol sería un límite de autorización falso. El servidor sigue siendo la única autoridad.</p>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="auditoria" data-view="auditoria" aria-labelledby="title-auditoria" hidden>
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">COORDINACIÓN · TRAZABILIDAD</p>
+          <h2 class="view-title" id="title-auditoria" tabindex="-1">Registro de actividad</h2>
+          <p class="view-lead">Los cinco datos que <code>/v1/audit</code> entrega hoy y, separado, el detalle que el prototipo G6 todavía no tiene.</p>
+        </div>
+        <div class="chips">
+          <span class="chip chip-neutral">Solo admin</span>
+          <span class="chip chip-g6">Prototipo G6 · V1-P-07</span>
+        </div>
+      </div>
+      <div class="layout">
+        <div class="stack">
+          <article class="panel" aria-labelledby="events-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">MAQUETA · SIN CONSULTA</p>
+                <h3 id="events-title">Eventos recientes</h3>
+              </div>
+              <span class="chip chip-gold">4 eventos ilustrativos</span>
+            </div>
+            <div class="panel-body">
+              <p class="copy">Endpoint real: solo administradores, sin parámetros; el servicio acota la respuesta (hasta 100 eventos recientes). La maqueta no consulta la API.</p>
+              <div class="event-list" id="event-list" role="group" aria-label="Eventos del registro ilustrativo">
+                <button class="event-row" type="button" id="event-1" aria-pressed="false">
+                  <span class="event-action">job.created</span>
+                  <span class="event-meta">18 nov 2026 · 14:02 · actor u-8f3a</span>
+                  <span class="event-ids">job j-4c8e21 · trace t-77ab12</span>
+                </button>
+                <button class="event-row" type="button" id="event-2" aria-pressed="false">
+                  <span class="event-action">job.published</span>
+                  <span class="event-meta">18 nov 2026 · 14:20 · actor u-2c91</span>
+                  <span class="event-ids">job j-4c8e21 · trace t-77ab12</span>
+                </button>
+                <button class="event-row" type="button" id="event-3" aria-pressed="false">
+                  <span class="event-action">audit.read</span>
+                  <span class="event-meta">18 nov 2026 · 14:24 · actor u-8f3a</span>
+                  <span class="event-ids">job — · trace t-9c31e0</span>
+                </button>
+                <button class="event-row" type="button" id="event-4" aria-pressed="false">
+                  <span class="event-action">risk.read</span>
+                  <span class="event-meta">18 nov 2026 · 14:26 · actor u-6d47</span>
+                  <span class="event-ids">job — · trace t-a02b41</span>
+                </button>
+              </div>
+              <p class="sr-only" id="audit-status" role="status" aria-live="polite"></p>
+              <p class="note">Un 403 se muestra como <strong>sin permiso</strong>, con el motivo y el request_id; no se ocultan ni se inventan eventos.</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="side" aria-label="Contexto del registro de actividad">
+          <article class="panel" id="audit-detail" aria-labelledby="audit-detail-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">DETALLE</p>
+                <h3 id="audit-detail-title">Detalle del evento</h3>
+              </div>
+              <span class="chip chip-neutral">Selección</span>
+            </div>
+            <div class="panel-body" id="audit-detail-content">
+              <p class="copy">Selecciona un evento para ver sus datos técnicos y el detalle propuesto.</p>
+              <p class="note">Datos que el endpoint ya entrega: <code>actor_id</code>, <code>action</code>, <code>job_id</code>, <code>trace_id</code> y <code>occurred_at</code>. El nombre, el detalle libre y el id de evento no existen todavía.</p>
+            </div>
+          </article>
+          <article class="panel" aria-labelledby="audit-states-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">ESTADOS DEL REGISTRO</p>
+                <h3 id="audit-states-title">Qué declara cada respuesta</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="plain-list">
+                <li><strong>Leído</strong> <span>· eventos devueltos por el endpoint</span></li>
+                <li><strong>Sin permiso · 403</strong> <span>· motivo y request_id visibles; no se oculta la vista</span></li>
+                <li><strong>No disponible</strong> <span>· respuesta ilegible o error; sin eventos parciales</span></li>
+                <li><strong>Vacío</strong> <span>· el servicio devolvió cero eventos; no es un error</span></li>
+              </ul>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="pendiente" data-view="pendiente" aria-labelledby="title-pendiente" hidden>
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">INFORMACIÓN · INVENTARIO TRANSITORIO</p>
+          <h2 class="view-title" id="title-pendiente" tabindex="-1">Aún no implementado</h2>
+          <p class="view-lead">Las siete capacidades G6 que el backend actual no respalda. Se diseñan donde vivirán; mostrarlas aquí no las cierra.</p>
+        </div>
+        <div class="chips">
+          <span class="chip chip-neutral">7 capacidades</span>
+          <span class="chip chip-gold">Inventario transitorio</span>
+        </div>
+      </div>
+      <div class="layout">
+        <div class="stack">
+          <article class="panel" aria-labelledby="pending-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">DEL MOCKUP RETIRADO AL BACKEND ACTUAL</p>
+                <h3 id="pending-title">Las siete, una por una</h3>
+              </div>
+              <span class="chip chip-neutral">Sin datos simulados</span>
+            </div>
+            <div class="panel-body">
+              <ol class="cap-list" id="pending-list">
+                <li class="cap-row" id="cap-1">
+                  <span class="cap-num" aria-hidden="true">01</span>
+                  <div>
+                    <h4>Cobertura y entorno por sector</h4>
+                    <p>La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.</p>
+                    <p class="cap-where"><strong>Dónde iría:</strong> Territorio · tabla de sectores (fuera de este tablero).</p>
+                  </div>
+                </li>
+                <li class="cap-row" id="cap-2">
+                  <span class="cap-num" aria-hidden="true">02</span>
+                  <div>
+                    <h4>Contexto y prioridad por sector</h4>
+                    <p>El backend clasifica la zona con el lote publicado y no calcula prioridad regional ni contexto por comuna.</p>
+                    <p class="cap-where"><strong>Dónde iría:</strong> Territorio · ficha de detalle (fuera de este tablero).</p>
+                  </div>
+                </li>
+                <li class="cap-row" id="cap-3">
+                  <span class="cap-num" aria-hidden="true">03</span>
+                  <div>
+                    <h4>Estados candidate, in_progress, reviewed y closed</h4>
+                    <p>El backend informa el estado del trabajo y el estado del dato; esos cuatro estados no existen en ningún contrato.</p>
+                    <p class="cap-where"><strong>Dónde iría:</strong> Acciones preventivas · chips de estado (fuera de este tablero).</p>
+                  </div>
+                </li>
+                <li class="cap-row" id="cap-4">
+                  <span class="cap-num" aria-hidden="true">04</span>
+                  <div>
+                    <h4>Historial de todas las zonas</h4>
+                    <p><code>GET /v1/risk/history</code> exige <code>zone_id</code> y no hay endpoint agregado; el historial es siempre el de la zona consultada.</p>
+                    <p class="cap-where"><strong>Dónde iría:</strong> Historial de lotes (fuera de este tablero).</p>
+                  </div>
+                </li>
+                <li class="cap-row" id="cap-5">
+                  <span class="cap-num" aria-hidden="true">05</span>
+                  <div>
+                    <h4>Revisar e incorporar registros, y hallazgos de calidad</h4>
+                    <p><code>GET /v1/risk/sources</code> publica procedencia e integridad reales; no existe un catálogo de hallazgos de calidad.</p>
+                    <p class="cap-where"><strong>Dónde iría:</strong> Fuentes y servicios · revisión de registros.</p>
+                    <a class="row-link" id="link-fuentes" href="#fuentes">Ver el prototipo en Fuentes y servicios</a>
+                  </div>
+                </li>
+                <li class="cap-row" id="cap-6">
+                  <span class="cap-num" aria-hidden="true">06</span>
+                  <div>
+                    <h4>Publicar lote, avance manual y reevaluación</h4>
+                    <p>No existe endpoint: el servidor decide y publica por su cuenta; la página solo solicita el trabajo y lee el resultado.</p>
+                    <p class="cap-where"><strong>Dónde iría:</strong> Procesamiento · acciones propuestas.</p>
+                    <a class="row-link" id="link-procesamiento" href="#procesamiento">Ver el prototipo en Procesamiento</a>
+                  </div>
+                </li>
+                <li class="cap-row" id="cap-7">
+                  <span class="cap-num" aria-hidden="true">07</span>
+                  <div>
+                    <h4>Nombre del actor, detalle libre e id de evento</h4>
+                    <p><code>GET /v1/audit</code> entrega actor_id, action, job_id, trace_id y occurred_at: identificadores opacos, sin nombre ni detalle.</p>
+                    <p class="cap-where"><strong>Dónde iría:</strong> Registro de actividad · detalle del evento.</p>
+                    <a class="row-link" id="link-auditoria" href="#auditoria">Ver el prototipo en Registro de actividad</a>
+                  </div>
+                </li>
+              </ol>
+              <p class="note" id="pending-note"><strong>Ninguna se cierra por mostrarse aquí:</strong> sacar una entrada de <code>NOT_IMPLEMENTED</code> exige el criterio de su fila en <code>odd/tasks/v1-produccion.md</code>. No hay rutas falsas ni controles deshabilitados que aparenten una función.</p>
+            </div>
+          </article>
+        </div>
+
+        <aside class="side" aria-label="Contexto del inventario">
+          <article class="panel" aria-labelledby="pending-meaning-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">LECTURA DEL INVENTARIO</p>
+                <h3 id="pending-meaning-title">Qué significa esta lista</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <ul class="plain-list">
+                <li>Declarar la ausencia es parte de la entrega: ninguna capacidad se simula.</li>
+                <li>El destino enlazado es un panel de esta maqueta, no una ruta del producto.</li>
+                <li>Los destinos fuera del tablero se nombran como texto, sin enlaces falsos.</li>
+                <li>Diseñar el destino no cierra la fila: el plan sigue abierto.</li>
+                <li>Este tablero no define contrato, permisos ni validación científica.</li>
+              </ul>
+            </div>
+          </article>
+          <article class="panel" aria-labelledby="pending-map-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">SIETE FILAS</p>
+                <h3 id="pending-map-title">Tres destinos en este tablero</h3>
+              </div>
+            </div>
+            <div class="panel-body">
+              <p class="copy">Solo tres de las siete viven en este tablero: la revisión de registros, las acciones de publicación y el detalle de auditoría. Las otras cuatro se nombran para que la ausencia no desaparezca.</p>
+              <p class="note">Los paneles enlazados son la vista de diseño de cada capacidad; no son endpoints, contratos ni permisos.</p>
+            </div>
+          </article>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p><strong>Alcance de la maqueta:</strong> escenario ficticio con el Foco Quebrada del Este (Valparaíso, Viña del Mar, Quilpué), cortes 18 nov 2026 · 18:00 y 21 nov 2026 · 18:00, y último lote ≤ corte 18 nov 2026 · 14:20. Nada se guarda, se envía ni se persiste; no hay red, fuentes ni datos reales.</p>
+    <p><strong>Prototipo G6:</strong> V1-P-05, V1-P-06 y V1-P-07 se muestran como prototipo y siguen abiertos. Este tablero no define un contrato, no fija política de roles y no valida el modelo. En esta maqueta no se publica, no se avanza ni se reevalúa nada.</p>
+    <p><strong>Estados de UI cubiertos:</strong> sin sesión · sesión ilustrativa · sin consultar · en cola · publicado verificado · publicación sin verificar · 403 sin permiso · registro vacío · confirmación y cancelación G6 · hallazgo de calidad con y sin bloqueo · Sin evaluación frente a Bajo.</p>
+    <p><strong>Fuera de este tablero:</strong> Territorio · Historial de lotes · Acciones preventivas. T4 queda fuera de esta entrega.</p>
+    <p><strong>Tema:</strong> la elección entre oscuro y claro vive solo en esta página; no se guarda, no se envía y no se escribe en el almacenamiento del navegador.</p>
+    <p><strong>Paleta:</strong> la expansión aérea (grafito, pizarra y cian; piedra y salvia) es experimental y solo vive en esta maqueta; los 27 tokens del producto se conservan como línea base.</p>
+  </footer>
+</div>
+<p class="sr-only" id="view-status" role="status" aria-live="polite"></p>
+<p class="sr-only" id="theme-status" role="status" aria-live="polite"></p>
+
+<script>
+(function () {
+  'use strict';
+
+  var VIEWS = ['acceso', 'fuentes', 'procesamiento', 'sesion', 'auditoria', 'pendiente'];
+  var TITLES = {
+    acceso: 'Entrada',
+    fuentes: 'Fuentes y servicios',
+    procesamiento: 'Procesamiento',
+    sesion: 'Sesión y permisos',
+    auditoria: 'Registro de actividad',
+    pendiente: 'Aún no implementado'
+  };
+  var sections = {};
+  VIEWS.forEach(function (id) {
+    sections[id] = document.querySelector('[data-view="' + id + '"]');
+  });
+  var navLinks = document.querySelectorAll('[data-nav]');
+
+  function viewFromHash() {
+    var hash = window.location.hash.replace('#', '');
+    return VIEWS.indexOf(hash) >= 0 ? hash : 'acceso';
+  }
+
+  function activate(id, announce) {
+    if (VIEWS.indexOf(id) < 0) id = 'acceso';
+    VIEWS.forEach(function (view) {
+      sections[view].hidden = view !== id;
+    });
+    navLinks.forEach(function (link) {
+      if (link.getAttribute('data-nav') === id) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+    document.title = 'FireWatch · Control y acceso · ' + TITLES[id] + ' (maqueta)';
+    if (announce) {
+      var title = sections[id].querySelector('.view-title');
+      if (title) title.focus();
+      document.getElementById('view-status').textContent = 'Vista: ' + TITLES[id];
+    }
+  }
+
+  navLinks.forEach(function (link) {
+    link.addEventListener('click', function () {
+      var id = link.getAttribute('data-nav');
+      window.setTimeout(function () { activate(id, true); }, 0);
+    });
+  });
+  window.addEventListener('hashchange', function () {
+    activate(viewFromHash(), true);
+  });
+  activate(viewFromHash(), false);
+
+  // Theme: the same page, no storage, no network. Only the palette attribute
+  // changes, so the active view, the selected record, the audit selection and
+  // any open prototype preview survive the switch unchanged.
+  var root = document.documentElement;
+  var themeButton = document.getElementById('theme-toggle');
+  function applyTheme(theme, announce) {
+    var next = theme === 'day' ? 'day' : 'night';
+    root.setAttribute('data-theme', next);
+    var day = next === 'day';
+    themeButton.textContent = day ? 'Oscuro' : 'Claro';
+    themeButton.setAttribute('aria-label', day ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro');
+    if (announce) document.getElementById('theme-status').textContent = day ? 'Tema claro activado.' : 'Tema oscuro activado.';
+  }
+  themeButton.addEventListener('click', function () {
+    applyTheme(root.getAttribute('data-theme') === 'day' ? 'night' : 'day', true);
+  });
+  applyTheme(root.getAttribute('data-theme') || 'night', false);
+
+  // Acceso: the two tabs only change the explanation. They never authenticate.
+  var tabs = [document.getElementById('tab-login'), document.getElementById('tab-register')];
+  var tabPanels = {
+    login: document.getElementById('panel-login'),
+    register: document.getElementById('panel-register')
+  };
+  function selectTab(id, focus) {
+    tabs.forEach(function (tab) {
+      var selected = tab.id === 'tab-' + id;
+      tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+      tab.tabIndex = selected ? 0 : -1;
+      tabPanels[tab.id.replace('tab-', '')].hidden = !selected;
+    });
+    if (focus) document.getElementById('tab-' + id).focus();
+  }
+  tabs.forEach(function (tab, index) {
+    tab.addEventListener('click', function () {
+      selectTab(index === 0 ? 'login' : 'register', false);
+    });
+    tab.addEventListener('keydown', function (event) {
+      var next = null;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = index === 0 ? 'register' : 'login';
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = index === 0 ? 'register' : 'login';
+      if (event.key === 'Home') next = 'login';
+      if (event.key === 'End') next = 'register';
+      if (next !== null) {
+        event.preventDefault();
+        selectTab(next, true);
+      }
+    });
+  });
+
+  document.getElementById('btn-auth-sim').addEventListener('click', function () {
+    document.getElementById('auth-feedback-title').textContent = 'Maqueta: no se abrió Keycloak';
+    document.getElementById('auth-feedback-body').textContent = 'El producto real abriría Keycloak con Authorization Code + PKCE. Aquí no se abrió ninguna ventana, no se envió nada y no hay sesión.';
+    document.getElementById('auth-feedback').hidden = false;
+  });
+
+  // The prototype session only changes labels. It authenticates nobody and
+  // grants nothing; the Session view repeats that in place.
+  var demoSession = false;
+  function renderDemoSession(announce) {
+    document.getElementById('stamp-session').textContent = demoSession ? 'Sesión ilustrativa · admin' : 'Sin sesión';
+    var button = document.getElementById('btn-demo-session');
+    button.setAttribute('aria-pressed', demoSession ? 'true' : 'false');
+    button.textContent = demoSession ? 'Quitar sesión ilustrativa' : 'Continuar con sesión ilustrativa';
+    document.getElementById('session-state').textContent = demoSession ? 'Sesión ilustrativa (maqueta)' : 'Sin sesión';
+    document.getElementById('session-role').textContent = demoSession ? 'admin' : 'No disponible (sin sesión)';
+    document.getElementById('session-role-note').textContent = demoSession
+      ? 'Valor de maqueta no verificado: ningún token fue emitido ni comprobado. El rol mostrado no concede permisos ni altera peticiones; en el producto real el servidor verifica la firma que esta página no comprueba.'
+      : 'No hay token de maqueta. En el producto real el rol se lee del claim realm_access.roles; el valor solo informa y no autoriza.';
+    if (announce) {
+      document.getElementById('demo-feedback-title').textContent = demoSession ? 'Sesión ilustrativa activada' : 'Sesión ilustrativa retirada';
+      document.getElementById('demo-feedback-body').textContent = demoSession
+        ? 'Solo cambia el rótulo de la maqueta: no autentica, no concede permisos y no abre ninguna vista que no estuviera ya disponible.'
+        : 'La maqueta vuelve a «Sin sesión». Nada se cerró porque nunca hubo una sesión real.';
+      document.getElementById('demo-feedback').hidden = false;
+    }
+  }
+  document.getElementById('btn-demo-session').addEventListener('click', function () {
+    demoSession = !demoSession;
+    renderDemoSession(true);
+  });
+  renderDemoSession(false);
+
+  // Fuentes: illustrative findings per synthetic record. Nothing is written.
+  var RECORDS = {
+    'r-1': {
+      title: 'R-2026-0418 · Parcela 14',
+      findings: [
+        { title: 'Geometría válida', chip: 'Sin bloqueo', tone: 'chip-green', text: 'El polígono cae dentro de la capa declarada y no cruza el borde municipal sin continuidad.' },
+        { title: 'Nivel publicado: Bajo', chip: 'Lectura del foco', tone: 'chip-green', text: 'El registro 1 tiene un lote publicado en o antes del corte; su nivel es Bajo con evidencia completa.' }
+      ]
+    },
+    'r-2': {
+      title: 'R-2026-0419 · Quebrada sector 3',
+      findings: [
+        { title: 'Duplicado probable', chip: 'Revisar antes de incorporar', tone: 'chip-alert', text: 'La geometría coincide con R-2026-0418 con un desplazamiento de 6 m (tolerancia ilustrativa: 10 m).' },
+        { title: 'Huella de tiempo repetida', chip: 'Revisar', tone: 'chip-gold', text: 'Comparte la marca de captura de R-2026-0418; no se puede tratarse como un registro nuevo sin revisión.' }
+      ]
+    },
+    'r-3': {
+      title: 'R-2026-0420 · Franja interior de Quilpué',
+      findings: [
+        { title: 'Sin evaluación publicada', chip: 'No es un nivel', tone: 'chip-gold', text: 'No hay lote publicado en o antes del corte del 18 nov 2026 · 18:00. La ausencia no es un nivel Bajo.' },
+        { title: 'Cobertura parcial', chip: 'Cobertura 0 %', tone: 'chip-neutral', text: 'El área no tiene lectura en el corte; no se infiere evidencia ni un nivel para el foco.' }
+      ]
+    }
+  };
+
+  function makeFinding(finding) {
+    var row = document.createElement('div');
+    row.className = 'finding';
+    var head = document.createElement('div');
+    head.className = 'finding-head';
+    var name = document.createElement('strong');
+    name.textContent = finding.title;
+    var chip = document.createElement('span');
+    chip.className = 'chip ' + finding.tone;
+    chip.textContent = finding.chip;
+    head.appendChild(name);
+    head.appendChild(chip);
+    var text = document.createElement('p');
+    text.textContent = finding.text;
+    row.appendChild(head);
+    row.appendChild(text);
+    return row;
+  }
+
+  function selectedRecord() {
+    var checked = document.querySelector('input[name="registro"]:checked');
+    return checked ? checked.value : '';
+  }
+
+  document.getElementById('btn-review').addEventListener('click', function () {
+    var key = selectedRecord();
+    var findings = document.getElementById('review-findings');
+    var list = document.getElementById('review-findings-list');
+    var status = document.getElementById('review-status');
+    document.getElementById('review-feedback').hidden = true;
+    if (key === '') {
+      document.getElementById('review-findings-title').textContent = 'Selecciona un registro para ver hallazgos';
+      list.replaceChildren();
+      findings.hidden = false;
+      status.textContent = 'Selecciona un registro para ver hallazgos.';
+      return;
+    }
+    var record = RECORDS[key];
+    document.getElementById('review-findings-title').textContent = 'Hallazgos de calidad · ' + record.title;
+    list.replaceChildren();
+    record.findings.forEach(function (finding) {
+      list.appendChild(makeFinding(finding));
+    });
+    findings.hidden = false;
+    status.textContent = 'Hallazgos actualizados para ' + record.title + '.';
+  });
+
+  document.getElementById('btn-incorporate').addEventListener('click', function () {
+    var key = selectedRecord();
+    var feedback = document.getElementById('review-feedback');
+    if (key === '') {
+      document.getElementById('review-feedback-title').textContent = 'Selecciona un registro';
+      document.getElementById('review-feedback-body').textContent = 'La revisión necesita un registro seleccionado. No se escribió nada.';
+    } else {
+      document.getElementById('review-feedback-title').textContent = 'Maqueta: incorporación simulada';
+      document.getElementById('review-feedback-body').textContent = 'El registro ' + RECORDS[key].title + ' quedaría marcado para incorporación. No se escribe nada, no se envía nada y V1-P-05 sigue abierto.';
+    }
+    feedback.hidden = false;
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', function () {
+    document.querySelectorAll('input[name="registro"]').forEach(function (input) {
+      input.checked = false;
+    });
+    document.getElementById('review-findings').hidden = true;
+    document.getElementById('review-findings-list').replaceChildren();
+    document.getElementById('review-feedback').hidden = true;
+    document.getElementById('review-status').textContent = 'Selección de registro retirada.';
+  });
+
+  // Procesamiento: the three G6 actions only show a confirmation preview.
+  var ACTIONS = {
+    publish: {
+      label: 'Publicar lote',
+      target: 'Foco Quebrada del Este · lote b-7f3c9a21',
+      cutoff: '18 nov 2026 · 18:00',
+      effect: 'Fijaría el lote como publicado para el corte compartido y lo haría visible en el estado del foco.',
+      feedback: 'Simulación: nada se publica. En el producto real esta acción no existe como endpoint; V1-P-06 sigue abierto.'
+    },
+    advance: {
+      label: 'Avanzar estado manualmente',
+      target: 'Trabajo j-4c8e21 · Foco Quebrada del Este',
+      cutoff: '18 nov 2026 · 18:00',
+      effect: 'Movería el trabajo de «en cola» a un estado posterior sin esperar la decisión del servidor.',
+      feedback: 'Simulación: nada avanza. La transición manual no existe como endpoint; V1-P-06 sigue abierto.'
+    },
+    reevaluate: {
+      label: 'Reevaluar el foco',
+      target: 'Foco Quebrada del Este · lote b-7f3c9a21',
+      cutoff: '18 nov 2026 · 18:00',
+      effect: 'Volvería a clasificar el foco con el mismo corte y produciría un lote nuevo.',
+      feedback: 'Simulación: nada se reevalúa. La reevaluación no existe como endpoint; V1-P-06 sigue abierto.'
+    }
+  };
+  var openAction = null;
+
+  function openPreview(key) {
+    var action = ACTIONS[key];
+    openAction = key;
+    document.getElementById('g6-preview-title').textContent = 'Confirmación · ' + action.label;
+    document.getElementById('g6-target').textContent = action.target;
+    document.getElementById('g6-cutoff').textContent = action.cutoff;
+    document.getElementById('g6-effect').textContent = action.effect;
+    document.getElementById('g6-requirement').textContent = 'No existe hoy: endpoint autenticado con autorización por rol y una prueba de rechazo. V1-P-06 sigue abierto.';
+    document.getElementById('g6-preview').hidden = false;
+    document.getElementById('g6-feedback').hidden = true;
+    document.getElementById('btn-confirm').focus();
+  }
+
+  function closePreview(returnFocus) {
+    document.getElementById('g6-preview').hidden = true;
+    if (returnFocus && openAction !== null) {
+      var button = document.getElementById('btn-' + openAction);
+      if (button) button.focus();
+    }
+    openAction = null;
+  }
+
+  document.getElementById('btn-publish').addEventListener('click', function () { openPreview('publish'); });
+  document.getElementById('btn-advance').addEventListener('click', function () { openPreview('advance'); });
+  document.getElementById('btn-reevaluate').addEventListener('click', function () { openPreview('reevaluate'); });
+
+  document.getElementById('btn-confirm').addEventListener('click', function () {
+    var key = openAction;
+    if (key === null) return;
+    var action = ACTIONS[key];
+    document.getElementById('g6-feedback-title').textContent = 'Maqueta: confirmación simulada';
+    document.getElementById('g6-feedback-body').textContent = action.feedback;
+    closePreview(true);
+    document.getElementById('g6-feedback').hidden = false;
+  });
+
+  document.getElementById('btn-cancel').addEventListener('click', function () {
+    document.getElementById('g6-feedback-title').textContent = 'Confirmación cancelada';
+    document.getElementById('g6-feedback-body').textContent = 'No se cambió nada: la acción quedó sin confirmar y ningún lote se publicó.';
+    closePreview(true);
+    document.getElementById('g6-feedback').hidden = false;
+  });
+
+  // Auditoría: selection shows the five real fields and, separately, the G6
+  // fields. The name, free detail and event id are explicitly mock values.
+  var EVENTS = {
+    '1': {
+      action: 'job.created', occurred: '18 nov 2026 · 14:02', actorId: 'u-8f3a', job: 'j-4c8e21', trace: 't-77ab12',
+      name: 'Camila Rojas Fuentes',
+      detail: 'Solicitó el lote sintético del foco Quebrada del Este con el escenario costa-seca.',
+      eventId: 'evt-9d2f4a'
+    },
+    '2': {
+      action: 'job.published', occurred: '18 nov 2026 · 14:20', actorId: 'u-2c91', job: 'j-4c8e21', trace: 't-77ab12',
+      name: 'Jorge Muñoz Salinas',
+      detail: 'Revisó la publicación del trabajo y confirmó el lote b-7f3c9a21 para el corte compartido.',
+      eventId: 'evt-4b81c0'
+    },
+    '3': {
+      action: 'audit.read', occurred: '18 nov 2026 · 14:24', actorId: 'u-8f3a', job: '—', trace: 't-9c31e0',
+      name: 'Camila Rojas Fuentes',
+      detail: 'Consultó el registro de actividad después de publicar el lote.',
+      eventId: 'evt-6a2e77'
+    },
+    '4': {
+      action: 'risk.read', occurred: '18 nov 2026 · 14:26', actorId: 'u-6d47', job: '—', trace: 't-a02b41',
+      name: 'Valentina Díaz Paredes',
+      detail: 'Abrió la lectura del foco para preparar una acción preventiva.',
+      eventId: 'evt-1c57d3'
+    }
+  };
+
+  function makeFacts(rows) {
+    var dl = document.createElement('dl');
+    dl.className = 'facts';
+    rows.forEach(function (row) {
+      var wrap = document.createElement('div');
+      var dt = document.createElement('dt');
+      dt.textContent = row[0];
+      var dd = document.createElement('dd');
+      dd.textContent = row[1];
+      wrap.appendChild(dt);
+      wrap.appendChild(dd);
+      dl.appendChild(wrap);
+    });
+    return dl;
+  }
+
+  function renderEvent(eventId) {
+    var entry = EVENTS[eventId];
+    document.querySelectorAll('#event-list [aria-pressed]').forEach(function (button) {
+      button.setAttribute('aria-pressed', button.id === 'event-' + eventId ? 'true' : 'false');
+    });
+
+    var known = document.createElement('div');
+    var knownTitle = document.createElement('h4');
+    knownTitle.textContent = 'Estado actual del endpoint';
+    known.appendChild(knownTitle);
+    var knownNote = document.createElement('p');
+    knownNote.className = 'micro';
+    knownNote.textContent = 'Datos que /v1/audit entrega hoy: identificadores opacos y la marca de tiempo.';
+    known.appendChild(knownNote);
+    known.appendChild(makeFacts([
+      ['actor_id', entry.actorId],
+      ['action', entry.action],
+      ['job_id', entry.job],
+      ['trace_id', entry.trace],
+      ['occurred_at', entry.occurred]
+    ]));
+
+    var g6 = document.createElement('div');
+    g6.className = 'proto-block';
+    var g6Title = document.createElement('h4');
+    g6Title.textContent = 'Prototipo G6 · no existe aún';
+    g6.appendChild(g6Title);
+    g6.appendChild(makeFacts([
+      ['Nombre del actor', entry.name],
+      ['Detalle libre', entry.detail],
+      ['ID de evento', entry.eventId]
+    ]));
+    var g6Note = document.createElement('p');
+    g6Note.className = 'micro';
+    g6Note.textContent = 'Valores de maqueta. /v1/audit no entrega estos campos; esta vista no define el contrato ni cierra V1-P-07.';
+    g6.appendChild(g6Note);
+
+    var content = document.getElementById('audit-detail-content');
+    content.replaceChildren(known, g6);
+    document.getElementById('audit-status').textContent = 'Detalle del evento ' + entry.action + ' actualizado.';
+  }
+
+  document.querySelectorAll('#event-list [aria-pressed]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      renderEvent(button.id.replace('event-', ''));
+    });
+  });
+})();
+</script>
+</body>
+</html>

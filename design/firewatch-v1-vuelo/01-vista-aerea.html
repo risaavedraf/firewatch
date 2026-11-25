@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="es" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FireWatch · Vista aérea de Valparaíso</title>
+<style>
+:root {
+  color-scheme: dark;
+  --water: #152934; --panel: #17222b; --raised: #243341; --ink: #f4f1eb;
+  --muted: #b8c8d2; --border: #647b8a; --focus: #94dfda; --terrain-low: #46575a;
+  --terrain-high: #738077; --roof: #aeb7b8; --wall: #3f4b52; --coast: #829a9d;
+  --high: #d97962; --medium: #d7b16a; --low: #72b1a1; --label: #121c22; --unknown: #c4cbd1;
+}
+[data-theme="day"] {
+  color-scheme: light;
+  --water: #b9d2d9; --panel: #f5f3ee; --raised: #e5e9e8; --ink: #1d2c35;
+  --muted: #475b65; --border: #637985; --focus: #125650; --terrain-low: #859e93;
+  --terrain-high: #d4d0b8; --roof: #f2ede0; --wall: #7d8888; --coast: #506c70;
+  --high: #a74434; --medium: #88621d; --low: #176a60; --label: #ffffff; --unknown: #42525e;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--water); color: var(--ink); font: 400 14px/1.45 system-ui, sans-serif; }
+canvas { position: fixed; inset: 0; width: 100vw; height: 100dvh; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+header, .controls, .info, .legend, .note { position: fixed; z-index: 1; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
+header { inset: 14px 14px auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+.brand { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.mark { width: 34px; height: 34px; flex: none; color: var(--focus); }
+small, .muted { color: var(--muted); }
+h1, h2, p { margin: 0; }
+h1 { font-size: clamp(16px, 2.3vw, 22px); line-height: 1.15; letter-spacing: -.025em; }
+h2 { font-size: 19px; line-height: 1.24; }
+.product { color: var(--focus); font-size: 11px; font-weight: 720; letter-spacing: .12em; text-transform: uppercase; }
+button { border: 1px solid var(--border); border-radius: 8px; background: var(--raised); color: var(--ink); font: inherit; font-weight: 650; min-height: 40px; min-width: 40px; padding: 6px 10px; cursor: pointer; }
+button:hover, button[aria-pressed="true"] { border-color: var(--focus); color: var(--focus); }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.controls { top: 88px; right: 14px; display: grid; gap: 8px; padding: 8px; }
+.controls [role="group"] { display: flex; justify-content: space-between; gap: 6px; }
+.info { inset: auto auto 37px 14px; width: min(375px, calc(100vw - 28px)); padding: 14px; display: grid; gap: 11px; }
+.cutrow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 9px; }
+input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
+.sectors { display: flex; flex-wrap: wrap; gap: 5px; }
+.sectors button { font-size: 12px; padding: 4px 8px; min-height: 36px; }
+#details { padding-top: 10px; border-top: 1px solid var(--border); }
+#details p { margin-top: 4px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 760; }
+.tag::before { content: '◆'; margin-inline-end: 5px; }
+.legend { right: 14px; bottom: 37px; padding: 8px 11px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.high { background: var(--high); } .medium { background: var(--medium); } .low { background: var(--low); }
+.unknown { border: 1px dashed var(--unknown); }
+.note { bottom: 0; left: 0; right: 0; padding: 5px 14px; background: var(--panel); color: var(--muted); font-size: 12px; }
+[hidden] { display: none !important; }
+@media (max-width: 600px) {
+  header { inset: 7px 7px auto; padding: 6px 9px; }
+  .mark { width: 27px; height: 27px; }
+  .controls { top: 67px; right: 7px; gap: 5px; padding: 5px; }
+  .controls button { font-size: 12px; min-height: 36px; }
+  .info { inset: auto 7px 34px; width: auto; padding: 10px; gap: 6px; max-height: 44dvh; overflow-y: auto; }
+  .legend { inset: auto 7px calc(34px + min(44dvh, 287px) + 6px); font-size: 11px; padding: 4px 8px; width: fit-content; max-width: calc(100vw - 14px); }
+  .note { font-size: 10px; padding: 4px 8px; }
+}
+</style>
+</head>
+<body>
+<main aria-label="Explorador territorial aéreo">
+  <canvas id="terrain" role="img" aria-label="Mapa esquemático inclinado de Valparaíso. Los controles y la lista permiten explorar el mismo territorio sin usar el mapa."></canvas>
+  <header class="panel">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="currentColor"/><path d="M6 23l7-12 4 5 4-9 5 16z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>
+      <div><p class="product">FireWatch / Territorio</p><h1>Valparaíso desde el aire</h1></div>
+    </div>
+    <button id="expand" type="button" aria-pressed="false">Expandir mapa</button>
+  </header>
+  <nav class="controls panel" aria-label="Controles del mapa">
+    <div role="group" aria-label="Perspectiva">
+      <button id="aerial" type="button" aria-pressed="true">Vista aérea</button>
+      <button id="top" type="button" aria-pressed="false">Vista cenital</button>
+    </div>
+    <div role="group" aria-label="Giro y zoom">
+      <button id="left" type="button" aria-label="Girar a la izquierda">↶</button>
+      <button id="right" type="button" aria-label="Girar a la derecha">↷</button>
+      <button id="zoom-out" type="button" aria-label="Alejar">−</button>
+      <button id="zoom-in" type="button" aria-label="Acercar">+</button>
+    </div>
+    <div role="group" aria-label="Capas y apariencia">
+      <button id="risk" type="button" aria-pressed="true" aria-label="Ocultar capa de riesgo">Riesgo</button>
+      <button id="theme" type="button" aria-label="Cambiar a tema claro">Claro</button>
+      <button id="reset" type="button" aria-label="Restablecer cámara">Centrar</button>
+    </div>
+  </nav>
+  <section class="info panel" id="info" aria-label="Corte temporal y sectores a revisar">
+    <div>
+      <div class="cutrow"><label for="cutoff"><strong>Fecha de corte</strong></label><output class="muted" id="cutoff-label" for="cutoff"></output></div>
+      <input id="cutoff" type="range" min="0" max="1" value="1" aria-describedby="cutoff-help">
+      <p id="cutoff-help" class="muted">Último lote disponible por sector hasta esta fecha.</p>
+    </div>
+    <div class="sectors" role="group" aria-label="Seleccionar sector">
+      <button type="button" data-sector="east" aria-pressed="true">Quebrada del Este</button>
+      <button type="button" data-sector="shore" aria-pressed="false">Borde costero</button>
+      <button type="button" data-sector="inland" aria-pressed="false">Interior sin lectura</button>
+    </div>
+    <div id="details" role="status" aria-live="polite" aria-atomic="true">
+      <span class="tag" id="level"></span>
+      <h2 id="name"></h2>
+      <p id="places" class="muted"></p>
+      <p id="lot"></p>
+      <p id="factors" class="muted"></p>
+    </div>
+  </section>
+  <aside id="legend" class="legend panel" aria-label="Leyenda de riesgo">
+    <span><i class="swatch high" aria-hidden="true"></i> Alto</span>
+    <span><i class="swatch medium" aria-hidden="true"></i> Medio</span>
+    <span><i class="swatch low" aria-hidden="true"></i> Bajo</span>
+    <span><i class="swatch unknown" aria-hidden="true"></i> Sin evaluación</span>
+  </aside>
+  <footer class="note">Prototipo · Relieve, edificios, límites y lecturas son ilustrativos; no sirven para decisiones operativas.</footer>
+</main>
+<script>
+'use strict';
+const el = id => document.getElementById(id);
+const terrain = el('terrain');
+const ctx = terrain.getContext('2d');
+const root = document.documentElement;
+const cutoff = el('cutoff');
+const cameraStart = { bearing: -.34, pitch: .96, zoom: 1, x: 0, y: 0 };
+const camera = { ...cameraStart };
+let size, selected = 'east', layer = true, expanded = false, markers = [], drag = null;
+const snapshots = [
+  { cutoff: '18 nov 2026 · 18:00', time: '2026-11-18T18:00:00-03:00' },
+  { cutoff: '21 nov 2026 · 18:00', time: '2026-11-21T18:00:00-03:00' }
+];
+const areas = {
+  east: {
+    name: 'Foco Quebrada del Este', short: 'Quebrada del Este', places: 'Valparaíso · Viña del Mar · Quilpué', x: .59, y: .43, rx: .182, ry: .135,
+    lots: [
+      { level: 'Medio', color: 'medium', time: '2026-11-18T14:20:00-03:00', label: '18 nov 2026 · 14:20', factors: 'Vegetación seca y baja humedad observadas en el escenario.' },
+      { level: 'Alto', color: 'high', time: '2026-11-20T16:05:00-03:00', label: '20 nov 2026 · 16:05', factors: 'Vegetación seca, ladera y mayor viento en el escenario.' }
+    ]
+  },
+  shore: {
+    name: 'Borde costero', short: 'Borde costero', places: 'Valparaíso · Viña del Mar', x: .32, y: .66, rx: .103, ry: .105,
+    lots: [{ level: 'Bajo', color: 'low', time: '2026-11-18T14:20:00-03:00', label: '18 nov 2026 · 14:20', factors: 'Menor continuidad de vegetación en el escenario.' }]
+  },
+  inland: { name: 'Interior sin lectura', short: 'Interior', places: 'Quilpué', x: .79, y: .55, rx: .095, ry: .09, lots: [] }
+};
+const keys = Object.keys(areas);
+const sin = Math.sin, cos = Math.cos;
+function coast(y) { return .20 + .16 * (1 - y) + .05 * sin(y * 9) - .075 * Math.exp(-((y - .62) ** 2) / .017); }
+function elevation(x,y) {
+  if (x < coast(y)) return 0;
+  const inland = Math.min(1, (x - coast(y)) * 8);
+  const hill = (a,b,w) => Math.exp(-((x-a)**2 + (y-b)**2) / w);
+  return inland * (.045 + .22 * hill(.51,.34,.022) + .17 * hill(.63,.67,.020) + .19 * hill(.84,.34,.036)
+    + .045 * (1 + sin(x * 27 + y * 13) * cos(y * 34))) * .9;
+}
+function age(cutTime,lotTime) {
+  const minutes = Math.round((Date.parse(cutTime) - Date.parse(lotTime)) / 60000);
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+function reading(a) {
+  const time = Date.parse(snapshots[cutoff.value].time);
+  return a.lots.findLast(lot => Date.parse(lot.time) <= time);
+}
+function project(x,y,z) {
+  const dx=x-.55, dy=y-.48;
+  const xx=dx*cos(camera.bearing) - dy*sin(camera.bearing);
+  const yy=dx*sin(camera.bearing) + dy*cos(camera.bearing);
+  const scale=size.scale * camera.zoom;
+  return [size.cx+camera.x+scale*xx, size.cy+camera.y + scale*(yy*cos(camera.pitch)-z*sin(camera.pitch)), yy*sin(camera.pitch)+z*cos(camera.pitch)];
+}
+function path(points, fill, stroke) {
+  ctx.beginPath();
+  points.forEach(([x,y],i)=> i ? ctx.lineTo(x,y) : ctx.moveTo(x,y));
+  if (fill) { ctx.closePath(); ctx.fillStyle=fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle=stroke; ctx.stroke(); }
+}
+const land = [];
+const cells = 40;
+for (let row=0; row<cells; row++) {
+  for (let col=0; col<cells; col++) {
+    const y=row/cells, x=coast(y) + (1 - coast(y))*col/cells;
+    const y1=(row+1)/cells;
+    const x1=coast(y)+(1-coast(y))*(col+1)/cells;
+    const nextX=coast(y1)+(1-coast(y1))*col/cells;
+    const nextX1=coast(y1)+(1-coast(y1))*(col+1)/cells;
+    const a=[x,y,elevation(x,y)], b=[x1,y,elevation(x1,y)];
+    const c=[nextX1,y1,elevation(nextX1,y1)], d=[nextX,y1,elevation(nextX,y1)];
+    land.push([a,b,c],[a,c,d]);
+  }
+}
+const buildings = [];
+for (let r=0;r<18;r++) {
+  for(let c=0;c<9;c++) {
+    const y=.18+r*.034;
+    const x=coast(y)+.027+c*.018+sin(r*3+c)*.006;
+    if (((c*5+r*3)%11)>8 || elevation(x,y)>.24) continue;
+    buildings.push({x,y,w:.006+c%3*.002,d:.007+r%3*.002,h:.009+((r+c)%5)*.004});
+  }
+}
+function palette() {
+  const c = getComputedStyle(root);
+  return name=>c.getPropertyValue('--'+name).trim();
+}
+function mixed(a,b,t) {
+  const rgb = hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+  const start=rgb(a), end=rgb(b);
+  return `#${start.map((v,i)=>Math.round(v+(end[i]-v)*t).toString(16).padStart(2,'0')).join('')}`;
+}
+function areaAt(x,y) {
+  return keys.find(k=>{
+    const a=areas[k];
+    return ((x-a.x)/a.rx)**2+((y-a.y)/a.ry)**2 < 1 + .16*sin(x*33+y*29);
+  });
+}
+function draw() {
+  const col=palette();
+  ctx.fillStyle=col('water'); ctx.fillRect(0,0,size.w,size.h);
+  const projected = land.map(p=>({p, q:p.map(v=>project(...v))}));
+  projected.sort((a,b)=>depth(a.q)-depth(b.q));
+  const risks = Object.fromEntries(keys.map(k=>[k,reading(areas[k])?.color]));
+  for (const {p,q} of projected) {
+    const x=p.reduce((v,t)=>v+t[0]/3,0), y=p.reduce((v,t)=>v+t[1]/3,0), z=p.reduce((v,t)=>v+t[2]/3,0);
+    const slope=(p[2][2]-p[0][2])*8+(p[1][2]-p[0][2])*5;
+    const shade=Math.max(0,Math.min(1,z*1.9 +.17 - slope));
+    const base = mixed(col('terrain-low'),col('terrain-high'),shade);
+    const k = layer && areaAt(x,y);
+    let paint = base;
+    if (k && risks[k]) paint = mixed(base,col(risks[k]),selected===k ? .78 : .64);
+    else if (k && Math.round((x+y)*58)%4===0) paint = mixed(base,col('unknown'),.68);
+    ctx.lineWidth=.55;
+    path(q,paint,paint);
+  }
+  const onGround=(x,y)=>project(x,y,elevation(x,y)+.002);
+  const line=(curve)=>Array.from({length:81},(_,i)=>curve(i/80));
+  ctx.lineWidth=1.5;
+  path(line(y=>onGround(coast(y)+.001,y)),null,col('coast'));
+  ctx.lineWidth=1;
+  [ .05,.12,.20 ].forEach((offset,n)=>{
+    path(line(y=>onGround(coast(y)+offset+.012*sin(y*13+n),y)),null,col('coast'));
+  });
+  ctx.setLineDash([5,5]);
+  ctx.lineWidth=1.3;
+  [ .39,.59 ].forEach((boundary,i)=>{
+    path(line(t=>{const x=.36+.55*t,y=boundary+(i===0 ? .07 : -.27)*t+.03*sin(t*7);return onGround(x,y);}),null,col('ink'));
+  });
+  ctx.setLineDash([]);
+  const blocks=buildings.map(b=>{
+    const {x,y,w,d,h}=b, z=elevation(x,y);
+    const corners=[[x,y],[x+w,y],[x+w,y+d],[x,y+d]];
+    const below=corners.map(v=>project(...v,z));
+    const above=corners.map(v=>project(...v,z+h));
+    return { below,above };
+  });
+  blocks.sort((a,b)=>depth(a.below)-depth(b.below));
+  for (const {below,above} of blocks) {
+    const walls=below.map((v,i)=>[v,below[(i+1)%4],above[(i+1)%4],above[i]]);
+    walls.sort((a,b)=>depth(a)-depth(b));
+    walls.slice(-2).forEach(wall=>path(wall,col('wall')));
+    path(above,col('roof'));
+  }
+  markers=keys.map(k=>{
+    const a=areas[k], p=onGround(a.x,a.y);
+    return {key:k,x:p[0],y:p[1], label:k===selected?a.short:reading(a)?.level||'Sin evaluación'};
+  });
+  if (layer) markers.forEach(m=>marker(m,col));
+  ctx.fillStyle=col('ink'); ctx.font='600 12px system-ui, sans-serif';
+  const ocean=project(.10,.46,0);
+  ctx.fillText('PACÍFICO',ocean[0],ocean[1]);
+}
+function depth(points) { return points.reduce((v,t)=>v+t[2],0)/points.length; }
+function marker(m,col) {
+  const active=m.key===selected;
+  const tone=col(reading(areas[m.key])?.color || 'unknown');
+  ctx.font=`${active?'700':'600'} 12px system-ui, sans-serif`;
+  const w=ctx.measureText(m.label).width+18;
+  m.bounds=[m.x-w/2,m.y-34,w,24];
+  ctx.beginPath(); ctx.arc(m.x,m.y,active?6:4,0,Math.PI*2);
+  ctx.fillStyle=tone; ctx.fill(); ctx.strokeStyle=col('panel'); ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(...m.bounds,6);
+  ctx.fillStyle=active?col('panel'):tone; ctx.fill();
+  ctx.lineWidth=1.5; ctx.strokeStyle=active?col('focus'):col('panel'); ctx.stroke();
+  ctx.fillStyle=active?col('ink'):col('label'); ctx.fillText(m.label,m.bounds[0]+9,m.bounds[1]+16);
+}
+function refresh() {
+  const snap=snapshots[cutoff.value], a=areas[selected], lot=reading(a);
+  el('cutoff-label').textContent=snap.cutoff;
+  cutoff.setAttribute('aria-valuetext',snap.cutoff);
+  el('level').textContent=lot?.level||'Sin evaluación';
+  el('name').textContent=a.name;
+  el('places').textContent=a.places;
+  el('lot').textContent=lot?`Lote del ${lot.label} · ${age(snap.time,lot.time)} antes del corte`:'Sin lote publicado hasta este corte.';
+  el('factors').textContent=lot?.factors||'No hay factores disponibles para este sector.';
+  document.querySelectorAll('[data-sector]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sector===selected)));
+  draw();
+}
+function resize() {
+  const rect=terrain.getBoundingClientRect(), narrow=rect.width<=600;
+  const dpr=Math.min(devicePixelRatio||1,2);
+  size={w:rect.width,h:rect.height,cx:rect.width*(narrow?.49:.55),cy:rect.height*(narrow?.46:.52),scale:Math.min(rect.width*(narrow?1.45:1.08),rect.height*(narrow?1.0:1.45))};
+  terrain.width=Math.round(size.w*dpr); terrain.height=Math.round(size.h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  refresh();
+}
+function pose(pitch) {
+  camera.pitch=pitch;
+  el('aerial').setAttribute('aria-pressed',String(pitch===cameraStart.pitch));
+  el('top').setAttribute('aria-pressed',String(pitch===0));
+  draw();
+}
+function zoom(step) {
+  camera.zoom=Math.max(.7,Math.min(2.4,camera.zoom*step));
+  draw();
+}
+function choose(key) { selected=key; refresh(); }
+function click(id,handler) { el(id).addEventListener('click',handler); }
+click('aerial',()=>pose(cameraStart.pitch)); click('top',()=>pose(0));
+click('left',()=>{camera.bearing-=.23;draw();}); click('right',()=>{camera.bearing+=.23;draw();});
+click('zoom-in',()=>zoom(1.2)); click('zoom-out',()=>zoom(1/1.2));
+click('reset',()=>{Object.assign(camera,cameraStart);pose(cameraStart.pitch);});
+click('risk',()=>{
+  layer=!layer; el('risk').setAttribute('aria-pressed',String(layer));
+  el('risk').setAttribute('aria-label',layer?'Ocultar capa de riesgo':'Mostrar capa de riesgo');
+  el('legend').hidden=!layer||expanded; draw();
+});
+click('theme',()=>{
+  const day=root.dataset.theme!=='day'; root.dataset.theme=day?'day':'night';
+  el('theme').textContent=day?'Oscuro':'Claro';
+  el('theme').setAttribute('aria-label',day?'Cambiar a tema oscuro':'Cambiar a tema claro'); draw();
+});
+click('expand',()=>{
+  expanded=!expanded;
+  el('info').hidden=expanded; el('legend').hidden=expanded||!layer;
+  el('expand').textContent=expanded?'Mostrar paneles':'Expandir mapa';
+  el('expand').setAttribute('aria-pressed',String(expanded));
+});
+cutoff.addEventListener('input',refresh);
+document.querySelectorAll('[data-sector]').forEach(button=>button.addEventListener('click',()=>choose(button.dataset.sector)));
+terrain.addEventListener('pointerdown',e=>{
+  if (e.button!==0) return;
+  drag={id:e.pointerId,px:e.clientX,py:e.clientY,x:camera.x,y:camera.y,moved:false};
+  terrain.setPointerCapture(e.pointerId);
+});
+terrain.addEventListener('pointermove',e=>{
+  if (!drag || drag.id!==e.pointerId) return;
+  const dx=e.clientX-drag.px,dy=e.clientY-drag.py;
+  if (!drag.moved && Math.hypot(dx,dy)<5) return;
+  drag.moved=true;
+  camera.x=Math.max(-size.w*.65,Math.min(size.w*.65,drag.x+dx));
+  camera.y=Math.max(-size.h*.65,Math.min(size.h*.65,drag.y+dy)); draw();
+});
+terrain.addEventListener('pointerup',e=>{
+  if (!drag || drag.id!==e.pointerId) return;
+  if (!drag.moved && layer) {
+    const target=[...markers].reverse().find(m=>{
+      const [x,y,w,h]=m.bounds;
+      return Math.hypot(e.clientX-m.x,e.clientY-m.y)<14 || (e.clientX>=x && e.clientX<=x+w && e.clientY>=y && e.clientY<=y+h);
+    });
+    if (target) choose(target.key);
+  }
+  drag=null;
+});
+terrain.addEventListener('pointercancel',()=>{drag=null;});
+terrain.addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY>0?1/1.13:1.13);},{passive:false});
+window.addEventListener('resize',resize);
+resize();
+</script>
+</body>
+</html>

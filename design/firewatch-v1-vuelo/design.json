@@ -1,0 +1,154 @@
+{
+  "title": "FireWatch v1 · Vista aérea y todas las pantallas",
+  "brief": "Colección completa del diseño v1: la vista aérea de Valparaíso como Territorio, las dieciséis pantallas de G1 y G6 expuestas una por artboard y los dos complementos del mapa. Los datos, las operaciones y las exportaciones son de maqueta: no guardan, envían ni descargan nada.",
+  "feature": "odd/tasks/v1-gentle-design.md",
+  "artboards": [
+    {
+      "file": "01-vista-aerea.html",
+      "title": "Territorio · Vista aérea",
+      "tradeoff": "El mapa ocupa todo el encuadre. La vista aérea muestra altura y construcciones; la cenital ayuda a comparar el riesgo sin la distorsión de la inclinación. El relieve y los datos son ilustrativos.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "04-cobertura-territorial.html",
+      "title": "Cobertura y contexto territorial",
+      "tradeoff": "Recorre el territorio con un mapa contextual compacto, cobertura de lectura y prioridad por sector. Es la vista de trabajo y no la portada aprobada: el mapa comparte encuadre con los paneles en lugar de ocupar la pantalla. Cobertura y prioridad son datos de maqueta.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "21-lecturas-por-sector.html",
+      "title": "Lecturas por sector",
+      "tradeoff": "Compara tres sectores con cobertura completa, parcial y sin lectura. Explica los faltantes sin saturar el mapa aprobado; las lecturas y el terreno candidato son solo sintéticos.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "05-historial-de-lotes.html",
+      "title": "Historial de lotes",
+      "tradeoff": "Lista solo los lotes publicados de la zona elegida y los filtra en memoria por texto y estado. Gana trazabilidad por corte; la tabla exige desplazamiento y no hay paginación de servidor. Las filas y fechas son sintéticas.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "06-acciones-preventivas.html",
+      "title": "Acciones preventivas",
+      "tradeoff": "Reúne listado, detalle, alta y transiciones de acciones con el selector de responsable. Permite preparar una acción sin salir de la vista; crear, asignar y cambiar de estado son de maqueta y no persisten.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "07-panel-ejecutivo.html",
+      "title": "Panel ejecutivo",
+      "tradeoff": "Concentra el corte en conteos por nivel, tabla de sectores y alertas activas para decidir dónde mirar. Los totales están escritos a mano y no los calcula el servidor; el panel de zonas críticas queda sin definir a propósito.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "08-comparar-sectores.html",
+      "title": "Comparar sectores",
+      "tradeoff": "Compara de dos a tres sectores con riesgo, factores e historial en paralelo. La lectura conjunta gana contexto; el máximo de tres y la selección en memoria limitan el análisis. Los valores comparados son de maqueta.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "09-notificaciones.html",
+      "title": "Notificaciones",
+      "tradeoff": "Ordena alertas y avisos por severidad y momento, con detalle y escenario asociado. Ayuda a priorizar el seguimiento; el listado se pagina en la maqueta y las alertas son ficticias, no un servicio activo.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "10-simulacion-contrafactual.html",
+      "title": "Simulación contrafactual",
+      "tradeoff": "Sustituye una variable del lote y compara el nivel antes y después con sus factores. Hace visible el peso de cada variable; el resultado no proviene de un modelo real y no genera lote, fecha ni historial.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "11-observaciones-de-campo.html",
+      "title": "Observaciones de campo",
+      "tradeoff": "Registra una observación de terreno con zona, tipo, fecha y detalle, y filtra el listado existente. Captura lo que el mapa no muestra; el catálogo es cerrado, el reloj es ficticio y nada se guarda.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "12-exportacion-csv.html",
+      "title": "Exportación CSV",
+      "tradeoff": "Muestra la estructura y el resumen de una exportación documental antes de descargarla. Hace revisable el contrato del archivo; el botón solo ilustra el flujo y no genera ni descarga ningún CSV (PM-13).",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "13-ficha-de-zona.html",
+      "title": "Ficha de zona · Vista previa PDF",
+      "tradeoff": "Presenta la ficha imprimible de una zona con lectura, factores y aviso de borrador sintético. Sirve para revisar la estructura del PDF; la vista previa es HTML y no se genera ni descarga ningún documento (PM-14).",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "14-acceso.html",
+      "title": "Acceso · Iniciar sesión y crear cuenta",
+      "tradeoff": "Entrada con pestañas de inicio de sesión y alta, pasos del flujo Keycloak y estados de error. Aclara qué hace el proveedor; no hay campos de credencial y las acciones son simuladas, sin abrir ventanas ni enviar datos.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "15-fuentes-y-servicios.html",
+      "title": "Fuentes y servicios",
+      "tradeoff": "Declara alcance, procedencia, restricciones e integridad, y revisa registros con hallazgos de calidad. Deja explícito qué no está verificado; los valores de hash y de servicio son ilustrativos y no se comprueban.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "20-datos-del-modelo.html",
+      "title": "Datos del modelo",
+      "tradeoff": "Reúne variables, unidades, ventanas y acceso a las fuentes históricas; da más detalle que el tablero de servicios sin confundir la muestra sintética con un modelo validado.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "16-procesamiento.html",
+      "title": "Procesamiento",
+      "tradeoff": "Solicita un lote sintético, sigue el trabajo con lecturas acotadas y lo correlaciona con el lote publicado. Muestra el ciclo completo de lectura; solicitud, sondeo y publicación son simulados y no llaman a servicios.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "17-sesion-y-permisos.html",
+      "title": "Sesión y permisos",
+      "tradeoff": "Separa el control de sesión de la matriz documentada de roles y permisos. Aclara que el reino asigna y el servidor verifica; no hay selector de rol porque la página no concede permisos. El rol mostrado es de maqueta.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "18-registro-de-actividad.html",
+      "title": "Registro de actividad",
+      "tradeoff": "Lista eventos de solo lectura con actor, acción, trabajo y rastro, y abre su detalle. Facilita la auditoría; los eventos son inventados, el rol admin es ilustrativo y un 403 se muestra como estado explícito.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "19-aun-no-implementado.html",
+      "title": "Aún no implementado",
+      "tradeoff": "Inventaría las siete capacidades que el backend aún no sostiene y por qué. Deja el estado transitorio a la vista sin simular producto; no hay acciones operativas y estas pantallas todavía no existen.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-vista-regional.html",
+      "title": "Complemento · Vista regional",
+      "tradeoff": "Mapa continental basado en el contorno regional simplificado, con Rapa Nui y Juan Fernández en recuadros. La huella urbana agrupada se lee mejor con zoom; los contornos dejan ver el relieve y el relleno ayuda a localizar el foco. Uso interno, pendiente de revisión cartográfica.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-acciones-en-el-mapa.html",
+      "title": "Complemento · Acciones rápidas desde el mapa",
+      "tradeoff": "Conserva el mapa aéreo aprobado y abre una tarjeta compacta junto al sector elegido, por clic dentro del área dibujada o desde la lista. Gana actuar sin salir del mapa; la tarjeta cubre parte del terreno mientras está abierta y en móvil reemplaza el panel inferior. Crear y asignar son de maqueta y no guardan nada.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}
