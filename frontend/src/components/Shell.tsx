@@ -242,14 +242,17 @@ export function Shell({ route, children }: { route: RouteDefinition; children: R
           </div>
           <main id="content" ref={contentRef} tabIndex={-1}>
             {children}
-            <footer>
-              <span>FireWatch · La API no realiza predicciones ni recomendaciones operativas.</span>
-              <button id="reset-filters" type="button" onClick={resetHistoryFilters}>
-                <Icon name="refresh" />
-                Restablecer filtros
-              </button>
-            </footer>
           </main>
+          {/* The footer is its own landmark. Inside `main` it belonged to the main
+              region, so a reader navigating by landmark reached it as content and
+              never as the page's footer. It stays where it looks, after the view. */}
+          <footer>
+            <span>FireWatch · La API no realiza predicciones ni recomendaciones operativas.</span>
+            <button id="reset-filters" type="button" onClick={resetHistoryFilters}>
+              <Icon name="refresh" />
+              Restablecer filtros
+            </button>
+          </footer>
         </div>
       </div>
     </>
