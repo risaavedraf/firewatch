@@ -199,3 +199,25 @@ What it does not prove:
 - **Not settled asynchronous data.** A screenshot is one rendered state. History was allowed to settle on its loaded label and Overview on the published batch id, but two reads were throttled during the pass (`/v1/risk/synthetic-scenarios` at 1280, `/v1/audit` at 390) and `/v1/users` returned 503, so Actions shows its directory-unavailable state and the throttled panels show a service state rather than rows.
 - **Not a pixel diff.** No image comparison was computed. The two sets come from different commits *and* different data states — the baseline set was captured before any synthetic lot existed — so a size or colour difference cannot be attributed to one change, and visual regression is not measured.
 - **Not WCAG evidence by itself.** A PNG cannot demonstrate contrast thresholds, focus order, announcements, reflow or zoom behavior. Those claims rest on their own sections: measured contrast, axe scans, keyboard passes and the virtual screen reader.
+
+## Empty and filter states aligned with the artboards
+
+Four product-side differences recorded in *Populated and empty or error states* were corrected in the view sources, using the artboard copy as the reference. No new capture was taken: each rule rests on its public DOM test.
+
+| State | Before | After |
+| --- | --- | --- |
+| Overview, no published lot | `Factores` heading over an empty list | No heading and no list; one muted sentence, `No hay factores disponibles para este sector.` (`01-vista-aerea.html`) |
+| History, the API returned no row | One sentence | `Esta zona no tiene lotes ni evaluación al corte.` and `La ausencia de datos no es un nivel bajo. Cambia de zona o revisa el corte compartido.` (`05-historial-de-lotes.html`) |
+| History, the filters hid every returned row | Nothing offered a way back | `No hay lotes que coincidan con los filtros.` plus `Ver todo el periodo`, which clears both filters through the same reset the shell calls |
+| Actions, the filtered read returned no row | Status sentence only | `No hay acciones que coincidan con este filtro.` plus `Limpiar filtros`, which clears both inputs and the applied pair |
+| Actions, the directory read failed | Selector enabled with only `Sin asignar` | Selector disabled; creating without a responsible stays possible and the retry re-enables it |
+
+Artboard copy that only describes the prototype was not imported: the Actions body sentence `El filtro no cambió los datos: son cuatro acciones de ejemplo.` describes a mock, and `Respuesta simulada: 503 directory_unavailable.` names a simulation. The product keeps its own service-truthful copy, including the status, code and request id the server returned.
+
+The History reset is offered only when the filters are what hid rows. A zone that returned no row at all gets the explanation and no control, because there would be nothing to reveal.
+
+What this does not cover:
+
+- **No rendered evidence.** No capture was retaken, so nothing here shows geometry, wrapping or contrast at either width. Each rule rests on its public DOM test plus the focused and full suites.
+- **The shell reset still owns History only.** `#reset-filters` in the footer calls `resetHistoryFilters`, so it does not clear the Actions filters. A global reset that owns per-view state needs a product decision; the in-panel `Limpiar filtros` is the control this slice adds, and the shell control keeps its current meaning.
+- **The virtual screen reader was not re-run** over the new states. `#history-visible-count` is unchanged and remains the panel's only live region; the new History block is static text plus a native button, and it is not announced on its own.
