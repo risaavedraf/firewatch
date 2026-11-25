@@ -208,7 +208,9 @@ test('prints through the browser and the print stylesheet keeps the synthetic la
   await serve(fixture());
 
   const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
-  fireEvent.click(screen.getByRole('button', { name: /imprimir/i }));
+  const button = screen.getByRole('button', { name: /imprimir/i });
+  expect(button).toBeEnabled();
+  fireEvent.click(button);
   expect(print).toHaveBeenCalledTimes(1);
 
   const start = appCss.indexOf('@media print');
@@ -218,6 +220,26 @@ test('prints through the browser and the print stylesheet keeps the synthetic la
   expect(printBlock).toContain('.infrastructure-formula');
   expect(printBlock).toMatch(/\.infrastructure-print-action[^{]*\{[^}]*display:\s*none/);
   expect(printBlock).not.toMatch(/#infrastructure-zones[^{]*\{[^}]*display:\s*none/);
+});
+
+test('keeps printing unavailable while the catalogue is loading and after the read failed', async () => {
+  const print = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+
+  // Initial load: the read is in flight, so no runtime data exists to print.
+  await openSignedIn();
+  const button = screen.getByRole('button', { name: /imprimir/i });
+  expect(button).toBeDisabled();
+  fireEvent.click(button);
+  expect(print).not.toHaveBeenCalled();
+  expect(text('infrastructure-empty')).toMatch(/sin catálogo cargado/i);
+
+  // A failed read leaves the view without a catalogue; printing stays refused
+  // instead of producing a page that claims the demo was received.
+  await serve({ code: 'forbidden' }, 403);
+  expect(button).toBeDisabled();
+  fireEvent.click(button);
+  expect(print).not.toHaveBeenCalled();
+  expect(text('infrastructure-empty')).toMatch(/sin catálogo disponible/i);
 });
 
 test('states a denied read explicitly and renders no invented rows', async () => {

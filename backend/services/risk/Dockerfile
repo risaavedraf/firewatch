@@ -15,7 +15,15 @@ FROM build AS test
 # The production stages do not need it, which is why it is added here and not in
 # the build stage.
 COPY contracts/openapi/ /src/contracts/openapi/
-ENTRYPOINT ["go", "test", "-count=1", "./..."]
+# Packages are serialized on purpose: every package's tests share this one
+# migrated disposable database, and the repository's ordering tests assert which
+# stored batch is a zone's newest. Running package test binaries in parallel let
+# internal/service publish the same demo zone at wall-clock time while those
+# assertions ran, so the effective level was another package's batch and the
+# batch identity did not match. `-p 1` removes that cross-package interleaving
+# from the test target only; the runtime stage and the other services keep their
+# own behaviour.
+ENTRYPOINT ["go", "test", "-p", "1", "-count=1", "./..."]
 
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab AS runtime
 COPY --from=build /server /server

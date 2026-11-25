@@ -98,6 +98,10 @@ export function InfrastructureView() {
   const state: InfrastructureState = !signedIn ? { kind: 'idle' } : (read ?? { kind: 'loading' });
 
   const catalogue = state.kind === 'ready' ? state.catalogue : null;
+  // Printing prints this catalogue. While the read is in flight or after it
+  // failed there is no runtime data, so the action stays unavailable instead of
+  // producing a page that claims to be the demo the view never received.
+  const printable = state.kind === 'ready';
   const zoneCount = catalogue === null ? '—' : String(catalogue.zones.length);
   const elementCount = catalogue === null ? '—' : String(infrastructureElementCount(catalogue));
   const pointTotal = catalogue === null ? '—' : String(infrastructureScoreTotal(catalogue));
@@ -134,12 +138,17 @@ export function InfrastructureView() {
             id="infrastructure-print"
             className="secondary-button infrastructure-print-action"
             type="button"
-            onClick={() => window.print()}
+            disabled={!printable}
+            onClick={() => {
+              if (!printable) return;
+              window.print();
+            }}
           >
             Imprimir / Guardar PDF
           </button>
           <p className="panel-note infrastructure-print-note" id="infrastructure-print-note">
-            Impresión del navegador, sin generador de PDF. Conserva la etiqueta sintética, la regla y las tablas.
+            Impresión del navegador, sin generador de PDF. Conserva la etiqueta sintética, la regla y las tablas. Se
+            habilita cuando el catálogo terminó de cargarse.
           </p>
         </div>
       </div>

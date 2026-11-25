@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"firewatch.local/risk/internal/source"
+	"github.com/getkin/kin-openapi/openapi3"
 )
 
 // TestInfrastructureAuthorization pins the access contract: the demo catalogue is
@@ -222,6 +223,85 @@ func TestInfrastructureEndpointIsDocumented(t *testing.T) {
 		t.Fatalf("got %d want %d: %s", w.Code, http.StatusOK, w.Body.String())
 	}
 	assertResponseMatchesContract(t, contract, "/v1/risk/infrastructure", http.MethodGet, w)
+}
+
+// TestInfrastructureContractPinsTheProducerShape pins what the service actually
+// serves, so the published document cannot certify a body the producer never
+// emits: the provisional weight is exactly one point per element, a Point is one
+// position of exactly two numbers, a LineString is two or more positions of exactly
+// two numbers, and the element type selects the geometry type - ruta is a
+// LineString while colegio, vivienda, hospital and hidrante are Points.
+//
+// This states the producer's shape, not a restatement of the client guard: the
+// client tolerates an altitude after the two required position numbers, while the
+// producer never sends one. The cases are one-object bodies validated against the
+// component schemas the response references, and every valid alternate is checked
+// next to its counterexample so a one-sided tightening cannot pass. The real served
+// body keeps being validated end to end by TestInfrastructureEndpointIsDocumented.
+func TestInfrastructureContractPinsTheProducerShape(t *testing.T) {
+	contract := loadContract(t)
+	catalogue := contract.Components.Schemas["InfrastructureCatalogue"]
+	geometry := contract.Components.Schemas["InfrastructureGeometry"]
+	element := contract.Components.Schemas["InfrastructureElement"]
+	if catalogue == nil || catalogue.Value == nil {
+		t.Fatal("the contract documents no InfrastructureCatalogue schema")
+	}
+	if geometry == nil || geometry.Value == nil {
+		t.Fatal("the contract documents no InfrastructureGeometry schema")
+	}
+	if element == nil || element.Value == nil {
+		t.Fatal("the contract documents no InfrastructureElement schema")
+	}
+	weight := catalogue.Value.Properties["points_per_element"]
+	if weight == nil || weight.Value == nil {
+		t.Fatal("the contract documents no points_per_element schema")
+	}
+
+	// JSON numbers decode as float64, and that is what the client's parser sees, so
+	// the fixtures stay in that shape instead of a Go-specific one.
+	position := func(longitude, latitude float64) []any { return []any{longitude, latitude} }
+	geometryBody := func(geometryType string, coordinates any) map[string]any {
+		return map[string]any{"type": geometryType, "coordinates": coordinates}
+	}
+	elementBody := func(elementType, geometryType string, coordinates any) map[string]any {
+		return map[string]any{
+			"id":       "fixture-" + elementType + "-1",
+			"type":     elementType,
+			"geometry": geometryBody(geometryType, coordinates),
+		}
+	}
+
+	for _, tc := range []struct {
+		name     string
+		schema   *openapi3.Schema
+		body     any
+		rejected bool
+	}{
+		{name: "the provisional weight of one point", schema: weight.Value, body: float64(1)},
+		{name: "a weight other than the provisional one", schema: weight.Value, body: float64(2), rejected: true},
+		{name: "a Point position of two numbers", schema: geometry.Value, body: geometryBody("Point", position(-71.5, -33.1))},
+		{name: "a Point position of three numbers", schema: geometry.Value, body: geometryBody("Point", []any{-71.5, -33.1, 12.5}), rejected: true},
+		{name: "a Point position of one number", schema: geometry.Value, body: geometryBody("Point", []any{-71.5}), rejected: true},
+		{name: "a Point whose coordinates are positions", schema: geometry.Value, body: geometryBody("Point", []any{position(-71.5, -33.1)}), rejected: true},
+		{name: "a LineString of two positions", schema: geometry.Value, body: geometryBody("LineString", []any{position(-71.5, -33.1), position(-71.4, -33)})},
+		{name: "a LineString of three positions", schema: geometry.Value, body: geometryBody("LineString", []any{position(-71.5, -33.1), position(-71.4, -33), position(-71.3, -33.2)})},
+		{name: "a LineString of one position", schema: geometry.Value, body: geometryBody("LineString", []any{position(-71.5, -33.1)}), rejected: true},
+		{name: "a LineString position of three numbers", schema: geometry.Value, body: geometryBody("LineString", []any{[]any{-71.5, -33.1, 9.0}, position(-71.4, -33)}), rejected: true},
+		{name: "a LineString carrying one flat position", schema: geometry.Value, body: geometryBody("LineString", position(-71.5, -33.1)), rejected: true},
+		{name: "a colegio carrying a Point", schema: element.Value, body: elementBody("colegio", "Point", position(-71.5, -33.1))},
+		{name: "a vivienda carrying a Point", schema: element.Value, body: elementBody("vivienda", "Point", position(-71.5, -33.1))},
+		{name: "a hospital carrying a Point", schema: element.Value, body: elementBody("hospital", "Point", position(-71.5, -33.1))},
+		{name: "a hidrante carrying a Point", schema: element.Value, body: elementBody("hidrante", "Point", position(-71.5, -33.1))},
+		{name: "a ruta carrying a LineString", schema: element.Value, body: elementBody("ruta", "LineString", []any{position(-71.5, -33.1), position(-71.4, -33)})},
+		{name: "a ruta carrying a Point", schema: element.Value, body: elementBody("ruta", "Point", position(-71.5, -33.1)), rejected: true},
+		{name: "a colegio carrying a LineString", schema: element.Value, body: elementBody("colegio", "LineString", []any{position(-71.5, -33.1), position(-71.4, -33)}), rejected: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.schema.VisitJSON(tc.body); (err != nil) != tc.rejected {
+				t.Errorf("rejected=%t, want rejected=%t (validation error: %v)", err != nil, tc.rejected, err)
+			}
+		})
+	}
 }
 
 func decodeJSONObject(t *testing.T, label string, raw []byte) map[string]json.RawMessage {
