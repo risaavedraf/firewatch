@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="es" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FireWatch · Lecturas por sector (maqueta)</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #152934; --surface: #17222b; --raised: #243341; --ink: #f4f1eb; --muted: #b8c8d2;
+  --edge: #647b8a; --accent: #94dfda; --accent-label: #121c22; --radius: 14px; --control: 8px;
+  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+[data-theme="day"] {
+  color-scheme: light;
+  --bg: #b9d2d9; --surface: #f5f3ee; --raised: #e5e9e8; --ink: #1d2c35; --muted: #475b65;
+  --edge: #637985; --accent: #125650; --accent-label: #ffffff;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+h1, h2, h3, p, dl, dd, ul, li { margin: 0; }
+h1, h2, h3 { line-height: 1.2; }
+button, input { font: inherit; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.skip-link { position: fixed; top: -90px; left: 16px; z-index: 20; padding: 10px 14px; border-radius: 8px; background: var(--surface); font-weight: 700; }
+.skip-link:focus { top: 12px; }
+.topbar { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding: 12px 32px; border-bottom: 1px solid var(--edge); background: var(--surface); }
+.brand { display: flex; align-items: center; gap: 10px; }
+.mark { width: 34px; height: 34px; flex: none; color: var(--accent); }
+.brand strong { display: block; font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
+.brand small { display: block; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.title-block { flex: 1 1 320px; min-width: 0; }
+.eyebrow { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+h1 { margin-top: 3px; font-size: clamp(24px, 3vw, 34px); font-weight: 650; letter-spacing: -.8px; }
+.lead { margin-top: 6px; max-width: 88ch; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.top-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.btn { min-height: 44px; padding: 8px 14px; border: 1px solid var(--edge); border-radius: var(--control); background: transparent; color: var(--ink); font-weight: 650; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.chip { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 10px; border: 1px solid var(--edge); border-radius: 999px; font-size: 11px; font-weight: 650; }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip-dashed { border-style: dashed; color: var(--muted); }
+.strip { padding: 8px 32px; border-bottom: 1px solid var(--edge); background: var(--raised); color: var(--muted); font-size: 12px; }
+.strip strong { color: var(--accent); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+main { max-width: 1180px; margin: 0 auto; padding: 22px 32px 30px; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 344px; gap: 16px; align-items: start; }
+.stack { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--edge); border-radius: var(--radius); overflow: hidden; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 14px; padding: 14px 18px 10px; }
+.panel-head h2 { margin-top: 3px; font-size: 17px; font-weight: 650; letter-spacing: -.3px; }
+.panel-body { padding: 0 18px 16px; }
+.copy { max-width: 78ch; font-size: 12.5px; line-height: 1.65; }
+.note { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); color: var(--muted); font-size: 10.5px; line-height: 1.55; }
+code { padding: 1px 4px; border-radius: 4px; background: var(--raised); font: 600 10.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+.sectors { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 0; border: 0; min-width: 0; }
+.sectors legend { padding: 0 0 6px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.sector { display: flex; gap: 9px; min-height: 60px; padding: 10px 11px; border: 1px solid var(--edge); border-radius: 10px; cursor: pointer; }
+.sector:hover { background: var(--raised); }
+.sector input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--accent); }
+.sector:has(input:checked) { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.sector:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sector strong { display: block; font-size: 12px; font-weight: 700; line-height: 1.35; }
+.sector small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.facts { display: grid; }
+.facts > div { display: grid; grid-template-columns: 34% minmax(0, 1fr); gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--edge); }
+.facts > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.facts dt { color: var(--muted); font-size: 10px; font-weight: 650; }
+.facts dd { font-size: 11.5px; font-weight: 600; overflow-wrap: anywhere; }
+.state-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.state-line strong { font-size: 12px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 9px 10px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
+thead th { color: var(--muted); font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+tbody th { font-size: 11px; font-weight: 650; }
+tbody th small { display: block; margin-top: 1px; color: var(--muted); font-size: 9.5px; font-weight: 500; }
+tbody td { font-size: 11.5px; }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+.num { font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
+.unit { color: var(--muted); font-size: 10.5px; }
+.missing { color: var(--muted); font-size: 10.5px; font-weight: 650; }
+.missing::before { content: "— "; }
+.aside-panel { display: grid; gap: 10px; }
+.aside-panel h3 { margin-bottom: 3px; font-size: 13px; font-weight: 700; }
+.aside-panel p, .aside-panel li { color: var(--muted); font-size: 11px; line-height: 1.6; }
+.aside-panel ul { margin: 0; padding-left: 16px; }
+.empty { border-style: dashed; }
+.empty .panel-body { display: grid; gap: 8px; }
+.empty strong { font-size: 13px; }
+footer { padding: 12px 32px 18px; color: var(--muted); font-size: 10px; text-align: center; }
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .sectors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .topbar, .strip, footer { padding-inline: 16px; }
+  main { padding: 16px 16px 24px; }
+  .panel-body { padding-inline: 14px; }
+  .sectors { grid-template-columns: minmax(0, 1fr); }
+  .facts > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  th, td { padding: 8px 6px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; } }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+<header class="topbar">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="currentColor"/><path d="M6 23l7-12 4 5 4-9 5 16z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>
+    <span><strong>FireWatch</strong><small>Prevención municipal</small></span>
+  </div>
+  <div class="title-block">
+    <p class="eyebrow">Prevención · Territorio · lectura de ejemplo</p>
+    <h1>Lecturas por sector</h1>
+    <p class="lead">Complemento de Territorio: un sector del handoff sintético con su fecha, sus comunas y su cobertura. Responde qué lectura hay y qué falta; no calcula riesgo ni altera el mapa.</p>
+  </div>
+  <div class="top-actions">
+    <span class="chip chip-dashed">Sintético</span>
+    <span class="chip chip-dashed">Sin nivel de riesgo</span>
+    <button class="btn" type="button" id="theme" aria-label="Cambiar a tema claro">Claro</button>
+  </div>
+</header>
+<div class="strip" role="note"><strong>Datos sintéticos ilustrativos</strong> · No son la fuente real, no certifican calidad técnica, no son probabilidad de riesgo y no son una conversión espacial del panel comuna-día.</div>
+<noscript><p class="strip" role="status">Esta lectura de ejemplo necesita JavaScript para elegir un sector. Sin él no se muestra ningún dato, y no se inventan lecturas.</p></noscript>
+<main id="contenido" tabindex="-1">
+  <div class="layout">
+    <div class="stack">
+      <section class="panel" data-when="data" hidden aria-labelledby="selector-title">
+        <div class="panel-head"><div><p class="eyebrow">Selector</p><h2 id="selector-title" tabindex="-1">Elige un sector</h2></div><span class="chip chip-dashed">3 sectores de ejemplo</span></div>
+        <div class="panel-body">
+          <fieldset class="sectors" id="sectores" aria-describedby="sector-hint"><legend>Sectores del handoff sintético</legend></fieldset>
+          <p class="note" id="sector-hint">Se elige con el teclado (flechas dentro del grupo) o tocando una tarjeta. Cambiar de sector actualiza la fecha, las comunas, la cobertura y las lecturas.</p>
+        </div>
+      </section>
+
+      <section class="panel" data-when="data" hidden aria-labelledby="contexto-title">
+        <div class="panel-head"><div><p class="eyebrow">Contexto</p><h2 id="contexto-title">Sector, fecha y comunas</h2></div></div>
+        <div class="panel-body">
+          <dl class="facts" id="contexto"></dl>
+        </div>
+      </section>
+
+      <section class="panel" data-when="data" hidden aria-labelledby="clima-title">
+        <div class="panel-head"><div><p class="eyebrow">Lectura meteorológica</p><h2 id="clima-title">Cobertura del sector</h2></div><span class="chip" id="coverage-badge">Sin handoff</span></div>
+        <div class="panel-body">
+          <p class="copy" id="coverage-text">Elige un sector para ver cuántas de las siete variables tienen lectura.</p>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Variables meteorológicas del sector elegido, con su valor o su falta declarada</caption>
+              <thead><tr><th scope="col">Variable y estimador</th><th scope="col">Valor</th></tr></thead>
+              <tbody id="weather-body"></tbody>
+            </table>
+          </div>
+          <p class="note">Un <strong>0 cuenta como lectura</strong>; un campo nulo se muestra como Sin dato. Los valores son ejemplos diarios sintéticos, no lecturas de un lote publicado.</p>
+        </div>
+      </section>
+
+      <section class="panel" data-when="data" hidden aria-labelledby="terreno-title">
+        <div class="panel-head"><div><p class="eyebrow">Fuera del contrato activo</p><h2 id="terreno-title">Terreno candidato</h2></div><span class="chip chip-dashed">No es feature</span></div>
+        <div class="panel-body">
+          <dl class="facts" id="terrain-body"></dl>
+          <p class="note">Elevación, pendiente y cobertura del suelo son candidatos académicos: no forman parte de las siete variables del contrato ni calculan una contribución. Si falta un valor, se muestra Sin dato.</p>
+        </div>
+      </section>
+
+      <section class="panel empty" data-when="empty" role="status" aria-labelledby="empty-title" hidden>
+        <div class="panel-head"><div><p class="eyebrow">Handoff no cargado</p><h2 id="empty-title">Demostración no disponible</h2></div><span class="chip chip-dashed">Sin handoff</span></div>
+        <div class="panel-body">
+          <p class="copy"><strong>No hay lecturas que mostrar.</strong> Este tablero espera el conjunto de datos sintético del handoff en su ranura de datos. Sin sectores declarados no se dibuja un sector vacío ni se inventan valores.</p>
+          <p class="copy">La pantalla queda en este estado hasta que se incorpore el conjunto de ejemplo. No es un error de la aplicación y no requiere reintentar.</p>
+        </div>
+      </section>
+    </div>
+
+    <aside class="stack" aria-label="Cómo leer la lectura y procedencia">
+      <section class="panel" aria-labelledby="leer-title">
+        <div class="panel-head"><div><p class="eyebrow">Lectura crítica</p><h3 id="leer-title">Cómo leer esta pantalla</h3></div></div>
+        <div class="panel-body aside-panel">
+          <div><h3>Día completo contra instante</h3><p>Estos ejemplos usan valores del día completo. El backend usa el día en curso para las temperaturas extremas e instantáneas para humedad, viento y radiación. No son estimadores equivalentes.</p></div>
+          <div><h3>Lluvia de siete días</h3><p><code>precip_sum</code> suma siete días locales, incluida la fecha de referencia. Un 0 mm es una medición; Sin dato significa una ventana incompleta.</p></div>
+          <div><h3>Sin riesgo calculado</h3><p>Este handoff no trae puntaje, alerta ni contribución por variable. No es una probabilidad de riesgo ni una lectura operativa.</p></div>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="procedencia-title">
+        <div class="panel-head"><div><p class="eyebrow">Procedencia</p><h3 id="procedencia-title">Conjunto de ejemplo</h3></div></div>
+        <div class="panel-body">
+          <dl class="facts" id="procedencia">
+            <div><dt>Conjunto</dt><dd>Sin handoff</dd></div>
+            <div><dt>Procedencia</dt><dd>Sin handoff declarado</dd></div>
+            <div><dt>Zona horaria</dt><dd><code>America/Santiago</code></dd></div>
+            <div><dt>Sectores</dt><dd>0</dd></div>
+          </dl>
+          <p class="note">Un sector no es una comuna ni un punto de estación: es una unidad ilustrativa del handoff. No se convierte en geometría ni en riesgo.</p>
+        </div>
+      </section>
+    </aside>
+  </div>
+  <p class="sr-only" id="live" role="status" aria-live="polite" aria-atomic="true"></p>
+</main>
+<footer>Maqueta · handoff sintético experimental · sin modelo aprobado, sin ingestión y sin lectura operativa. Datos ilustrativos.</footer>
+<script type="application/json" id="sector-fixture">
+{
+  "dataset_id": "firewatch-synthetic-handoff-v1",
+  "provenance": "synthetic",
+  "time_zone": "America/Santiago",
+  "sectors": [
+    {
+      "sector_id": "quebrada-este",
+      "name": "Quebrada del Este",
+      "communes": [
+        "Valparaíso",
+        "Viña del Mar",
+        "Quilpué"
+      ],
+      "local_date": "2026-11-20",
+      "weather": {
+        "temp_max": 35,
+        "temp_min": 15,
+        "humidity_rel": 31,
+        "wind_speed": 5.56,
+        "wind_dir": 90,
+        "precip_sum": 11.8,
+        "radiation_sol": 405
+      },
+      "terrain": {
+        "elevation_m": 340,
+        "slope_deg": 21.5,
+        "land_cover": "Matorral esclerófilo"
+      }
+    },
+    {
+      "sector_id": "borde-costero",
+      "name": "Borde costero",
+      "communes": [
+        "Viña del Mar"
+      ],
+      "local_date": "2026-11-20",
+      "weather": {
+        "temp_max": 32,
+        "temp_min": 17,
+        "humidity_rel": null,
+        "wind_speed": 6.94,
+        "wind_dir": 100,
+        "precip_sum": 0,
+        "radiation_sol": null
+      },
+      "terrain": {
+        "elevation_m": 45,
+        "slope_deg": 6,
+        "land_cover": "Urbano y borde costero"
+      }
+    },
+    {
+      "sector_id": "interior-sin-lectura",
+      "name": "Interior sin lectura",
+      "communes": [
+        "Quilpué"
+      ],
+      "local_date": "2026-11-20",
+      "weather": {
+        "temp_max": null,
+        "temp_min": null,
+        "humidity_rel": null,
+        "wind_speed": null,
+        "wind_dir": null,
+        "precip_sum": null,
+        "radiation_sol": null
+      },
+      "terrain": {
+        "elevation_m": null,
+        "slope_deg": null,
+        "land_cover": null
+      }
+    }
+  ]
+}
+</script>
+<script>
+'use strict';
+const FIELDS = [
+  { id: 'temp_max', label: 'Temperatura máxima', unit: '°C', kind: 'extremo del día civil' },
+  { id: 'temp_min', label: 'Temperatura mínima', unit: '°C', kind: 'extremo del día civil' },
+  { id: 'humidity_rel', label: 'Humedad relativa', unit: '%', kind: 'media del día' },
+  { id: 'wind_speed', label: 'Velocidad del viento', unit: 'm/s', kind: 'media del día' },
+  { id: 'wind_dir', label: 'Dirección del viento', unit: '°', kind: 'dirección dominante del día' },
+  { id: 'precip_sum', label: 'Lluvia acumulada 7 días', unit: 'mm', kind: 'suma de la ventana' },
+  { id: 'radiation_sol', label: 'Radiación solar', unit: 'W/m²', kind: 'irradiancia media del día' }
+];
+const TERRAIN = [
+  { id: 'elevation_m', label: 'Elevación', unit: 'm' },
+  { id: 'slope_deg', label: 'Pendiente', unit: '°' },
+  { id: 'land_cover', label: 'Cobertura del suelo', unit: '' }
+];
+const $ = (id) => document.getElementById(id);
+const number = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 });
+const present = (v) => typeof v === 'number' && Number.isFinite(v);
+const isMissing = (v) => v === null || v === undefined || v === '';
+const value = (v) => present(v) ? number.format(v) : (typeof v === 'string' ? v : null);
+function dateLabel(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return 'Sin fecha';
+  return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))));
+}
+const el = (tag, className, text) => {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+};
+const clear = (node) => { while (node.firstChild) node.removeChild(node.firstChild); };
+function fact(label, content) {
+  const wrap = el('div');
+  wrap.append(el('dt', null, label));
+  const dd = el('dd');
+  dd.append(content);
+  wrap.append(dd);
+  return wrap;
+}
+function weatherValue(field, raw) {
+  const shown = value(raw);
+  if (shown === null) return el('span', 'missing', 'Sin dato');
+  const wrap = document.createDocumentFragment();
+  wrap.append(el('span', 'num', shown), document.createTextNode(' '), el('span', 'unit', field.unit));
+  return wrap;
+}
+function render(sector) {
+  const weather = sector.weather && typeof sector.weather === 'object' ? sector.weather : {};
+  const terrain = sector.terrain && typeof sector.terrain === 'object' ? sector.terrain : {};
+  const known = FIELDS.filter((f) => present(weather[f.id])).length;
+  const level = known === FIELDS.length ? 'Completa' : known === 0 ? 'Sin lectura' : 'Parcial';
+  const communes = Array.isArray(sector.communes) ? sector.communes.filter(Boolean) : [];
+  $('coverage-badge').textContent = level + ' · ' + known + '/7';
+  const coverage = $('coverage-text');
+  clear(coverage);
+  coverage.append(el('strong', null, level + ':'), document.createTextNode(' ' + known + ' de 7 variables con lectura para ' + dateLabel(sector.local_date) + '.'));
+  const context = $('contexto');
+  clear(context);
+  context.append(
+    fact('Sector', document.createTextNode(sector.name || sector.sector_id)),
+    fact('Identificador', el('code', null, sector.sector_id)),
+    fact('Fecha local', document.createTextNode(dateLabel(sector.local_date))),
+    fact('Comunas', document.createTextNode(communes.length ? communes.join(' · ') : 'Sin comunas declaradas'))
+  );
+  const body = $('weather-body');
+  clear(body);
+  FIELDS.forEach((f) => {
+    const tr = el('tr');
+    const th = el('th');
+    th.scope = 'row';
+    th.append(el('span', null, f.label), el('code', null, f.id), el('small', null, f.kind));
+    const td = el('td');
+    td.append(weatherValue(f, weather[f.id]));
+    tr.append(th, td);
+    body.append(tr);
+  });
+  const terrainList = $('terrain-body');
+  clear(terrainList);
+  TERRAIN.forEach((t) => {
+    const raw = terrain[t.id];
+    let content;
+    if (t.id === 'land_cover') content = isMissing(raw) ? el('span', 'missing', 'Sin dato') : document.createTextNode(String(raw));
+    else content = present(raw) ? document.createTextNode(number.format(raw) + ' ' + t.unit) : el('span', 'missing', 'Sin dato');
+    terrainList.append(fact(t.label, content));
+  });
+  $('live').textContent = 'Sector ' + (sector.name || sector.sector_id) + ' seleccionado. Cobertura ' + level + ', ' + known + ' de 7 variables. Fecha ' + dateLabel(sector.local_date) + '.';
+}
+function showEmpty() {
+  document.querySelectorAll('[data-when="data"]').forEach((el) => { el.hidden = true; });
+  document.querySelector('[data-when="empty"]').hidden = false;
+  $('live').textContent = 'Demostración no disponible: el handoff sintético no está cargado.';
+}
+function start() {
+  let data = null;
+  try { data = JSON.parse($('sector-fixture').textContent.trim() || '{}'); } catch (error) { data = null; }
+  const sectors = data && Array.isArray(data.sectors) ? data.sectors.filter((s) => s && typeof s.sector_id === 'string' && typeof s.name === 'string') : [];
+  if (!sectors.length) { showEmpty(); return; }
+  document.querySelectorAll('[data-when="data"]').forEach((el) => { el.hidden = false; });
+  const source = $('procedencia');
+  clear(source);
+  source.append(
+    fact('Conjunto', el('code', null, data.dataset_id || 'Sin identificador')),
+    fact('Procedencia', document.createTextNode(data.provenance || 'Sintética e ilustrativa')),
+    fact('Zona horaria', el('code', null, data.time_zone || 'America/Santiago')),
+    fact('Sectores', document.createTextNode(String(sectors.length)))
+  );
+  const group = $('sectores');
+  sectors.forEach((s, i) => {
+    const label = el('label', 'sector');
+    const input = el('input');
+    input.type = 'radio';
+    input.name = 'sector';
+    input.value = s.sector_id;
+    input.checked = i === 0;
+    const box = el('span');
+    box.append(el('strong', null, s.name), el('small', null, (s.communes || []).join(' · ') || 'Sin comunas declaradas'));
+    label.append(input, box);
+    group.append(label);
+  });
+  group.addEventListener('change', (event) => {
+    const chosen = sectors.find((s) => s.sector_id === event.target.value);
+    if (chosen) render(chosen);
+  });
+  render(sectors[0]);
+  if (location.hash) {
+    const target = document.getElementById(location.hash.slice(1));
+    if (target) target.focus();
+  }
+}
+start();
+$('theme').addEventListener('click', () => {
+  const root = document.documentElement, day = root.dataset.theme !== 'day';
+  root.dataset.theme = day ? 'day' : 'night';
+  $('theme').textContent = day ? 'Oscuro' : 'Claro';
+  $('theme').setAttribute('aria-label', day ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro');
+});
+</script>
+</body>
+</html>

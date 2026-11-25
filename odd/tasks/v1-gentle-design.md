@@ -1,7 +1,7 @@
 # gentle-design v1 — rediseño del front end de FireWatch (prototipos)
 
 **What this is:** the ODD tracker for the front-end redesign the responsible ordered in L1 and narrowed to G1 and G6 in L3 — `V1-U-04` stays the assignment flow G2 had already deferred to G1, not a wider G2 redesign. The scope is established elsewhere and is not re-decided here: [`odd/tasks/v1-produccion.md`](v1-produccion.md) G1 (`V1-D-01`…`V1-D-05`, with `V1-U-04`), G6 (`V1-P-01`…`V1-P-07`) and `V1-F-09`, plus [`odd/plan-produccion/16-producto-mandante.md`](../plan-produccion/16-producto-mandante.md) for the destinations those rows do not carry. Every task below produces **prototypes only** — no production rewrite, no behavior change, no new endpoint, no contract change, no role policy and no sign-in or authorization change.
-**State:** T1–T7 are verified and recorded locally. The [unified collection](../../design/firewatch-v1-vuelo/design.json) exposes 19 artboards: the [approved aerial map](../../design/firewatch-v1-vuelo/01-vista-aerea.html) as Territory, 16 direct views and two map companions. The [G6 screens](../../design/firewatch-v1-recorrido/design.json) and [v1 destinations](../../design/firewatch-v1-casos/design.json) remain standalone source prototypes. Nothing here closes production tasks or authorizes deployment.
+**State:** T1–T9 are verified and recorded locally. The [unified collection](../../design/firewatch-v1-vuelo/design.json) has 21 artboards, including [model data](../../design/firewatch-v1-vuelo/20-datos-del-modelo.html) and [sector readings](../../design/firewatch-v1-vuelo/21-lecturas-por-sector.html); the approved aerial map and the other original artboards are unchanged. The [synthetic model-data handoff](../../design/firewatch-v1-vuelo/model-data/README.md) keeps the comuna-day panel separate from the sector examples. Nothing here closes production tasks or authorizes deployment.
 **Delivery:** T1 is the `37e7a73` boundary (1,810 authored changed lines). T2 is the `49253f8` boundary (4,185 authored changed lines); the three alternatives and their manifest are one locally reviewable comparison. Both exceed the advisory ~400-line review budget. T7 is the `26a7b54` boundary: 458 authored changed lines plus 16 generated snapshots (29,556 lines). Review the generator, manifest and maintenance note, then verify snapshot drift with `--check`. Publication strategy remains **ask-on-risk**; no publication, tag or merge is authorized by this document.
 
 ## Specs
@@ -50,6 +50,14 @@ Consecuencia, y solo esta: **S4 se aplica a T2 y a ninguna otra fila**. La lectu
 
 > que onda bro, podemos terminar el diseño con gentle-design porfa, ayer no veía todas las pantallas con el ultimo diseño la idea es tener todas las pantallas que necesitamos
 
+**S9 — Investigación, exposición y datos de traspaso, textual.**
+
+> excelente ahora quiero que busques la investigación que hicimos de los datos que necesitamos para hacer el modelo, recuerdo que teniamos que acceder con cuenta y mandar un correo, pero ahora como tenemos permiso para hacer la data sintetica tenemos que poner toda esa información en el front para mostrarla y tener listo la data que necesitamos para cambiarla en el backend
+
+**S10 — Superficie elegida, textual.**
+
+> Gentle Design y paquete de datos (recomendado)
+
 ## Tasks
 
 | ID | Task | S# | Route | Commit |
@@ -61,6 +69,8 @@ Consecuencia, y solo esta: **S4 se aplica a T2 y a ninguna otra fila**. La lectu
 | T5 | Add a regional variant to the aerial exploration, retaining the approved first artboard. Use the regional geometry with provenance shown, group the schematic urban asset, and compare representations of synthetic sector risk. | S6 | inline | 4527608 |
 | T6 | Prototype the in-map quick action card from the [design brief](../../design/firewatch-v1-vuelo/acciones-rapidas.md), preserving the approved artboards and using demo-only create and assign interactions. | S7 | worker | f6676d8 |
 | T7 | Expose every required v1 view as a direct artboard in the current aerial-map collection; retain the approved map as Territory, preserve the two map companions and the source prototypes, and verify the gallery and the initial view of every board. | S8 | worker + inline + verifier | 26a7b54 |
+| T8 | Recover the model-data research; produce two standalone artboards (model inputs and sector readings) and a separate, offline reproducible synthetic data handoff (comuna-day panel and sector preview) with source, units, time-window, missing-data and usage documentation. | S9, S10 | two disjoint workers + verifier | 704c511, 61b858c |
+| T9 | Embed the sector example in its artboard, register both new artboards in the latest collection, and verify the design/data match, catalog and unchanged originals. No application, backend, provider access or model activation. | S9, S10 | inline + verifier | 61b858c |
 
 ## Log
 
@@ -186,3 +196,17 @@ Consecuencia, y solo esta: **S4 se aplica a T2 y a ninguna otra fila**. La lectu
 
 - **L23 — T7 verified (S8).** RED: the live manifest and Chrome showed only three cards. GREEN: the same collection returned 19 ordered cards with no manifest warnings. Chrome at 1440×900 and 390×844 confirmed all 19 opened, all 16 generated previews immediately selected the correct view, and four keyboard navigation flows passed at each size. No horizontal overflow, external requests or script errors were observed. The original maps, source prototypes, layout files, and production paths did not change. The [collection notes](../../design/firewatch-v1-vuelo/README.md) link the inventory and regeneration commands.
   - **Risk: item 2 (local snapshot overwrite guard).** In an isolated copy, RED reproduced false drift with mixed line endings and writes to aliased outputs; GREEN confirmed portable `--check` and refusal of unknown or hard-linked outputs with their bytes unchanged. Independent verification passed, including inspection of the preflight refusal for symlinks (not exercised dynamically). The generator, Markdown link and staged whitespace checks passed. No production tests or full accessibility audit; no push, PR or deployment.
+
+- **L24 — Model-data research and synthetic handoff (T8–T9, S9–S10).**
+
+  > excelente ahora quiero que busques la investigación que hicimos de los datos que necesitamos para hacer el modelo, recuerdo que teniamos que acceder con cuenta y mandar un correo, pero ahora como tenemos permiso para hacer la data sintetica tenemos que poner toda esa información en el front para mostrarla y tener listo la data que necesitamos para cambiarla en el backend
+
+  Selection:
+
+  > Gentle Design y paquete de datos (recomendado)
+
+  Recovered the [research](../entrega/informe-datos-y-modelo.md) and the [access evidence](plan-produccion/aws-ml-delivery.md): historical event labels and continuous, independently sourced weather are distinct. The owner chose a design extension and data package, not a React integration. The data package is an experimental fixture and never activates a model or replaces a real label. The training panel shape remains comuna–day; the sector example is a separate design artifact, not a change to published spatial granularity.
+
+- **L25 — T8/T9 verified (S9/S10).** The live catalog went from 19 to 21 cards. In Chrome at 1440×900 and 390×844 all 21 opened, the 16 existing direct views still opened correctly, keyboard selection reached the sample sectors, and the data displayed 7/7, 5/7 with legitimate 0 mm, and 0/7. No horizontal overflow, external request, or JavaScript error was observed. The original 19 artboards, React, Go services, model contracts and deployment files are unchanged. The offline checks verified the three exact fixture files and passed 35 tests for a 36-row, 17-column comuna-day CSV and the separate three-sector JSON. Access to CONAF was not requested or rechecked; the synthetic examples do not validate an experimental or deployed model.
+  - **Risk: item 3 (shared gallery checker).** A differential run against `d94beae` in isolated copies verified identical original default regeneration output, exit status and all 16 snapshot bytes. The updated read-only check detects drift between the inline sector JSON and its file. Independent review rechecked and passed after three documentation corrections: exact `meteorology_readings` event count definition, daily sector estimators, and the primary Geoportal record UUID. Markdown link and staged whitespace checks passed. No screen-reader audit, training, production tests, or deployment.
+  - **Local boundaries:** `704c511` (1,590 authored lines for the generator, tests, guide and LF rule; 496 generated lines) and `61b858c` (682 authored changed lines and 76 embedded fixture lines). Both exceed the advisory review budget; start with the data guide, sample and the two views, then review generation and verification. No push, PR or publication.

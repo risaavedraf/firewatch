@@ -1,0 +1,75 @@
+{
+  "dataset_id": "firewatch-synthetic-handoff-v1",
+  "provenance": "synthetic",
+  "time_zone": "America/Santiago",
+  "sectors": [
+    {
+      "sector_id": "quebrada-este",
+      "name": "Quebrada del Este",
+      "communes": [
+        "Valparaíso",
+        "Viña del Mar",
+        "Quilpué"
+      ],
+      "local_date": "2026-11-20",
+      "weather": {
+        "temp_max": 35.0,
+        "temp_min": 15.0,
+        "humidity_rel": 31.0,
+        "wind_speed": 5.56,
+        "wind_dir": 90.0,
+        "precip_sum": 11.8,
+        "radiation_sol": 405.0
+      },
+      "terrain": {
+        "elevation_m": 340.0,
+        "slope_deg": 21.5,
+        "land_cover": "Matorral esclerófilo"
+      }
+    },
+    {
+      "sector_id": "borde-costero",
+      "name": "Borde costero",
+      "communes": [
+        "Viña del Mar"
+      ],
+      "local_date": "2026-11-20",
+      "weather": {
+        "temp_max": 32.0,
+        "temp_min": 17.0,
+        "humidity_rel": null,
+        "wind_speed": 6.94,
+        "wind_dir": 100.0,
+        "precip_sum": 0.0,
+        "radiation_sol": null
+      },
+      "terrain": {
+        "elevation_m": 45.0,
+        "slope_deg": 6.0,
+        "land_cover": "Urbano y borde costero"
+      }
+    },
+    {
+      "sector_id": "interior-sin-lectura",
+      "name": "Interior sin lectura",
+      "communes": [
+        "Quilpué"
+      ],
+      "local_date": "2026-11-20",
+      "weather": {
+        "temp_max": null,
+        "temp_min": null,
+        "humidity_rel": null,
+        "wind_speed": null,
+        "wind_dir": null,
+        "precip_sum": null,
+        "radiation_sol": null
+      },
+      "terrain": {
+        "elevation_m": null,
+        "slope_deg": null,
+        "land_cover": null
+      }
+    }
+  ]
+}

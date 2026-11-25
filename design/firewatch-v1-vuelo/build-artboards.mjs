@@ -15,6 +15,7 @@
 import { existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DESIGN = resolve(HERE, '..');
@@ -53,10 +54,11 @@ const SOURCES = {
   }
 };
 
-/** Catalog order, titles and generated file names. All 19 are 1440×900. */
+/** Catalog order, titles and generated file names. All boards are 1440×900. */
 const ARTBOARDS = [
   { file: '01-vista-aerea.html', title: 'Territorio · Vista aérea', map: true },
   { file: '04-cobertura-territorial.html', title: 'Cobertura y contexto territorial', source: 'prevencion', view: 'territorio' },
+  { file: '21-lecturas-por-sector.html', title: 'Lecturas por sector' },
   { file: '05-historial-de-lotes.html', title: 'Historial de lotes', source: 'prevencion', view: 'historial' },
   { file: '06-acciones-preventivas.html', title: 'Acciones preventivas', source: 'prevencion', view: 'acciones' },
   { file: '07-panel-ejecutivo.html', title: 'Panel ejecutivo', source: 'decisiones', view: 'panel' },
@@ -68,6 +70,7 @@ const ARTBOARDS = [
   { file: '13-ficha-de-zona.html', title: 'Ficha de zona · Vista previa PDF', source: 'campo', view: 'ficha' },
   { file: '14-acceso.html', title: 'Acceso · Iniciar sesión y crear cuenta', source: 'control', view: 'acceso' },
   { file: '15-fuentes-y-servicios.html', title: 'Fuentes y servicios', source: 'control', view: 'fuentes' },
+  { file: '20-datos-del-modelo.html', title: 'Datos del modelo' },
   { file: '16-procesamiento.html', title: 'Procesamiento', source: 'control', view: 'procesamiento' },
   { file: '17-sesion-y-permisos.html', title: 'Sesión y permisos', source: 'control', view: 'sesion' },
   { file: '18-registro-de-actividad.html', title: 'Registro de actividad', source: 'control', view: 'auditoria' },
@@ -220,6 +223,21 @@ function checkManifest() {
   return problems;
 }
 
+function checkSectorFixture() {
+  try {
+    const html = readHtml(join(HERE, '21-lecturas-por-sector.html'));
+    const blocks = [...html.matchAll(/<script type="application\/json" id="sector-fixture">([\s\S]*?)<\/script>/g)];
+    if (blocks.length !== 1) return ['21-lecturas-por-sector.html: expected one sector-fixture script'];
+    const fixture = JSON.parse(readHtml(join(HERE, 'model-data', 'sector-fixture.json')));
+    if (!isDeepStrictEqual(JSON.parse(blocks[0][1]), fixture)) {
+      return ['21-lecturas-por-sector.html: sector-fixture differs from model-data/sector-fixture.json'];
+    }
+    return [];
+  } catch (error) {
+    return [`sector fixture: ${error.message}`];
+  }
+}
+
 function readHtml(path) {
   return readFileSync(path, 'utf8').replaceAll('\r\n', '\n');
 }
@@ -275,7 +293,7 @@ function main(argv) {
         console.log(`ok ${entry.file}`);
       }
     }
-    problems.push(...checkManifest());
+    problems.push(...checkManifest(), ...checkSectorFixture());
     if (problems.length) {
       console.error(`\n${problems.length} drift problem(s):`);
       problems.forEach((problem) => console.error(`- ${problem}`));
