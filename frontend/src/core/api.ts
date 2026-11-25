@@ -30,14 +30,15 @@ import type {
   PreventiveEvidenceReview,
   PreventiveReassessment,
   RiskBatch,
+  RiskLevel,
   Scenario,
   ServiceSnapshot,
   SourceProvenance,
   ZoneCollection,
 } from '../types/api';
-// The closed type catalogue is a runtime value: the guards compare the served
-// wire spelling against it, so it cannot travel through `import type`.
-import { OBSERVATION_TYPES } from '../types/api';
+// The closed type catalogues are runtime values: the guards compare the served
+// wire spelling against them, so they cannot travel through `import type`.
+import { OBSERVATION_TYPES, RISK_LEVELS } from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -66,6 +67,7 @@ type RequestKind =
   | 'zones'
   | 'latest'
   | 'history'
+  | 'historySeries'
   | 'batches'
   | 'sources'
   | 'riskStatus'
@@ -455,6 +457,182 @@ export async function history(zoneId: string, signal?: AbortSignal): Promise<Out
     batches.push(entry);
   }
   return { ok: true, data: batches };
+}
+
+// --- Granular history series ------------------------------------------------
+//
+// `GET /v1/risk/history/series` is the ADDITIVE sibling of the per-zone read
+// above: `/v1/risk/history` keeps its fixed 100 row window and its CSV export,
+// and this route answers a bounded window of every zone at one bucket size. The
+// path is declared here rather than in `config.routes` for the same reason the
+// job creation path is: the transport owns the query it builds for it.
+const HISTORY_SERIES_ROUTE = '/v1/risk/history/series';
+
+// The closed vocabulary of bucket sizes the route accepts. It is a runtime value
+// because the guard and the request builder compare against it: a granularity
+// outside it is refused here instead of being sent and answered with a 400 the
+// view would render as a broken control.
+export type HistoryGranularity = 'hour' | 'day' | 'week';
+
+export const HISTORY_GRANULARITIES: readonly HistoryGranularity[] = ['hour', 'day', 'week'];
+
+// One point of one series. It is deliberately narrower than `RiskBatch`: a
+// historical point carries no freshness (`data_status`, `notice`, `valid_until`
+// describe the CURRENT state of a batch and are recomputed at read time), so the
+// page renders the level, the batch identity and the provenance it was served.
+export interface HistoryBucket {
+  bucket_start: string;
+  batch_id: string;
+  requested_at: string;
+  published_at: string;
+  risk_level: RiskLevel;
+  model_version: string;
+  synthetic: boolean;
+}
+
+// One zone's series. A zone is present only when it has at least one point in the
+// window, so `buckets` is never empty and a gap between two points is a bucket
+// with no publication rather than an interpolated value.
+export interface HistoryZoneSeries {
+  zone_id: string;
+  buckets: HistoryBucket[];
+}
+
+// The route echoes the accepted window and granularity, so an answer is
+// attributable to the question that produced it.
+export interface HistorySeriesCollection {
+  from: string;
+  to: string;
+  granularity: HistoryGranularity;
+  series: HistoryZoneSeries[];
+}
+
+// The documented caps of the window, both inclusive: 48 h for hour buckets and
+// 31 days for day and week buckets. The page asks for exactly the cap, so the
+// answer is the largest window the route accepts and never a refused one.
+const SERIES_WINDOW_MS: Record<HistoryGranularity, number> = {
+  hour: 48 * 3_600_000,
+  day: 31 * 86_400_000,
+  week: 31 * 86_400_000,
+};
+
+export interface HistorySeriesWindow {
+  readonly from: string;
+  readonly to: string;
+}
+
+// The window the page asks for: the whole cap of the selected granularity,
+// ending now. Both instants are RFC 3339 in UTC, which is what the route compares
+// `requested_at` against. Nothing about the buckets is decided here: the service
+// cuts them and the page renders the `bucket_start` it was served.
+export function historySeriesWindow(
+  granularity: HistoryGranularity,
+  now: Date = new Date(),
+): HistorySeriesWindow {
+  const to = now.getTime();
+  return {
+    from: new Date(to - SERIES_WINDOW_MS[granularity]).toISOString(),
+    to: new Date(to).toISOString(),
+  };
+}
+
+export interface HistorySeriesQuery extends HistorySeriesWindow {
+  readonly granularity: HistoryGranularity;
+  // Omitted asks for every zone that has a point; present narrows the read to one
+  // catalogue zone. The parameter travels only when it was asked for, so the
+  // answer is always attributable to the query.
+  readonly zoneId?: string;
+}
+
+// The bucket vocabulary of the contract is closed (`bajo`, `medio`, `alto`,
+// `desconocido`), so a point outside it is refused instead of being rendered as
+// unclassified history the service never recorded.
+function isHistoryBucket(value: unknown): value is HistoryBucket {
+  return (
+    record(value) &&
+    nonempty(value.bucket_start) &&
+    nonempty(value.batch_id) &&
+    nonempty(value.requested_at) &&
+    nonempty(value.published_at) &&
+    typeof value.risk_level === 'string' &&
+    (RISK_LEVELS as readonly string[]).includes(value.risk_level) &&
+    nonempty(value.model_version) &&
+    typeof value.synthetic === 'boolean'
+  );
+}
+
+// A zone is present only when it has a point, so an empty `buckets` array is a
+// series the contract says cannot exist: it is refused instead of being rendered
+// as a zone with no data.
+function isHistoryZoneSeries(value: unknown): value is HistoryZoneSeries {
+  return (
+    record(value) &&
+    nonempty(value.zone_id) &&
+    Array.isArray(value.buckets) &&
+    value.buckets.length > 0 &&
+    value.buckets.every(isHistoryBucket)
+  );
+}
+
+function isHistorySeriesCollection(value: unknown): value is HistorySeriesCollection {
+  return (
+    record(value) &&
+    nonempty(value.from) &&
+    nonempty(value.to) &&
+    typeof value.granularity === 'string' &&
+    (HISTORY_GRANULARITIES as readonly string[]).includes(value.granularity) &&
+    Array.isArray(value.series) &&
+    value.series.every(isHistoryZoneSeries)
+  );
+}
+
+// Instants are compared as instants, not as spellings: the route canonicalises
+// both to UTC, which can re-spell the offset and the fractional seconds the page
+// sent without changing the window it accepted.
+function sameInstant(left: string, right: string): boolean {
+  const leftMs = Date.parse(left);
+  const rightMs = Date.parse(right);
+  return Number.isFinite(leftMs) && leftMs === rightMs;
+}
+
+// The series read. It fails closed in three ways: a granularity outside the
+// closed vocabulary is refused before any request, a body the guard cannot use is
+// `malformed`, and an answer that echoes ANOTHER window, granularity or zone is
+// refused as a mismatch instead of being rendered as this query's series.
+export async function historySeries(
+  query: HistorySeriesQuery,
+  signal?: AbortSignal,
+): Promise<Outcome<HistorySeriesCollection>> {
+  if (!(HISTORY_GRANULARITIES as readonly string[]).includes(query.granularity)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_granularity'));
+  }
+  const parameters = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    granularity: query.granularity,
+  });
+  if (nonempty(query.zoneId)) parameters.set('zone_id', query.zoneId);
+  const result = await requestJson(
+    'historySeries',
+    `${gatewayOrigin}${HISTORY_SERIES_ROUTE}?${parameters.toString()}`,
+    { authenticated: true },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<HistorySeriesCollection>(result);
+  if (!isHistorySeriesCollection(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (
+    result.body.granularity !== query.granularity ||
+    !sameInstant(result.body.from, query.from) ||
+    !sameInstant(result.body.to, query.to)
+  ) {
+    return failureOutcome(failureSpec('malformed', 'window_mismatch', result.status, result.requestId));
+  }
+  if (nonempty(query.zoneId) && result.body.series.some((entry) => entry.zone_id !== query.zoneId)) {
+    return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
 }
 
 // The aggregate body is an envelope, not the bare array `/history` serves: a bare
