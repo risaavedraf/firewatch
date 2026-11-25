@@ -610,79 +610,6 @@ export function OverviewView() {
         </span>
       </div>
 
-      <section className="metrics-grid metrics-three" aria-label="Resumen real de la sesión">
-        <Metric
-          label="Zonas analizadas"
-          icon="zones"
-          value={<span id="zone-count">{zoneCountText}</span>}
-          note={
-            <>
-              Comunas del catálogo servido por <code>/v1/risk/zones</code>: features reales, no un valor copiado.
-            </>
-          }
-        />
-        <Metric
-          label="Lotes en el historial"
-          icon="batches"
-          value={<span id="metric-batches">{historyText}</span>}
-          note={
-            <>
-              Registros que <code>/v1/risk/history</code> devolvió para la zona seleccionada; sin agregar métricas
-              calculadas.
-            </>
-          }
-        />
-        <Metric
-          label="Comunas con nivel alto"
-          icon="attention"
-          attention
-          value={<span id="metric-high">{highCount}</span>}
-          note={
-            <>
-              Cuenta solo las comunas cuyo último lote esta página leyó y validó: lo que devolvió{' '}
-              <code>/v1/risk/batches</code> al iniciar la sesión, más la zona seleccionada. Si esa lectura agregada falla,
-              la cuenta refleja únicamente lo leído por zona. Una comuna sin lote publicado, o cuyo lote no pasó la
-              validación, queda sin nivel y no se cuenta.
-            </>
-          }
-        />
-      </section>
-
-      <article className="panel model-panel" id="model-panel" aria-labelledby="model-panel-title">
-        <PanelHeading
-          eyebrow="REGISTRO Y LOTE"
-          titleId="model-panel-title"
-          title="Versión de modelo activa"
-          badge={
-            <span className="neutral-tag" id="model-synthetic">
-              {modelBadge}
-            </span>
-          }
-        />
-        <StatusCopy id="model-status">{modelStatusText}</StatusCopy>
-        <dl className="data-list compact">
-          <div>
-            <dt>Versión activa (registro)</dt>
-            <dd id="model-active-version">
-              {activeModel !== null && activeModel.available ? activeModel.version : 'No informada'}
-            </dd>
-          </div>
-          <div>
-            <dt>Versión del último lote</dt>
-            <dd id="model-batch-version">{batchField(batchData?.model_version)}</dd>
-          </div>
-        </dl>
-        <p className="panel-note" id="model-panel-note">
-          La marca sintética se reproduce tal como el servicio la declara. Una versión sin marca declarada se muestra
-          como no declarada; la página no la supone no sintética. La fila del registro es la versión que el registro
-          presenta como activa; la fila del lote es la versión que de verdad lo clasificó, y ambas pueden diferir. Una
-          activación o su reversión rige para las publicaciones que resuelven su clasificador después de esa llamada:
-          las que ya estaban en curso conservan la instantánea que resolvieron. Antes de una activación explícita, el
-          clasificador en uso es el que fija <code>MODEL_ID</code> al arrancar, y que una fila del registro esté
-          sembrada como activa no prueba que el servicio la haya usado.
-        </p>
-      </article>
-
       <section className="dashboard-grid" aria-label="Estado del riesgo y ubicación">
         <MapPanel
           collection={mapCollection}
@@ -759,6 +686,79 @@ export function OverviewView() {
           </UnimplementedNote>
         </article>
       </section>
+
+      <section className="metrics-grid metrics-three" aria-label="Resumen real de la sesión">
+        <Metric
+          label="Zonas analizadas"
+          icon="zones"
+          value={<span id="zone-count">{zoneCountText}</span>}
+          note={
+            <>
+              Comunas del catálogo servido por <code>/v1/risk/zones</code>: features reales, no un valor copiado.
+            </>
+          }
+        />
+        <Metric
+          label="Lotes en el historial"
+          icon="batches"
+          value={<span id="metric-batches">{historyText}</span>}
+          note={
+            <>
+              Registros que <code>/v1/risk/history</code> devolvió para la zona seleccionada; sin agregar métricas
+              calculadas.
+            </>
+          }
+        />
+        <Metric
+          label="Comunas con nivel alto"
+          icon="attention"
+          attention
+          value={<span id="metric-high">{highCount}</span>}
+          note={
+            <>
+              Cuenta solo las comunas cuyo último lote esta página leyó y validó: lo que devolvió{' '}
+              <code>/v1/risk/batches</code> al iniciar la sesión, más la zona seleccionada. Si esa lectura agregada falla,
+              la cuenta refleja únicamente lo leído por zona. Una comuna sin lote publicado, o cuyo lote no pasó la
+              validación, queda sin nivel y no se cuenta.
+            </>
+          }
+        />
+      </section>
+
+      <article className="panel model-panel" id="model-panel" aria-labelledby="model-panel-title">
+        <PanelHeading
+          eyebrow="REGISTRO Y LOTE"
+          titleId="model-panel-title"
+          title="Versión de modelo activa"
+          badge={
+            <span className="neutral-tag" id="model-synthetic">
+              {modelBadge}
+            </span>
+          }
+        />
+        <StatusCopy id="model-status">{modelStatusText}</StatusCopy>
+        <dl className="data-list compact">
+          <div>
+            <dt>Versión activa (registro)</dt>
+            <dd id="model-active-version">
+              {activeModel !== null && activeModel.available ? activeModel.version : 'No informada'}
+            </dd>
+          </div>
+          <div>
+            <dt>Versión del último lote</dt>
+            <dd id="model-batch-version">{batchField(batchData?.model_version)}</dd>
+          </div>
+        </dl>
+        <p className="panel-note" id="model-panel-note">
+          La marca sintética se reproduce tal como el servicio la declara. Una versión sin marca declarada se muestra
+          como no declarada; la página no la supone no sintética. La fila del registro es la versión que el registro
+          presenta como activa; la fila del lote es la versión que de verdad lo clasificó, y ambas pueden diferir. Una
+          activación o su reversión rige para las publicaciones que resuelven su clasificador después de esa llamada:
+          las que ya estaban en curso conservan la instantánea que resolvieron. Antes de una activación explícita, el
+          clasificador en uso es el que fija <code>MODEL_ID</code> al arrancar, y que una fila del registro esté
+          sembrada como activa no prueba que el servicio la haya usado.
+        </p>
+      </article>
 
       {/*
         PM-18 — the zone card suggests from the written catalogue. The list is

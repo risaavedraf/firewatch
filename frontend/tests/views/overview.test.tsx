@@ -139,6 +139,20 @@ async function openSignedOut(): Promise<void> {
   await settle();
 }
 
+test('shows the territorial map and its zone selector before the session summary and model details', async () => {
+  await openSignedIn();
+
+  const mapHeading = screen.getByRole('heading', { name: 'Vista territorial de las comunas' });
+  const zoneSelector = screen.getByRole('combobox', { name: 'Zona a consultar' });
+  const summary = screen.getByRole('region', { name: 'Resumen real de la sesión' });
+  const modelHeading = screen.getByRole('heading', { name: 'Versión de modelo activa' });
+  for (const item of [mapHeading, zoneSelector]) {
+    for (const secondary of [summary, modelHeading]) {
+      expect(item.compareDocumentPosition(secondary) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    }
+  }
+});
+
 async function serveCatalogue(collection: ZoneCollection): Promise<void> {
   fetchStub.answer(ZONES_URL, collection);
   await settle();
