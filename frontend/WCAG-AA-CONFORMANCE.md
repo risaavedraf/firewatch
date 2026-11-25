@@ -107,7 +107,8 @@ All four findings are closed. The shell controls the three that share markup; no
 1. **Text-only resize (1.4.4).** The type scale is absolute: 123 `font-size` declarations in `src/styles/*.css`, `rem` twice. Browser zoom at 200% passes, but the criterion's own condition — text resized without zooming the layout — is not supported. Scope of a fix: move the type scale to relative units and re-verify every view at both widths.
 2. **Map non-text contrast (1.4.11).** Fill and boundary pairs remain below 3:1 (medium 1.75:1, neutral 1.45:1, low 2.26:1). Whether each pair is essential or decorative is a product decision that changes the map palette, not a local style fix.
 3. **State coverage.** Population, loading, error and partial-failure states were sampled, not enumerated. Of the four empty and filter states corrected on 2026-11-25, two have rendered evidence: the History panel filtered to zero offers and restores `Ver todo el periodo` at both widths, and the Actions selector is disabled while `/v1/users` returned 503, with the create control still enabled. The Overview no-lot sentence and the Actions filtered-empty block carry public-DOM tests only.
-4. **No assistive technology.** A DOM virtual screen reader shows what the accessibility tree exposes and what a mutation announces; it is not NVDA, JAWS, VoiceOver or TalkBack.
+4. **Scope.** The criterion table covers the eight views the application routed when the report was written. The merge with `origin/dev` added `InfrastructureView`, `ObservationsView` and `NotificationsView`, none of which has been scanned, measured or read; their contrast, landmarks, keyboard path and announcements are unmeasured, so no criterion verdict here covers them.
+5. **No assistive technology.** A DOM virtual screen reader shows what the accessibility tree exposes and what a mutation announces; it is not NVDA, JAWS, VoiceOver or TalkBack.
 
 ## How to reproduce
 

@@ -245,3 +245,9 @@ Two defects the virtual-screen-reader pass recorded were fixed and verified in C
 | The History count badge spoke a bare number. | A visually hidden label precedes the badge in document order, so the reader hears the noun before the number. | The virtual reader records `Lotes devueltos:` in the History reading at both widths; the visible number and its tests are unchanged. |
 
 Both fixes keep their public DOM test (`the footer is a landmark outside the main region`, `the count badge is named for a reader before its number`), and `FW_HISTORY_GATE` still reaches the shell reset by keyboard after the footer moved. The reader probe samples 45 body phrases plus 60 from `main`, so the footer now falls outside that sweep by design; its landmark presence is asserted in the accessibility tree instead.
+
+### Scope after the merge with `origin/dev`
+
+This audit, its captures and its axe scans were taken when the application routed eight views. The merge with `origin/dev` added three routed views — `InfrastructureView`, `ObservationsView` and `NotificationsView` — plus `ObservationAdoption` and the CSV export control inside the History panel. **None of the new surfaces has a capture, an axe scan or a reader pass.** The eleven routed views are `overview`, `infrastructure`, `history`, `actions`, `observations`, `sources`, `jobs`, `pending`, `session`, `notifications` and `audit`; the evidence in this document and in `WCAG-AA-CONFORMANCE.md` covers the eight that existed before the merge.
+
+The four probe runs repeated after the merge (`FW_STRUCTURE_AUDIT`, `FW_HISTORY_GATE` with and without the keyboard path, `FW_DIRECTORY_FAILURE`, `FW_TEXT_SPACING` with its gate) all exited 0 at 1280×720 and 390×844, but the harness route list still names the original eight, so the new views were not sampled either.
