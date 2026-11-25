@@ -221,3 +221,16 @@ What this does not cover:
 - **No rendered evidence.** No capture was retaken, so nothing here shows geometry, wrapping or contrast at either width. Each rule rests on its public DOM test plus the focused and full suites.
 - **The shell reset still owns History only.** `#reset-filters` in the footer calls `resetHistoryFilters`, so it does not clear the Actions filters. A global reset that owns per-view state needs a product decision; the in-panel `Limpiar filtros` is the control this slice adds, and the shell control keeps its current meaning.
 - **The virtual screen reader was not re-run** over the new states. `#history-visible-count` is unchanged and remains the panel's only live region; the new History block is static text plus a native button, and it is not announced on its own.
+
+### Rendered evidence for the new states
+
+Probe runs on the disposable `firewatch-g1-audit` stack, Chromium 149.0.7827.55, 2026-11-25, 1280×720 and 390×844. Every run exited 0 with `pageErrors: 0`.
+
+| Probe | What it observed |
+| --- | --- |
+| `FW_HISTORY_GATE=1 FW_HISTORY_KEYBOARD=1` | Filtering to zero rows renders `No hay lotes que coincidan con los filtros` and `#history-show-period` labelled `Ver todo el periodo`; the keyboard path still reaches the shell reset and restores both rows. |
+| `FW_HISTORY_GATE=1` | The in-panel control itself: clicking it clears the search and the status filter and brings the two rows back. |
+| `FW_DIRECTORY_FAILURE=1` | With `/v1/users` returning 503, `#create-assignee` is disabled at both widths, keeps only `Sin asignar (se crea sin responsable)`, fits the viewport, and `#create-action` stays enabled. |
+| `FW_TEXT_SPACING=1 FW_TEXT_SPACING_GATE=1` | The 1.4.12 override applied to the eight views: 16 of 16 samples stayed at viewport width with no clipped content, so text spacing no longer blocks the report. |
+
+What remains without rendered evidence: the Overview no-lot sentence and the Actions filtered-empty block, which rest on their public DOM tests.

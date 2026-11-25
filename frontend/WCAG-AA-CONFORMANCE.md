@@ -43,7 +43,7 @@ The rendered-pixel probe validates itself against independent arithmetic: it rep
 | 1.4.5 Images of Text (AA) | Meets (sampled) | No raster text in the shell or the audited views; the brand mark is a text glyph, and headings are real text. |
 | 1.4.10 Reflow (AA) | Meets (sampled) | At 320 CSS px all eight routes measured a 320 px document scroll width, and at 200% zoom a 640 px width. Pending, Session and Audit expose one internal horizontal scroller each, reachable with Tab and movable with ArrowRight. |
 | 1.4.11 Non-text Contrast (AA) | Partly met | Focus indicators pass (5.11:1, 44 instances). Several map boundaries and fills are documented below 3:1 against the map surface: medium fill 1.75:1, neutral fill 1.45:1, low fill 2.26:1, unknown fill 1.45:1, medium boundary 2.54:1, neutral boundary 1.95:1. Whether a fill is "required to identify" the level in context is a product judgement this pass does not settle. |
-| 1.4.12 Text Spacing (AA) | Not evaluated | The 1.4.12 override (line height 1.5, letter spacing 0.12em, word spacing 0.16em, paragraph spacing 2em) was not applied in a browser, so content loss under the override is unmeasured. |
+| 1.4.12 Text Spacing (AA) | Meets (sampled) | The 1.4.12 override (line height 1.5, letter spacing 0.12em, word spacing 0.16em, paragraph spacing 2em) was applied in Chromium 149.0.7827.55 to the eight views at 1280×720 and 390×844: 16 of 16 samples kept `scrollWidth` equal to the viewport width and lost no content in any element that hides its overflow. Method limit: elements of 4 px or less, `sr-only` nodes and nodes inside a declared scroll container are excluded. |
 | 1.4.13 Content on Hover or Focus (AA) | Meets (source review) | The application creates no overlay that appears on hover or focus: there is no tooltip, popover, dropdown menu or hover-revealed content in `src/`. The only `title` attribute is the native tooltip on the map container, which the page does not position or dismiss. |
 
 ## Operable
@@ -104,11 +104,10 @@ Items 2 and 3 are recorded, not fixed: neither is a 4.1.3 status-message failure
 ## What still blocks a conformance claim
 
 1. **Text-only resize (1.4.4).** The type scale is absolute: 123 `font-size` declarations in `src/styles/*.css`, `rem` twice. Browser zoom at 200% passes, but the criterion's own condition — text resized without zooming the layout — is not supported. Scope of a fix: move the type scale to relative units and re-verify every view at both widths.
-2. **Text spacing (1.4.12).** The 1.4.12 override was never applied in a browser, so content loss under it is unmeasured. It needs the same rendered run the other probes use.
-3. **Map non-text contrast (1.4.11).** Fill and boundary pairs remain below 3:1 (medium 1.75:1, neutral 1.45:1, low 2.26:1). Whether each pair is essential or decorative is a product decision that changes the map palette, not a local style fix.
-4. **Two reader findings stay open.** The shell footer nests `contentinfo` inside `main`, and the History count badge speaks a bare number. Both need a decision on the shared shell markup, not a per-view edit.
-5. **State coverage.** Population, loading, error and partial-failure states were sampled, not enumerated. Four empty and filter states were corrected on 2026-11-25 (Overview without a lot, History empty, History filtered to nothing, Actions filtered to nothing and directory unavailable) and carry public-DOM tests only: no capture or reader pass covers them.
-6. **No assistive technology.** A DOM virtual screen reader shows what the accessibility tree exposes and what a mutation announces; it is not NVDA, JAWS, VoiceOver or TalkBack.
+2. **Map non-text contrast (1.4.11).** Fill and boundary pairs remain below 3:1 (medium 1.75:1, neutral 1.45:1, low 2.26:1). Whether each pair is essential or decorative is a product decision that changes the map palette, not a local style fix.
+3. **Two reader findings stay open.** The shell footer nests `contentinfo` inside `main`, and the History count badge speaks a bare number. Both need a decision on the shared shell markup, not a per-view edit.
+4. **State coverage.** Population, loading, error and partial-failure states were sampled, not enumerated. Of the four empty and filter states corrected on 2026-11-25, two have rendered evidence: the History panel filtered to zero offers and restores `Ver todo el periodo` at both widths, and the Actions selector is disabled while `/v1/users` returned 503, with the create control still enabled. The Overview no-lot sentence and the Actions filtered-empty block carry public-DOM tests only.
+5. **No assistive technology.** A DOM virtual screen reader shows what the accessibility tree exposes and what a mutation announces; it is not NVDA, JAWS, VoiceOver or TalkBack.
 
 ## How to reproduce
 
