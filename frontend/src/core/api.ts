@@ -67,6 +67,7 @@ type RequestKind =
   | 'latest'
   | 'history'
   | 'batches'
+  | 'executiveSummary'
   | 'sources'
   | 'riskStatus'
   | 'jobsStatus'
@@ -485,6 +486,144 @@ export async function batches(signal?: AbortSignal): Promise<Outcome<RiskBatch[]
     collection.push(entry);
   }
   return { ok: true, data: collection };
+}
+
+// --- Executive summary ------------------------------------------------------
+//
+// PM-01's aggregate read. The server computes every count in this body; the
+// panel that renders it performs no arithmetic of its own, so the types here are
+// the contract's own members and nothing derived.
+
+export interface ExecutiveCoverage {
+  catalogue_zones: number;
+  zones_without_batch: number;
+  stale_zones: number;
+  demo_zones: number;
+}
+
+// The four levels the contract fixes. `desconocido` is a level the rule can
+// state, not an absence of data: a batch without a determined level counts here.
+export interface ExecutiveLevelCounts {
+  alto: number;
+  medio: number;
+  bajo: number;
+  desconocido: number;
+}
+
+export interface ExecutiveTransition {
+  from: string;
+  to: string;
+  zones: number;
+}
+
+export interface ExecutiveDelta {
+  zones_compared: number;
+  zones_changed: number;
+  zones_without_previous: number;
+  zones_incomparable: number;
+  transitions: ExecutiveTransition[];
+}
+
+export interface ExecutiveVariable {
+  name: string;
+  zones: number;
+}
+
+// D-B "Alto sostenido dos lotes": the zones whose two newest published batches
+// are both `alto`, ordered by zone id on the server, with `count` as its length.
+export interface ExecutiveCriticalZones {
+  count: number;
+  zone_ids: string[];
+}
+
+export interface ExecutiveSummary {
+  coverage: ExecutiveCoverage;
+  levels: ExecutiveLevelCounts;
+  delta: ExecutiveDelta;
+  predominant_variables: ExecutiveVariable[];
+  critical_zones: ExecutiveCriticalZones;
+  // Rows stored in `risk_alerts`, unfiltered. Not an unread count: no read or
+  // dismissed state exists yet, and the panel must not imply one.
+  active_alerts: { count: number };
+}
+
+const EXECUTIVE_LEVELS = ['alto', 'medio', 'bajo', 'desconocido'] as const;
+
+function isSummaryCount(value: unknown): value is number {
+  // A negative, fractional or non-numeric count is not a count: the panel would
+  // print it as if the service had measured it.
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function isExecutiveLevel(value: unknown): value is string {
+  return EXECUTIVE_LEVELS.some((level) => level === value);
+}
+
+// Fail-closed boundary guard. The panel shows six blocks side by side, so an
+// answer missing one of them - or carrying a count it contradicts - is rejected
+// whole rather than rendered partially. `critical_zones.count` must equal the
+// list it summarises, because the contract states that invariant and a body that
+// disagrees with itself cannot be shown honestly either way.
+function isExecutiveSummary(value: unknown): value is ExecutiveSummary {
+  if (!record(value)) return false;
+
+  if (!record(value.coverage)) return false;
+  const coverage = value.coverage;
+  if (
+    !isSummaryCount(coverage.catalogue_zones) ||
+    !isSummaryCount(coverage.zones_without_batch) ||
+    !isSummaryCount(coverage.stale_zones) ||
+    !isSummaryCount(coverage.demo_zones)
+  ) {
+    return false;
+  }
+
+  if (!record(value.levels)) return false;
+  const levels = value.levels;
+  for (const level of EXECUTIVE_LEVELS) if (!isSummaryCount(levels[level])) return false;
+
+  if (!record(value.delta)) return false;
+  const delta = value.delta;
+  for (const key of ['zones_compared', 'zones_changed', 'zones_without_previous', 'zones_incomparable'] as const) {
+    if (!isSummaryCount(delta[key])) return false;
+  }
+  if (!Array.isArray(delta.transitions)) return false;
+  for (const entry of delta.transitions) {
+    if (!record(entry) || !isExecutiveLevel(entry.from) || !isExecutiveLevel(entry.to)) return false;
+    if (!isSummaryCount(entry.zones) || entry.zones < 1) return false;
+  }
+
+  if (!Array.isArray(value.predominant_variables)) return false;
+  for (const entry of value.predominant_variables) {
+    if (!record(entry) || !nonempty(entry.name) || !isSummaryCount(entry.zones) || entry.zones < 1) return false;
+  }
+
+  if (!record(value.critical_zones)) return false;
+  const critical = value.critical_zones;
+  if (!isSummaryCount(critical.count) || !Array.isArray(critical.zone_ids)) return false;
+  for (const zone of critical.zone_ids) if (!nonempty(zone)) return false;
+  if (critical.count !== critical.zone_ids.length) return false;
+
+  if (!record(value.active_alerts)) return false;
+  return isSummaryCount(value.active_alerts.count);
+}
+
+// `config.routes` is the shared route table this unit does not own, so the route
+// is named here the way the transport names the job creation path. The page
+// reads through the gateway, like every other `/v1/*` read.
+const EXECUTIVE_SUMMARY_ROUTE = '/v1/risk/executive-summary';
+
+// One read answers the executive summary: coverage, levels, the recent variation
+// and the two PM-01 members. A failure is an outcome, never a partial summary:
+// the panel states it inline and the rest of the view keeps working.
+export async function executiveSummary(signal?: AbortSignal): Promise<Outcome<ExecutiveSummary>> {
+  const result = await requestJson(
+    'executiveSummary',
+    `${gatewayOrigin}${EXECUTIVE_SUMMARY_ROUTE}`,
+    { authenticated: true },
+    signal,
+  );
+  return guardOutcome(result, isExecutiveSummary);
 }
 
 // The served payload is nested under `geography` exactly as the declaration
