@@ -901,6 +901,7 @@ export function ActionsView() {
           eyebrow="PREVENCIÓN"
           title="Acciones preventivas"
           titleId="actions-title"
+          level={2}
           badge={
             <span className="neutral-tag" id="actions-badge">
               {signedIn ? list.badge : 'SIN CONSULTAR'}
@@ -1022,6 +1023,7 @@ export function ActionsView() {
             eyebrow="ACCIÓN PREVENTIVA"
             title={selected !== null ? selected.title : 'Detalle de la acción'}
             titleId="action-detail-title"
+            level={2}
           />
           <StatusCopy id="action-detail-status">{detailMessage}</StatusCopy>
           <dl className="data-list compact" id="action-detail-fields">
@@ -1063,7 +1065,7 @@ export function ActionsView() {
             </div>
           </dl>
 
-          <h4>Historial</h4>
+          <h3>Historial</h3>
           <div className="table-wrap">
             <table id="action-history">
               <caption className="sr-only">Historial de estados de la acción preventiva</caption>
@@ -1088,7 +1090,7 @@ export function ActionsView() {
             </table>
           </div>
 
-          <h4>Evidencia y suficiencia</h4>
+          <h3>Evidencia y suficiencia</h3>
           <p id="actions-sufficiency" className="status-copy" role="status" aria-live="polite">
             {selected !== null ? sufficiencyCopy(evidenceSufficient) : ''}
           </p>
@@ -1143,7 +1145,7 @@ export function ActionsView() {
             </table>
           </div>
 
-          <h4>Revisión humana de suficiencia</h4>
+          <h3>Revisión humana de suficiencia</h3>
           <div className="table-wrap">
             <table id="action-evidence-reviews">
               <caption className="sr-only">Decisiones humanas registradas sobre la evidencia</caption>
@@ -1239,7 +1241,7 @@ export function ActionsView() {
             </p>
           </div>
 
-          <h4>Reevaluación sintética</h4>
+          <h3>Reevaluación sintética</h3>
           <p className="panel-note" id="action-reassessment-disclaimer">
             {REASSESSMENT_DISCLAIMER}
           </p>
@@ -1321,7 +1323,7 @@ export function ActionsView() {
             </table>
           </div>
 
-          <h4>Transiciones</h4>
+          <h3>Transiciones</h3>
           <label className="filter-label" htmlFor="transition-note">
             Nota de la transición
             <input
@@ -1364,7 +1366,7 @@ export function ActionsView() {
       ) : null}
 
       <article className="panel actions-create" aria-labelledby="action-create-title">
-        <PanelHeading eyebrow="ALTA" title="Nueva acción preventiva" titleId="action-create-title" />
+        <PanelHeading eyebrow="ALTA" title="Nueva acción preventiva" titleId="action-create-title" level={2} />
         <p className="panel-note">
           El alta requiere el rol admin y crea una acción vinculada a la comunidad indicada. El servidor resuelve el
           responsable en el directorio del realm cuando se elige uno y responde con el estado real.

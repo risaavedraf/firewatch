@@ -124,22 +124,32 @@ export function Metric({
   );
 }
 
+// `level` is opt-in and defaults to the level this primitive has always
+// rendered. A view that states its own title states it at `level={2}` under the
+// shell's only `h1`; a panel nested inside a titled section keeps the default.
+// The class is what holds the shipped title weight: the global `h2` rule is
+// lighter than `h3`, so the level must not be able to repaint the title.
 export function PanelHeading({
   eyebrow,
   title,
   titleId,
   badge,
+  level = 3,
 }: {
   eyebrow: string;
   title: string;
   titleId?: string;
   badge?: ReactNode;
+  level?: 2 | 3;
 }) {
+  const Heading = level === 2 ? 'h2' : 'h3';
   return (
     <div className="panel-heading">
       <div>
         <p className="eyebrow">{eyebrow}</p>
-        <h3 id={titleId}>{title}</h3>
+        <Heading className="panel-heading-title" id={titleId}>
+          {title}
+        </Heading>
       </div>
       {badge}
     </div>

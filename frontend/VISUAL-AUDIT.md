@@ -46,4 +46,12 @@ In Chromium, the outlines for **Saltar al contenido**, **Entrada sintética · a
 
 With a published synthetic lot loaded, the History search placeholder measured 3.05:1 on paper at 1280×720 and 390×844. The `#history-query::placeholder` override reuses `--muted` and brings the contrast to 5.49:1 without changing the general placeholder rule. At both widths, a nonmatching query removed the row and clearing it restored the row. Captures: `tmp/g1-browser-baseline/history-search-1280.png` and `history-search-390.png`.
 
+## Cross-view accessibility samples
+
+Chromium 149.0.7827.55, 2026-11-25, authenticated disposable stack:
+
+- **Reflow, 320×800:** eight routes measured a 320px document scroll width, with no sampled page overflow. See `tmp/g1-browser-baseline/reflow-320-<route>.png`. This does not cover every state, text resize, or browser zoom.
+- **Bypass link, 1280×720 and 390×844:** Enter on **Saltar al contenido** now focuses the visible main region without switching views (16 of 16 route/width samples; `2eff579`). The old build switched nondefault routes back to Overview.
+- **Accessibility tree, both widths:** each of the 16 snapshots exposed one main landmark, one navigation landmark and no unnamed controls in the sampled roles. Actions, Audit, Pending and Session exposed a jump from heading level 1 to 3. The targeted correction promoted those view headings to level 2. The follow-up (`job-41`) confirmed no skipped levels in the four affected views at either width. The populated Actions detail hierarchy is covered by the focused view test, not by this Chromium sample. This is not a WCAG verdict. Some data requests were throttled, so dynamic states and announcements are outside this sample.
+
 Other source-level findings, the remaining prototype alignment, full keyboard and WCAG checks stay open.

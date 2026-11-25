@@ -72,6 +72,7 @@ export function PendingView() {
           eyebrow="ALCANCE DE ESTA ENTREGA"
           title="Aún no implementado"
           titleId="pending-title"
+          level={2}
           badge={
             <span id="pending-badge">
               <UnimplementedBadge />

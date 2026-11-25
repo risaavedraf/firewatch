@@ -236,7 +236,7 @@ export function SessionView() {
 
   return (
     <section className="view" id="session" data-view="session" aria-labelledby="session-title">
-      <PanelHeading eyebrow="ACCESO A LA API" title="Sesión y permisos" titleId="session-title" />
+      <PanelHeading eyebrow="ACCESO A LA API" title="Sesión y permisos" titleId="session-title" level={2} />
 
       <div className="lower-grid">
         <article className="panel auth-panel">

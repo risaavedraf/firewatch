@@ -143,6 +143,7 @@ function AuditRegister({ session }: { session: SessionState }) {
           eyebrow="COORDINACIÓN"
           title="Registro de actividad"
           titleId="audit-title"
+          level={2}
           badge={
             <span className="neutral-tag" id="audit-badge">
               {state.badge}
