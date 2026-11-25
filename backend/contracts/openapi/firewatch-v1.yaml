@@ -367,7 +367,20 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
-        '503': {$ref: '#/components/responses/StorageUnavailable'}
+        '503':
+          description: >-
+            The dependency this operation reads was unavailable, or the gateway
+            could not record the read its upstream already answered. The answer
+            is always the shared JSON error body, code storage_unavailable,
+            never a CSV document: a failed export carries no attachment
+            Content-Disposition and no header row, so a caller is never handed a
+            download whose read was not written down.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
   /v1/risk/batches:
     get:
       operationId: listLatestBatchesPerZone
@@ -798,11 +811,12 @@ paths:
         and occurred_at, and their actor_name and detail are null rather than a
         synthesized name. The application role can only select and insert audit
         rows; it cannot update or delete them. The gateway records successful
-        GETs for latest and historical risk, aggregate published batches,
-        observations, and the preventive-action collection and detail. It does
-        not record this endpoint, catalogues, geometry requests, or failed
-        upstream reads. If recording a selected successful result fails, that
-        read returns 503 storage_unavailable instead of the upstream success.
+        GETs for latest risk, historical risk and its CSV export, aggregate
+        published batches, observations, and the preventive-action collection
+        and detail. It does not record this endpoint, catalogues, geometry
+        requests, or failed upstream reads. If recording a selected successful
+        result fails, that read returns 503 storage_unavailable instead of the
+        upstream success.
       responses:
         '200':
           description: Audit entries
@@ -837,7 +851,8 @@ paths:
                         The action the event records. The mutation actions
                         written by the job transitions are job.requested and
                         batch.published. The query actions are risk.current.read
-                        (GET /v1/risk/latest), risk.history.read (GET /v1/risk/history),
+                        (GET /v1/risk/latest), risk.history.read (GET /v1/risk/history
+                        or its CSV export at GET /v1/risk/history.csv),
                         risk.batches.read (GET /v1/risk/batches),
                         prevention.observations.read (GET /v1/prevention/observations),
                         and prevention.actions.read (GET /v1/prevention/actions or

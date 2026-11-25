@@ -61,9 +61,13 @@ type queryRoute struct {
 //
 // Collection matching is exact and method-aware. Action detail uses the same
 // UUID parser as prevention and belongs to the same category as its collection.
+// An action may cover more than one route when the routes are one read: the
+// historical risk export selects the same bounded window of the same collection
+// as the JSON history and is recorded as the same consultation.
 var queryRoutes = []queryRoute{
 	{Method: "GET", Path: "/v1/risk/latest", Action: "risk.current.read"},
 	{Method: "GET", Path: "/v1/risk/history", Action: "risk.history.read"},
+	{Method: "GET", Path: "/v1/risk/history.csv", Action: "risk.history.read"},
 	{Method: "GET", Path: "/v1/risk/batches", Action: "risk.batches.read"},
 	{Method: "GET", Path: "/v1/prevention/observations", Action: "prevention.observations.read"},
 	{Method: "GET", Path: "/v1/prevention/actions", Action: "prevention.actions.read"},
