@@ -1,0 +1,1770 @@
+<!doctype html>
+<!-- Generado por design/firewatch-v1-vuelo/build-artboards.mjs desde firewatch-v1-casos/02-campo-y-entrega.html (vista ficha). No editar: se regenera con `node build-artboards.mjs`. -->
+<html lang="es" data-theme="night">
+<head>
+<meta charset="utf-8" />
+<meta name="generator" content="design/firewatch-v1-vuelo/build-artboards.mjs" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#152934" />
+<title>FireWatch · Campo, simulación y entregables · Prototipo de diseño</title>
+<style>
+:root {
+  color-scheme: dark;
+  --forest-950: #102c2d;
+  --forest-900: #173c3b;
+  --forest-700: #285e56;
+  --forest-500: #638579;
+  --canvas: #f5f5ef;
+  --paper: #fffefa;
+  --ink: #233b39;
+  --muted: #5c6c65;
+  --line: #dde3da;
+  --soft: #eef1e9;
+  --terracotta: #a74d34;
+  --terracotta-soft: #f7e9e2;
+  --gold: #85691e;
+  --gold-soft: #f7f0d9;
+  --level-low-fill: #84ab8e;
+  --level-low-line: #5c8467;
+  --level-medium-fill: #d0b756;
+  --level-medium-line: #a99850;
+  --level-high-fill: #c77454;
+  --level-high-line: #b36647;
+  --level-unknown-fill: #c3cbcd;
+  --level-unknown-line: #6b7a80;
+  --level-neutral-fill: #e6ecea;
+  --level-neutral-line: #9fb3ab;
+  --radius: 12px;
+  --shadow: 0 3px 14px rgb(24 52 40 / 3%);
+  --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --aerial-water: #152934;
+  --aerial-panel: #17222b;
+  --aerial-raised: #243341;
+  --aerial-ink: #f4f1eb;
+  --aerial-muted: #b8c8d2;
+  --aerial-border: #647b8a;
+  --aerial-focus: #94dfda;
+  --aerial-terrain-low: #46575a;
+  --aerial-terrain-high: #738077;
+  --aerial-coast: #829a9d;
+  --aerial-high: #d97962;
+  --aerial-medium: #d7b16a;
+  --aerial-low: #72b1a1;
+  --aerial-unknown: #c4cbd1;
+}
+
+[data-theme="day"] {
+  color-scheme: light;
+  --aerial-water: #b9d2d9;
+  --aerial-panel: #f5f3ee;
+  --aerial-raised: #e5e9e8;
+  --aerial-ink: #1d2c35;
+  --aerial-muted: #475b65;
+  --aerial-border: #637985;
+  --aerial-focus: #125650;
+  --aerial-terrain-low: #859e93;
+  --aerial-terrain-high: #d4d0b8;
+  --aerial-coast: #506c70;
+  --aerial-high: #a74434;
+  --aerial-medium: #88621d;
+  --aerial-low: #176a60;
+  --aerial-unknown: #42525e;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--aerial-water); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--aerial-water);
+  color: var(--aerial-ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p, dl, dd, ol, ul, figure, pre { margin-top: 0; }
+h1, h2, h3, h4 { line-height: 1.2; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--aerial-focus); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.skip-link {
+  position: fixed;
+  top: -90px;
+  left: 16px;
+  z-index: 50;
+  padding: 10px 14px;
+  border: 1px solid var(--aerial-focus);
+  border-radius: 8px;
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+  font-weight: 750;
+  box-shadow: var(--shadow);
+}
+.skip-link:focus { top: 12px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+main { flex: 1; min-width: 0; padding: 22px 32px 30px; }
+.view { max-width: 1276px; margin: 0 auto 22px; min-width: 0; }
+.view[hidden] { display: none; }
+
+.topbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px 24px;
+  align-items: start;
+  padding: 16px 32px 0;
+  border-bottom: 4px solid var(--aerial-coast);
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+}
+.brand { display: flex; align-items: center; gap: 11px; }
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--aerial-focus);
+}
+.brand-copy strong { display: block; color: var(--aerial-ink); font-size: 17px; font-weight: 650; letter-spacing: -.4px; }
+.brand-copy small { display: block; color: var(--aerial-muted); font-size: 9px; font-weight: 750; letter-spacing: 1.35px; text-transform: uppercase; }
+.title-block { min-width: 0; }
+.eyebrow { margin: 0 0 5px; color: var(--aerial-focus); font-size: 9.5px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; }
+h1 { margin: 2px 0 0; color: var(--aerial-ink); font-size: clamp(24px, 2.4vw, 34px); font-weight: 600; letter-spacing: -1.1px; }
+.sub { margin: 3px 0 0; color: var(--aerial-muted); font-size: 11px; line-height: 1.45; }
+.stamp {
+  min-width: 268px;
+  padding: 10px 12px;
+  border: 1px solid var(--aerial-border);
+  border-radius: 9px;
+  background: var(--aerial-raised);
+}
+.stamp-label { margin: 0 0 4px; color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.stamp-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.big-level { margin: 0; color: var(--aerial-ink); font-size: 22px; font-weight: 650; letter-spacing: -.8px; }
+.stamp-meta { margin: 3px 0 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+.stamp-meta time { color: var(--aerial-ink); font-weight: 650; }
+
+.topbar-tools {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 10px;
+  padding: 8px 0 12px;
+  border-top: 1px solid var(--aerial-border);
+}
+.local-nav { flex: 1 1 620px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
+.nav-label { margin: 0 4px 0 0; color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: 1.35px; text-transform: uppercase; }
+.local-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--aerial-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.local-nav a:hover { background: var(--aerial-raised); color: var(--aerial-ink); }
+.local-nav a[aria-current="page"] { border-color: var(--aerial-focus); background: var(--aerial-raised); color: var(--aerial-focus); }
+.nav-index { flex-basis: 100%; max-width: 640px; margin: 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+.theme-control { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.theme-control .nav-label { margin: 0; }
+.theme-toggle {
+  min-height: 44px;
+  padding: 7px 13px;
+  border: 1px solid var(--aerial-border);
+  border-radius: 8px;
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-size: 11px;
+  font-weight: 750;
+}
+.theme-toggle:hover { border-color: var(--aerial-focus); color: var(--aerial-focus); }
+
+.demo-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 9px 32px;
+  border-bottom: 1px solid var(--aerial-border);
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.demo-strip strong { font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.row-tag {
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px dashed var(--aerial-focus);
+  border-radius: 6px;
+  color: var(--aerial-focus);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+}
+
+.view-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 16px;
+}
+.view-head h2 { margin: 2px 0 4px; color: var(--aerial-ink); font-size: clamp(25px, 2.4vw, 33px); font-weight: 600; letter-spacing: -1.1px; }
+.view-head h2:focus-visible { outline-offset: 6px; }
+.view-lede { max-width: 88ch; margin: 0; color: var(--aerial-ink); font-size: 12px; line-height: 1.6; }
+.view-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px dashed var(--aerial-focus);
+  border-radius: 6px;
+  background: var(--aerial-panel);
+  color: var(--aerial-focus);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.context-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.panel {
+  min-width: 0;
+  border: 1px solid var(--aerial-border);
+  border-radius: var(--radius);
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+}
+.panel-head h3 { margin: 0; color: var(--aerial-ink); font-size: 16px; font-weight: 700; letter-spacing: -.35px; }
+.panel-head .eyebrow { margin-bottom: 3px; }
+.panel-body { padding: 13px 16px 16px; }
+.panel-note { margin: 0 0 12px; color: var(--aerial-muted); font-size: 10.5px; line-height: 1.55; }
+.proto-badge, .count-pill {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.count-pill { border-radius: 999px; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+
+.layout-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 16px; align-items: start; }
+.layout-form { display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, 1.18fr); gap: 16px; align-items: start; }
+.stack { display: grid; gap: 16px; }
+
+.form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field { min-width: 0; margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+label { display: block; margin-bottom: 5px; color: var(--aerial-ink); font-size: 11px; font-weight: 750; }
+select, input, textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid var(--aerial-border);
+  border-radius: 8px;
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+  font-size: 12.5px;
+}
+textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
+select:disabled { opacity: .6; }
+.field-note { margin: 5px 0 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+.field-meta { display: flex; justify-content: space-between; gap: 8px; margin: 5px 0 0; color: var(--aerial-muted); font-size: 9.5px; line-height: 1.5; }
+[aria-invalid="true"] { border-color: var(--aerial-high); box-shadow: 0 0 0 1px var(--aerial-high); }
+input[type="date"]:focus,
+input[type="date"]:focus-within { outline: 3px solid var(--aerial-focus); outline-offset: 3px; }
+
+.btn-primary, .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid var(--aerial-focus);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: center;
+}
+.btn-primary { background: var(--aerial-focus); color: var(--aerial-panel); }
+.btn-primary:hover { background: var(--aerial-panel); color: var(--aerial-focus); }
+.btn-secondary { background: var(--aerial-panel); color: var(--aerial-ink); border-color: var(--aerial-border); }
+.btn-secondary:hover { border-color: var(--aerial-focus); color: var(--aerial-focus); }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 4px; }
+.micro { margin: 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.55; }
+.form-actions .micro { max-width: 300px; }
+
+.sim-highlight { margin: 4px 0 14px; padding: 10px 12px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); }
+.sim-highlight .eyebrow { color: var(--aerial-focus); margin-bottom: 2px; }
+.sim-highlight p:last-child { margin: 0; color: var(--aerial-ink); font-size: 11.5px; line-height: 1.5; font-weight: 650; }
+
+.result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.result-card { padding: 11px 12px; border: 1px solid var(--aerial-border); border-radius: 9px; background: var(--aerial-raised); }
+.result-card .eyebrow { color: var(--aerial-focus); }
+.result-date { margin: 0 0 7px; color: var(--aerial-ink); font-size: 11px; font-weight: 650; line-height: 1.4; }
+.result-level { margin: 0 0 7px; }
+.result-card .micro { color: var(--aerial-muted); }
+.result-after { border-color: var(--aerial-focus); }
+
+.level {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  background: var(--aerial-panel);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.level-alto { color: var(--aerial-high); }
+.level-medio { color: var(--aerial-medium); }
+.level-bajo { color: var(--aerial-low); }
+.level-neutral { color: var(--aerial-unknown); }
+
+.facts { display: grid; gap: 0; margin: 12px 0 0; }
+.facts > div { display: grid; grid-template-columns: 138px minmax(0, 1fr); gap: 10px; padding: 7px 0; border-top: 1px solid var(--aerial-border); }
+.facts dt { color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding-top: 2px; }
+.facts dd { margin: 0; color: var(--aerial-ink); font-size: 10.5px; line-height: 1.5; }
+.facts dd strong { color: var(--aerial-focus); }
+
+.inline-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--aerial-border);
+  border-left: 3px solid var(--aerial-focus);
+  border-radius: 7px;
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+.inline-note strong { color: var(--aerial-focus); }
+.inline-note p { margin: 0 0 5px; }
+.inline-note p:last-child { margin-bottom: 0; }
+
+.factors-panel { margin-top: 16px; }
+.table-wrap { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table caption { padding: 0 0 10px; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; text-align: left; }
+.data-table th {
+  padding: 9px 10px;
+  border-top: 1px solid var(--aerial-border);
+  border-bottom: 1px solid var(--aerial-border);
+  background: var(--aerial-raised);
+  color: var(--aerial-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  text-align: left;
+  vertical-align: bottom;
+}
+.data-table td { padding: 9px 10px; border-bottom: 1px solid var(--aerial-border); color: var(--aerial-ink); font-size: 10.5px; line-height: 1.5; vertical-align: top; }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table .num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.data-table .cell-strong { font-weight: 700; }
+.data-table .cell-sub { display: block; color: var(--aerial-muted); font-size: 9.5px; font-weight: 400; }
+.data-table .cell-empty { color: var(--aerial-muted); font-style: italic; }
+.data-table tr.is-simulated td { background: var(--aerial-raised); }
+.data-table tr.is-simulated td:first-child { box-shadow: inset 3px 0 0 var(--aerial-focus); }
+.data-table .row-flag { display: inline-block; margin-left: 6px; padding: 1px 5px; border-radius: 4px; background: var(--aerial-panel); color: var(--aerial-focus); font-size: 8px; font-weight: 850; letter-spacing: .05em; text-transform: uppercase; }
+.bar { width: 62px; height: 5px; border-radius: 3px; background: var(--aerial-raised); overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--aerial-focus); }
+.bar-cell { display: flex; align-items: center; gap: 7px; justify-content: flex-end; }
+
+.author-box { margin: 2px 0 12px; padding: 10px 12px; border: 1px dashed var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); }
+.author-box p { margin: 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.55; }
+.author-box strong { display: block; margin-bottom: 3px; color: var(--aerial-ink); font-size: 10.5px; }
+
+.feedback { margin-top: 12px; padding: 11px 12px; border: 1px solid var(--aerial-focus); border-radius: 8px; background: var(--aerial-raised); color: var(--aerial-ink); font-size: 10.5px; line-height: 1.55; }
+.feedback strong { display: block; margin-bottom: 3px; color: var(--aerial-focus); font-size: 11.5px; }
+.feedback:focus-visible { outline-offset: 2px; }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-bottom: 10px; }
+.toolbar .field { flex: 1 1 190px; margin-bottom: 0; }
+.toolbar .btn-secondary { flex: none; }
+.list-note { margin: 0 0 10px; color: var(--aerial-muted); font-size: 9.5px; line-height: 1.5; }
+.obs-list { display: grid; gap: 9px; }
+.obs-card { padding: 10px 12px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-panel); }
+.obs-card.is-draft { border-style: dashed; border-color: var(--aerial-focus); background: var(--aerial-raised); }
+.obs-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; margin-bottom: 4px; }
+.obs-type { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 7px; border: 1px solid var(--aerial-border); border-radius: 5px; background: var(--aerial-raised); color: var(--aerial-ink); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.obs-date { color: var(--aerial-muted); font-size: 9.5px; font-variant-numeric: tabular-nums; }
+.obs-card h4 { margin: 0 0 4px; color: var(--aerial-ink); font-size: 12px; font-weight: 700; }
+.obs-desc { margin: 0 0 6px; color: var(--aerial-ink); font-size: 10.5px; line-height: 1.55; }
+.obs-meta { margin: 0; color: var(--aerial-muted); font-size: 9.5px; line-height: 1.5; }
+.obs-meta strong { color: var(--aerial-ink); font-weight: 650; }
+.obs-tag { display: inline-block; margin-left: 4px; padding: 1px 5px; border: 1px solid var(--aerial-border); border-radius: 4px; color: var(--aerial-muted); font-size: 8px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.obs-tag.is-draft { border-color: var(--aerial-focus); color: var(--aerial-focus); }
+.empty-state { padding: 12px; border: 1px dashed var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); }
+.empty-state p { margin: 0 0 8px; color: var(--aerial-ink); font-size: 10.5px; }
+.empty-state .micro { margin: 0 0 8px; }
+
+.definition-list { display: grid; gap: 0; margin: 0; }
+.definition-list > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; padding: 7px 0; border-top: 1px solid var(--aerial-border); }
+.definition-list > div:first-child { border-top: 0; padding-top: 0; }
+.definition-list dt { color: var(--aerial-ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 650; overflow-wrap: anywhere; }
+.definition-list dd { margin: 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+.file-chip { display: inline-flex; align-items: center; max-width: 100%; margin: 0; padding: 6px 9px; border: 1px solid var(--aerial-border); border-radius: 6px; background: var(--aerial-raised); color: var(--aerial-ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; overflow-wrap: anywhere; }
+.csv-raw {
+  max-height: 210px;
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--aerial-border);
+  border-radius: 8px;
+  background: var(--aerial-raised);
+  color: var(--aerial-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.7;
+  overflow: auto;
+  white-space: pre;
+}
+.csv-raw:focus-visible { outline-offset: 2px; }
+.actions-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 12px; }
+.notice { margin-top: 12px; padding: 11px 12px; border: 1px solid var(--aerial-focus); border-left-width: 4px; border-radius: 8px; background: var(--aerial-raised); color: var(--aerial-ink); font-size: 10.5px; line-height: 1.55; }
+.notice strong { display: block; margin-bottom: 3px; color: var(--aerial-focus); font-size: 11.5px; }
+.notice p { margin: 0; }
+.notice:focus-visible { outline-offset: 2px; }
+
+.report-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid var(--aerial-border); border-radius: 9px; background: var(--aerial-panel); }
+.report-toolbar .micro { max-width: 620px; }
+.report-sheet {
+  --report-sea: #b9d2d9;
+  --report-land: #d4d0b8;
+  --report-coast: #506c70;
+  --report-high: #a74434;
+  --report-low: #176a60;
+  --report-unknown: #42525e;
+  --report-soft: #eef1e9;
+  position: relative;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 26px 28px 22px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 18px 50px rgb(16 44 45 / 8%), var(--shadow);
+  overflow: hidden;
+  isolation: isolate;
+}
+.report-watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  transform: rotate(-24deg);
+  color: var(--terracotta);
+  opacity: .16;
+  font-size: clamp(26px, 4.6vw, 58px);
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-align: center;
+  line-height: 1.15;
+  pointer-events: none;
+  user-select: none;
+}
+.report-band {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 16px;
+  padding: 7px 10px;
+  border: 1px solid var(--terracotta);
+  border-radius: 4px;
+  background: var(--terracotta-soft);
+  color: var(--terracotta);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  line-height: 1.45;
+}
+.report-sheet > *:not(.report-watermark) { position: relative; z-index: 1; }
+.report-eyebrow { margin: 0 0 4px; color: var(--forest-700); font-size: 8.5px; font-weight: 850; letter-spacing: 1.2px; text-transform: uppercase; }
+.report-sheet h3 { margin: 0 0 2px; color: var(--ink); font-size: 23px; font-weight: 600; letter-spacing: -.8px; }
+.report-sub { margin: 0 0 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.report-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; margin: 0 0 16px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.report-meta div { display: grid; gap: 1px; }
+.report-meta dt { color: var(--muted); font-size: 8px; font-weight: 850; letter-spacing: .05em; text-transform: uppercase; }
+.report-meta dd { margin: 0; color: var(--ink); font-size: 10px; line-height: 1.45; }
+.report-section { margin: 0 0 16px; }
+.report-section:last-child { margin-bottom: 0; }
+.report-section h4 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0 0 7px; color: var(--ink); font-size: 11px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+.report-section h4 span { color: var(--muted); font-size: 8.5px; font-weight: 700; letter-spacing: .04em; }
+.report-note { margin: 7px 0 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+.report-risk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.report-risk .level { background: var(--terracotta-soft); color: var(--terracotta); border-color: var(--terracotta); }
+.report-risk-copy { margin: 7px 0 0; color: var(--ink); font-size: 10px; line-height: 1.55; }
+.report-risk-copy strong { color: var(--terracotta); }
+.report-factor-head, .report-factor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 74px 64px;
+  gap: 8px;
+  align-items: center;
+}
+.report-factor-head { padding: 0 0 4px; color: var(--muted); font-size: 7.5px; font-weight: 850; letter-spacing: .05em; text-transform: uppercase; }
+.report-factor-head span:nth-child(2), .report-factor-head span:nth-child(3) { text-align: right; }
+.report-factor { padding: 5px 0; border-bottom: 1px solid var(--line); }
+.report-factor-name { color: var(--ink); font-size: 10px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.report-factor-name small { display: block; color: var(--muted); font-size: 8px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.report-factor-value { color: var(--ink); font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+.report-factor-contr { color: var(--ink); font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+.report-factor .bar { grid-column: 1 / -1; width: 100%; height: 4px; background: var(--soft); }
+.report-factor .bar > span { background: var(--forest-700); }
+.report-factor.is-composed .report-factor-name { color: var(--forest-900); }
+.report-factor.is-composed .report-factor-name small { color: var(--forest-700); }
+.report-map { margin: 0; }
+.report-map svg { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; background: var(--aerial-water); }
+.report-map figcaption { padding: 5px 0 0; color: var(--muted); font-size: 8.5px; line-height: 1.5; }
+.report-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; color: var(--ink); font-size: 8.5px; }
+.report-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend-swatch { width: 10px; height: 10px; flex: none; border: 1px solid var(--ink); border-radius: 2px; }
+.legend-swatch.high { background: var(--report-high); }
+.legend-swatch.low { background: var(--report-low); }
+.legend-swatch.none { background: var(--report-soft); border: 2px dashed var(--report-unknown); }
+.legend-line { width: 16px; height: 0; flex: none; border-top: 2px dashed var(--report-coast); border-radius: 0; }
+.report-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.report-list li { padding: 7px 0 0; border-top: 1px solid var(--line); }
+.report-list li:first-child { border-top: 0; padding-top: 0; }
+.report-item-id { display: inline-block; margin-right: 5px; color: var(--terracotta); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 8.5px; font-weight: 750; }
+.report-list p { margin: 0; color: var(--ink); font-size: 9.5px; line-height: 1.55; }
+.report-list .report-source { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; line-height: 1.5; }
+.report-foot { margin: 14px 0 0; padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 8px; line-height: 1.55; }
+
+.limits { max-width: 1276px; margin: 0 auto; }
+.limits .panel-body { padding-bottom: 13px; }
+.limits .micro { max-width: 110ch; margin-top: 10px; }
+
+.footer { display: grid; gap: 6px; padding: 14px 32px 18px; border-top: 1px solid var(--aerial-border); background: var(--aerial-panel); color: var(--aerial-muted); font-size: 10px; line-height: 1.6; }
+.footer p { max-width: 122ch; margin: 0; }
+.footer strong { color: var(--aerial-ink); }
+
+@media (max-width: 1000px) {
+  .layout-2, .layout-form { grid-template-columns: 1fr; }
+  .result-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stamp { grid-column: 1 / -1; min-width: 0; }
+  .theme-control { margin-left: 0; }
+}
+@media (max-width: 720px) {
+  .topbar { grid-template-columns: auto minmax(0, 1fr); padding: 14px 18px 0; }
+  .brand-mark { width: 38px; height: 38px; }
+  .brand-copy strong { font-size: 16px; }
+  h1 { font-size: 25px; letter-spacing: -.8px; }
+  .local-nav { flex-basis: 100%; }
+  .nav-index { max-width: none; }
+  main { padding: 16px 18px 24px; }
+  .demo-strip { padding: 9px 18px; }
+  .footer { padding: 12px 18px 16px; }
+  .view-lede { font-size: 11.5px; }
+  .form-row { grid-template-columns: 1fr; }
+  .facts > div, .definition-list > div { grid-template-columns: 1fr; gap: 2px; }
+  .data-table thead { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .data-table tbody, .data-table tr { display: block; }
+  .data-table tr { padding: 9px 0; border-bottom: 1px solid var(--aerial-border); }
+  .data-table tbody tr:last-child { border-bottom: 0; }
+  .data-table td { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px; padding: 3px 0; border: 0; }
+  .data-table td::before { content: attr(data-label); color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding-top: 1px; }
+  .data-table td.num { text-align: left; }
+  .data-table .bar-cell { justify-content: flex-start; }
+  .data-table tr.is-simulated td:first-child { box-shadow: none; }
+  .data-table tr.is-simulated { box-shadow: inset 3px 0 0 var(--aerial-focus); }
+  .report-sheet { padding: 18px 16px 16px; }
+  .report-meta { grid-template-columns: 1fr; }
+  .report-watermark { font-size: clamp(22px, 9vw, 40px); }
+  .report-toolbar { align-items: flex-start; }
+}
+@media (max-width: 480px) {
+  .result-grid { grid-template-columns: 1fr; }
+  .theme-control { width: 100%; justify-content: space-between; }
+  .local-nav a { flex: 1 1 auto; justify-content: center; }
+  .row-tag { margin-left: 0; }
+  .report-factor-head, .report-factor { grid-template-columns: minmax(0, 1fr) 62px 54px; gap: 6px; }
+  .report-factor-name { font-size: 9.5px; }
+  .report-factor-value, .report-factor-contr { font-size: 9px; }
+  .report-list p { font-size: 9px; }
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Saltar al contenido principal</a>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="currentColor"></rect><path d="M6 23l7-12 4 5 4-9 5 16z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"></path></svg>
+      <span class="brand-copy">
+        <strong>FireWatch</strong>
+        <small>Prevención municipal</small>
+      </span>
+    </div>
+    <div class="title-block">
+      <p class="eyebrow">CAMPO · SIMULACIÓN · ENTREGABLES · PROTOTIPO DE DISEÑO</p>
+      <h1>Campo, simulación y entregables</h1>
+      <p class="sub">Foco Quebrada del Este · Valparaíso / Viña del Mar / Quilpué</p>
+    </div>
+    <div class="stamp" aria-label="Escenario de muestra del tablero">
+      <p class="stamp-label">MUESTRA SINTÉTICA · SIN VALOR OPERATIVO</p>
+      <div class="stamp-line">
+        <p class="big-level">ALTO</p>
+        <span class="level level-alto">NIVEL DEL LOTE DE MUESTRA</span>
+      </div>
+      <p class="stamp-meta">Último lote de muestra publicado <time datetime="2026-11-20T16:05:00-03:00">20 nov 2026 · 16:05</time><br />Corte de muestra <time datetime="2026-11-21T18:00:00-03:00">21 nov 2026 · 18:00</time></p>
+    </div>
+    <div class="topbar-tools">
+      <nav class="local-nav" aria-label="Vistas de este tablero">
+        <p class="nav-label">VISTAS DE ESTA MAQUETA</p>
+        <a href="#simulacion" data-nav="simulacion">Simulación contrafactual</a>
+        <a href="#campo" data-nav="campo">Observaciones de campo</a>
+        <a href="#exportacion" data-nav="exportacion">Exportación CSV</a>
+        <a href="#ficha" data-nav="ficha" aria-current="page">Ficha de zona</a>
+        <p class="nav-index">Fuera de este tablero: Territorio · Historial de lotes · Acciones preventivas · Fuentes y servicios · Procesamiento · Sesión y permisos · Registro de actividad.</p>
+      </nav>
+      <div class="theme-control">
+        <span class="nav-label" id="theme-label">TEMA</span>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Cambiar a tema claro">Claro</button>
+        <span class="sr-only" role="status" aria-live="polite" id="theme-status"></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="demo-strip" role="note">
+    <strong>MAQUETA INTERACTIVA · ESCENARIO SINTÉTICO</strong>
+    <span>Foco, lotes, factores, observaciones y atribuciones son inventados. Nada se guarda, se envía, se descarga ni se persiste: sin red, sin almacenamiento y sin archivos.</span>
+    <span class="row-tag">PROTOTIPO · PM-03 / PM-09 / PM-13 / PM-14</span>
+  </div>
+
+  <main id="main" tabindex="-1">
+    <p class="sr-only" role="status" aria-live="polite" id="view-status"></p>
+
+    <section class="view" id="simulacion" data-view="simulacion" hidden aria-labelledby="simulacion-title">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">01 · SIMULADOR CONTRAFACTUAL · PM-03</p>
+          <h2 id="simulacion-title" tabindex="-1">Simulación contrafactual</h2>
+          <p class="view-lede">La maqueta sustituye una variable del lote de muestra y compara un resultado ilustrativo antes y después. Es la regla leída con otras entradas, no un pronóstico: no estima probabilidades, no anticipa un incendio y no publica ningún lote.</p>
+        </div>
+        <div class="view-badges">
+          <span class="plan-badge">Planificado · el endpoint no existe</span>
+          <span class="context-tag">Datos sintéticos</span>
+        </div>
+      </div>
+
+      <div class="layout-2">
+        <section class="panel" aria-labelledby="sim-control-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">ENTRADA DEL ENSAYO</p>
+              <h3 id="sim-control-title">Sustituir una variable</h3>
+            </div>
+            <span class="proto-badge">2 controles</span>
+          </div>
+          <div class="panel-body">
+            <p class="panel-note">Los presets son fijos y deterministas. Los pesos, umbrales y el cálculo de la regla real no están en esta maqueta: el resultado es una demostración de interacción, no una ejecución del sistema.</p>
+            <div class="form-row">
+              <div class="field">
+                <label for="sim-factor">Variable a sustituir</label>
+                <select id="sim-factor" aria-describedby="sim-factor-note">
+                  <option value="temperatura">Temperatura</option>
+                  <option value="humedad_relativa">Humedad relativa</option>
+                  <option value="viento">Viento</option>
+                  <option value="cobertura_vegetal">Cobertura vegetal</option>
+                  <option value="incendios_historicos">Incendios históricos</option>
+                </select>
+                <p class="field-note" id="sim-factor-note">Una de las cinco variables canónicas del lote de muestra.</p>
+              </div>
+              <div class="field">
+                <label for="sim-value">Valor del preset</label>
+                <select id="sim-value" aria-describedby="sim-value-note"></select>
+                <p class="field-note" id="sim-value-note">Cambiar el preset actualiza solo la comparación de la maqueta.</p>
+              </div>
+            </div>
+            <div class="sim-highlight">
+              <p class="eyebrow">VARIABLE SUSTITUIDA</p>
+              <p id="sim-highlight-text">Viento · 38 km/h → 10 km/h</p>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn-secondary" id="sim-reset">Volver al valor del lote</button>
+              <p class="micro">Restablecer no escribe nada y no recarga la página: el ensayo vive solo en esta pestaña.</p>
+            </div>
+            <p class="sr-only" role="status" aria-live="polite" id="sim-status"></p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="sim-result-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">SALIDA ILUSTRATIVA</p>
+              <h3 id="sim-result-title">Antes y después</h3>
+            </div>
+            <span class="proto-badge">Sin escritura</span>
+          </div>
+          <div class="panel-body">
+            <div class="result-grid">
+              <div class="result-card">
+                <p class="eyebrow">ANTES · LOTE DE MUESTRA</p>
+                <p class="result-date">20 nov 2026 · 16:05</p>
+                <p class="result-level"><span class="level level-alto">ALTO</span></p>
+                <p class="micro">Lote b-9c2d4e77 · publicado en el escenario · sintético.</p>
+              </div>
+              <div class="result-card result-after">
+                <p class="eyebrow">DESPUÉS · PRESET DE EJEMPLO</p>
+                <p class="result-date">Sin lote publicado</p>
+                <p class="result-level" id="sim-after-level"><span class="level level-medio">MEDIO</span></p>
+                <p class="micro" id="sim-after-note">Resultado de la maqueta. No hay lote, fecha ni historial que mostrar.</p>
+              </div>
+            </div>
+            <dl class="facts">
+              <div><dt>Cambio aplicado</dt><dd id="sim-change">Viento: 38 km/h → 10 km/h</dd></div>
+              <div><dt>Nivel antes → después</dt><dd id="sim-delta">ALTO → MEDIO</dd></div>
+              <div><dt>¿Es un pronóstico?</dt><dd><strong>No.</strong> La maqueta no estima probabilidad, no proyecta propagación y no describe una condición observada.</dd></div>
+              <div><dt>¿Escribe en <code>batches</code>?</dt><dd><strong>0 filas.</strong> Tampoco toca <code>readings</code>, historial ni auditoría: no hay petición de red.</dd></div>
+            </dl>
+            <div class="inline-note">
+              <p><strong>Contribución no es causa.</strong> La contribución de cada variable describe cómo la regla llegó al número con esas entradas; no afirma que una variable haya provocado ni vaya a provocar un incendio.</p>
+              <p><strong>Evidencia y recomendación son cosas distintas.</strong> El lote aporta lecturas y evidencia textual; las recomendaciones son texto de prevención general del catálogo PM-18, no hallazgos sobre el terreno.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel factors-panel" aria-labelledby="sim-factors-title">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">COMPOSICIÓN DEL LOTE DE MUESTRA</p>
+            <h3 id="sim-factors-title">Factores, contribución y recomendación asociada</h3>
+          </div>
+          <span class="proto-badge">5 variables canónicas</span>
+        </div>
+        <div class="panel-body">
+          <p class="panel-note">Valores y contribución son ilustrativos y no se calcularon con la regla. La columna de recomendación reproduce el mapeo escrito del catálogo PM-18; sugerir no crea ni mueve una acción. Una variable sin lectura se nombraría como tal: no se rellena con cero, con el nivel bajo ni con una contribución inventada.</p>
+          <div class="table-wrap">
+            <table class="data-table" id="sim-factor-table">
+              <caption>Factores inventados del lote de muestra b-9c2d4e77. La fila resaltada es la variable que el ensayo sustituye en este momento.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Lectura del lote</th>
+                  <th scope="col">Contribución ilustrativa</th>
+                  <th scope="col">Recomendación asociada</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-sim-row="temperatura">
+                  <td data-label="Variable"><span class="cell-strong">Temperatura</span><span class="cell-sub">temperatura</span></td>
+                  <td data-label="Lectura del lote">31,4 °C</td>
+                  <td data-label="Contribución" class="num"><span class="bar-cell"><span class="bar" aria-hidden="true"><span style="width:80%"></span></span>0,24</span></td>
+                  <td data-label="Recomendación asociada">R-06 · herramientas sin chispas en días calurosos</td>
+                </tr>
+                <tr data-sim-row="humedad_relativa">
+                  <td data-label="Variable"><span class="cell-strong">Humedad relativa</span><span class="cell-sub">humedad_relativa</span></td>
+                  <td data-label="Lectura del lote">24 %</td>
+                  <td data-label="Contribución" class="num"><span class="bar-cell"><span class="bar" aria-hidden="true"><span style="width:60%"></span></span>0,18</span></td>
+                  <td data-label="Recomendación asociada">R-07 · evitar fósforos y fuentes de calor con ambiente seco</td>
+                </tr>
+                <tr data-sim-row="viento" class="is-simulated">
+                  <td data-label="Variable"><span class="cell-strong">Viento</span> <span class="row-flag">Sustituida</span><span class="cell-sub">viento</span></td>
+                  <td data-label="Lectura del lote">38 km/h</td>
+                  <td data-label="Contribución" class="num"><span class="bar-cell"><span class="bar" aria-hidden="true"><span style="width:100%"></span></span>0,30</span></td>
+                  <td data-label="Recomendación asociada">R-08 · sin fogatas, quemas ni chispas con viento</td>
+                </tr>
+                <tr data-sim-row="cobertura_vegetal">
+                  <td data-label="Variable"><span class="cell-strong">Cobertura vegetal</span><span class="cell-sub">cobertura_vegetal</span></td>
+                  <td data-label="Lectura del lote">72 %</td>
+                  <td data-label="Contribución" class="num"><span class="bar-cell"><span class="bar" aria-hidden="true"><span style="width:63%"></span></span>0,19</span></td>
+                  <td data-label="Recomendación asociada">R-01 · retirar vegetación seca y desechos del entorno</td>
+                </tr>
+                <tr data-sim-row="incendios_historicos">
+                  <td data-label="Variable"><span class="cell-strong">Incendios históricos</span><span class="cell-sub">incendios_historicos</span></td>
+                  <td data-label="Lectura del lote">6 eventos</td>
+                  <td data-label="Contribución" class="num"><span class="bar-cell"><span class="bar" aria-hidden="true"><span style="width:30%"></span></span>0,09</span></td>
+                  <td data-label="Recomendación asociada">R-04 · coordinación comunitaria de preparación</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="micro" style="margin-top:10px">La suma ilustrativa es 1,00. No es un puntaje de riesgo, no es una probabilidad y no se comparó con ningún umbral del sistema.</p>
+        </div>
+      </section>
+    </section>
+
+    <section class="view" id="campo" data-view="campo" aria-labelledby="campo-title" hidden>
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">02 · OBSERVACIONES DE CAMPO · PM-09</p>
+          <h2 id="campo-title" tabindex="-1">Observaciones de campo</h2>
+          <p class="view-lede">Registrar una observación exige zona, tipo, fecha, autor y descripción. El tipo sale de un catálogo cerrado. La maqueta no simula una identidad ni envía nada: muestra la forma del registro y el listado, con atribuciones de muestra declaradas.</p>
+        </div>
+        <div class="view-badges">
+          <span class="plan-badge">Planificado · la entidad no existe</span>
+          <span class="context-tag">Sin identidad real</span>
+        </div>
+      </div>
+
+      <div class="layout-form">
+        <section class="panel" aria-labelledby="obs-form-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">REGISTRO DE MUESTRA</p>
+              <h3 id="obs-form-title">Nueva observación</h3>
+            </div>
+            <span class="proto-badge">No guarda</span>
+          </div>
+          <div class="panel-body">
+            <form id="obs-form" novalidate>
+              <div class="field">
+                <label for="obs-sector">Zona o sector</label>
+                <select id="obs-sector" aria-describedby="obs-sector-note">
+                  <option value="foco-quebrada-este">Foco Quebrada del Este · Valparaíso / Viña del Mar / Quilpué</option>
+                  <option value="borde-costero-norte">Borde costero de Viña del Mar · Viña del Mar</option>
+                  <option value="interior-sin-lectura">Interior de Quilpué · Quilpué</option>
+                </select>
+                <p class="field-note" id="obs-sector-note">Tres sectores del escenario. En producción, la zona la fija el catálogo del servicio.</p>
+              </div>
+              <div class="field">
+                <label for="obs-type">Tipo de observación</label>
+                <select id="obs-type" aria-describedby="obs-type-note">
+                  <option value="">Selecciona un tipo del catálogo</option>
+                  <option value="vegetación seca">Vegetación seca</option>
+                  <option value="microbasural">Microbasural</option>
+                  <option value="quema">Quema</option>
+                  <option value="acceso bloqueado">Acceso bloqueado</option>
+                  <option value="otro">Otro</option>
+                </select>
+                <p class="field-note" id="obs-type-note">Catálogo cerrado de PM-09. Un valor fuera de esta lista se rechaza; no hay campo libre de tipo.</p>
+              </div>
+              <div class="field">
+                <label for="obs-date">Fecha de la observación</label>
+                <input type="date" id="obs-date" value="2026-11-20" min="2026-11-01" max="2026-11-21" aria-describedby="obs-date-note" />
+                <p class="field-note" id="obs-date-note">La maqueta ilustra del 1 al 21 de noviembre de 2026 y no valida contra un reloj real.</p>
+              </div>
+              <div class="field">
+                <label for="obs-description">Descripción</label>
+                <textarea id="obs-description" maxlength="240" rows="3" aria-describedby="obs-desc-hint obs-desc-count">Acumulación de pastizal seco junto a la escalera de acceso; sin mantención este mes.</textarea>
+                <p class="field-meta" id="obs-desc-hint"><span>Qué se vio y dónde, sin conclusiones sobre el riesgo.</span><span id="obs-desc-count">84 / 240</span></p>
+              </div>
+              <div class="author-box">
+                <p><strong>AUTOR · ATRIBUCIÓN DE MUESTRA</strong>El formulario registra «Atribución de muestra · formulario de esta maqueta». No es una persona real ni una sesión iniciada. En producción, el autor lo toma el servidor del token verificado y el cliente no lo envía.</p>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary" id="obs-submit">Revisar observación (maqueta)</button>
+                <p class="micro">No se envía, no se guarda y no se valida contra ningún servicio.</p>
+              </div>
+              <div class="feedback" id="obs-feedback" tabindex="-1" role="status" aria-live="polite" hidden></div>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="obs-list-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">LISTADO DE MUESTRA</p>
+              <h3 id="obs-list-title">Observaciones registradas</h3>
+            </div>
+            <span class="count-pill" id="obs-count-label">3 observaciones</span>
+          </div>
+          <div class="panel-body">
+            <div class="toolbar">
+              <div class="field">
+                <label for="obs-filter">Filtrar por tipo</label>
+                <select id="obs-filter">
+                  <option value="">Todos los tipos</option>
+                  <option value="vegetación seca">Vegetación seca</option>
+                  <option value="microbasural">Microbasural</option>
+                  <option value="quema">Quema</option>
+                  <option value="acceso bloqueado">Acceso bloqueado</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <button type="button" class="btn-secondary" id="obs-reset">Quitar filtro</button>
+            </div>
+            <p class="list-note">Tres observaciones inventadas, sin autoría real y sin validación. Un borrador creado en esta maqueta desaparece al recargar y nunca se envía.</p>
+            <div class="obs-list" id="obs-list"></div>
+            <div class="empty-state" id="obs-empty" hidden>
+              <p><strong>No hay observaciones de ese tipo en el ejemplo.</strong></p>
+              <p class="micro">El filtro no se borró. Quítalo para volver a las tres observaciones de muestra.</p>
+              <button type="button" class="btn-secondary" id="obs-empty-reset">Quitar el filtro</button>
+            </div>
+            <p class="sr-only" role="status" aria-live="polite" id="obs-status"></p>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" id="exportacion" data-view="exportacion" aria-labelledby="exportacion-title" hidden>
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">03 · EXPORTACIÓN CSV · PM-13</p>
+          <h2 id="exportacion-title" tabindex="-1">Exportación CSV</h2>
+          <p class="view-lede">Vista previa de las columnas y filas que la exportación debería declarar, con la procedencia sintética visible en los datos y no solo en un comentario. El endpoint no existe y esta maqueta no genera ni descarga ningún archivo.</p>
+        </div>
+        <div class="view-badges">
+          <span class="plan-badge">Planificado · sin endpoint</span>
+          <span class="context-tag">Origen sintético</span>
+        </div>
+      </div>
+
+      <div class="stack">
+        <section class="panel" aria-labelledby="csv-columns-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">PROPUESTA DE COLUMNAS</p>
+              <h3 id="csv-columns-title">Qué declararía cada fila</h3>
+            </div>
+            <span class="proto-badge">No es contrato</span>
+          </div>
+          <div class="panel-body">
+            <p class="panel-note">Los nombres son una propuesta de diseño para PM-13; el contrato OpenAPI todavía no los declara. La fila sin lectura deja `nivel` y `lote_id` vacíos y lo dice en `estado_lectura`: un dato ausente nunca se convierte en `bajo`.</p>
+            <dl class="definition-list">
+              <div><dt>zona_id</dt><dd>Identificador de la zona. En este escenario, el CUT de la comuna.</dd></div>
+              <div><dt>comuna</dt><dd>Municipio de la zona. Es contexto, no la unidad del foco territorial: el foco puede cruzar más de una comuna y se nombra en `sector`.</dd></div>
+              <div><dt>sector</dt><dd>Foco o sector del escenario que se está leyendo.</dd></div>
+              <div><dt>corte</dt><dd>Instante de corte aplicado al exportar, en ISO 8601 con zona horaria.</dd></div>
+              <div><dt>publicado_en</dt><dd>Fecha del lote publicado; vacío cuando no hay lote en o antes del corte.</dd></div>
+              <div><dt>nivel</dt><dd>`bajo`, `medio` o `alto`; vacío si no hay lectura. Nunca se rellena con `bajo`.</dd></div>
+              <div><dt>lote_id</dt><dd>Identificador del lote; vacío cuando no hay lote publicado.</dd></div>
+              <div><dt>estado_lectura</dt><dd>`con_lectura` o `sin_lectura`, explícito en cada fila.</dd></div>
+              <div><dt>origen</dt><dd>`sintético` en todos los datos de esta maqueta. La marca de R3 viaja en el archivo, no en un comentario aparte.</dd></div>
+            </dl>
+            <p class="micro" style="margin-top:10px">Nombre de archivo propuesto: <code class="file-chip">firewatch_05101_2026-11-21_sintetico.csv</code>. Declara zona, fecha de corte y origen sintético.</p>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="csv-rows-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">VISTA PREVIA DE FILAS</p>
+              <h3 id="csv-rows-title">Tres sectores al corte de muestra</h3>
+            </div>
+            <span class="proto-badge">Corte 21 nov 2026 · 18:00</span>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table class="data-table" id="csv-table">
+                <caption>Filas de ejemplo para la exportación. Los tres sectores son inventados y el nivel no se calculó con la regla.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">zona_id</th>
+                    <th scope="col">comuna</th>
+                    <th scope="col">Zona y sector</th>
+                    <th scope="col">Corte</th>
+                    <th scope="col">Publicado</th>
+                    <th scope="col">Nivel</th>
+                    <th scope="col">Lote</th>
+                    <th scope="col">Estado de lectura</th>
+                    <th scope="col">Origen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td data-label="zona_id">05101</td>
+                    <td data-label="comuna">Valparaíso</td>
+                    <td data-label="Zona y sector"><span class="cell-strong">Foco Quebrada del Este</span><span class="cell-sub">Valparaíso / Viña del Mar / Quilpué</span></td>
+                    <td data-label="Corte">21 nov 2026 · 18:00</td>
+                    <td data-label="Publicado">20 nov 2026 · 16:05</td>
+                    <td data-label="Nivel"><span class="level level-alto">ALTO</span></td>
+                    <td data-label="Lote"><code>b-9c2d4e77</code></td>
+                    <td data-label="Estado de lectura">con_lectura</td>
+                    <td data-label="Origen">sintético</td>
+                  </tr>
+                  <tr>
+                    <td data-label="zona_id">05109</td>
+                    <td data-label="comuna">Viña del Mar</td>
+                    <td data-label="Zona y sector"><span class="cell-strong">Borde costero de Viña del Mar</span><span class="cell-sub">Viña del Mar</span></td>
+                    <td data-label="Corte">21 nov 2026 · 18:00</td>
+                    <td data-label="Publicado">21 nov 2026 · 08:40</td>
+                    <td data-label="Nivel"><span class="level level-bajo">BAJO</span></td>
+                    <td data-label="Lote"><code>b-8e5a1d40</code></td>
+                    <td data-label="Estado de lectura">con_lectura</td>
+                    <td data-label="Origen">sintético</td>
+                  </tr>
+                  <tr>
+                    <td data-label="zona_id">05122</td>
+                    <td data-label="comuna">Quilpué</td>
+                    <td data-label="Zona y sector"><span class="cell-strong">Interior de Quilpué</span><span class="cell-sub">Quilpué</span></td>
+                    <td data-label="Corte">21 nov 2026 · 18:00</td>
+                    <td data-label="Publicado"><span class="cell-empty">Vacío · sin lote</span></td>
+                    <td data-label="Nivel"><span class="cell-empty">Vacío · sin lectura</span></td>
+                    <td data-label="Lote"><span class="cell-empty">Vacío</span></td>
+                    <td data-label="Estado de lectura">sin_lectura</td>
+                    <td data-label="Origen">sintético</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="inline-note" style="margin-top:12px">
+              <p><strong>La ausencia de datos no es un nivel.</strong> La tercera fila no es BAJO: `nivel` y `lote_id` van vacíos y `estado_lectura` dice `sin_lectura`. Un cero o un `bajo` inventado sería un dato falso.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="csv-file-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">ARCHIVO DE EJEMPLO</p>
+              <h3 id="csv-file-title">Texto que se exportaría</h3>
+            </div>
+            <span class="proto-badge">No descarga</span>
+          </div>
+          <div class="panel-body">
+            <pre class="csv-raw" id="csv-raw" tabindex="0" aria-label="Texto CSV de ejemplo, tres filas"><code>zona_id,comuna,sector,corte,publicado_en,nivel,lote_id,estado_lectura,origen
+05101,Valparaíso,Foco Quebrada del Este,2026-11-21T18:00:00-03:00,2026-11-20T16:05:00-03:00,alto,b-9c2d4e77,con_lectura,sintético
+05109,Viña del Mar,Borde costero de Viña del Mar,2026-11-21T18:00:00-03:00,2026-11-21T08:40:00-03:00,bajo,b-8e5a1d40,con_lectura,sintético
+05122,Quilpué,Interior de Quilpué,2026-11-21T18:00:00-03:00,,,,sin_lectura,sintético</code></pre>
+            <p class="panel-note" style="margin-top:8px">La cabecera y las tres filas caben en la vista previa; el bloque se puede recorrer con el teclado. El texto es de muestra y no se copió de una respuesta del servicio.</p>
+            <div class="actions-row">
+              <button type="button" class="btn-primary" id="csv-demo">Demostrar la descarga planificada</button>
+              <p class="micro">La maqueta no descarga: solo explica qué haría el producto.</p>
+            </div>
+            <div class="notice" id="csv-notice" tabindex="-1" role="status" aria-live="polite" hidden></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="view" id="ficha" data-view="ficha" aria-labelledby="ficha-title">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">04 · FICHA DE ZONA · PM-14</p>
+          <h2 id="ficha-title" tabindex="-1">Ficha de zona</h2>
+          <p class="view-lede">Vista previa del informe por zona: riesgo, contribución al cálculo, mapa esquemático, recomendaciones sugeridas y fecha. La marca de datos sintéticos está en la ficha misma, no en una nota al margen. La generación reproducible del PDF todavía no existe.</p>
+        </div>
+        <div class="view-badges">
+          <span class="plan-badge">Planificado · no hay PDF</span>
+          <span class="context-tag">Borrador sintético</span>
+        </div>
+      </div>
+
+      <div class="report-toolbar">
+        <div>
+          <button type="button" class="btn-primary" id="report-demo">Demostrar la descarga del PDF</button>
+          <p class="micro" style="margin-top:6px">La ficha se muestra en papel claro en ambos temas porque representa un documento impreso. Los controles de la maqueta no generan ni descargan archivos.</p>
+        </div>
+        <p class="micro">Vista previa de diseño, no una ficha oficial.</p>
+      </div>
+      <div class="notice" id="report-notice" tabindex="-1" role="status" aria-live="polite" hidden></div>
+
+      <article class="report-sheet" aria-labelledby="report-title">
+        <p class="report-watermark" aria-hidden="true">BORRADOR SINTÉTICO<br />NO USAR</p>
+        <p class="report-band">BORRADOR SINTÉTICO · DATOS INVENTADOS · NO USAR PARA DECISIONES OPERATIVAS · MAQUETA</p>
+        <p class="report-eyebrow">FIREWATCH · FICHA DE ZONA · VISTA PREVIA DE DISEÑO</p>
+        <h3 id="report-title">Foco Quebrada del Este</h3>
+        <p class="report-sub">Valparaíso / Viña del Mar / Quilpué · Foco territorial continuo entre tres comunas</p>
+        <dl class="report-meta">
+          <div><dt>Corte del informe</dt><dd>21 nov 2026 · 18:00</dd></div>
+          <div><dt>Fecha del informe</dt><dd>21 nov 2026 · 18:00</dd></div>
+          <div><dt>Lote de muestra</dt><dd>20 nov 2026 · 16:05 · b-9c2d4e77</dd></div>
+          <div><dt>Procedencia</dt><dd>Datos sintéticos · sin valor operativo</dd></div>
+        </dl>
+
+        <section class="report-section" aria-labelledby="report-risk-title">
+          <h4 id="report-risk-title">1 · Riesgo <span>nivel del lote de muestra</span></h4>
+          <div class="report-risk">
+            <span class="level level-alto">ALTO</span>
+            <span class="report-risk-copy">Nivel publicado en el lote de muestra. No es un pronóstico ni una probabilidad.</span>
+          </div>
+          <p class="report-risk-copy"><strong>Sin evaluación no es bajo.</strong> Un sector sin lote al corte se muestra vacío y rotulado «sin lectura», nunca como nivel BAJO.</p>
+        </section>
+
+        <section class="report-section" aria-labelledby="report-contrib-title">
+          <h4 id="report-contrib-title">2 · Contribución al cálculo <span>no es la causa del incendio</span></h4>
+          <p class="report-note" style="margin-top:0;margin-bottom:6px">Qué contó la regla con estas entradas. Las cifras son ilustrativas y la regla no se ejecutó para esta ficha. Una variable con aporte mayor que cero entra en la composición de recomendaciones; una sin lectura se omite y se nombra.</p>
+          <div class="report-factor-head" aria-hidden="true"><span>Variable</span><span>Lectura</span><span>Contribución</span></div>
+          <div class="report-factor is-composed">
+            <span class="report-factor-name">Viento <small>aporta más · entra en la composición</small></span>
+            <span class="report-factor-value">38 km/h</span>
+            <span class="report-factor-contr">0,30</span>
+            <span class="bar" aria-hidden="true"><span style="width:100%"></span></span>
+          </div>
+          <div class="report-factor is-composed">
+            <span class="report-factor-name">Temperatura <small>segundo aporte · entra en la composición</small></span>
+            <span class="report-factor-value">31,4 °C</span>
+            <span class="report-factor-contr">0,24</span>
+            <span class="bar" aria-hidden="true"><span style="width:80%"></span></span>
+          </div>
+          <div class="report-factor">
+            <span class="report-factor-name">Cobertura vegetal <small>tercer aporte</small></span>
+            <span class="report-factor-value">72 %</span>
+            <span class="report-factor-contr">0,19</span>
+            <span class="bar" aria-hidden="true"><span style="width:63%"></span></span>
+          </div>
+          <div class="report-factor">
+            <span class="report-factor-name">Humedad relativa <small>cuarto aporte</small></span>
+            <span class="report-factor-value">24 %</span>
+            <span class="report-factor-contr">0,18</span>
+            <span class="bar" aria-hidden="true"><span style="width:60%"></span></span>
+          </div>
+          <div class="report-factor">
+            <span class="report-factor-name">Incendios históricos <small>quinto aporte</small></span>
+            <span class="report-factor-value">6 eventos</span>
+            <span class="report-factor-contr">0,09</span>
+            <span class="bar" aria-hidden="true"><span style="width:30%"></span></span>
+          </div>
+          <p class="report-note">La contribución describe el cálculo de la regla, no la causa: no afirma que el viento provoque un incendio ni que hoy haga viento en el lugar. El rótulo de la explicación (R2 / D-D) sigue abierto y es de PM-02.</p>
+        </section>
+
+        <section class="report-section" aria-labelledby="report-map-title">
+          <h4 id="report-map-title">3 · Mapa esquemático <span>sin geometrías reales</span></h4>
+          <figure class="report-map">
+            <svg viewBox="0 0 640 280" role="img" aria-labelledby="report-map-svg-title report-map-svg-desc">
+              <title id="report-map-svg-title">Esquema plano del foco Quebrada del Este</title>
+              <desc id="report-map-svg-desc">Esquema plano, no el visor aéreo del producto. Un foco continuo de nivel alto cruza tres municipios; un borde costero cercano aparece como nivel bajo y un interior sin lote aparece sin lectura. Las líneas municipales son contexto. La leyenda textual está fuera de la figura.</desc>
+              <rect width="640" height="280" fill="var(--report-sea)"></rect>
+              <path d="M0 0 H86 C112 62 104 140 78 200 C64 232 58 258 62 280 H0 Z" fill="var(--report-sea)" stroke="var(--report-coast)" stroke-width="1.5"></path>
+              <path d="M86 0 C130 46 168 88 236 118 C318 154 372 190 404 280 H62 C58 258 64 232 78 200 C104 140 112 62 86 0 Z" fill="var(--report-land)" stroke="var(--report-coast)" stroke-width="1.5"></path>
+              <g fill="none" stroke="var(--report-coast)" stroke-width="1.6" stroke-dasharray="7 5">
+                <path d="M188 6 C204 82 196 158 168 274"></path>
+                <path d="M356 12 C330 96 342 186 372 276"></path>
+              </g>
+              <path d="M210 74 C266 38 374 40 436 84 C486 120 488 176 438 202 C384 230 286 222 240 190 C198 162 186 112 210 74 Z" fill="var(--report-high)" stroke="#1d2c35" stroke-width="2.5"></path>
+              <path d="M108 196 C148 184 190 206 196 238 C200 262 176 272 146 268 C116 264 98 242 100 222 C101 210 103 201 108 196 Z" fill="var(--report-low)" stroke="#1d2c35" stroke-width="2.5"></path>
+              <path d="M478 192 C518 178 566 188 584 216 C598 238 580 260 546 262 C512 264 486 248 480 226 C477 214 475 201 478 192 Z" fill="var(--report-soft)" stroke="var(--report-unknown)" stroke-width="2.5" stroke-dasharray="7 5"></path>
+              <g transform="translate(598 34)">
+                <circle r="14" fill="var(--paper)" stroke="#1d2c35"></circle>
+                <path d="M0 -7 L4 5 L0 2.5 L-4 5 Z" fill="#1d2c35"></path>
+              </g>
+              <g transform="translate(24 250)">
+                <rect width="106" height="18" rx="3" fill="var(--paper)" stroke="#1d2c35"></rect>
+                <path d="M8 9 H40" stroke="#1d2c35" stroke-width="2"></path>
+                <path d="M8 6 V12 M40 6 V12" stroke="#1d2c35" stroke-width="2"></path>
+              </g>
+            </svg>
+            <div class="report-legend">
+              <span><i class="legend-swatch high"></i>ALTO · foco continuo</span>
+              <span><i class="legend-swatch low"></i>BAJO · borde costero</span>
+              <span><i class="legend-swatch none"></i>SIN LECTURA · sin lote al corte</span>
+              <span><i class="legend-line"></i>LÍMITE MUNICIPAL · contexto</span>
+            </div>
+            <figcaption>Esquema plano ilustrativo, sin geometrías reales ni evaluación del terreno. No reproduce el visor aéreo del producto.</figcaption>
+          </figure>
+        </section>
+
+        <section class="report-section" aria-labelledby="report-rec-title">
+          <h4 id="report-rec-title">4 · Recomendaciones sugeridas <span>no son acciones guardadas</span></h4>
+          <p class="report-note" style="margin-top:0;margin-bottom:6px">Composición del catálogo PM-18 para nivel ALTO y las dos variables de mayor aporte ilustrativo. Son prevención general y condicional: no acreditan una condición local ni son una orden de emergencia.</p>
+          <ol class="report-list">
+            <li>
+              <p><span class="report-item-id">R-08</span> Con viento, no hagas fogatas ni quemas y no uses herramientas que produzcan chispas.<span class="report-source">Fuente: SENAPRED (paráfrasis). La asociación a la variable viento es una decisión de FireWatch.</span></p>
+            </li>
+            <li>
+              <p><span class="report-item-id">R-06</span> En días calurosos, evita herramientas y trabajos que generen chispas al aire libre, sobre todo cerca de vegetación.<span class="report-source">Fuente: SENAPRED (paráfrasis). La asociación a la variable temperatura es una decisión de FireWatch.</span></p>
+            </li>
+            <li>
+              <p><span class="report-item-id">R-03</span> Restringe fogatas, parrillas, quema de desechos y otras fuentes de calor cerca de vegetación.<span class="report-source">Base del nivel ALTO. Fuente: SENAPRED y MINVU (paráfrasis).</span></p>
+            </li>
+            <li>
+              <p><span class="report-item-id">R-04</span> Coordina con la municipalidad o la junta de vecinos una revisión del entorno y de las vías de salida.<span class="report-source">Base del nivel ALTO. Fuente: MINVU (paráfrasis).</span></p>
+            </li>
+          </ol>
+          <p class="report-note"><strong>Evidencia frente a recomendación.</strong> La evidencia es lo que el lote registra: lecturas y contribución. Las recomendaciones son texto preventivo del catálogo y no prueban que exista vegetación seca, viento ni una vía bloqueada. Sugerir no crea una acción: el alta sigue siendo del ítem 11 y no ocurre en esta maqueta.</p>
+        </section>
+
+        <section class="report-section" aria-labelledby="report-date-title">
+          <h4 id="report-date-title">5 · Fecha y límites del documento</h4>
+          <p class="report-risk-copy" style="margin-top:0">Fecha del informe: 21 nov 2026 · 18:00, correspondiente al corte de muestra. Lote de muestra publicado el 20 nov 2026 a las 16:05.</p>
+          <p class="report-note">La ficha real debe contener la etiqueta de la explicación (R2 / D-D) y la marca de datos sintéticos (R3) con generación reproducible y una prueba que compare el texto, no los bytes. Nada de eso existe todavía: PM-14 sigue planificada.</p>
+        </section>
+
+        <p class="report-foot">Documento de muestra para revisión de diseño. No es una ficha oficial, no es una alerta y no reemplaza a la autoridad. Los datos son inventados.</p>
+      </article>
+    </section>
+
+    <section class="limits" aria-labelledby="limits-title">
+      <div class="view-head">
+        <div>
+          <p class="eyebrow">LÍMITES DEL PROTOTIPO</p>
+          <h2 id="limits-title">Capacidades planificadas y efecto sobre los datos</h2>
+          <p class="view-lede">Lo que se muestra, lo que falta para producción y lo que esta maqueta no toca. Ninguna de las cuatro filas está implementada: son destinos de diseño.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-body">
+          <div class="table-wrap">
+            <table class="data-table">
+              <caption>Dependencias de producción por capacidad. La maqueta no ejecuta ninguna de ellas.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Capacidad</th>
+                  <th scope="col">Qué muestra la maqueta</th>
+                  <th scope="col">Dependencia de producción</th>
+                  <th scope="col">Efecto sobre los datos</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td data-label="Capacidad"><span class="cell-strong">PM-03 · Simulador</span></td>
+                  <td data-label="Qué muestra">Dos controles con presets fijos y comparación antes/después ilustrativa.</td>
+                  <td data-label="Dependencia">Endpoint autenticado de recálculo, prueba de sustitución y prueba de no-efecto sobre <code>batches</code>.</td>
+                  <td data-label="Efecto sobre los datos">Ninguno. Sin petición, sin escritura y sin lote publicado.</td>
+                </tr>
+                <tr>
+                  <td data-label="Capacidad"><span class="cell-strong">PM-09 · Observaciones</span></td>
+                  <td data-label="Qué muestra">Alta de muestra con catálogo cerrado, listado y filtro; un borrador que vive en la pestaña.</td>
+                  <td data-label="Dependencia">Entidad de observación con zona, fecha, autor y descripción; el autor sale del token y el tipo se valida en el servidor.</td>
+                  <td data-label="Efecto sobre los datos">Ninguno. El borrador no se envía, no se guarda y desaparece al recargar.</td>
+                </tr>
+                <tr>
+                  <td data-label="Capacidad"><span class="cell-strong">PM-13 · CSV</span></td>
+                  <td data-label="Qué muestra">Columnas propuestas, tres filas con una sin lectura y el texto del archivo.</td>
+                  <td data-label="Dependencia">Endpoint documentado de exportación y prueba que compare el contenido exportado con la respuesta real.</td>
+                  <td data-label="Efecto sobre los datos">Ninguno. No se genera ni se descarga ningún archivo.</td>
+                </tr>
+                <tr>
+                  <td data-label="Capacidad"><span class="cell-strong">PM-14 · Ficha PDF</span></td>
+                  <td data-label="Qué muestra">Vista previa con riesgo, contribución, mapa esquemático, recomendaciones, fecha y marca sintética.</td>
+                  <td data-label="Dependencia">Generador reproducible para la misma entrada, prueba de texto, etiqueta R2/D-D y marca R3.</td>
+                  <td data-label="Efecto sobre los datos">Ninguno. No se genera ni se descarga ningún PDF.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="micro">Las cuatro filas siguen abiertas en <code>odd/plan-produccion/16-producto-mandante.md</code>. R6 exige contrato, backend probado y página, además de una revisión humana: un prototipo de diseño no cierra ninguna fila. El catálogo de recomendaciones (PM-18) no está fusionado ni revisado por una persona y esta ficha lo reproduce como texto.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p><strong>FireWatch · prototipo de diseño, no una implementación.</strong> Artefacto autónomo con CSS, SVG y JavaScript en línea: sin URLs externas, fuentes remotas, imágenes, red, almacenamiento, cookies ni dependencias instaladas. El tema oscuro es el predeterminado y el cambio a claro se conserva mientras se navega entre vistas; no se persiste en ningún almacenamiento.</p>
+    <p><strong>Ámbito:</strong> solo diseño e interacción de muestra. No toca React, backend, contrato, roles, autenticación, la rama <code>dev</code> ni CI/CD. Ningún control escribe en <code>batches</code>, <code>readings</code>, <code>prevention</code> ni auditoría.</p>
+    <p><strong>Datos:</strong> Foco Quebrada del Este, lotes, factores, observaciones, atribuciones y fechas son inventados. Corte de muestra 21 nov 2026 · 18:00; último lote de muestra 20 nov 2026 · 16:05. La maqueta no ejecuta la regla y no declara niveles, contribuciones ni recomendaciones como reales.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SAMPLE = {
+    level: 'ALTO',
+    levelKey: 'alto',
+    date: '20 nov 2026 · 16:05',
+    batch: 'b-9c2d4e77',
+    cutoff: '21 nov 2026 · 18:00'
+  };
+
+  var FACTORS = [
+    { key: 'temperatura', label: 'Temperatura', unit: '°C', sample: 31.4, sampleDisplay: '31,4 °C' },
+    { key: 'humedad_relativa', label: 'Humedad relativa', unit: '%', sample: 24, sampleDisplay: '24 %' },
+    { key: 'viento', label: 'Viento', unit: 'km/h', sample: 38, sampleDisplay: '38 km/h' },
+    { key: 'cobertura_vegetal', label: 'Cobertura vegetal', unit: '%', sample: 72, sampleDisplay: '72 %' },
+    { key: 'incendios_historicos', label: 'Incendios históricos', unit: 'eventos', sample: 6, sampleDisplay: '6 eventos' }
+  ];
+
+  var PRESETS = {
+    temperatura: [
+      { value: 31.4, display: '31,4 °C', label: '31,4 °C · lectura del lote', level: 'ALTO', levelKey: 'alto' },
+      { value: 38, display: '38,0 °C', label: '38,0 °C · preset cálido', level: 'ALTO', levelKey: 'alto' },
+      { value: 22, display: '22,0 °C', label: '22,0 °C · preset templado', level: 'MEDIO', levelKey: 'medio' }
+    ],
+    humedad_relativa: [
+      { value: 24, display: '24 %', label: '24 % · lectura del lote', level: 'ALTO', levelKey: 'alto' },
+      { value: 12, display: '12 %', label: '12 % · preset muy seco', level: 'ALTO', levelKey: 'alto' },
+      { value: 45, display: '45 %', label: '45 % · preset más húmedo', level: 'MEDIO', levelKey: 'medio' }
+    ],
+    viento: [
+      { value: 38, display: '38 km/h', label: '38 km/h · lectura del lote', level: 'ALTO', levelKey: 'alto' },
+      { value: 62, display: '62 km/h', label: '62 km/h · preset de ráfaga', level: 'ALTO', levelKey: 'alto' },
+      { value: 10, display: '10 km/h', label: '10 km/h · preset de calma', level: 'MEDIO', levelKey: 'medio' }
+    ],
+    cobertura_vegetal: [
+      { value: 72, display: '72 %', label: '72 % · lectura del lote', level: 'ALTO', levelKey: 'alto' },
+      { value: 88, display: '88 %', label: '88 % · preset de cobertura alta', level: 'ALTO', levelKey: 'alto' },
+      { value: 35, display: '35 %', label: '35 % · preset de cobertura baja', level: 'MEDIO', levelKey: 'medio' }
+    ],
+    incendios_historicos: [
+      { value: 6, display: '6 eventos', label: '6 eventos · lectura del lote', level: 'ALTO', levelKey: 'alto' },
+      { value: 14, display: '14 eventos', label: '14 eventos · preset de historial alto', level: 'ALTO', levelKey: 'alto' },
+      { value: 1, display: '1 evento', label: '1 evento · preset de historial bajo', level: 'MEDIO', levelKey: 'medio' }
+    ]
+  };
+
+  var SECTORS = {
+    'foco-quebrada-este': 'Foco Quebrada del Este',
+    'borde-costero-norte': 'Borde costero de Viña del Mar',
+    'interior-sin-lectura': 'Interior de Quilpué'
+  };
+
+  var CATALOG = ['vegetación seca', 'microbasural', 'quema', 'acceso bloqueado', 'otro'];
+
+  var OBSERVATIONS = [
+    {
+      code: 'OB-2026-041',
+      type: 'vegetación seca',
+      sector: 'Foco Quebrada del Este',
+      date: '19 nov 2026',
+      author: 'Atribución de muestra · Equipo de prevención',
+      description: 'Franja de pastizal seco junto a la escalera de acceso, sin mantención este mes.'
+    },
+    {
+      code: 'OB-2026-039',
+      type: 'microbasural',
+      sector: 'Borde costero de Viña del Mar',
+      date: '18 nov 2026',
+      author: 'Atribución de muestra · Patrulla municipal',
+      description: 'Acumulación de restos de poda y plásticos en el borde de la quebrada.'
+    },
+    {
+      code: 'OB-2026-037',
+      type: 'acceso bloqueado',
+      sector: 'Interior de Quilpué',
+      date: '17 nov 2026',
+      author: 'Atribución de muestra · Enlace vecinal',
+      description: 'Portón cerrado con candado en el sendero de servicio; no se pudo verificar el estado del terreno.'
+    }
+  ];
+
+  var MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  var VIEWS = ['simulacion', 'campo', 'exportacion', 'ficha'];
+  var VIEW_TITLES = {
+    simulacion: 'Simulación contrafactual',
+    campo: 'Observaciones de campo',
+    exportacion: 'Exportación CSV',
+    ficha: 'Ficha de zona'
+  };
+
+  var state = {
+    view: 'simulacion',
+    simFactor: 'viento',
+    simValue: '10',
+    obsFilter: '',
+    draft: null
+  };
+
+  function byId(id) { return document.getElementById(id); }
+  function all(selector) { return Array.prototype.slice.call(document.querySelectorAll(selector)); }
+  function factorFor(key) {
+    for (var i = 0; i < FACTORS.length; i += 1) {
+      if (FACTORS[i].key === key) return FACTORS[i];
+    }
+    return FACTORS[0];
+  }
+  function presetFor(key, value) {
+    var list = PRESETS[key] || PRESETS.viento;
+    for (var i = 0; i < list.length; i += 1) {
+      if (String(list[i].value) === String(value)) return list[i];
+    }
+    return list[0];
+  }
+  function formatDate(iso) {
+    var parts = String(iso).split('-');
+    if (parts.length !== 3) return iso;
+    var month = MONTHS[Number(parts[1]) - 1] || '';
+    return Number(parts[2]) + ' ' + month + ' ' + parts[0];
+  }
+  function typeLabel(type) {
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+  function levelChip(key, text) {
+    var span = document.createElement('span');
+    span.className = 'level level-' + (key || 'neutral');
+    span.textContent = text;
+    return span;
+  }
+
+  var themeToggle = byId('theme-toggle');
+  var themeStatus = byId('theme-status');
+  var viewStatus = byId('view-status');
+  var simFactor = byId('sim-factor');
+  var simValue = byId('sim-value');
+  var simValueNote = byId('sim-value-note');
+  var simHighlightText = byId('sim-highlight-text');
+  var simAfterLevel = byId('sim-after-level');
+  var simAfterNote = byId('sim-after-note');
+  var simChange = byId('sim-change');
+  var simDelta = byId('sim-delta');
+  var simStatus = byId('sim-status');
+  var simRows = all('[data-sim-row]');
+
+  var obsForm = byId('obs-form');
+  var obsSector = byId('obs-sector');
+  var obsType = byId('obs-type');
+  var obsDate = byId('obs-date');
+  var obsDescription = byId('obs-description');
+  var obsDescCount = byId('obs-desc-count');
+  var obsFeedback = byId('obs-feedback');
+  var obsFilter = byId('obs-filter');
+  var obsList = byId('obs-list');
+  var obsCountLabel = byId('obs-count-label');
+  var obsEmpty = byId('obs-empty');
+  var obsStatus = byId('obs-status');
+
+  function setTheme(theme, announce) {
+    var day = theme === 'day';
+    document.documentElement.dataset.theme = day ? 'day' : 'night';
+    themeToggle.textContent = day ? 'Oscuro' : 'Claro';
+    themeToggle.setAttribute('aria-label', day ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro');
+    if (announce) themeStatus.textContent = day ? 'Tema claro activado.' : 'Tema oscuro activado.';
+  }
+
+  function setView(name, moveFocus) {
+    if (VIEWS.indexOf(name) === -1) name = 'ficha';
+    VIEWS.forEach(function (id) {
+      var section = byId(id);
+      section.hidden = id !== name;
+      var link = document.querySelector('[data-nav="' + id + '"]');
+      if (!link) return;
+      if (id === name) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
+    });
+    state.view = name;
+    try {
+      if (window.location.hash !== '#' + name) window.history.replaceState(null, '', '#' + name);
+    } catch (error) {
+      // A file:// context may refuse history writes; navigation still works.
+    }
+    if (moveFocus) {
+      var heading = byId(name + '-title');
+      if (heading) heading.focus({ preventScroll: true });
+      window.scrollTo(0, 0);
+    }
+    viewStatus.textContent = 'Vista: ' + VIEW_TITLES[name] + '.';
+  }
+
+  function fillValueOptions() {
+    var factor = factorFor(state.simFactor);
+    var list = PRESETS[state.simFactor] || PRESETS.viento;
+    simValue.innerHTML = '';
+    list.forEach(function (preset) {
+      var option = document.createElement('option');
+      option.value = String(preset.value);
+      option.textContent = preset.label;
+      simValue.appendChild(option);
+    });
+    var selected = presetFor(state.simFactor, state.simValue);
+    state.simValue = String(selected.value);
+    simValue.value = state.simValue;
+    simValueNote.textContent = 'El valor del lote de muestra es ' + factor.sampleDisplay + '.';
+  }
+
+  function renderSimulation(announce) {
+    var factor = factorFor(state.simFactor);
+    var preset = presetFor(state.simFactor, state.simValue);
+    var changed = preset.value !== factor.sample;
+    var afterLevel = changed ? preset.level : SAMPLE.level;
+    var afterKey = changed ? preset.levelKey : SAMPLE.levelKey;
+
+    simHighlightText.textContent = changed
+      ? factor.label + ' · ' + factor.sampleDisplay + ' → ' + preset.display
+      : factor.label + ' · sin sustitución (valor del lote)';
+
+    simAfterLevel.innerHTML = '';
+    simAfterLevel.appendChild(levelChip(afterKey, afterLevel));
+    simAfterNote.textContent = changed
+      ? 'Resultado ilustrativo de la maqueta. Sin lote publicado, sin fecha y sin historial.'
+      : 'Mismo valor del lote: no se sustituyó ninguna variable.';
+
+    simChange.textContent = changed
+      ? factor.label + ': ' + factor.sampleDisplay + ' → ' + preset.display + ' (' + factor.key + ')'
+      : 'Ninguna: se lee el lote de muestra sin sustitución.';
+
+    var delta = SAMPLE.level + ' → ' + afterLevel;
+    if (changed && afterLevel === SAMPLE.level) delta += ' · el nivel no cambió con este preset';
+    if (!changed) delta += ' · sin sustitución';
+    simDelta.textContent = delta;
+
+    simRows.forEach(function (row) {
+      var isCurrent = row.getAttribute('data-sim-row') === state.simFactor;
+      row.classList.toggle('is-simulated', isCurrent);
+      var flag = row.querySelector('.row-flag');
+      if (!flag) {
+        flag = document.createElement('span');
+        flag.className = 'row-flag';
+        var anchor = row.querySelector('.cell-strong');
+        if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(flag, anchor.nextSibling);
+      }
+      flag.textContent = isCurrent && changed ? 'Sustituida' : 'Lote de muestra';
+    });
+
+    if (announce) {
+      simStatus.textContent = changed
+        ? 'Ensayo de maqueta: ' + factor.label + ' de ' + factor.sampleDisplay + ' a ' + preset.display + '. Resultado ilustrativo ' + afterLevel + '. No se guardó nada.'
+        : 'Ensayo de maqueta restablecido al valor del lote de muestra. No se guardó nada.';
+    }
+  }
+
+  function showObsFeedback(title, body) {
+    obsFeedback.innerHTML = '';
+    var strong = document.createElement('strong');
+    strong.textContent = title;
+    var paragraph = document.createElement('p');
+    paragraph.style.margin = '0';
+    paragraph.textContent = body;
+    obsFeedback.appendChild(strong);
+    obsFeedback.appendChild(paragraph);
+    obsFeedback.hidden = false;
+    obsFeedback.focus();
+  }
+
+  function failField(field, title, body) {
+    field.setAttribute('aria-invalid', 'true');
+    field.setAttribute('aria-errormessage', 'obs-feedback');
+    showObsFeedback(title, body);
+    field.focus();
+  }
+
+  function clearInvalid(field) {
+    field.removeAttribute('aria-invalid');
+    field.removeAttribute('aria-errormessage');
+  }
+
+  function observationCard(item) {
+    var card = document.createElement('article');
+    card.className = 'obs-card' + (item.draft ? ' is-draft' : '');
+    card.setAttribute('aria-labelledby', 'obs-title-' + item.code);
+
+    var top = document.createElement('div');
+    top.className = 'obs-top';
+    var type = document.createElement('span');
+    type.className = 'obs-type';
+    type.textContent = typeLabel(item.type);
+    var date = document.createElement('span');
+    date.className = 'obs-date';
+    date.textContent = item.date;
+    top.appendChild(type);
+    top.appendChild(date);
+
+    var heading = document.createElement('h4');
+    heading.id = 'obs-title-' + item.code;
+    heading.textContent = item.sector;
+
+    var description = document.createElement('p');
+    description.className = 'obs-desc';
+    description.textContent = item.description;
+
+    var meta = document.createElement('p');
+    meta.className = 'obs-meta';
+    meta.appendChild(document.createTextNode('Autor: '));
+    var author = document.createElement('strong');
+    author.textContent = item.author;
+    meta.appendChild(author);
+    var tag = document.createElement('span');
+    tag.className = 'obs-tag' + (item.draft ? ' is-draft' : '');
+    tag.textContent = item.draft ? 'Borrador · no guardado' : 'Solo ejemplo';
+    meta.appendChild(tag);
+
+    card.appendChild(top);
+    card.appendChild(heading);
+    card.appendChild(description);
+    card.appendChild(meta);
+    if (!item.draft) {
+      var code = document.createElement('p');
+      code.className = 'obs-meta';
+      code.textContent = 'Registro de muestra ' + item.code + ' · sin validación ni estado de revisión.';
+      card.appendChild(code);
+    }
+    return card;
+  }
+
+  function renderObservations(announce) {
+    var items = OBSERVATIONS.slice();
+    if (state.draft) items = [state.draft].concat(items);
+    var shown = items.filter(function (item) {
+      return !state.obsFilter || item.type === state.obsFilter;
+    });
+
+    obsList.innerHTML = '';
+    shown.forEach(function (item) {
+      obsList.appendChild(observationCard(item));
+    });
+    obsEmpty.hidden = shown.length !== 0;
+
+    var label = shown.length + ' de ' + items.length + ' observaciones';
+    if (shown.length === items.length) label = items.length + ' observaciones';
+    if (state.draft) label += ' · incluye 1 borrador';
+    obsCountLabel.textContent = label;
+
+    if (announce) {
+      obsStatus.textContent = shown.length === 0
+        ? 'Sin observaciones de tipo ' + state.obsFilter + ' en el ejemplo. El filtro sigue activo.'
+        : shown.length + ' observaciones visibles con el filtro actual.';
+    }
+  }
+
+  function clearFilter() {
+    state.obsFilter = '';
+    obsFilter.value = '';
+    renderObservations(true);
+    obsFilter.focus();
+  }
+
+  function showNotice(target, title, body) {
+    target.innerHTML = '';
+    var strong = document.createElement('strong');
+    strong.textContent = title;
+    var paragraph = document.createElement('p');
+    paragraph.textContent = body;
+    target.appendChild(strong);
+    target.appendChild(paragraph);
+    target.hidden = false;
+    target.focus();
+  }
+
+  themeToggle.addEventListener('click', function () {
+    setTheme(document.documentElement.dataset.theme === 'day' ? 'night' : 'day', true);
+  });
+
+  all('[data-nav]').forEach(function (link) {
+    link.addEventListener('click', function (event) {
+      event.preventDefault();
+      setView(link.getAttribute('data-nav'), true);
+    });
+  });
+  window.addEventListener('hashchange', function () {
+    var name = window.location.hash.replace('#', '');
+    if (VIEWS.indexOf(name) !== -1) setView(name, true);
+  });
+
+  simFactor.addEventListener('change', function () {
+    state.simFactor = this.value;
+    state.simValue = String((PRESETS[state.simFactor] || PRESETS.viento)[0].value);
+    fillValueOptions();
+    renderSimulation(true);
+  });
+  simValue.addEventListener('change', function () {
+    state.simValue = this.value;
+    renderSimulation(true);
+  });
+  byId('sim-reset').addEventListener('click', function () {
+    state.simValue = String(factorFor(state.simFactor).sample);
+    simValue.value = state.simValue;
+    renderSimulation(true);
+  });
+
+  obsDescription.addEventListener('input', function () {
+    obsDescCount.textContent = obsDescription.value.length + ' / 240';
+  });
+  obsDescCount.textContent = obsDescription.value.length + ' / 240';
+  [obsSector, obsType, obsDate].forEach(function (field) {
+    field.addEventListener('change', function () { clearInvalid(field); });
+  });
+  obsDescription.addEventListener('input', function () { clearInvalid(obsDescription); });
+
+  obsForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var type = obsType.value;
+    if (CATALOG.indexOf(type) === -1) {
+      failField(obsType, 'Tipo fuera del catálogo cerrado',
+        'El tipo debe ser vegetación seca, microbasural, quema, acceso bloqueado u otro. Un valor desconocido se rechaza y no se envía: la maqueta no tiene un campo libre de tipo.');
+      return;
+    }
+    if (!SECTORS[obsSector.value]) {
+      failField(obsSector, 'Zona fuera del catálogo', 'Elige uno de los sectores del escenario.');
+      return;
+    }
+    var iso = obsDate.value;
+    if (!iso || iso < '2026-11-01' || iso > '2026-11-21') {
+      failField(obsDate, 'Fecha fuera del escenario',
+        'La maqueta ilustra del 1 al 21 de noviembre de 2026. No valida contra un reloj real ni contra la fecha de un servidor.');
+      return;
+    }
+    var description = obsDescription.value.trim();
+    if (description.length < 10) {
+      failField(obsDescription, 'Descripción demasiado corta',
+        'Escribe al menos 10 caracteres sobre lo observado. La maqueta no guarda nada, así que el texto sigue en el formulario.');
+      return;
+    }
+
+    state.draft = {
+      code: 'borrador',
+      draft: true,
+      type: type,
+      sector: SECTORS[obsSector.value],
+      date: formatDate(iso),
+      author: 'Atribución de muestra · formulario de esta maqueta',
+      description: description
+    };
+    renderObservations(false);
+    showObsFeedback('Maqueta: la observación no se envió ni se guardó.',
+      'Se agregó «' + typeLabel(type) + '» en ' + SECTORS[obsSector.value] + ', fechada el ' + formatDate(iso) + ', como borrador que vive solo en esta pestaña. En el producto, el servidor toma el autor del token, valida el catálogo cerrado y persiste la entidad; nada de eso ocurre aquí.');
+    obsStatus.textContent = 'Borrador de observación agregado al listado de la maqueta. No se guardó nada.';
+  });
+
+  obsFilter.addEventListener('change', function () {
+    state.obsFilter = this.value;
+    renderObservations(true);
+  });
+  byId('obs-reset').addEventListener('click', clearFilter);
+  byId('obs-empty-reset').addEventListener('click', clearFilter);
+
+  byId('csv-demo').addEventListener('click', function () {
+    showNotice(byId('csv-notice'), 'Maqueta: no se generó ni descargó ningún archivo.',
+      'No hubo descarga, no se abrió un diálogo de archivo y no se llamó a ningún endpoint. En el producto, la exportación vendría de un endpoint documentado y una prueba compararía el contenido del CSV con la respuesta real; PM-13 exige las dos cosas y ninguna existe en esta maqueta.');
+  });
+
+  byId('report-demo').addEventListener('click', function () {
+    showNotice(byId('report-notice'), 'Maqueta: no se generó ni descargó ningún PDF.',
+      'La vista previa de arriba es HTML de esta página. En el producto, PM-14 exige generación reproducible para la misma entrada, la etiqueta de la explicación (R2 / D-D) y una prueba que compare el texto del documento, no los bytes. Nada de eso está implementado aquí.');
+  });
+
+  simFactor.value = state.simFactor;
+  fillValueOptions();
+  renderSimulation(false);
+  renderObservations(false);
+  setTheme(document.documentElement.dataset.theme === 'day' ? 'day' : 'night', false);
+  var initialHash = window.location.hash.replace('#', '');
+  setView(VIEWS.indexOf(initialHash) !== -1 ? initialHash : 'ficha', false);
+})();
+</script>
+</body>
+</html>

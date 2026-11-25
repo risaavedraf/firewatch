@@ -1,8 +1,8 @@
 # gentle-design v1 — rediseño del front end de FireWatch (prototipos)
 
 **What this is:** the ODD tracker for the front-end redesign the responsible ordered in L1 and narrowed to G1 and G6 in L3 — `V1-U-04` stays the assignment flow G2 had already deferred to G1, not a wider G2 redesign. The scope is established elsewhere and is not re-decided here: [`odd/tasks/v1-produccion.md`](v1-produccion.md) G1 (`V1-D-01`…`V1-D-05`, with `V1-U-04`), G6 (`V1-P-01`…`V1-P-07`) and `V1-F-09`, plus [`odd/plan-produccion/16-producto-mandante.md`](../plan-produccion/16-producto-mandante.md) for the destinations those rows do not carry. Every task below produces **prototypes only** — no production rewrite, no behavior change, no new endpoint, no contract change, no role policy and no sign-in or authorization change.
-**State:** The design-only round is verified and recorded locally (T1–T6), including a separate quick-actions artboard. [Vista aérea](../../design/firewatch-v1-vuelo/01-vista-aerea.html) remains the approved Territory landing view, unchanged; the [regional variant](../../design/firewatch-v1-vuelo/02-vista-regional.html) and [terrain handoff](../../design/firewatch-v1-vuelo/terrain-handoff.md) support the future terrain work. [Existing screens and G6](../../design/firewatch-v1-recorrido/design.json) and [new v1 destinations](../../design/firewatch-v1-casos/design.json) are standalone complementary prototypes. Nothing here closes production tasks or authorizes deployment.
-**Delivery:** T1 is the `37e7a73` boundary (1,810 authored changed lines). T2 is the `49253f8` boundary (4,185 authored changed lines); the three alternatives and their manifest are one locally reviewable comparison. Both exceed the advisory ~400-line review budget. Publication strategy remains **ask-on-risk**; no publication, tag or merge is authorized by this document.
+**State:** T1–T7 are verified and recorded locally. The [unified collection](../../design/firewatch-v1-vuelo/design.json) exposes 19 artboards: the [approved aerial map](../../design/firewatch-v1-vuelo/01-vista-aerea.html) as Territory, 16 direct views and two map companions. The [G6 screens](../../design/firewatch-v1-recorrido/design.json) and [v1 destinations](../../design/firewatch-v1-casos/design.json) remain standalone source prototypes. Nothing here closes production tasks or authorizes deployment.
+**Delivery:** T1 is the `37e7a73` boundary (1,810 authored changed lines). T2 is the `49253f8` boundary (4,185 authored changed lines); the three alternatives and their manifest are one locally reviewable comparison. Both exceed the advisory ~400-line review budget. T7 is the `26a7b54` boundary: 458 authored changed lines plus 16 generated snapshots (29,556 lines). Review the generator, manifest and maintenance note, then verify snapshot drift with `--check`. Publication strategy remains **ask-on-risk**; no publication, tag or merge is authorized by this document.
 
 ## Specs
 
@@ -46,6 +46,10 @@ Consecuencia, y solo esta: **S4 se aplica a T2 y a ninguna otra fila**. La lectu
 >
 > puedes diseñarla tu en un .md y eso se lo pasas al agente
 
+**S8 — Todas las pantallas en el diseño actual, textual.**
+
+> que onda bro, podemos terminar el diseño con gentle-design porfa, ayer no veía todas las pantallas con el ultimo diseño la idea es tener todas las pantallas que necesitamos
+
 ## Tasks
 
 | ID | Task | S# | Route | Commit |
@@ -56,6 +60,7 @@ Consecuencia, y solo esta: **S4 se aplica a T2 y a ninguna otra fila**. La lectu
 | T4 | Prototype the new v1 destinations and their supporting flows that G6 does not already own, document exports included (CSV `PM-13`, zone PDF `PM-14`), labelling every unavailable or synthetic datum in the visible text. | S1, S2, S3 | worker | 7424291, ce4ef10, 77425d4 |
 | T5 | Add a regional variant to the aerial exploration, retaining the approved first artboard. Use the regional geometry with provenance shown, group the schematic urban asset, and compare representations of synthetic sector risk. | S6 | inline | 4527608 |
 | T6 | Prototype the in-map quick action card from the [design brief](../../design/firewatch-v1-vuelo/acciones-rapidas.md), preserving the approved artboards and using demo-only create and assign interactions. | S7 | worker | f6676d8 |
+| T7 | Expose every required v1 view as a direct artboard in the current aerial-map collection; retain the approved map as Territory, preserve the two map companions and the source prototypes, and verify the gallery and the initial view of every board. | S8 | worker + inline + verifier | 26a7b54 |
 
 ## Log
 
@@ -172,3 +177,12 @@ Consecuencia, y solo esta: **S4 se aplica a T2 y a ninguna otra fila**. La lectu
 - **L20 — In-map quick actions requested (T6, S7).** The owner said «me gustaría hacerlo algo más interactivo, poder seleccionar una zona en el mapa, como hacer click, y ahí que salga como una especia de mini menu de acceso rapido o algo así que te deje asignar una tarea a realiar, o crearla , algo asi más interactivo» and «puedes diseñarla tu en un .md y eso se lo pasas al agente». The parent authored the [design brief](../../design/firewatch-v1-vuelo/acciones-rapidas.md) for the worker. Use an additive artboard in `design/firewatch-v1-vuelo/`; no production or source artboard change.
 
 - **L21 — T6 verified and published only to the local design canvas.** `design/firewatch-v1-vuelo/03-acciones-en-el-mapa.html` adds the sector card on the approved aerial design without changing either original map. The parent ran Chrome/Playwright RED (artboard missing), then GREEN at 1440×900 and 390×844: clicking inside the painted area, keyboard list selection and focus return, assignment validation, simulated creation, Escape and drag, zero external requests, storage writes and page errors. The worker additionally verified touch input, form and sector isolation, dark/light themes, date cutoffs and viewport bounds. Markdown links and staged whitespace checks passed. No screen-reader or manual visual audit; no production tests were run because nothing outside the design changed. Local review boundary: `f6676d8` (740 additions; new artboard, brief and manifest entry). No push, PR or deployment.
+
+- **L22 — Visibility of the complete v1 design (T7, S8).**
+
+  > que onda bro, podemos terminar el diseño con gentle-design porfa, ayer no veía todas las pantallas con el ultimo diseño la idea es tener todas las pantallas que necesitamos
+
+  The latest collection listed only the three map artboards. Four complementary prototypes contain 16 views in separate collections, including 12 behind internal navigation. Add direct entries to the same collection so a viewer can inspect each view by name without opening another collection or selecting an internal tab. Keep the approved aerial landing first and preserve the original boards and their links.
+
+- **L23 — T7 verified (S8).** RED: the live manifest and Chrome showed only three cards. GREEN: the same collection returned 19 ordered cards with no manifest warnings. Chrome at 1440×900 and 390×844 confirmed all 19 opened, all 16 generated previews immediately selected the correct view, and four keyboard navigation flows passed at each size. No horizontal overflow, external requests or script errors were observed. The original maps, source prototypes, layout files, and production paths did not change. The [collection notes](../../design/firewatch-v1-vuelo/README.md) link the inventory and regeneration commands.
+  - **Risk: item 2 (local snapshot overwrite guard).** In an isolated copy, RED reproduced false drift with mixed line endings and writes to aliased outputs; GREEN confirmed portable `--check` and refusal of unknown or hard-linked outputs with their bytes unchanged. Independent verification passed, including inspection of the preflight refusal for symlinks (not exercised dynamically). The generator, Markdown link and staged whitespace checks passed. No production tests or full accessibility audit; no push, PR or deployment.
