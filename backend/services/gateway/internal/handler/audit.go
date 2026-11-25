@@ -67,12 +67,16 @@ type queryRoute struct {
 // history series (PM-04) is the same historical risk collection read at a
 // different granularity, so it is recorded under that action too rather than
 // widening the vocabulary with a label the audit writer would have to learn.
+// The multi-zone comparison (PM-05) is different: it asks several zones at one
+// shared cutoff, so S6 gives it its own named action instead of folding it into
+// the history read the trail must stay distinguishable from.
 // A route added here starts writing rows; nothing else about the read changes.
 var queryRoutes = []queryRoute{
 	{Method: "GET", Path: "/v1/risk/latest", Action: "risk.current.read"},
 	{Method: "GET", Path: "/v1/risk/history", Action: "risk.history.read"},
 	{Method: "GET", Path: "/v1/risk/history.csv", Action: "risk.history.read"},
 	{Method: "GET", Path: "/v1/risk/history/series", Action: "risk.history.read"},
+	{Method: "GET", Path: "/v1/risk/compare", Action: "risk.compare.read"},
 	{Method: "GET", Path: "/v1/risk/batches", Action: "risk.batches.read"},
 	{Method: "GET", Path: "/v1/prevention/observations", Action: "prevention.observations.read"},
 	{Method: "GET", Path: "/v1/prevention/actions", Action: "prevention.actions.read"},

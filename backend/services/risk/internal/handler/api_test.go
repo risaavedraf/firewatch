@@ -53,6 +53,13 @@ type fakeStore struct {
 	seriesErr     error
 	seriesCalls   int
 	seriesQueries []repository.HistorySeriesQuery
+	// Comparison state for the PM-05 read route. compareQueries records the zone
+	// list, window and granularity the route asked for, and compareCalls proves the
+	// comparison is one read for the whole list instead of one read per zone.
+	comparison     repository.ComparisonSnapshot
+	compareErr     error
+	compareCalls   int
+	compareQueries []repository.ComparisonQuery
 }
 
 func (s *fakeStore) ListModels(context.Context) ([]repository.ModelVersion, error) {

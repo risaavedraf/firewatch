@@ -277,6 +277,16 @@ func newGateway(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin st
 				return
 			}
 		}
+		// The comparison accepts a zone LIST, so a dropped pair cannot be read as
+		// "a shorter list": `?zone_ids=05101,%zz` would otherwise reach the risk
+		// service as a well-formed two-zone request the caller never sent. The check
+		// is exact-path and GET-only; semantic validation stays upstream.
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/risk/compare" {
+			if _, err := url.ParseQuery(r.URL.RawQuery); err != nil {
+				failure(w, http.StatusBadRequest, "invalid_comparison_query")
+				return
+			}
+		}
 		mux.ServeHTTP(w, r)
 	})
 }

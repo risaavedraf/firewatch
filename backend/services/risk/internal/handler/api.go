@@ -42,6 +42,12 @@ type Repository interface {
 	// history is answered by one read for the whole territory instead of one read
 	// per zone; an empty result is a valid answer, not an error.
 	HistorySeries(ctx context.Context, query repository.HistorySeriesQuery) ([]repository.HistoryPoint, error)
+	// CompareZones reads one comparison snapshot in a single statement: the newest
+	// batch of each requested zone strictly before the shared cutoff, plus the
+	// PM-04 buckets inside the half-open window. A requested zone with no eligible
+	// batch is simply absent from the assessment half, which the handler serves as
+	// a null assessment; an empty result is a valid answer, not an error.
+	CompareZones(ctx context.Context, query repository.ComparisonQuery) (repository.ComparisonSnapshot, error)
 }
 
 // DescriptorProvider is the read-only description surface of the active publisher provider.
@@ -77,6 +83,15 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 	mux.HandleFunc("GET /v1/risk/history/series", historySeries(store))
 	mux.HandleFunc("HEAD /v1/risk/history/series", func(w http.ResponseWriter, _ *http.Request) {
 		// ServeMux otherwise runs the GET handler for HEAD, outside GET auditing.
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
+	// The comparison is additive and takes a zone LIST, which no other risk route
+	// does; it is its own exact path so the single-zone reads keep their exact
+	// vocabulary and bodies. HEAD is refused explicitly for the same reason the
+	// series refuses it: ServeMux would otherwise run the GET handler, unrecorded.
+	mux.HandleFunc("GET /v1/risk/compare", compareZones(store))
+	mux.HandleFunc("HEAD /v1/risk/compare", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Allow", http.MethodGet)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	})
