@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { idleCopy, rejectedSessionCopy } from '../app/sessionCopy';
 import {
   getHistoryFilters,
+  resetHistoryFilters,
   setHistoryQuery,
   setHistoryStatus,
   useHistoryFilters,
@@ -150,6 +151,12 @@ export function HistoryView() {
   // the rows that survived the filter. A search that narrows the table to zero
   // rows must not hide the controls that clear it.
   const hasRows = rows.length > 0;
+  // A zone that returned no row at all is not a zone measured as low risk, and
+  // the artboard says so instead of leaving one sentence. Rows hidden by the
+  // filters are a different state: the data exists, so the panel offers the
+  // whole period back through the same reset the shell's control uses.
+  const filtersActive = query !== '' || statusFilter !== '';
+  const hiddenByFilters = loaded && rows.length > 0 && visible.length === 0 && filtersActive;
 
   return (
     <section className="view" id="history" data-view="history" aria-labelledby="history-title">
@@ -200,6 +207,26 @@ export function HistoryView() {
         </div>
         <div id="history-state" className={status.kind === 'failure' ? 'empty-state risk-error' : 'empty-state'}>
           {stateMessage(status, idleCopy(session, 'consultar el historial'))}
+          {status.kind === 'empty' ? (
+            <>
+              <strong>Esta zona no tiene lotes ni evaluación al corte.</strong>
+              <p>La ausencia de datos no es un nivel bajo. Cambia de zona o revisa el corte compartido.</p>
+            </>
+          ) : null}
+          {hiddenByFilters ? (
+            <>
+              <strong>No hay lotes que coincidan con los filtros.</strong>
+              <p>Los filtros no cambian los datos: ocultan filas que la API ya devolvió.</p>
+              <button
+                id="history-show-period"
+                className="secondary-button"
+                type="button"
+                onClick={resetHistoryFilters}
+              >
+                Ver todo el periodo
+              </button>
+            </>
+          ) : null}
         </div>
         <TableWrap label="Historial de lotes de la zona">
           <table>
