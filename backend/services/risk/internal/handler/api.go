@@ -21,6 +21,7 @@ type Repository interface {
 	// ordered by zone_id. A zone with no published batch is absent from the
 	// answer, and an empty result is a valid answer rather than an error.
 	LatestPerZone(ctx context.Context) ([]repository.Batch, error)
+	ExecutiveBatches(ctx context.Context) ([][]repository.Batch, error)
 	// ZoneExists reports whether the zone catalogue holds code. Membership is a
 	// property of the data, not of a literal compiled into this service, so the
 	// read path asks the catalogue instead of comparing to a hardcoded zone.
@@ -67,6 +68,7 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 	// zone gate and one window, so neither representation can drift from the other.
 	mux.HandleFunc("GET /v1/risk/history.csv", historyCSV(store))
 	mux.HandleFunc("GET /v1/risk/batches", latestPerZone(store))
+	mux.HandleFunc("GET /v1/risk/executive-summary", executiveSummary(store))
 	// The alert timeline is a viewer/admin read like its neighbours: it is inside
 	// the Authorize gate and requires no further role check, and it stores nothing.
 	mux.HandleFunc("GET /v1/risk/alerts", listAlerts(store))
