@@ -234,3 +234,14 @@ Probe runs on the disposable `firewatch-g1-audit` stack, Chromium 149.0.7827.55,
 | `FW_TEXT_SPACING=1 FW_TEXT_SPACING_GATE=1` | The 1.4.12 override applied to the eight views: 16 of 16 samples stayed at viewport width with no clipped content, so text spacing no longer blocks the report. |
 
 What remains without rendered evidence: the Overview no-lot sentence and the Actions filtered-empty block, which rest on their public DOM tests.
+
+### Reader findings closed
+
+Two defects the virtual-screen-reader pass recorded were fixed and verified in Chromium 149.0.7827.55 on 2026-11-25:
+
+| Finding | Fix | Evidence |
+| --- | --- | --- |
+| The shell footer rendered `contentinfo` inside `main`, so it was read as page content and had no landmark of its own. | The footer moved after `main`, where it already looked; no layout rule changed, since the stylesheet targets the `footer` element. | `FW_STRUCTURE_AUDIT=1` asserts exactly one `contentinfo` per route through the Chromium accessibility tree: 16 of 16 route and width samples passed, with one `main`, one `navigation` and the heading hierarchy unchanged. |
+| The History count badge spoke a bare number. | A visually hidden label precedes the badge in document order, so the reader hears the noun before the number. | The virtual reader records `Lotes devueltos:` in the History reading at both widths; the visible number and its tests are unchanged. |
+
+Both fixes keep their public DOM test (`the footer is a landmark outside the main region`, `the count badge is named for a reader before its number`), and `FW_HISTORY_GATE` still reaches the shell reset by keyboard after the footer moved. The reader probe samples 45 body phrases plus 60 from `main`, so the footer now falls outside that sweep by design; its landmark presence is asserted in the accessibility tree instead.
