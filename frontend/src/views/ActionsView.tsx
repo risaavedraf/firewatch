@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } fro
 
 import { idleCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
-import { PanelHeading, StatusCopy } from '../components/ui';
+import { PanelHeading, StatusCopy, TableWrap } from '../components/ui';
 import { timing } from '../config';
 import {
   createJob,
@@ -972,7 +972,7 @@ export function ActionsView() {
           </button>
         </form>
 
-        <div className="table-wrap">
+        <TableWrap label="Listado de acciones preventivas">
           <table id="actions-table">
             <caption className="sr-only">Acciones preventivas devueltas por el servicio</caption>
             <thead>
@@ -1014,7 +1014,7 @@ export function ActionsView() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
       </article>
 
       {selectedId !== '' ? (
@@ -1066,7 +1066,7 @@ export function ActionsView() {
           </dl>
 
           <h3>Historial</h3>
-          <div className="table-wrap">
+          <TableWrap label="Historial de estados de la acción">
             <table id="action-history">
               <caption className="sr-only">Historial de estados de la acción preventiva</caption>
               <thead>
@@ -1088,13 +1088,13 @@ export function ActionsView() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
 
           <h3>Evidencia y suficiencia</h3>
           <p id="actions-sufficiency" className="status-copy" role="status" aria-live="polite">
             {selected !== null ? sufficiencyCopy(evidenceSufficient) : ''}
           </p>
-          <div className="table-wrap">
+          <TableWrap label="Evidencia registrada de la acción">
             <table id="action-evidence">
               <caption className="sr-only">Instantáneas de evidencia registradas para la acción</caption>
               <thead>
@@ -1143,10 +1143,10 @@ export function ActionsView() {
                 )}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
 
           <h3>Revisión humana de suficiencia</h3>
-          <div className="table-wrap">
+          <TableWrap label="Revisión humana de la evidencia">
             <table id="action-evidence-reviews">
               <caption className="sr-only">Decisiones humanas registradas sobre la evidencia</caption>
               <thead>
@@ -1179,7 +1179,7 @@ export function ActionsView() {
                 )}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
 
           <form className="actions-form actions-evidence-form" onSubmit={submitEvidence}>
             <label htmlFor="evidence-criterion">
@@ -1286,7 +1286,7 @@ export function ActionsView() {
           <p id="reassessment-status" className="status-copy" role="status" aria-live="polite">
             {reassessmentForSelected.message}
           </p>
-          <div className="table-wrap">
+          <TableWrap label="Reevaluaciones sintéticas de la acción">
             <table id="action-reassessments">
               <caption className="sr-only">Reevaluaciones sintéticas vinculadas a la acción</caption>
               <thead>
@@ -1321,7 +1321,7 @@ export function ActionsView() {
                 )}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
 
           <h3>Transiciones</h3>
           <label className="filter-label" htmlFor="transition-note">

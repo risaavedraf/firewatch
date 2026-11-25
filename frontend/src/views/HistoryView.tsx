@@ -9,7 +9,7 @@ import {
   useSelectedZone,
   useSessionState,
 } from '../app/store';
-import { Icon, UnimplementedNote } from '../components/ui';
+import { Icon, TableWrap, UnimplementedNote } from '../components/ui';
 import { history, type Failure } from '../core/api';
 import {
   filterHistoryRows,
@@ -201,7 +201,7 @@ export function HistoryView() {
         <div id="history-state" className={status.kind === 'failure' ? 'empty-state risk-error' : 'empty-state'}>
           {stateMessage(status, idleCopy(session, 'consultar el historial'))}
         </div>
-        <div className="table-wrap">
+        <TableWrap label="Historial de lotes de la zona">
           <table>
             <thead>
               <tr>
@@ -220,7 +220,7 @@ export function HistoryView() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
         <UnimplementedNote>
           Historial de todas las zonas: <code>/v1/risk/history</code> exige <code>zone_id</code> y no existe endpoint
           agregado, así que esta tabla muestra siempre la zona consultada.

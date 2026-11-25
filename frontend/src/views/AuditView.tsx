@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { idleCopy } from '../app/sessionCopy';
-import { PanelHeading } from '../components/ui';
+import { PanelHeading, TableWrap } from '../components/ui';
 import { useSessionState } from '../app/store';
 import { audit, type Outcome } from '../core/api';
 import type { SessionState } from '../core/session';
@@ -168,7 +168,7 @@ function AuditRegister({ session }: { session: SessionState }) {
           identificador de evento. <code>/v1/audit</code> no entrega ninguno de esos datos, así que no se muestran ni se
           simulan.
         </p>
-        <div className="table-wrap" id="audit-table" hidden={!state.showTable}>
+        <TableWrap label="Eventos del registro de actividad" id="audit-table" hidden={!state.showTable}>
           <table>
             <caption className="sr-only">Registro de actividad devuelto por /v1/audit</caption>
             <thead>
@@ -195,7 +195,7 @@ function AuditRegister({ session }: { session: SessionState }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
         <div className="audit-foot">
           <span className="count-badge" id="audit-count">
             {count}

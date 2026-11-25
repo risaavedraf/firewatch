@@ -284,6 +284,19 @@ route, so the browser wrote it into the address bar and the router replaced it w
 What no suite here can establish is the rendered half — that Chromium scrolls the region into view and
 paints the shared focus ring on it — because jsdom has neither layout nor fragment scrolling.
 
+The horizontally scrollable tables are the same kind of split, and they are the reason `.table-wrap` is now
+rendered by a primitive instead of a bare `div`. `.table-wrap` is the element that scrolls (it carries
+`overflow: auto`), so a keyboard user has to be able to reach it. `components/ui.tsx`'s `TableWrap` renders it
+as a Tab stop (`tabindex="0"`) exposed as a region with its own accessible name, and it passes `id` and
+`hidden` through so no consumer loses a state. `tests/a11y/table-scroll-regions.test.tsx` pins that contract
+for the nine wrappers in Actions, Audit, History, Pending and Session, including the actions detail and the
+register that stays hidden until the service returns events, and it fails if a wrapper loses its name or two
+wrappers share one. The class is unchanged, so the shipped focus ring and the `has-rows` hiding rule still
+apply. Chromium made those scrollers focusable through its own scroll-container heuristic, which no other
+engine owes the page; axe-core 4.10.3 reported `scrollable-region-focusable` until the DOM stated it. What no
+suite here can establish is the rendered half — that the browser paints the ring and moves the region with
+arrow keys — which is a browser measurement, not a jsdom one.
+
 ## History
 
 This directory used to hold one self-contained page (`index.html`, `proposal.css`,
