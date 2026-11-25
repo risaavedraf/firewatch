@@ -499,6 +499,10 @@ test('synthetic warning independent of notice; unknown factor never displays zer
   expect(textOf('batch-origin')).toMatch(/Sintético/);
   expect(textOf('batch-notice')).toMatch(/no riesgo real observado/);
   expect(textOf('batch-notice')).toMatch(/ausente o inválido/);
+  // The approved label describes the rule's calculation, not a cause or forecast (PM-02).
+  expect(screen.getByRole('heading', { name: 'Cómo lo calculó la regla' }).nextElementSibling).toBe(
+    element('risk-rationale'),
+  );
   // The rationale is reproduced as text, never interpreted as markup.
   expect(textOf('risk-rationale')).toBe('<img onerror=evil>');
   // The unknown entry is found by name, not by position: the row list names the

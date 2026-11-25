@@ -668,7 +668,7 @@ export function OverviewView() {
             ))}
             {showFactorOmission ? <li>Factores ausentes o inválidos; solo se muestran entradas válidas.</li> : null}
           </ul>
-          <h4>Justificación</h4>
+          <h4>Cómo lo calculó la regla</h4>
           <p id="risk-rationale">{rationaleText}</p>
           <h4>Política informada</h4>
           <p id="risk-policy">{policyText}</p>
