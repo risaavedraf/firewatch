@@ -33,6 +33,10 @@ type Repository interface {
 	ListModels(ctx context.Context) ([]repository.ModelVersion, error)
 	// ActivateModel makes one version active and records its approval atomically.
 	ActivateModel(ctx context.Context, version string) (repository.ModelVersion, error)
+	// ListAlerts reads one page of the persisted level-change alerts, newest first
+	// by default, with a stable keyset boundary. An empty page is a valid answer,
+	// not an error.
+	ListAlerts(ctx context.Context, query repository.AlertPageQuery) (repository.AlertPage, error)
 }
 
 // DescriptorProvider is the read-only description surface of the active publisher provider.
@@ -97,6 +101,9 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 	mux.HandleFunc("GET /v1/risk/latest", get(true))
 	mux.HandleFunc("GET /v1/risk/history", get(false))
 	mux.HandleFunc("GET /v1/risk/batches", latestPerZone(store))
+	// The alert timeline is a viewer/admin read like its neighbours: it is inside
+	// the Authorize gate and requires no further role check, and it stores nothing.
+	mux.HandleFunc("GET /v1/risk/alerts", listAlerts(store))
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
 	// Model registry: the list is a read route; activation is admin-only through

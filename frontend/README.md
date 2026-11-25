@@ -12,7 +12,7 @@ single-file, framework-free page; the reasons and the parity obligations are rec
 | `index.html` | Vite entry: the document and the `#root` mount point. No page content lives here |
 | `src/config.ts` | The two external origins, the identity provider, the consumed routes and the timing bounds |
 | `src/types/api.ts` | Declared payload shapes. Declarations, not guarantees: consumers validate at the boundary |
-| `src/app/routes.ts` | The eight views and their four navigation groups |
+| `src/app/routes.ts` | The ten workspace views and their four navigation groups |
 | `src/views/AuthView.tsx` | The sign-in and sign-up screen shown instead of the workspace while there is no session. Both buttons open Keycloak; the page renders no credential field |
 | `src/app/useHashRoute.ts` | Hash routing: reads the view from the address bar, follows back/forward, normalises an unknown hash |
 | `src/components/Shell.tsx` | Sidebar, topbar, update bar and footer |
@@ -21,8 +21,8 @@ single-file, framework-free page; the reasons and the parity obligations are rec
 | `src/core/api.ts` | Transport: one function per consumed route, absolute gateway URLs, sequence fences, deadlines |
 | `src/core/session.ts` | OIDC PKCE, the in-memory token, the unverified role claim, logout |
 | `src/domain/` | Pure rules: validity, level mapping, fail-closed batch and provenance acceptance, readiness, history filters, the PM-18 recommendation catalogue |
-| `src/views/` | The eight views |
-| `src/styles/` | `tokens.css` (palette, level colours, type), `app.css` (layout, components, responsive) and `auth.css` (the sign-in screen) |
+| `src/views/` | The workspace views and the unauthenticated screen |
+| `src/styles/` | `tokens.css` (palette, level colours, type), `app.css` (layout, components, responsive), `auth.css` (sign-in), `observations.css` (PM-09) and `notifications.css` (PM-08) |
 | `scripts/serve.mjs` | Static server for the build output: explicit allowlist, CSP, no directory listing, no SPA fallback |
 | `scripts/smoke.mjs` | Loopback check of that server against the build |
 | `scripts/check.mjs` | Source gate: requires the honesty statement, forbids invented data, requires the real endpoints |
@@ -167,6 +167,40 @@ no item is an official alert, an official risk classification or an order. The c
 and its fallbacks are pinned by `tests/domain/recommendations.test.ts`; the rendered list,
 its states and the no-mutating-request assertion by the PM-18 cases in
 `tests/views/overview.test.tsx`.
+
+The PM-09 observation screen is exercised with mocked HTTP in jsdom; the real cross-origin
+observation write was not run in a browser for this change.
+
+## Field observations (PM-09)
+
+The observations view (`src/views/ObservationsView.tsx`, `#observations`) is the client
+half of the PM-09 seam: `GET|POST /v1/prevention/observations` and
+`GET /v1/prevention/observations/zones`.
+
+- The **zone** picker is the real catalogue read from `/zones`, including zones without
+  map geometry; the page never contributes a sector of its own. An unavailable catalogue
+  empties the picker, disables the form and offers a retry instead of a fallback list.
+- The **type** is the closed catalogue of S2 — `vegetacion_seca`, `microbasural`, `quema`,
+  `acceso_bloqueado`, `otro` — shown with the Spanish labels of S3. There is no free-text
+  type control.
+- The **date** is chosen by the operator: the page declares no fixed calendar bounds, and
+  the description is bounded at the contract's 240 characters with a live count.
+- The **author** is server-authored. The creation body carries only `zone_id`, `type`,
+  `observed_on` and `description`; `created_by` is the verified token `sub`, and every row
+  names the attribution the server stored.
+- The **list** is read from the service newest first and re-read after a saved record. The
+  type filter is a server query (`?type=`), and the empty state distinguishes "the service
+  has no observations" from "this filter matched none", keeping the filter with an explicit
+  way out.
+- A **refusal** keeps every entered value and names the HTTP status, the server `code`
+  (`invalid_observation_request`, `invalid_query`, `zone_not_found`, `forbidden`,
+  `storage_unavailable`) and the `request_id`. The submit control is disabled while a save
+  is in flight, and a token without `admin` reads the list while the form stays disabled.
+  The server remains the only authority.
+
+The transport validators fail closed on a malformed list, catalogue or creation record,
+including a creation that does not echo the selected zone. The cases are pinned by
+`tests/core/observations-api.test.ts` and `tests/views/observations.test.tsx`.
 
 ## Quality gates
 

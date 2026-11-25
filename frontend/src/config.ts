@@ -78,6 +78,10 @@ export const routes = {
   // published batch of every zone that has one, answered in a single request.
   batches: '/v1/risk/batches',
   sources: '/v1/risk/sources',
+  // PM-08's frozen read: persisted PM-07 risk alerts, newest first by default,
+  // keyset-paginated through the opaque `cursor` the previous page returned.
+  // The server owns the default page size (50); the client sends no `limit`.
+  alerts: '/v1/risk/alerts',
   riskStatus: '/v1/risk/status',
   jobsStatus: '/v1/jobs/status',
   scenarios: '/v1/risk/synthetic-scenarios',
@@ -86,6 +90,11 @@ export const routes = {
   // are reached through the gateway, the only origin the page's `connect-src`
   // allows besides the identity provider.
   preventiveActions: '/v1/prevention/actions',
+  // PM-09 field observations. Both routes are served by the prevention service
+  // through the gateway; the zones read is the REAL catalogue, including zones
+  // without map geometry, so the form never invents a sector.
+  observations: '/v1/prevention/observations',
+  observationZones: '/v1/prevention/observations/zones',
   models: '/v1/models',
 } as const;
 
@@ -99,6 +108,12 @@ export function preventiveActionRoute(id: string): string {
 
 export function preventiveTransitionRoute(id: string): string {
   return `${preventiveActionRoute(id)}/transitions`;
+}
+
+// PM-10: the one link operation of S4. The observation is addressed by the path
+// and the existing action by the body, so neither can be exchanged for the other.
+export function observationAdoptionRoute(id: string): string {
+  return `${routes.observations}/${encodeURIComponent(id)}/adoption`;
 }
 
 // Bounds and deadlines the retired page enforced. They are policy, not

@@ -13,7 +13,8 @@ import (
 type Verifier interface {
 	Verify(context.Context, string) (*oidc.IDToken, error)
 }
-type subjectKey struct{}
+
+// identityKey and the verified identity live in identity.go.
 
 func Authorize(verifier Verifier, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -29,20 +30,19 @@ func Authorize(verifier Verifier, next http.Handler) http.Handler {
 			fail(w, 401, "unauthorized")
 			return
 		}
-		var claims struct {
-			Type      string `json:"typ"`
-			NotBefore int64  `json:"nbf"`
-			Realm     struct {
-				Roles []string `json:"roles"`
-			} `json:"realm_access"`
-		}
-		if token.Claims(&claims) != nil || claims.Type != "Bearer" || claims.NotBefore > time.Now().Unix() {
+		// verifiedClaims reads the signed claims of the already-verified token. The
+		// subject is authenticated; the name fields are the only source of the audit
+		// actor name, and a token that asserts none stays nameless: the opaque subject
+		// is never a name candidate, so the store records NULL instead of a false name.
+		// The Bearer type, not-before policy and claims decode stay checked here.
+		claims, ok := verifiedClaims(token)
+		if !ok || claims.Type != "Bearer" || claims.NotBefore > time.Now().Unix() {
 			fail(w, 401, "unauthorized")
 			return
 		}
 		for _, role := range claims.Realm.Roles {
 			if role == "admin" {
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), subjectKey{}, token.Subject)))
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), identityKey{}, identity{subject: token.Subject, name: displayName(claims)})))
 				return
 			}
 		}
