@@ -108,3 +108,22 @@ The re-scan left four contrast items as *incomplete* heuristics. Each is now jud
 | `#actions-table` (`th-has-data-cells`) | No data rows existed in the audit stack at scan time; the assertion needs a populated table. |
 
 This does not close keyboard, zoom, text-spacing or assistive-technology coverage, and it is not a WCAG conformance statement.
+
+## Virtual screen reader
+
+`FW_VIRTUAL_READER` injects @guidepup/virtual-screen-reader **0.28.0** (bundled as an IIFE) over CDP and runs it inside the page. This is a DOM reader: it reports what the accessibility tree exposes in document order and whether a mutation is announced without focus moving. It is not assistive technology and cannot predict what NVDA, JAWS or VoiceOver will say. Chromium **149.0.7827.55**, 2026-11-25, disposable authenticated stack. Evidence: `tmp/g1-browser-baseline/vo-audit/virtual-reader.json`.
+
+Seven samples: the anonymous sign-in once and History, Actions and Jobs at 1280×720 and 390×844, 45 steps from `document.body` plus 60 from the view's `main`. The body sweep ends inside the sidebar navigation on every signed-in route, so the view content was read from its own main landmark; the reader repeats the `main` landmark after `end of main`. Sampled state: one synthetic lot in History, no job for the selected zone, and `/v1/users` returning 503, so Actions showed its empty list with the assignee directory unavailable. No spoken phrase exposed a token, JWT, raw id or credential.
+
+| View | First phrases |
+| --- | --- |
+| Sign-in | region, El riesgo territorial de incendio, comuna por comuna. → heading, level 1 with the same name → paragraph → list of three feature items → demo disclaimer → main → tablist, Acceso a FireWatch → tab, Iniciar sesión, selected → tab, Crear cuenta → tabpanel, Iniciar sesión → heading, Bienvenido de vuelta, level 2 → paragraph → button, Continuar con Keycloak |
+| History | region, Historial de lotes → paragraph, TRAZABILIDAD → heading, Historial de lotes, level 2 → bare count `1` → article → paragraph with `code /v1/risk/history` → searchbox, Buscar en el historial de la zona → Estado del dato → combobox, Filtrar el historial por estado del dato → 0 de 1 → region, Historial de lotes de la zona → table |
+| Actions | region, Acciones preventivas → article → heading, level 2 → status, El servicio no devolvió acciones preventivas para el filtro elegido. → form → Comunidad (CUT) → textbox, Comunidad (CUT) → combobox, Estado with nine options → button, Aplicar filtros → button, Actualizar lista → region, Listado de acciones preventivas → table with caption and seven column headers |
+| Jobs | region, Procesamiento asíncrono → article → heading, Procesamiento asíncrono, level 2 → ACCIÓN ADMINISTRATIVA → combobox, Escenario sintético a solicitar with seven options → button, Solicitar lote de la zona → status, Sin trabajo para la zona seleccionada. → term/definition pairs → button, Actualizar estado, disabled |
+
+Headings, landmarks and form labels are spoken. Each view exposes its level-2 heading and the sign-in its level-1 hero title; the named `region`, `article`, `table` and `main` landmarks are announced, including each table's caption and column headers; every form control is announced with its accessible name — search box, status combobox, CUT textbox. Two shape notes: the History count badge speaks only its bare number (`1`, then `0 de 1`) with no label, and the shell footer exposes `contentinfo` nested inside `main`.
+
+Announcement test: on History the probe set the search box to a non-matching value without moving focus. The table went from 1 to 0 rows and the visible count from `1 de 1` to `0 de 1` at both widths, and the reader logged **no new phrase**. History has no live region for the count or the rows, so a reader user gets no feedback that filtering emptied the table. This is a product finding, not a harness defect. The probe now waits for the history read to settle before mutating; the first run changed the box before the table loaded and measured a meaningless empty result.
+
+Limits: a DOM reader is not assistive technology, so announcement timing, interruption and verbosity in a real screen reader remain unverified. The reading is capped at 45 shell plus 60 view steps and stops before the Actions creation fields. Only these states were sampled; the other five views, populated actions and error states were not read, and the filter-change announcement was the only dynamic change exercised.
