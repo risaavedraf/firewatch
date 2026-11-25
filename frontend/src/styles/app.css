@@ -15,6 +15,8 @@ body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid #cf7d4f; outline-offset: 2px; }
+/* The shared light ring is retained on dark surfaces. These controls sit on the canvas. */
+.skip-link:focus-visible, #data-status-notice:focus-visible, #reset-filters:focus-visible { outline-color: var(--terracotta); }
 /* The hidden attribute must beat the display rules declared further down for the
    same elements (the map svg and the logout control are both toggled this way). */
 [hidden] { display: none !important; }
