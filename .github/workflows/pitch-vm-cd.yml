@@ -1,9 +1,12 @@
 # Pitch CD: deploy main to the pitch VM by re-running up.sh there.
 #
-# DORMANT BY DEFAULT. Two repository variables opt in, in this order and never
-# together: PITCH_CD_ENABLE_MANUAL turns on the manual path, and only after a
-# manual run has been observed does PITCH_CD_ENABLE_AUTO turn on the path that
-# follows main. With either unset every job is skipped and no push reaches the VM.
+# DORMANT BY DEFAULT. Two repository variables opt in, in this order, and the
+# first one never turns off: PITCH_CD_ENABLE_MANUAL turns on the manual path, and
+# only after a manual run has been observed does PITCH_CD_ENABLE_AUTO turn on the
+# path that follows main. The automatic path **requires** PITCH_CD_ENABLE_MANUAL to
+# stay `true`; setting it back to `false` disables both paths and every job is
+# skipped without an error. With either unset every job is skipped and no push
+# reaches the VM.
 #
 # Both paths (manual and automatic) deploy one thing: the SHA the run was created
 # for (github.sha). If main has moved since, the run refuses; a stale dispatch or a
