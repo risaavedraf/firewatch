@@ -176,7 +176,7 @@ These ratios use WCAG relative luminance for opaque sRGB pairs. Compare before r
 ## What still needs a browser
 
 - Resolve inherited backgrounds, disabled and focus states, and route-specific overrides in the rendered views. For example, Actions already overrides some chip and tag colors, so their base ratios do not describe every view.
-- Measure sign-in hero gradients, translucent sidebar elements and other blended surfaces against their actual backgrounds. Static hex values do not cover them.
+- Sign-in hero gradients and translucent sidebar surfaces are now measured from rendered pixels, not from token pairs: see "Mixed surfaces" in the [visual audit](VISUAL-AUDIT.md). The lowest legitimate text sample is 5.07:1; the only sub-threshold value is a decorative `aria-hidden` glyph.
 - Capture the eight production views before restyling, then verify the same states and viewports after changes. Include keyboard focus, zoom and data loading, empty and error states where applicable.
 
 ### Public sign-in baseline

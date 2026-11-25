@@ -69,3 +69,42 @@ Chromium 149.0.7827.55, 2026-11-25, authenticated disposable stack:
 - **Navigation contrast during route changes:** before the fix, the active state changed text immediately but animated the background; the sampled transition from Actions to History briefly reached 1:1 (`job-58`). Removing only the background transition kept the minimum at 7.93:1 with no failing frames at either width (`job-59`). The settled colors, routes and focus styles did not change.
 
 Other source-level findings, the remaining prototype alignment, full keyboard and WCAG checks stay open.
+
+## Mixed surfaces (rendered pixels)
+
+The baseline declares sign-in gradients and translucent surfaces unmeasured. `FW_MIXED_SURFACES` now measures them from rendered pixels instead of token pairs: for each text element it captures the element twice — painted, then with its own glyphs masked (`color` and `-webkit-text-fill-color` transparent) — derives a glyph mask from the difference between the two captures, dilates it by one pixel to keep the antialiased rim, and computes 1.4.3 contrast against every backdrop pixel behind the text. Chromium 149.0.7827.55, 2026-11-25, 93 samples over the public sign-in and the eight signed-in views at 1280×720 and 390×844. Evidence: `tmp/g1-browser-baseline/mixed-surfaces.json`.
+
+Method check: the probe reproduces the independently computed source pairs it must — active navigation label 10.32:1 on `#f0eee0`, table header 5.01:1 on `#f3f4ed`, neutral tag 4.87:1 (10.51:1 in Actions), sign-in button 11.65:1 and selected auth tab 11.92:1.
+
+| Surface | Minimum measured | Note |
+| --- | --- | --- |
+| Sign-in hero title | 10.44:1 | Over the two radial gradients and the contour overlay. |
+| Sign-in brand name | 9.39:1 | Lightest hero text, darkest sampled backdrop. |
+| Sign-in brand caption | 5.29:1 | 9 px; the flat `--forest-900` pair would have overstated it at 6.34:1. |
+| Sign-in kicker / hero paragraph | 6.49:1 | `#d7aa73` and `#b9cfc6` over the composited hero. |
+| Sign-in feature item | 8.16:1 | Translucent 3% feature surface. |
+| Sign-in primary button | 11.65:1 | Button label on its own fill. |
+| Selected auth tab | 11.92:1 | Paper chip on the soft track. |
+| Health card (sidebar) | 6.79:1 | 3% white over `--forest-900`; composited, not the flat token. |
+| Sidebar footer | 6.79:1 | Same composited surface. |
+| Active navigation label | 10.32:1 | Matches the documented pair. |
+| View eyebrow | 5.07:1 | Worst of the four eyebrow contexts. |
+| Neutral tag | 4.87:1 | Matches the post-correction value. |
+| Table header | 5.01:1 | Matches the documented pair. |
+| Session lock mark | 4.03:1 | `⌑` with `aria-hidden="true"`: decorative, outside 1.4.3. |
+
+Every measured text surface meets its 1.4.3 threshold. The only sub-threshold sample is the decorative `⌑` glyph, which conveys nothing and is removed from the accessibility tree; it would still clear 1.4.11's 3:1 if it were informative.
+
+### Axe *incomplete* contrast items, resolved
+
+The re-scan left four contrast items as *incomplete* heuristics. Each is now judged, not approved by default:
+
+| Axe target | Resolution |
+| --- | --- |
+| `.session-mark` | `●` with `aria-hidden="true"` (`Shell.tsx:194`): decorative status dot, outside 1.4.3. |
+| `.zone-chip > span[aria-hidden="true"]` | Decorative zone glyph, removed from the accessibility tree. |
+| `.lock-mark` | `⌑` with `aria-hidden="true"` (`SessionView.tsx:247`): decorative; measured 4.03:1. |
+| `#create-description` | Empty `textarea` in the sampled state (`ActionsView.tsx:1399`); no text is rendered inside the control, and its label sits on paper outside it. |
+| `#actions-table` (`th-has-data-cells`) | No data rows existed in the audit stack at scan time; the assertion needs a populated table. |
+
+This does not close keyboard, zoom, text-spacing or assistive-technology coverage, and it is not a WCAG conformance statement.
