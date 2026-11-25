@@ -89,6 +89,8 @@ No se renombra ni se elimina ningún campo existente. Los códigos `400/401/403/
 
 - **L3 (2026-11-25) — Integración PostgreSQL ejecutada por el padre en un proyecto aislado.** El worker no tenía `TEST_DATABASE_URL` y la prueba quedó omitida; el padre levantó `fw-pm01-test` con volumen propio y corrió `risk-test`: 12/12 paquetes ok, incluido `repository`, que ejercitó la regla D-B y la igualdad del conteo contra `risk_alerts`. El proyecto se eliminó con `down -v`. El skip de L2 queda superado; no se re-ejecutó el resto de la suite.
 
+- **L4 (2026-11-25) — Slices de entrega.** `7918f2f` backend/contrato (348+/32-); `9219b6c` página, pruebas y este documento (936+/22-). El segundo slice es UI más sus pruebas; al publicar, revisar como dos unidades o partir las pruebas de la página si el revisor lo pide. El aviso de «87 commits desde main» es la ascendencia de `dev`, no líneas autoradas.
+
 ## Allowed edit surfaces
 
 - `backend/services/risk/internal/handler/api.go`
