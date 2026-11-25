@@ -308,7 +308,9 @@ test('a view that did not opt into a level keeps its panel headings at level 3',
     'id',
     'sources-title',
   );
-  for (const name of ['Fuentes y procedencia', 'Servicios dependientes', 'Frescura y última ejecución']) {
+  // PM-16 renamed this panel to its operational verdict; the heading level is
+  // still the default one, which is what this case pins.
+  for (const name of ['Fuentes y procedencia', 'Servicios y veredicto operativo', 'Frescura y última ejecución']) {
     expect(screen.getByRole('heading', { level: 3, name }), name).toBeInTheDocument();
   }
 });

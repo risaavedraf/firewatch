@@ -224,8 +224,14 @@ test('the audit register is a named scroll region only while the service returne
   await act(async () => {
     fetchStub.answer(AUDIT_URL, [
       {
+        // PM-10 added the decision-log fields: the register now names the event,
+        // its kind and its optional detail, so the guard refuses an older row.
+        event_id: 'evt-1',
+        event_kind: 'query',
         actor_id: 'actor-1',
+        actor_name: null,
         action: 'risk.read',
+        detail: null,
         job_id: 'job-1',
         trace_id: 'trace-1',
         occurred_at: '2026-11-01T10:00:00Z',
@@ -237,7 +243,7 @@ test('the audit register is a named scroll region only while the service returne
   expect(wrapper).not.toHaveAttribute('hidden');
   scrollRegionOf(wrapper.querySelector('table'), NAMES.audit);
   expectAllWrappersNamed(1);
-  expect(document.querySelectorAll('#audit-table thead th')).toHaveLength(5);
+  expect(document.querySelectorAll('#audit-table thead th')).toHaveLength(8);
   expect(document.querySelectorAll('#audit-table tbody tr')).toHaveLength(1);
 });
 
