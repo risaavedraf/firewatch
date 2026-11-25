@@ -69,7 +69,8 @@ code { font-size: 11px; }
    pushing the sign-out control past the fold. The column keeps its own overflow
    as the fallback for anything the navigation cannot absorb. */
 .sidebar nav { display: grid; gap: 3px; flex: 1 1 auto; min-height: 0; align-content: start; overflow-y: auto; }
-.nav-link { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid transparent; border-radius: 7px; color: #c3d6cf; font-size: 12px; transition: background .15s; }
+/* Foreground and background must switch together so labels remain readable between routes. */
+.nav-link { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid transparent; border-radius: 7px; color: #c3d6cf; font-size: 12px; }
 .nav-link .icon { opacity: .8; }
 .nav-link:hover { background: #254d47; color: #effdf9; }
 .nav-link.active, .nav-link.is-active { background: #f0eee0; border-color: #f0eee0; color: var(--forest-900); font-weight: 650; }
