@@ -260,4 +260,14 @@ The merge added three routed views — `InfrastructureView`, `ObservationsView` 
 
 Two product changes came out of it. The eyebrow colour rule was scoped to the views that existed when it landed, so the merged views inherited `#638579` at **3.71:1**; the selector now targets `.intro-row .eyebrow` structurally and the per-view list is gone. The decorative `⌑` in Session (`.lock-mark`, `aria-hidden`) measured **4.03:1** against the canvas, so it now uses the same readable token: the mixed-surface gate no longer needs an exception that could one day hide real text.
 
-**What this does not prove.** The disposable `firewatch-g1-audit` stack predates the merge: its gateway, risk and prevention images have no `/v1/risk/alerts`, `/v1/risk/infrastructure` or `/v1/prevention/observations` route, so all three views rendered their not-found state during these runs. The evidence therefore covers their failure and empty states, not their populated ones. Reaching the populated states needs the stack rebuilt from the merged backend and seeded — a separate step, with the backend session.
+**The stack was rebuilt and the populated states measured.** The disposable project's gateway, risk, prevention and jobs images were rebuilt from the merged tree, the new migrations applied, and the narrow audit writer's principal finally provisioned (`AUDIT_DATABASE_URL` had no local value and `audit_query_app` was created `NOLOGIN`, so every audited read answered 503). After that, all nine reads behind those three views answered 200 at both widths, and the views were measured **with data**: nine alerts, an infrastructure catalogue, and two observations created through the page's own form (201 each, one per width).
+
+| Measurement with populated states | Result |
+| --- | --- |
+| `FW_AXE_AUDIT` | 6 of 6 scans, **zero violations** |
+| `FW_TEXT_SPACING` with its gate | 6 of 6 samples, no overflow and no clipped content |
+| `FW_MIXED_SURFACES` with its gate | 44 samples, **zero failing** |
+
+Two more product fixes came from the populated pass. The infrastructure breakdown arrived from the merge using the plain `div.table-wrap` the audit had already flagged elsewhere, so it was a scroll container no keyboard user could reach: it now uses `TableWrap` as a named, focusable region. And the notifications empty state exposed an eyebrow outside `.intro-row` at **3.87:1**; the base eyebrow token is now the readable one and no view re-colours it, which removes the whole class of defect instead of adding a fourth selector to a list.
+
+**What remains unmeasured.** The populated states are the ones these probes could reach: the alert list, the synthetic catalogue and a created observation. Every other workflow behind them — transitions, adoption, paging, the CSV download, the print path — is covered by the merged test suites, not by a rendered capture.

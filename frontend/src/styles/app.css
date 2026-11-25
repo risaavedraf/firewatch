@@ -112,10 +112,11 @@ code { font-size: 11px; }
 main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .intro-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 17px; }
 .intro-row h2 { margin: 0; font-size: 24px; letter-spacing: -1px; }
-.eyebrow { margin: 0 0 7px; color: var(--forest-500); font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+/* The readable forest token is the eyebrow default: every eyebrow sits on a
+   light surface, and scoping it per view left later views at 3.7:1. */
+.eyebrow { margin: 0 0 7px; color: var(--forest-700); font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
 /* The readable forest token applies to every intro row, whichever view renders
    it: the earlier per-view list silently excluded the views added after it. */
-.intro-row .eyebrow, #sources > .eyebrow, #jobs .job-result .eyebrow { color: var(--forest-700); }
 .subheading { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
 
 /* ── Badges ─────────────────────────────────────────────────────────────── */

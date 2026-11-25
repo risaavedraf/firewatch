@@ -8,6 +8,7 @@ import type { RiskBatch } from '../../src/types/api';
 import { ActionsView } from '../../src/views/ActionsView';
 import { AuditView } from '../../src/views/AuditView';
 import { HistoryView } from '../../src/views/HistoryView';
+import { InfrastructureView } from '../../src/views/InfrastructureView';
 import { NOT_IMPLEMENTED, PendingView } from '../../src/views/PendingView';
 import { PERMISSION_MATRIX, SessionView } from '../../src/views/SessionView';
 
@@ -247,8 +248,40 @@ test('the audit register is a named scroll region only while the service returne
   expect(document.querySelectorAll('#audit-table tbody tr')).toHaveLength(1);
 });
 
-test('the pending inventory is a named scroll region and keeps every declared row', () => {
-  render(<PendingView />);
+// The infrastructure breakdown arrived with the merge using the plain
+// `div.table-wrap` the audit already flagged elsewhere: a scroll container no
+// keyboard user can reach. It carries the same contract as the rest.
+test('the infrastructure breakdown is a named, focusable scroll region', async () => {
+  const INFRA_URL = `${gatewayOrigin}/v1/risk/infrastructure`;
+  await connect();
+  render(<InfrastructureView />);
+  await waitFor(() => expect(fetchStub.callsFor(INFRA_URL)).toHaveLength(1));
+
+  await act(async () => {
+    fetchStub.answer(INFRA_URL, {
+      source: 'synthetic_fixture',
+      points_per_element: 1,
+      zones: [
+        {
+          zone_id: '05101',
+          score: 1,
+          counts: { colegio: 1, vivienda: 0, hospital: 0, ruta: 0, hidrante: 0 },
+          elements: [
+            { id: 'colegio-1', type: 'colegio', geometry: { type: 'Point', coordinates: [-71.62, -33.05] } },
+          ],
+        },
+      ],
+    });
+    await flush();
+  });
+
+  const table = document.getElementById('infrastructure-zones') as HTMLElement;
+  scrollRegionOf(table, 'Desglose por zona de infraestructura');
+  expectAllWrappersNamed(1);
+  expect(document.querySelectorAll('#infrastructure-rows tr')).toHaveLength(1);
+});
+
+test('the pending inventory is a named scroll region and keeps every declared row', () => {  render(<PendingView />);
 
   scrollRegionOf(tableIn('#pending tbody'), NAMES.pending);
   expectAllWrappersNamed(1);

@@ -3,30 +3,29 @@ import { resolve } from 'node:path';
 
 import { expect, test } from 'vitest';
 
-// The eyebrow fix landed scoped to the views that existed then, so the three
-// views merged later inherited `--forest-500` and axe flagged 3.71:1 on each of
-// them at both widths. The rule now targets the structure, not a list of ids: a
-// view added tomorrow gets the readable colour without touching this file.
-test('the eyebrow rule targets the structure, not a list of views', () => {
+// The eyebrow started at `--forest-500` (3.71:1 on the canvas). The first fix
+// scoped the readable token to the views that existed then, so the views merged
+// later inherited the failing colour — and the notifications empty state, whose
+// eyebrow is not in an intro row, failed even after that list grew. The default
+// is now the readable token and no view re-colours it: a view added tomorrow is
+// readable without touching this file.
+test('the eyebrow default is the readable token, with no view-scoped override', () => {
   const css = readFileSync(resolve(process.cwd(), 'src/styles/app.css'), 'utf8');
-  const rule = css
+
+  const base = css
     .split('\n')
-    .find((line) => line.includes('.eyebrow') && line.includes('var(--forest-700)'));
+    .find((line) => /^\.eyebrow\s*\{/.test(line.trim()) && line.includes('color:'));
 
-  expect(rule, 'no eyebrow rule uses the readable forest token').toBeDefined();
+  expect(base, 'the base eyebrow rule is missing').toBeDefined();
+  expect(base).toContain('var(--forest-700)');
+  expect(base).not.toContain('var(--forest-500)');
 
-  const selectors = (rule as string)
-    .slice(0, (rule as string).indexOf('{'))
-    .split(',')
-    .map((selector) => selector.trim());
-
-  // Every intro row carries the readable colour, whichever view renders it.
-  expect(selectors).toContain('.intro-row .eyebrow');
-  // The two eyebrow contexts that do not sit in an intro row keep their own names.
-  expect(selectors).toContain('#sources > .eyebrow');
-  expect(selectors).toContain('#jobs .job-result .eyebrow');
-  // A view-prefixed intro-row selector is the defect: it silently excludes every
-  // view added after the fix.
-  const prefixed = selectors.filter((selector) => /^#[a-z-]+\s+\.intro-row\s+\.eyebrow$/.test(selector));
-  expect(prefixed, `view-scoped eyebrow selectors: ${prefixed.join(', ')}`).toEqual([]);
+  // No rule may re-colour an eyebrow to the unreadable token. A scoped rule that
+  // repeats the readable one is fine; a per-view list that excludes the next
+  // view is what the base default now makes unnecessary.
+  const scoped = css
+    .split('\n')
+    .filter((line) => /\.eyebrow/.test(line) && line.includes('{') && !/^\.eyebrow\s*\{/.test(line.trim()))
+    .filter((line) => line.includes('color:') && line.includes('forest-500'));
+  expect(scoped, `rules that re-colour eyebrows to the unreadable token: ${scoped.join(' | ')}`).toEqual([]);
 });
