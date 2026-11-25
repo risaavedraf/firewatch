@@ -60,12 +60,9 @@ func TestRiskHistorySeriesIndexIsAdditiveAndTimeLed(t *testing.T) {
 	}
 }
 
-// TestRiskHistorySeriesIndexClaimsTheNextFreeLedgerVersion states the claim this
-// branch makes against the shared ledger. Risk already holds 1-8, 10, 12, 13 and
-// 17, prevention holds 9, 11, 14, 15 and 16, and 18 is therefore the next free
-// integer for either module (backend/docs/migration-ledger.md). Taking a lower
-// number would collide with a registered migration that already ran, and a lower
-// number in this file would be skipped in silence on every existing database.
+// TestRiskHistorySeriesIndexClaimsTheNextFreeLedgerVersion pins the history
+// migration at 18, followed by the personal alert-state migration at 19. The
+// prevention service's reservations remain unchanged.
 func TestRiskHistorySeriesIndexClaimsTheNextFreeLedgerVersion(t *testing.T) {
 	owned := map[int]bool{}
 	highest := 0
@@ -78,8 +75,8 @@ func TestRiskHistorySeriesIndexClaimsTheNextFreeLedgerVersion(t *testing.T) {
 	if !owned[18] {
 		t.Error("risk does not register version 18; the time-led index would never be created")
 	}
-	if highest != 18 {
-		t.Errorf("risk's highest registered version is %d, want 18; the ledger claim and this migration disagree", highest)
+	if highest != 19 {
+		t.Errorf("risk's highest registered version is %d, want 19; the ledger claim and this migration disagree", highest)
 	}
 	for _, reservedBySibling := range []int{9, 11, 14, 15, 16} {
 		if owned[reservedBySibling] {

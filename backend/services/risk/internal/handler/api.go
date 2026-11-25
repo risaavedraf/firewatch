@@ -37,6 +37,15 @@ type Repository interface {
 	// by default, with a stable keyset boundary. An empty page is a valid answer,
 	// not an error.
 	ListAlerts(ctx context.Context, query repository.AlertPageQuery) (repository.AlertPage, error)
+	// ReadAlertState reads one subject's effective personal mark on one stored
+	// alert. An alert the subject never marked is unread with no instant; only an
+	// identifier that names no stored alert is repository.ErrAlertNotFound. The
+	// subject key is derived from the verified token, never taken from the request.
+	ReadAlertState(ctx context.Context, alertID, subjectKey string) (repository.AlertState, error)
+	// MarkAlertState appends one personal mark when it advances the state. A replay
+	// of the effective mark, or a lower mark after a dismissal, appends nothing and
+	// answers the state that is actually stored with its original instant.
+	MarkAlertState(ctx context.Context, alertID, subjectKey string, mark repository.AlertMark) (repository.AlertState, error)
 	// HistorySeries reads at most one point per zone and bucket inside a half-open
 	// window of requested_at, in one bucketed query. It exists so the granular
 	// history is answered by one read for the whole territory instead of one read
@@ -99,6 +108,12 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 	// The alert timeline is a viewer/admin read like its neighbours: it is inside
 	// the Authorize gate and requires no further role check, and it stores nothing.
 	mux.HandleFunc("GET /v1/risk/alerts", listAlerts(store))
+	// The personal notification state is a separate resource next to the timeline,
+	// not a member of it: reading one's own mark is a viewer/admin read scoped by
+	// the verified token subject, and applying a mark is admin-only through
+	// requireAdmin. Neither route edits the PM-07 alert row.
+	mux.HandleFunc("GET /v1/risk/alerts/{id}/state", alertStateRead(store))
+	mux.HandleFunc("PUT /v1/risk/alerts/{id}/state", requireAdmin(alertStateMark(store)))
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
 	mux.HandleFunc("GET /v1/risk/infrastructure", listInfrastructure())

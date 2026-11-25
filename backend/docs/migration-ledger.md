@@ -14,7 +14,7 @@ this one, so its versions cannot collide with the two below.
 
 | Module | Versions in the shared ledger | Source |
 | --- | --- | --- |
-| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17, 18 | [risk embed.go](../services/risk/migrations/embed.go):68-80 |
+| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17, 18, 19 | [risk embed.go](../services/risk/migrations/embed.go):72-89 |
 | `prevention` | 9, 11, 14, 15, 16 | [prevention embed.go](../services/prevention/migrations/embed.go):40-48 |
 | `jobs` | 1, 2, 3, 4, 5, 6, 7 | own database, not in this ledger |
 
@@ -29,8 +29,9 @@ The gaps in risk's sequence are deliberate: 9, 11, 14, 15 and 16 belong to
 `prevention` — 15 is PM-09's field observations and 16 is PM-10's adoption link — and
 nothing may be inserted into a gap to "tidy" the sequence. Integrating the two chains
 turned those two reservations into files without moving a number: `risk` keeps 17 for
-its alert table and 18 for the time-led index of the granular history series, and
-`prevention` keeps 15 and 16, so the claims stay disjoint.
+its alert table, 18 for the time-led index of the granular history series and 19 for
+PM-08's personal alert state, and `prevention` keeps 15 and 16, so the claims stay
+disjoint.
 
 ## The rule
 
@@ -46,15 +47,15 @@ its alert table and 18 for the time-led index of the granular history series, an
 5. A collision is a test failure, not a review comment. The guard below already
    exists; a reviewer does not need to spot the overlap by eye.
 
-## Next free version = 19
+## Next free version = 20
 
-The highest version claimed in this tree is **18**, `risk`'s
-`backend/services/risk/migrations/018_risk_history_series_index.sql`, so the next free
-integer across both services is **19**. PM-05's jobs migration 7 is independent: it
+The highest version claimed in this tree is **19**, `risk`'s
+`backend/services/risk/migrations/019_risk_alert_state.sql`, so the next free
+integer across both services is **20**. PM-05's jobs migration 7 is independent: it
 lives in the jobs database's own ledger and does not change this determination.
 Prevention's next migration must take version
-19, not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13, 17
-and 18, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
+20, not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13, 17,
+18 and 19, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
 determination the rule asks for: a migration is numbered against the integrated tree,
 never against its own module.
 
@@ -90,6 +91,15 @@ claim only holds where both modules were checked out together.
 
 ## History
 
+Version 19 is PM-08's personal notification state (`019_risk_alert_state.sql`). It was
+claimed against the integrated tree after 18 was taken by the time-led history index,
+and it takes the next free integer the previous determination named instead of the
+next integer in risk's own list. It is additive and separate from PM-07: it creates
+one append-only table keyed by the derived subject and the stored alert, rewrites no
+`risk_alerts` row and changes no column of it. The application role holds SELECT and
+INSERT only, the row is the trace of an explicit mark, and no gateway audit writer or
+delivery record is added.
+
 Jobs version 7 is not in this ledger: it is PM-05's
 `007_comparison_audit_action.sql`, which replaces the gateway's query-writer function
 in the jobs database so it accepts the named `risk.compare.read` action. It preserves
@@ -113,7 +123,9 @@ Integration with PM-09/10 kept that claim where it was and added the independent
 jobs ledger to the Job's name: the one ordered Job is now `migrate-v17-j6`
 (`../deploy/k8s/base/jobs-migrate.yaml`), which the render contract derives from
 both ledgers. No registered version moved, and PM-09's 15 and PM-10's 16 became
-files without a renumber.
+files without a renumber. With PM-08's 19 the derivation becomes `migrate-v19-j7`;
+renaming the manifest is a deploy change and is out of scope for the migration
+itself, so the Job name there still names the older versions.
 
 Version 11 was claimed twice: `risk`'s `ml_fixture_v1` and `prevention`'s
 `011_preventive_evidence.sql` both registered it, and the second migrator to run

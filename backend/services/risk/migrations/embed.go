@@ -47,6 +47,9 @@ var riskAlerts string
 //go:embed 018_risk_history_series_index.sql
 var riskHistorySeriesIndex string
 
+//go:embed 019_risk_alert_state.sql
+var riskAlertState string
+
 // Migration is one forward-only schema migration.
 //
 // Name exists so a failure can be attributed without reading the SQL.
@@ -60,10 +63,10 @@ type Migration struct {
 //
 // Adding a migration means adding one file under this directory plus one entry
 // here. The numbering is global across the services that share this ledger, not
-// per module: this service claims 1-8, 10, 12, 13, 17 and 18, the prevention service
-// claims 9, 11, 14, 15 and 16 (PM-09's field observations and PM-10's adoption
-// link), and the next free number is 19. The rule, the current claims and the
-// guard are in backend/docs/migration-ledger.md. The runner applies whatever is
+// per module: this service claims 1-8, 10, 12, 13, 17, 18 and 19, the prevention
+// service claims 9, 11, 14, 15 and 16 (PM-09's field observations and PM-10's
+// adoption link), and the next free number is 20. The rule, the current claims and
+// the guard are in backend/docs/migration-ledger.md. The runner applies whatever is
 // still pending in schema_migrations and does nothing on a database that is
 // already up to date.
 func All() []Migration {
@@ -81,5 +84,6 @@ func All() []Migration {
 		{Version: 13, Name: "ml_fixture_v1", SQL: mlFixtureV1},
 		{Version: 17, Name: "risk_alerts", SQL: riskAlerts},
 		{Version: 18, Name: "risk_history_series_index", SQL: riskHistorySeriesIndex},
+		{Version: 19, Name: "risk_alert_state", SQL: riskAlertState},
 	}
 }
