@@ -43,6 +43,12 @@ type fakeStore struct {
 	executiveBatches [][]repository.Batch
 	executiveErr     error
 	executiveCalls   int
+	// The executive summary's alert tally. The triple proves the route reads the
+	// count once, reports what storage answered, and turns a failed count into 503
+	// instead of a zero it did not observe.
+	alertCount      int
+	alertCountErr   error
+	alertCountCalls int
 	// Alert timeline state for the PM-08 read route. alertQueries records what the
 	// route asked for, so a test can prove the page window and the keyset boundary
 	// reached storage instead of being dropped or replaced by defaults.
@@ -54,6 +60,14 @@ type fakeStore struct {
 func (s *fakeStore) ExecutiveBatches(context.Context) ([][]repository.Batch, error) {
 	s.executiveCalls++
 	return s.executiveBatches, s.executiveErr
+}
+
+func (s *fakeStore) ExecutiveAlertCount(context.Context) (int, error) {
+	s.alertCountCalls++
+	if s.alertCountErr != nil {
+		return 0, s.alertCountErr
+	}
+	return s.alertCount, nil
 }
 
 func (s *fakeStore) ListModels(context.Context) ([]repository.ModelVersion, error) {

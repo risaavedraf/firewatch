@@ -210,16 +210,80 @@ func TestLatestPerZoneAnswersTheNewestBatchOfEveryZone(t *testing.T) {
 		if err := db.QueryRow(ctx, `SELECT id::text FROM batches WHERE job_id=$1`, previousJobID).Scan(&previousID); err != nil {
 			t.Fatal(err)
 		}
+		seeded := false
 		for _, pair := range groups {
 			if len(pair) == 0 || pair[0].ZoneID != batched {
 				continue
 			}
+			seeded = true
 			if len(pair) != 2 || pair[0].ID != element.ID || pair[1].ID != previousID ||
 				pair[0].RiskLevel != "alto" || !pair[0].Demo || len(pair[0].Factors) == 0 {
 				t.Fatalf("wrong newest pair: %+v", pair)
 			}
-			return
 		}
-		t.Fatalf("snapshot omitted seeded zone %q", batched)
+		if !seeded {
+			t.Fatalf("snapshot omitted seeded zone %q", batched)
+		}
+
+		// D-B against storage. The zone this test has just published two high
+		// batches for must be listed, and every zone the rule names must really
+		// hold two high levels in the two newest rows the database itself
+		// reports: the rule is a property of the SQL selection plus the levels,
+		// so a fake that restated its own input could not prove it.
+		newestTwo := func(zone string) []string {
+			rows, err := db.Query(ctx, `SELECT risk_level FROM batches WHERE zone_id=$1 ORDER BY requested_at DESC, id DESC LIMIT 2`, zone)
+			if err != nil {
+				t.Fatalf("read the two newest stored levels of zone %q: %v", zone, err)
+			}
+			defer rows.Close()
+			levels := make([]string, 0, 2)
+			for rows.Next() {
+				var level string
+				if err := rows.Scan(&level); err != nil {
+					t.Fatalf("scan the newest stored level of zone %q: %v", zone, err)
+				}
+				levels = append(levels, level)
+			}
+			if err := rows.Err(); err != nil {
+				t.Fatalf("read the two newest stored levels of zone %q: %v", zone, err)
+			}
+			return levels
+		}
+		critical := CriticalZones(groups)
+		listed := make(map[string]bool, len(critical))
+		namedSeeded := false
+		for index, zone := range critical {
+			if listed[zone] {
+				t.Fatalf("zone %q is listed twice in %v", zone, critical)
+			}
+			listed[zone] = true
+			if index > 0 && critical[index-1] >= zone {
+				t.Fatalf("critical zones are not ordered by zone id: %q before %q", critical[index-1], zone)
+			}
+			if levels := newestTwo(zone); len(levels) != 2 || levels[0] != "alto" || levels[1] != "alto" {
+				t.Fatalf("zone %q is listed critical but storage reports its two newest levels as %v", zone, levels)
+			}
+			if zone == batched {
+				namedSeeded = true
+			}
+		}
+		if !namedSeeded {
+			t.Fatalf("zone %q published two consecutive high batches but D-B did not list it: %v", batched, critical)
+		}
+
+		// The alert tally is the table's own count: it filters nothing, so it
+		// must agree with what storage reports instead of a number the read
+		// invented.
+		counted, err := s.ExecutiveAlertCount(ctx)
+		if err != nil {
+			t.Fatalf("ExecutiveAlertCount: %v", err)
+		}
+		var storedAlerts int
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM risk_alerts`).Scan(&storedAlerts); err != nil {
+			t.Fatalf("count the stored alerts: %v", err)
+		}
+		if counted != storedAlerts {
+			t.Fatalf("ExecutiveAlertCount answered %d, storage holds %d", counted, storedAlerts)
+		}
 	})
 }
