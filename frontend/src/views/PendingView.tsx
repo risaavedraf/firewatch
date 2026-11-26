@@ -22,9 +22,13 @@ export type UnimplementedCapability = {
 // Rows leave this list only when the backend answers the capability they declare.
 // PM-10 / V1-P-07 retired the audit entry («Nombre del actor, detalle libre e id
 // de evento»): `GET /v1/audit` now returns the actor name, a free-text detail and
-// a per-row event identifier, and `#audit` renders them. The retired entry is not
-// kept here as a "recently fixed" note — an absence list that also lists what
-// exists is no longer a statement of what the page cannot do.
+// a per-row event identifier, and `#audit` renders them.
+//
+// PM-04 / V1-P-04 retired «Historial de todas las zonas»: `GET
+// /v1/risk/history/series` answers every zone that published in a bounded window,
+// and `#history` renders that series. A retired entry is not kept here as a
+// "recently fixed" note: an absence list that also lists what exists is no longer
+// a statement of what the page cannot do.
 // eslint-disable-next-line react-refresh/only-export-components
 export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
   {
@@ -44,12 +48,6 @@ export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
     reason:
       'El backend informa el estado del trabajo (en cola, publicado) y el estado del dato; esos cuatro estados no existen en ningún contrato.',
     location: 'Chips de estado',
-  },
-  {
-    capability: 'Historial de todas las zonas',
-    reason:
-      'GET /v1/risk/history exige zone_id y no hay endpoint agregado, así que el historial es siempre el de la zona consultada.',
-    location: 'Historial de lotes',
   },
   {
     capability: 'Revisar e incorporar registros, y hallazgos de calidad',

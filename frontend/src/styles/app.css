@@ -340,6 +340,28 @@ td:last-child { overflow-wrap: anywhere; }
 .history-export { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
 .history-export .panel-note { flex: 1 1 380px; min-width: 220px; margin: 0; }
 .history-export .status-copy { flex: 1 1 100%; min-height: 0; margin: 0; }
+/* PM-04 — the scope and granularity controls own their row so the empty-history
+   rule above, which hides `.filter-bar` of a panel with no rows, can never hide
+   the control that asks for the series. */
+.history-scope-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 0 0 14px; }
+/* The series is a list of lists, not a table: every zone keeps its own semantic
+   list so a reader can move zone by zone, and every interval states its own
+   `bucket_start` instead of relying on a shared axis. */
+.history-series-range { margin-bottom: 6px; }
+.history-series-range .data-list dd code { font-size: 9px; }
+.history-series { display: grid; gap: 12px; margin: 12px 0 0; padding: 0; list-style: none; }
+.history-series-zone { padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
+.history-series-zone-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 6px; font-size: 10px; }
+.history-series-count { color: var(--muted); font-size: 9px; white-space: nowrap; }
+.history-buckets { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.history-bucket { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 6px 0; border-top: 1px solid #eef1ee; color: var(--muted); font-size: 9px; }
+.history-bucket:first-child { border-top: 0; }
+.history-bucket-start code { color: var(--ink); font-size: 9px; }
+.history-bucket-level { color: var(--ink); font-weight: 700; }
+.history-bucket-provenance code { color: var(--forest-700); font-size: 9px; }
+/* The synthetic mark is carried by the word as well as the colour: the text is
+   the claim, the colour only repeats it. */
+.history-bucket-demo { color: #9c472f; font-weight: 700; }
 /* While the download is in flight the control stays focusable through
    `aria-disabled`, so the keyboard reader does not lose its place. It states the
    same visual state as the `disabled` buttons beside it. */
