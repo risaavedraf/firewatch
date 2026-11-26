@@ -9,6 +9,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import { gatewayOrigin, issuer, pkceTransactionKey, routes } from '../../src/config';
+import { routes as declaredRoutes } from '../../src/app/routes';
 import { clearZoneState, getSelectedZone, getSelectedZoneLabel, getZoneLevels, reportJobProgress } from '../../src/app/store';
 import { completeLogin, getSessionSnapshot, resetSession } from '../../src/core/session';
 import type { RiskBatch, ZoneCollection, ZoneFeature } from '../../src/types/api';
@@ -1316,10 +1317,13 @@ test('the executive panel opens the overview with the numbers the server answere
   await settle();
 
   const panel = element('executive-panel');
-  // The section opens the view: it sits directly after the intro row and ahead of
-  // the metrics, because it answers for the whole territory rather than for the
-  // selected zone.
-  expect(Array.from(element('overview').children).indexOf(panel)).toBe(1);
+  // T2 moved the aerial workspace to the top of the route, so the server summary
+  // now follows it: it is still one direct child of the view, answering for the
+  // whole territory rather than for the selected zone, and it still precedes the
+  // metrics. Its placement inside the route is T4's to design; the read, the
+  // numbers and the failure copy this suite pins are unchanged.
+  expect(Array.from(element('overview').children).indexOf(panel)).toBe(2);
+  expect(element('overview').children[1].classList.contains('aerial-workspace')).toBe(true);
   expect(textOf('executive-rule-tag')).toBe('Regla activa, no modelo');
   expect(textOf('executive-coverage-catalogue')).toBe('3');
   expect(textOf('executive-level-alto')).toBe('1');
@@ -1396,4 +1400,178 @@ test('a pending summary read becomes a stated failure at the transport deadline 
   expect(textOf('executive-status')).toMatch(/No se pudo consultar el resumen ejecutivo/);
   expect(textOf('executive-status')).not.toMatch(/Consultando/);
   expect(document.getElementById('executive-critical-count')).toBeNull();
+});
+
+// --- T2: the aerial workspace ----------------------------------------------
+//
+// T2 recomposes the real overview as the aerial workspace of the approved board
+// (`design/firewatch-v1-vuelo/01-vista-aerea.html`): the map becomes the dominant
+// canvas, a workstation rail stands beside it with the session's one real
+// inflight batch and the real routes, and the territorial reading/result sits
+// after the canvas it reads. Only the composition is new — every value below
+// still comes from reads this view already issued, and the prototype's
+// per-comuna queue, camera, cut-off histories, mock sectors and coordinates are
+// deliberately absent instead of simulated.
+
+const declaredHashes = new Set<string>(declaredRoutes.map(route => route.hash as string));
+
+function follows(first: Element, second: Element): boolean {
+  return (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+
+test('the overview composes the aerial workspace: canvas, workstation and result in that order (T2)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+
+  const workspace = document.querySelector('#overview .aerial-workspace');
+  expect(workspace, 'the aerial workspace is missing').not.toBeNull();
+
+  const canvas = workspace?.querySelector('.aerial-canvas') as Element;
+  const rail = screen.getByRole('complementary', { name: 'Estación de trabajo' });
+  const result = workspace?.querySelector('.aerial-result') as Element;
+
+  // The map is the canvas: the real MapPanel, with its heading and its selector
+  // untouched, lives inside the canvas region.
+  expect(canvas.querySelector('.map-panel')).not.toBeNull();
+  expect(canvas.contains(screen.getByRole('heading', { name: 'Vista territorial de las comunas' }))).toBe(true);
+  expect(canvas.contains(screen.getByRole('combobox', { name: 'Zona a consultar' }))).toBe(true);
+
+  // The result is the real published-batch card, not a copy of it: the reading
+  // area is that same `article.panel.risk-panel`, so the identifiers the legacy
+  // contract pins live inside it.
+  expect(result.classList.contains('risk-panel')).toBe(true);
+  expect(result.querySelector('#risk-pill')).not.toBeNull();
+  expect(result.querySelector('#risk-level')).not.toBeNull();
+
+  // Reading order is the composition: the map first, then the workstation that
+  // works beside it, then the reading it produced.
+  expect(follows(canvas, rail), 'the workstation must follow the canvas').toBe(true);
+  expect(follows(rail, result), 'the result must follow the workstation').toBe(true);
+
+  // The view title stays the one level-2 heading of the aerial workspace, and the
+  // new regions sit one level below it instead of skipping a level.
+  expect(screen.getByRole('heading', { level: 2, name: 'Estado de la zona' })).toHaveAttribute(
+    'id',
+    'overview-title',
+  );
+  const railTitle = screen.getByRole('heading', { level: 3, name: 'Estación de trabajo' });
+  expect(railTitle).toHaveAttribute('id', 'aerial-work-title');
+  for (const name of ['Solicitud de lote', 'Lecturas y resultados']) {
+    expect(screen.getByRole('heading', { level: 4, name }), name).toBeInTheDocument();
+  }
+});
+
+test('the workstation states the one real inflight batch and offers only declared routes (T2)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+
+  // Nothing requested: the rail says so instead of inventing a queue.
+  expect(textOf('aerial-request-state')).toMatch(/Sin solicitud en curso/);
+  expect(textOf('aerial-request-state')).toMatch(/no tiene un lote en proceso/);
+
+  // The fact the jobs view publishes for the session's single inflight batch is
+  // what the rail reports, named with the catalogue's own label for that comuna.
+  act(() => {
+    reportJobProgress('processing', '05102');
+  });
+  await settle();
+  // La etiqueta es la del catálogo, la misma que usan el selector y el chip de
+  // zona: el código viaja con el nombre y la barra no inventa otro formato.
+  expect(textOf('aerial-request-state')).toBe('Lote en proceso para Casablanca (05102): el servicio todavía no publica su nivel.');
+  // One state line, not a per-comuna queue: the prototype's rows are not here.
+  expect(document.querySelectorAll('#aerial-request-state')).toHaveLength(1);
+
+  // The map already announces progress for the zone it is showing, so the rail is
+  // a live region only for a request the map is not counting: the same fact is
+  // never read twice.
+  expect(element('aerial-request-state')).toHaveAttribute('role', 'status');
+  act(() => {
+    reportJobProgress('processing', '05101');
+  });
+  await settle();
+  expect(element('aerial-request-state')).not.toHaveAttribute('role');
+  expect(textOf('map-job-progress')).toMatch(/Lote en proceso/);
+
+  // A failed request is its own state and never a silent return to idle.
+  act(() => {
+    reportJobProgress('failed', '05102');
+  });
+  await settle();
+  expect(textOf('aerial-request-state')).toMatch(/^La solicitud de lote para Casablanca \(05102\) falló/);
+
+  // Every destination is a declared route, and the rail carries links — never a
+  // button that would fake a request this view does not own.
+  const links = Array.from(document.querySelectorAll('#overview .aerial-rail a'));
+  for (const hash of ['#jobs', '#sources', '#history', '#compare']) {
+    expect(links.map(link => link.getAttribute('href')), `missing ${hash}`).toContain(hash);
+  }
+  for (const link of links) {
+    const href = link.getAttribute('href') ?? '';
+    expect(declaredHashes.has(href), `${href} is not a declared route`).toBe(true);
+    expect((link.textContent ?? '').trim().length).toBeGreaterThan(0);
+  }
+  expect(document.querySelectorAll('#overview .aerial-rail button')).toHaveLength(0);
+});
+
+test('the aerial workspace imports none of the prototype’s unsupported controls or mock data (T2)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+
+  const railText = screen.getByRole('complementary', { name: 'Estación de trabajo' }).textContent ?? '';
+  // Camera poses, rotation and zoom, the cut-off history slider, province-wide
+  // bulk selection, per-sector mock readings and numbered mock lots are
+  // prototype-only behaviours with no served data behind them.
+  const unsupported: ReadonlyArray<readonly [string, RegExp]> = [
+    ['camera pose', /vista cenital|vista aérea/i],
+    ['camera rotation', /girar|giro/i],
+    ['cut-off history', /fecha de corte|último lote publicado hasta/i],
+    ['bulk commune selection', /seleccionar todas|provincia de valparaíso|provincia de marga/i],
+    ['mock sector', /sector/i],
+    ['numbered mock lot', /lote \d/i],
+  ];
+  for (const [label, pattern] of unsupported) {
+    expect(railText, `${label} must not be simulated`).not.toMatch(pattern);
+  }
+
+  // The rail creates nothing: it links to the views that own the request and the
+  // published rows, which is the only real path this phase offers.
+  expect(railText).toMatch(/no crea solicitudes/);
+});
+
+test('the workstation’s reading mirrors the real selection and response, never a mock value (T2)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+
+  // The selection is real as soon as the catalogue lands, and a read still in
+  // flight is stated as such — never as a level and never as an empty reading.
+  expect(textOf('aerial-zone')).toBe('Valparaíso (05101)');
+  expect(textOf('aerial-result')).toBe('Consultando el último lote');
+  expect(textOf('aerial-levels')).toBe('0');
+
+  // A 404 is "no published batch", not a low risk.
+  await serveZone('05101', null, 404);
+  expect(textOf('aerial-result')).toBe('Sin lote publicado');
+  expect(textOf('aerial-levels')).toBe('0');
+
+  // A published batch is its own state and its level is what the map remembered.
+  await choose('05102');
+  expect(textOf('aerial-zone')).toBe('Casablanca (05102)');
+  await serveZone('05102', batch('05102'), 200, [batch('05102')]);
+  expect(textOf('aerial-result')).toBe('Lote publicado');
+  expect(textOf('aerial-levels')).toBe('1');
+
+  // A body the boundary guard rejects is explicitly unavailable.
+  await choose('05101');
+  await serveZone('05101', { zone_id: '05101' }, 200);
+  expect(textOf('aerial-result')).toBe('No disponible');
+});
+
+test('without a session the workstation states the connection requirement instead of a reading (T2)', async () => {
+  await openSignedOut();
+
+  expect(textOf('aerial-zone')).toBe('Sin seleccionar');
+  expect(textOf('aerial-result')).toBe('Sin consultar');
+  expect(textOf('aerial-levels')).toBe('Sin consultar');
+  expect(textOf('aerial-request-state')).toMatch(/Conecta un token autorizado para solicitar y seguir un lote/);
+  expect(document.querySelectorAll('#overview .aerial-rail a')).toHaveLength(4);
 });

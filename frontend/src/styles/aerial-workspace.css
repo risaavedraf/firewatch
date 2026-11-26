@@ -1,0 +1,136 @@
+/* T2 — la vista aérea del territorio.
+ *
+ * Todo va bajo `#overview`: el mapa, la estación de trabajo y la ficha de
+ * resultado son la composición de esta ruta y de ninguna otra. Las reglas no
+ * declaran colores nuevos salvo los tokens ya activos, así que la paleta
+ * experimental del tablero (`design/system.md`, «no enviada») no entra aquí.
+ *
+ * La composición es la del tablero aprobado en lo que el producto real puede
+ * sostener: el mapa ocupa el lienzo, la estación de trabajo se apoya a su lado
+ * como panel de instrumentos y la lectura/resultado queda junto al lienzo que la
+ * produjo. No hay cola por comuna, ni cámara, ni cortes, ni lecturas por sector:
+ * esos controles del tablero no tienen datos servidos detrás.
+ *
+ * Nada de aquí cambia el comportamiento del mapa: `MapPanel` sigue siendo el
+ * mismo componente y este archivo solo le da más superficie y una sola columna
+ * cuando el catálogo no trae territorios insulares.
+ */
+
+#overview .aerial-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(288px, 320px);
+  grid-template-areas:
+    "canvas rail"
+    "result rail";
+  align-items: start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+#overview .aerial-canvas { grid-area: canvas; min-width: 0; }
+/* La ficha del último lote es la lectura de esta vista y ocupa la misma columna
+   que el mapa, debajo. Es el propio `article.panel.risk-panel`, así que conserva
+   su relleno y su contrato y solo pierde el margen que la separaba del panel
+   anterior. */
+#overview .aerial-result { grid-area: result; min-width: 0; margin-bottom: 0; }
+
+/* El lienzo. Cuando el catálogo no trae insulares (`.map-insets:empty` ya se
+   oculta) la segunda pista se retira: una pista `minmax(0, 190px)` vacía se
+   expande hasta su límite con el espacio libre antes que la pista flexible, así
+   que sin este caso el mapa dejaría 190 px sin usar a su lado. */
+#overview .aerial-canvas .map-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 190px); }
+#overview .aerial-canvas .map-stage:has(.map-insets:empty) { grid-template-columns: minmax(0, 1fr); }
+/* El lienzo crece, no cambia de color: la superficie del mapa conserva el valor
+   ya medido en este documento (`#eef2e8`), porque un tono más profundo bajaba el
+   relleno ALTO de 3.06:1 a 2.96:1 contra su superficie. */
+#overview .aerial-canvas .map-viewport,
+#overview .aerial-canvas .map-svg { min-height: 440px; }
+#overview .aerial-canvas .map-panel { margin-bottom: 0; }
+
+/* La estación de trabajo. Se queda a la vista mientras la ficha se lee: es el
+   panel que dice qué solicitud está en curso y a qué ruta ir para resolverla. */
+#overview .aerial-rail {
+  grid-area: rail;
+  position: sticky;
+  top: calc(var(--product-nav-h, 48px) + 16px);
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+#overview .aerial-rail > h3 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.3px; }
+
+#overview .aerial-block {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+#overview .aerial-block > h4 { margin: 0; color: var(--ink); font-size: 11px; font-weight: 800; }
+
+#overview .aerial-state { margin: 0; color: var(--ink); font-size: 11px; line-height: 1.5; }
+#overview .aerial-note { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+
+/* Los enlaces son el único control de la barra: cada uno nombra su destino en el
+   texto visible y lleva el anillo de foco del producto. El alto de 36 px deja un
+   objetivo cómodo sin convertir la barra en una lista de botones. */
+#overview .aerial-links { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+#overview .aerial-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  color: var(--forest-700);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+#overview .aerial-links a:hover { color: var(--forest-900); }
+#overview .aerial-links a:focus-visible { outline: 3px solid #cf7d4f; outline-offset: 2px; border-radius: 4px; }
+
+#overview .aerial-readings { display: grid; gap: 6px; margin: 0; }
+#overview .aerial-readings > div { display: flex; justify-content: space-between; gap: 12px; }
+#overview .aerial-readings dt { color: var(--muted); font-size: 10px; }
+#overview .aerial-readings dd {
+  max-width: 62%;
+  margin: 0;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* Una columna: mapa, estación de trabajo y resultado, en ese orden. La barra deja
+   de fijarse porque ya no hay una segunda columna contra la que quedarse. */
+@media (max-width: 1100px) {
+  #overview .aerial-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "canvas"
+      "rail"
+      "result";
+  }
+  #overview .aerial-rail { position: static; }
+  #overview .aerial-canvas .map-viewport,
+  #overview .aerial-canvas .map-svg { min-height: 360px; }
+}
+
+@media (max-width: 720px) {
+  #overview .aerial-workspace { gap: 12px; margin-bottom: 16px; }
+  /* Los insulares apilados bajo el mapa, como ya hacía el mapa en pantalla
+     estrecha: dos pistas aquí dejarían el lienzo en un tercio del ancho. */
+  #overview .aerial-canvas .map-stage { grid-template-columns: minmax(0, 1fr); }
+  #overview .aerial-canvas .map-viewport,
+  #overview .aerial-canvas .map-svg { min-height: 260px; }
+  #overview .aerial-rail { padding: 13px; }
+  #overview .aerial-links a { min-height: 40px; }
+}

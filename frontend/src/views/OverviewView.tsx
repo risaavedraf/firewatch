@@ -37,7 +37,9 @@ import { idleCopy } from '../app/sessionCopy';
 import { MapPanel, type MapLoadState, type ZoneLevelLookup } from '../components/map/MapPanel';
 import { zoneLabel } from '../components/map/projection';
 import { ExecutivePanel, type ExecutiveSummaryState } from '../components/executive/ExecutivePanel';
+import { AerialWorkstation } from '../components/territory/AerialWorkstation';
 import { DataList, Metric, PanelHeading, StatusCopy, UnimplementedNote } from '../components/ui';
+import '../styles/aerial-workspace.css';
 import {
   batches,
   executiveSummary,
@@ -58,8 +60,10 @@ import {
   presentBatch,
   validityLabel,
   type ActiveModel,
+  type BatchPresentation,
   type FactorBar,
 } from '../domain';
+import type { JobProgress } from '../domain/job-progress';
 import {
   DIRECT_OBSERVATION,
   planRecommendations,
@@ -335,6 +339,44 @@ function computeValidity(batch: BatchState): ValidityView {
   return { text: validityLabel(decision), nextDelayMs: decision.nextDelayMs };
 }
 
+// T2 — what the workstation may say about the session's single batch request. It
+// reports only what the jobs view published through the store, named with the
+// catalogue's own label, and it never infers progress from the collection: an
+// unread zone is not a pending one, and a pending one is not a missing reading.
+function batchRequestText(progress: JobProgress, progressZone: string, session: SessionState): string {
+  const zone = progressZone === '' ? 'la zona seleccionada' : progressZone;
+  switch (progress.kind) {
+    case 'processing':
+      return `Lote en proceso para ${zone}: el servicio todavía no publica su nivel.`;
+    case 'unconfirmed':
+      return `Lote solicitado para ${zone} sin confirmación de publicación.`;
+    case 'failed':
+      return `La solicitud de lote para ${zone} falló.`;
+    default:
+      return session.status === 'signed-in'
+        ? 'Sin solicitud en curso: esta sesión no tiene un lote en proceso.'
+        : idleCopy(session, 'solicitar y seguir un lote');
+  }
+}
+
+// T2 — the kind of answer the selected zone's read settled on, never its level.
+// The level and its evidence belong to the card beside the map; repeating a
+// classification in two places is how two claims start to disagree.
+function batchResultText(batch: BatchState, presentation: BatchPresentation | null): string {
+  switch (batch.kind) {
+    case 'idle':
+      return 'Sin consultar';
+    case 'loading':
+      return 'Consultando el último lote';
+    case 'none':
+      return 'Sin lote publicado';
+    case 'failed':
+      return 'No disponible';
+    case 'batch':
+      return presentation !== null && presentation.valid ? 'Lote publicado' : 'Lote no disponible';
+  }
+}
+
 export function OverviewView() {
   const session = useSessionState();
   const selectedZone = useSelectedZone();
@@ -602,6 +644,23 @@ export function OverviewView() {
   const factorRows = overviewFactorRows(factorBars);
   const showFactorOmission = presentation !== null && presentation.omissions.includes('factores');
 
+  // T2 — la estación de trabajo. Cada frase es un hecho que esta vista ya leyó: la
+  // única solicitud de lote de la sesión, la zona compartida, el tipo de respuesta
+  // del último lote y cuántas comunas tienen un nivel realmente leído. Ninguna
+  // crea una solicitud, ninguna inventa un número y ninguna repite el nivel: la
+  // clasificación se queda en la ficha que la sostiene.
+  const selectedZoneName = selectedZone === '' ? '' : zoneNames.get(selectedZone) ?? selectedZone;
+  const progressZoneName = jobProgress.zone === '' ? '' : zoneNames.get(jobProgress.zone) ?? jobProgress.zone;
+  const workstation = {
+    requestText: batchRequestText(jobProgress, progressZoneName, session),
+    // El mapa ya anuncia el progreso de la zona que muestra; la barra solo toma
+    // la región viva cuando esa solicitud no es la que el mapa está contando.
+    announceRequest: jobProgress.zone !== '' && jobProgress.zone !== selectedZone,
+    zoneText: selectedZoneName === '' ? 'Sin seleccionar' : selectedZoneName,
+    resultText: batchResultText(currentBatch, presentation),
+    levelsText: !signedIn ? 'Sin consultar' : cataloguePhase === 'loading' ? '—' : String(levels.size),
+  };
+
   // PM-18 — the catalogue composes from the payload the card already accepted. A
   // batch the fail-closed guard rejected has no validated level, so the catalogue
   // is told exactly that: it falls back to the closed pair and names the level as
@@ -679,24 +738,34 @@ export function OverviewView() {
       </div>
 
       {/*
-        PM-01 — the executive panel opens the view: it is the server's
-        territory-wide answer, and its failure owns only this section, so the
-        metrics, the map and the batch card keep working below it.
+        T2 — la vista aérea. El tablero aprobado pone el mapa como lienzo, una
+        estación de trabajo a su lado y la lectura junto al lienzo; esta
+        composición hace exactamente eso con los datos que la vista ya lee. El
+        mapa abre la composición, la barra de trabajo se apoya en su columna y la
+        ficha del último lote queda en la misma columna que el mapa, debajo.
       */}
-      <ExecutivePanel state={executiveState} zoneNames={zoneNames} batchIsDemo={batchData?.demo === true} />
+      <div className="aerial-workspace">
+        <section className="aerial-canvas" aria-label="Mapa de trabajo del territorio">
+          <MapPanel
+            collection={mapCollection}
+            loadState={mapState}
+            selectedCode={selectedZone}
+            zoneLevels={zoneLevelLookup}
+            onSelect={selectZone}
+            sessionReason={session.reason}
+            jobProgress={jobProgress}
+          />
+        </section>
 
-      <section className="dashboard-grid" aria-label="Estado del riesgo y ubicación">
-        <MapPanel
-          collection={mapCollection}
-          loadState={mapState}
-          selectedCode={selectedZone}
-          zoneLevels={zoneLevelLookup}
-          onSelect={selectZone}
-          sessionReason={session.reason}
-          jobProgress={jobProgress}
+        <AerialWorkstation
+          requestText={workstation.requestText}
+          announceRequest={workstation.announceRequest}
+          zoneText={workstation.zoneText}
+          resultText={workstation.resultText}
+          levelsText={workstation.levelsText}
         />
 
-        <article className="panel risk-panel">
+        <article className="panel risk-panel aerial-result">
           <PanelHeading
             eyebrow="ESTADO DEL RIESGO"
             title="Último lote publicado"
@@ -776,7 +845,15 @@ export function OverviewView() {
             muestra.
           </UnimplementedNote>
         </article>
-      </section>
+      </div>
+
+      {/*
+        PM-01 — el resumen del servidor sigue siendo la respuesta de todo el
+        territorio y su fallo solo posee esta sección. T2 lo coloca después de la
+        vista aérea: el mapa abre la ruta y el resumen del servidor queda como su
+        lectura agregada. T4 posee el diseño de esta sección.
+      */}
+      <ExecutivePanel state={executiveState} zoneNames={zoneNames} batchIsDemo={batchData?.demo === true} />
 
       <section className="metrics-grid metrics-three" aria-label="Resumen real de la sesión">
         <Metric

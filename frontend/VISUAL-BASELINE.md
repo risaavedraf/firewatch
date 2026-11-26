@@ -2,7 +2,7 @@
 
 Use this document to audit the real frontend before changing styles. The committed prototype in `docs/pitch-g1-design` (`d651459`) is a reference for layout and hierarchy, not a reason to port fixtures or replace working product behavior.
 
-Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), and [sign-in styles](src/styles/auth.css) at the local baseline `742e760`, plus the T1 navigation change on 2026-11-26. The inventory adapts the active-source sections of `design/system.md` from the prototype branch; it does not adopt its experimental aerial palette.
+Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), [sign-in styles](src/styles/auth.css) and the [aerial workspace styles](src/styles/aerial-workspace.css) at the local baseline `742e760`, plus the T1 navigation change and the T2 aerial workspace on 2026-11-26. The inventory adapts the active-source sections of `design/system.md` from the prototype branch; it does not adopt its experimental aerial palette.
 
 ## Palette
 
@@ -205,6 +205,30 @@ These ratios use WCAG relative luminance for opaque sRGB pairs. Compare before r
 The panel is opaque instead of translucent: it overlays the light workspace, so its labels are measured against the declared `#1e4241` rather than against whatever happens to be behind it. Layout: `.app-shell` and `.sidebar` reserve `calc(100vh - var(--product-nav-h, 48px))`, and the sidebar sticks at `top: var(--product-nav-h, 48px)`. At `≤720px` the sidebar becomes static and the panel narrows to `calc(100% - 16px)`; at `≤480px` the bar wraps instead of scrolling horizontally.
 
 **Known follow-up.** `scripts/check.mjs` still asserts the old `.sidebar nav` declaration set, and that script is outside this unit's edit surface. The rule remains in `app.css` with no rendered consumer; the gate and the rule should be retired together in a follow-up.
+
+## Aerial workspace (T2)
+
+[`src/styles/aerial-workspace.css`](src/styles/aerial-workspace.css) composes `#overview` as the aerial workspace of the approved board ([`design/firewatch-v1-vuelo/01-vista-aerea.html`](../design/firewatch-v1-vuelo/01-vista-aerea.html)): the map is the canvas, [`AerialWorkstation`](src/components/territory/AerialWorkstation.tsx) is the work rail beside it, and the real published-batch card (`article.panel.risk-panel`, unchanged) is the reading below. Every selector is scoped to `#overview`, so no other route inherits the composition. `MapPanel`, the `ui` primitives, the store, the routes and the API are untouched; the map keeps its owned behaviour and only receives more surface.
+
+**No new palette.** The file declares no colour tokens: it uses `--paper`, `--line`, `--muted`, `--ink`, `--forest-700`, `--forest-900`, `--canvas`, `--radius`, `--shadow` and the shipped focus ring literal `#cf7d4f`. The design board's aerial palette (`design/system.md`, “Aerial prototype palette — experimental, not shipped”) is deliberately not adopted, and the map surface stays `#eef2e8` because a deeper tint pushed the `alto` fill from 3.06:1 to 2.96:1 against its own surface.
+
+| Selector | Role | Declared values |
+| --- | --- | --- |
+| `#overview .aerial-workspace` | Composition grid | `grid-template-columns: minmax(0, 1fr) minmax(288px, 320px)`; areas `canvas`/`rail`, `result`/`rail`; `gap: 16px`; `margin-bottom: 20px` |
+| `#overview .aerial-canvas` | Map column | `grid-area: canvas`; the map card carries no bottom margin of its own |
+| `#overview .aerial-canvas .map-stage` | One map track | `minmax(0, 1fr) minmax(0, 190px)`, and a single `minmax(0, 1fr)` track while `.map-insets` is empty (`:has(.map-insets:empty)`) |
+| `#overview .aerial-canvas .map-viewport`, `.map-svg` | Canvas surface | `min-height: 440px`, unchanged `#eef2e8` fill; `360px` at `≤1100px`, `260px` at `≤720px` |
+| `#overview .aerial-result` | Reading column | `grid-area: result`; the risk card keeps its own padding and drops only `margin-bottom` |
+| `#overview .aerial-rail` | Workstation panel | `position: sticky`, `top: calc(var(--product-nav-h, 48px) + 16px)`, `--paper`, `1px solid var(--line)`, `var(--radius)`, `var(--shadow)`, `padding: 16px`, `gap: 10px`; `static` below `1100px` |
+| `#overview .aerial-block` | Rail section | `padding-top: 10px`, `1px solid var(--line)` top border, `gap: 8px` |
+| `#overview .aerial-rail > h3` / `.aerial-block > h4` | Rail headings | `15px/650`, tracking `-.3px`; `11px/800` in `--ink` |
+| `#overview .aerial-state` / `.aerial-note` | State and note | `11px/1.5` `--ink`; `10px/1.55` `--muted` |
+| `#overview .aerial-readings dt` / `dd` | Reading rows | `10px` `--muted`; `10px/700` `--ink`, `max-width: 62%`, `overflow-wrap: anywhere` |
+| `#overview .aerial-links a` | Rail link | `11px/700`, `--forest-700`, underline, offset `2px`, `min-height: 36px` (`40px` at `≤720px`); focus `outline: 3px solid #cf7d4f`, offset `2px` |
+
+**Breakpoints.** `1100px` turns the two columns into one — `canvas`, `rail`, `result`, in that document order — and releases the sticky rail. `720px` tightens the gap, drops the canvas to `260px` and gives the rail links a `40px` target. The four widths measured in Chromium (1440, 1280, 1024, 390) are recorded in the [visual audit](VISUAL-AUDIT.md#t2--aerial-workspace-2026-11-26).
+
+**Copy rule.** The rail states only facts the views already published: the session's one inflight batch (`jobProgress`), the selected zone's label from the catalogue, the kind of answer the last read settled on, and how many comunas actually carry a read level. It never repeats the level (the card owns it), never infers progress, and links only to routes `src/app/routes.ts` declares. The prototype's per-comuna queue, camera poses, cut-off slider, mock sectors and coordinates have no served data and are not simulated.
 
 ## What still needs a browser
 

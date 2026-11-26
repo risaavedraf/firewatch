@@ -307,3 +307,52 @@ The shell now renders [`ProductNav`](src/components/ProductNav.tsx) as the appro
 **Not measured.** No axe scan, text-spacing override, virtual screen reader, browser zoom pass or real assistive technology ran for this change; the earlier passes in this document predate it. The fixture answers 403 to every gateway read, so the navigation was exercised over permission-denied view states, not populated ones. Whether NVDA, JAWS or VoiceOver announce the bar's disclosure and the `Estás en` live region as expected was not tested.
 
 **Known follow-up.** `scripts/check.mjs` still asserts the retired `.sidebar nav` declaration set and is outside this unit's edit surface; `app.css` keeps that rule with no rendered consumer until the gate is retired with it.
+
+## T2 — aerial workspace (2026-11-26)
+
+`#overview` now opens as the aerial workspace of the approved board: the map is the canvas, the workstation rail stands beside it, and the published-batch card is the reading below. Only the composition, the rail and the scoping stylesheet are new — [`src/styles/aerial-workspace.css`](src/styles/aerial-workspace.css), every selector under `#overview`. `MapPanel`, the `ui` primitives, the store, the routes, the API, auth and the eleven other views are untouched, and the board's experimental aerial palette was not adopted.
+
+**Environment.** Chromium **158.0.8127.38**, headless, against the locally built application. The signed-in run used an isolated fixture: a locally generated unsigned token plus every gateway read intercepted in the browser session (`/v1/risk/zones`, `/batches`, `/latest`, `/history`, `/executive-summary`, `/v1/jobs`, `/health/ready`). No real credential, realm, gateway or listener was reused, nothing was installed, and the fixture state lives only in that browser context. The baseline was rebuilt from `HEAD` (`d9ae71e`) in ignored scratch and served on a second loopback port, so "before" and "after" are the same probe against two builds.
+
+### Composition, before and after
+
+Document-relative top (`y`) and the rendered box of the measured elements. `map` is `.map-viewport`, `rail` is `.aerial-rail`, `reading` is `.risk-panel`, `summary` is `.executive-panel`.
+
+| Viewport | Map before | Map after | Rail after | Reading after | Server summary |
+| --- | --- | --- | --- | --- | --- |
+| 1440×900 | `y=1075.1`, `466.5×300` | `y=502.5`, `764×442` | beside the canvas, `320×495`, `y=280` | `y=1142.5`, `802×899.3` | `y=280` → `y=2061.7` |
+| 1280×900 | `y=1090.5`, `366×300` | `y=502.5`, `604×442` | beside the canvas, `320×495`, `y=280` | `y=1154.8`, `642×913.7` | `y=280` → `y=2088.5` |
+| 1024×768 | `y=1119.9`, `213.8×300` | `y=502.5`, `730×404.3` | stacked below the canvas, `768×447.5` | `y=1568.3`, `768×899.3` | `y=280` → `y=2487.5` |
+| 390×844 | `y=1941.5`, `330×222` | `y=823`, `330×262` | stacked below the canvas, `360×488.5` | `y=1887.8`, `360×1013.6` | `y=552` → `y=2917.4` |
+
+The map surface grew 141–143 % in area at desktop widths (1440: `139 950 → 337 688` px²; 1280: `109 800 → 266 968` px²) and 18 % at 390 (`73 260 → 86 460` px²), and on both desktop widths it now begins at `y=502.5` instead of `y≈1075–1090`, i.e. on the first screen. The stale empty 190 px map-insets track was collapsed, which is what moved the `1024×768` canvas from `213.8` to `730` px wide. The server summary moved after the workspace; that placement is T4's to revisit, and its data, read and failure copy did not change.
+
+No horizontal overflow at any of the four widths: `0` elements exceeded the viewport in `#overview` at 390, 1024, 1280 and 1440. Document height grew (1440: `2947 → 3727`; 1280: `3013 → 3784`; 390: `5303 → 5825`) because the reading card, which used to sit beside the map, is now a full-width card below it.
+
+### PRESERVE — differential against the baseline
+
+The same probe ran against both builds and compared eight states (loaded, 404 empty, 503 error, held-pending loading, settled result, narrow, 1440, 1024) across twelve observable keys each — selected zone, zone chip, `#map-svg` hidden flag, shape count, painted level classes per shape, `#risk-pill`, `#risk-level`, `#risk-status`, `#zone-count`, `#metric-batches`, `#metric-high` and `#map-job-progress`: **96 comparisons, 0 differences**. The one-inflight job round trip (`#jobs` request → back to `#overview`) produced the same `#map-job-progress` sentence in both builds and no document reload in either.
+
+### States and one inflight batch
+
+| State | Rail reading | Map pill / level (identical in both builds) |
+| --- | --- | --- |
+| Request held pending | `Consultando el último lote` | `SIN CONSULTAR` / `Sin consultar` |
+| Latest answers 404 | `Sin lote publicado` | `SIN LOTE` / `Sin lote publicado` |
+| Latest answers 503 | `No disponible` | `NO DISPONIBLE` / `Sin datos` |
+| Latest answers a valid batch | `Lote publicado` | `ALTO` / `ALTO` |
+| No session (DOM suite) | idle copy names the connection requirement | `SIN CONSULTAR` |
+
+The workstation reports the session's single inflight batch, not a queue: one `#aerial-request-state` line, `role="status"` only while the map is not announcing the same zone's progress. A job requested for the selected zone reads `Lote solicitado para Valparaíso (05101) sin confirmación de publicación.` in the rail while `#map-job-progress` states the map's own sentence about the same fact.
+
+### Keyboard
+
+Tab order from `#content` at 1280×900, after: `#zone-select` → three map shapes → the four rail links → the executive alert link → `#reset-filters` → body → skip link → the three navigation shortcuts. Before the change the executive alert link came first and the map followed; the relative order of the pre-existing controls is unchanged. Enter on the second map shape selected `05102` in both builds with the same painted level classes. A rail link reached with Tab computed `outline: solid 3px rgb(207, 125, 79)` with `outline-offset: 2px`.
+
+### Automated
+
+`npm run verify` passed on the final tree: lint, typecheck, 56 test files / 742 tests, the source gate over 66 shipped files, the local build and the HTTP smoke. The focused command from the task — `tests/views/overview.test.tsx tests/map/map-panel.test.tsx tests/a11y/heading-hierarchy.test.tsx tests/styles/eyebrow-contrast.test.tsx` — went from `4 files / 77 tests` on the baseline to `4 files / 82 tests` after T2; the RED run of the new public-DOM tests was `5 failed | 47 passed` before the implementation.
+
+### Not measured for T2
+
+No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for this change; the earlier passes in this document predate it. The screenshots are viewport captures at 1440, 1280, 1024 and 390 of the populated state, plus the desktop empty/error/loading/inflight states — not of every route. The 390 px first screen is still dominated by the shell the T1/T2 scope leaves in place (stacked sidebar, update bar), so the aerial workspace starts at `y=552` there. Whether the sticky rail should remain sticky while the reading card scrolls under it on a tall desktop was not tested with long real catalogues. Evidence files: `tmp/t2-aerial/{before,after}/` (ignored scratch), probe `tmp/t2-aerial-workspace-probe.mjs`.

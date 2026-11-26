@@ -113,6 +113,25 @@ The corrected T1 change puts the navigation in a thin horizontal bar above and o
 
 **Not measured for T1.** No axe scan, virtual screen reader, text-spacing override, browser zoom pass or real assistive technology was run on this change, and no screenshot was written. The fixture answers `403` to every gateway read, so navigation was exercised over permission-denied states. The button disclosure's announcement and the `Estás en` live region in NVDA, JAWS, VoiceOver or TalkBack remain unverified, as does the tab order inside the panel on every view. These gaps are additions to, not subtractions from, the open items below.
 
+## T2 evidence — aerial workspace (2026-11-26)
+
+The overview now composes the map as its canvas, a workstation rail beside it and the published-batch card as the reading; the stylesheet is [`src/styles/aerial-workspace.css`](src/styles/aerial-workspace.css) and every selector is scoped to `#overview`. Structure, names and focus were measured in Chromium **158.0.8127.38** (headless) against the locally built application with an isolated fixture — a locally generated unsigned token and every gateway read intercepted in the browser session. No real credential, realm or gateway was used. The DOM contract is additionally pinned by `tests/views/overview.test.tsx`.
+
+| Criterion | Measurement | Result |
+| --- | --- | --- |
+| 1.3.1 Info and Relationships | One new `complementary` landmark, named **Estación de trabajo**; the canvas is a labelled `section` (**Mapa de trabajo del territorio**) that contains the unchanged map panel. No existing landmark, id or ARIA attribute was renamed | Meets (sampled) |
+| 1.3.2 Meaningful Sequence | Rendered heading order: `h2` Estado de la zona → `h3` Vista territorial de las comunas → `h3` Estación de trabajo → `h4` Solicitud de lote → `h4` Lecturas y resultados → `h3` Último lote publicado → … → `h3` Panel ejecutivo. DOM order is map → workstation → reading, and at 1440/1280 the grid places the rail to the right of the canvas without reordering the DOM | Meets (sampled) |
+| 1.4.3 Contrast (Minimum) | Rails text from declared tokens: links `--forest-700` on `--paper` 7.36:1; notes `--muted` on `--paper` 5.49:1; state, block titles and reading values `--ink` on `--paper` 11.85:1 | Meets (source arithmetic) |
+| 1.4.10 Reflow | `#overview` at 1440×900, 1280×900, 1024×768 and 390×844: `0` descendants exceeded the viewport width; the composition becomes one column below `1100px` | Meets (sampled) |
+| 1.4.11 Non-text Contrast | Rail link focus ring `3px solid #cf7d4f`, offset `2px`, on `--paper` = 3.11:1, read from the rendered computed style. The card boundary is `--line` (1.29:1) and is a surface edge, not a control; the map's fill and boundary pairs are unchanged from the values already recorded above | Partly met (unchanged map finding) |
+| 2.1.1 Keyboard | Tab order from `#content` at 1280×900: zone selector → three map shapes → four rail links → executive alert link → reset filters → skip link → navigation. Every rail link is a native `a[href]` with a declared route; the rail contains no `button` | Meets (sampled) |
+| 2.4.3 Focus Order | The four rail links follow the canvas they work beside and precede the reading card; pre-existing controls keep their relative order (the server summary now follows the workspace) | Meets (sampled) |
+| 2.4.4 / 2.5.3 Link Purpose and Label in Name | Each rail link's visible text is its accessible name (`Pedir y seguir un lote`, `Ver el estado del gateway y las fuentes`, `Abrir los lotes publicados de la zona`, `Comparar esta zona con otra`). The labels deliberately differ from the navigation destinations' labels, and a public DOM test asserts every `href` is one of the fourteen declared hashes | Meets (sampled) |
+| 2.5.8 Target Size (Minimum) | Rail links `min-height: 36px` (`40px` at `≤720px`), full rail width for the hit area | Meets |
+| 4.1.3 Status Messages | The rail's `#aerial-request-state` carries `role="status" aria-live="polite"` only while the map is not announcing progress for the same zone; when the inflight batch belongs to the selected zone the map's `#map-job-progress` is the single announcement. Asserted by a public DOM test | Meets (source + DOM) |
+
+**Not measured for T2.** No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology was run for this change. The type scale is still absolute, so the **1.4.4** gap this report already records is unchanged, and the map's non-text contrast findings are untouched: T2 grew the canvas but kept its `#eef2e8` surface and its fills. The 390 px first screen still begins with the shell chrome the T1/T2 scope leaves in place, and whether the sticky rail reads well with a long real catalogue was not tested.
+
 ## Open findings from the reader pass
 
 Three defects were found by reading the live accessibility tree, not by automated rules:
