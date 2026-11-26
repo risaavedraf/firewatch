@@ -46,7 +46,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the thirteen views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
+test('the fourteen views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
@@ -58,11 +58,13 @@ test('the thirteen views are declared once, with the two merged pairs, the infra
   // `#status` is the PM-16 operational board of the gateway aggregate, first in
   // Información so the verdict precedes the provenance detail `#sources` already
   // carries, and `#notifications` joins Coordinación beside the activity register
-  // (PM-08).
+  // (PM-08). `#compare` is PM-05's own comparator, declared beside the batch
+  // history it compares across zones.
   expect(ids).toEqual([
     'overview',
     'infrastructure',
     'history',
+    'compare',
     'actions',
     'observations',
     'simulator',
@@ -166,6 +168,20 @@ test('the notification centre has its own hash and navigation entry', () => {
   const link = screen.getByRole('link', { name: /notificaciones/i });
   expect(link).toHaveAttribute('href', '#notifications');
   expect(link).toHaveAttribute('aria-current', 'true');
+});
+
+// PM-05 — the zone comparator is a destination of its own, not a panel inside
+// the batch history: comparing two or three zones in one read is a different
+// question from one zone's rows.
+test('the zone comparator has a dedicated #compare route and navigation entry', () => {
+  render(<App />);
+
+  expect(screen.getByRole('link', { name: /comparador/i })).toHaveAttribute('href', '#compare');
+
+  navigate('#compare');
+  expect(renderedViews()).toEqual(['compare']);
+  expect(document.getElementById('compare-title')?.textContent).toBe('Comparador de zonas');
+  expect(screen.getByRole('link', { name: /comparador/i })).toHaveAttribute('aria-current', 'true');
 });
 
 // PM-11 — the synthetic infrastructure demo is a dedicated view, not a panel

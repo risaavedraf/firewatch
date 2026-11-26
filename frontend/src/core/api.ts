@@ -93,6 +93,13 @@ export type Outcome<T> = { ok: true; data: T } | { ok: false; failure: Failure }
 // creation path, so it is named here rather than duplicated as a bare literal.
 const JOBS_ROUTE = '/v1/jobs';
 
+// PM-05's comparison read. It belongs beside the only module that consumes it
+// rather than in `config.routes`, exactly as the job creation path above does:
+// the registry there lists the routes the retired page already knew, and this
+// one is additive. The path is written once and never as a literal at a call
+// site.
+const COMPARE_ROUTE = '/v1/risk/compare';
+
 // PM-16 — the gateway's own bounded multi-service aggregate. It is named here for
 // the same reason as the job creation path: `config.routes` is the shared map of
 // the routes this page reads and it is not extended by this unit, so the path
@@ -112,6 +119,7 @@ type RequestKind =
   | 'historySeries'
   | 'batches'
   | 'executiveSummary'
+  | 'compare'
   | 'sources'
   | 'riskStatus'
   | 'jobsStatus'
@@ -925,6 +933,307 @@ export async function executiveSummary(signal?: AbortSignal): Promise<Outcome<Ex
     signal,
   );
   return guardOutcome(result, isExecutiveSummary);
+}
+
+// --- Multi-zone comparison (PM-05) -----------------------------------------
+//
+// `GET /v1/risk/compare` is the first risk read that accepts a LIST of zones. It
+// answers one comparison in one request - never one read per zone - and its body
+// is attributable: the route echoes the accepted window, the accepted
+// granularity and the requested zone order, so a cached or crossed answer can be
+// discarded instead of rendered under another question.
+//
+// Three properties travel with this code:
+//   1. the request is judged before anything is read: two or three DISTINCT
+//      zones, a granularity inside the closed vocabulary and an ordered window,
+//      or nothing is sent at all;
+//   2. the body is closed: a member the contract does not declare rejects the
+//      WHOLE answer, because a comparison with an invented axis would be read as
+//      data the service never served;
+//   3. the echo is checked member by member, so an answer for another window,
+//      another granularity or another zone order is `malformed`, not a value.
+
+export type ComparisonGranularity = 'hour' | 'day' | 'week';
+
+// The closed granularity vocabulary of the endpoint.
+export const COMPARISON_GRANULARITIES: readonly ComparisonGranularity[] = ['hour', 'day', 'week'];
+
+// The size of a comparison, mirrored from the route: two is the minimum that
+// makes a comparison and three is the maximum the page has axes for.
+export const COMPARISON_MIN_ZONES = 2;
+export const COMPARISON_MAX_ZONES = 3;
+
+// The per-granularity caps of the endpoint, in milliseconds: 48 hours for `hour`
+// and 31 days for `day` and `week`. The page asks for the whole admitted window
+// instead of a shorter one it would then have to explain, and it declares that
+// window in text.
+const COMPARISON_WINDOW_MS: Record<ComparisonGranularity, number> = {
+  hour: 48 * 3_600_000,
+  day: 31 * 86_400_000,
+  week: 31 * 86_400_000,
+};
+
+export function isComparisonGranularity(value: unknown): value is ComparisonGranularity {
+  return typeof value === 'string' && (COMPARISON_GRANULARITIES as readonly string[]).includes(value);
+}
+
+// The window the page asks for, as RFC 3339 instants in UTC. `now` is injectable
+// so the window policy is testable without a clock, and the caller renders the
+// same window the response echoes.
+export function comparisonWindow(
+  granularity: ComparisonGranularity,
+  now: Date = new Date(),
+): { from: string; to: string } {
+  const to = now.getTime();
+  return { from: new Date(to - COMPARISON_WINDOW_MS[granularity]).toISOString(), to: new Date(to).toISOString() };
+}
+
+// One zone's stored assessment at the shared cutoff. It is deliberately narrower
+// than `RiskBatch`: the route serves no freshness, because data_status, notice and
+// valid_until describe a batch's current state and would make an old assessment
+// look fresh.
+export interface ComparisonAssessment {
+  batch_id: string;
+  requested_at: string;
+  published_at: string;
+  risk_level: RiskLevel;
+  factors: unknown[];
+  model_version: string;
+  synthetic: boolean;
+}
+
+// One PM-04 bucket inside the window: the explicit start, the batch it reports
+// and that batch's level and provenance. A point carries no freshness either.
+export interface ComparisonPoint {
+  bucket_start: string;
+  batch_id: string;
+  requested_at: string;
+  published_at: string;
+  risk_level: RiskLevel;
+  model_version: string;
+  synthetic: boolean;
+}
+
+// One comparison axis. The zone appears because it was requested, not because it
+// has data, so `assessment` and `history` can both be empty.
+export interface ComparisonZone {
+  zone_id: string;
+  assessment: ComparisonAssessment | null;
+  history: ComparisonPoint[];
+}
+
+// The comparison body. There is deliberately no priority member: the domain has
+// no accepted weights yet, and a fabricated fourth axis is not an option.
+export interface ComparisonCollection {
+  from: string;
+  to: string;
+  granularity: ComparisonGranularity;
+  zones: ComparisonZone[];
+}
+
+// What the caller asks for. The window travels with the request because the
+// transport has to check the echo against what it sent.
+export interface ComparisonRequest {
+  zoneIds: readonly string[];
+  granularity: ComparisonGranularity;
+  from: string;
+  to: string;
+}
+
+// The declared members of each level, in one place. `additionalProperties: false`
+// is a contract promise, so an undeclared member is a contract change and rejects
+// the answer instead of being ignored.
+const COMPARISON_COLLECTION_MEMBERS = ['from', 'to', 'granularity', 'zones'] as const;
+const COMPARISON_ZONE_MEMBERS = ['zone_id', 'assessment', 'history'] as const;
+const COMPARISON_ASSESSMENT_MEMBERS = [
+  'batch_id',
+  'requested_at',
+  'published_at',
+  'risk_level',
+  'factors',
+  'model_version',
+  'synthetic',
+] as const;
+const COMPARISON_POINT_MEMBERS = [
+  'bucket_start',
+  'batch_id',
+  'requested_at',
+  'published_at',
+  'risk_level',
+  'model_version',
+  'synthetic',
+] as const;
+
+// An object with EXACTLY the declared members: no missing one and no extra one.
+function closedRecord(value: unknown, members: readonly string[]): value is Record<string, unknown> {
+  if (!record(value)) return false;
+  const present = Object.keys(value);
+  return present.length === members.length && members.every(member => Object.prototype.hasOwnProperty.call(value, member));
+}
+
+// An instant as a number, or null when it cannot be read. Comparing instants by
+// value rather than by spelling is deliberate: the same instant has more than one
+// legal RFC 3339 rendering, and a trailing-zero difference is not another window.
+// `format: date-time` is RFC 3339, not "whatever `Date.parse` tolerates": the
+// contract's instant names a date, a time and a MANDATORY offset (`Z` or
+// `±HH:MM`), so `01/02/2026` and a bare `2026-11-01T00:00:00` are not instants
+// the route accepts. The shape is checked first, then the civil fields, and only
+// then the value: `Date.parse` alone would ACCEPT an impossible civil date such
+// as `2026-02-31` by rolling it into March, so this guard rejects a month outside
+// 1-12, a day outside the month (leap February included) and an hour, minute or
+// second outside 00-23, 00-59 and 00-59.
+// The instant grammar and the month table are declared once, beside `isInstant`
+// above: that guard, this one and the history-series window all read the same
+// RFC 3339 shape, and a second copy would be a second answer to one question.
+// The reading below uses only the civil fields, which both spellings capture.
+
+// The leap rule the calendar uses, not the one `year % 4` suggests: 1900 is not
+// a leap year and 2000 is.
+function daysInMonth(year: number, month: number): number {
+  if (month !== 2) return DAYS_IN_MONTH[month - 1];
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 29 : 28;
+}
+
+function instant(value: unknown): number | null {
+  if (!nonempty(value)) return null;
+  const fields = RFC3339_INSTANT.exec(value);
+  if (fields === null) return null;
+  const year = Number(fields[1]);
+  const month = Number(fields[2]);
+  const day = Number(fields[3]);
+  const hour = Number(fields[4]);
+  const minute = Number(fields[5]);
+  const second = Number(fields[6]);
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > daysInMonth(year, month)) return null;
+  if (hour > 23 || minute > 59 || second > 59) return null;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+// `format: uuid` is eight-four-four-four-twelve hex digits; case is not
+// semantic, so both spellings are accepted. It is declared for `batch_id` in
+// `ComparisonAssessment` and `HistoryBucket`, and it is deliberately NOT
+// declared for `zone_id`, which is any catalogue code.
+const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+function uuid(value: unknown): boolean {
+  return nonempty(value) && UUID.test(value);
+}
+
+function isComparisonLevel(value: unknown): value is RiskLevel {
+  return typeof value === 'string' && (RISK_LEVELS as readonly string[]).includes(value);
+}
+
+function isComparisonAssessment(value: unknown): value is ComparisonAssessment {
+  if (!closedRecord(value, COMPARISON_ASSESSMENT_MEMBERS)) return false;
+  return (
+    uuid(value.batch_id) &&
+    instant(value.requested_at) !== null &&
+    instant(value.published_at) !== null &&
+    isComparisonLevel(value.risk_level) &&
+    Array.isArray(value.factors) &&
+    value.factors.every(record) &&
+    nonempty(value.model_version) &&
+    typeof value.synthetic === 'boolean'
+  );
+}
+
+function isComparisonPoint(value: unknown): value is ComparisonPoint {
+  if (!closedRecord(value, COMPARISON_POINT_MEMBERS)) return false;
+  return (
+    instant(value.bucket_start) !== null &&
+    uuid(value.batch_id) &&
+    instant(value.requested_at) !== null &&
+    instant(value.published_at) !== null &&
+    isComparisonLevel(value.risk_level) &&
+    nonempty(value.model_version) &&
+    typeof value.synthetic === 'boolean'
+  );
+}
+
+function isComparisonZone(value: unknown): value is ComparisonZone {
+  if (!closedRecord(value, COMPARISON_ZONE_MEMBERS)) return false;
+  if (!nonempty(value.zone_id)) return false;
+  if (value.assessment !== null && !isComparisonAssessment(value.assessment)) return false;
+  return Array.isArray(value.history) && value.history.every(isComparisonPoint);
+}
+
+function isComparisonCollection(value: unknown): value is ComparisonCollection {
+  if (!closedRecord(value, COMPARISON_COLLECTION_MEMBERS)) return false;
+  return (
+    instant(value.from) !== null &&
+    instant(value.to) !== null &&
+    isComparisonGranularity(value.granularity) &&
+    Array.isArray(value.zones) &&
+    value.zones.every(isComparisonZone)
+  );
+}
+
+// The request guard. It answers a failure, never a repaired request: an empty
+// entry, a duplicate, a fourth zone, a granularity outside the closed set and an
+// empty or reversed window are all refused BEFORE a request is issued, so the
+// route is never asked a question the page could have answered itself.
+function comparisonRequestFailure(request: ComparisonRequest): Failure | null {
+  const zones = request.zoneIds;
+  if (
+    !Array.isArray(zones) ||
+    zones.length < COMPARISON_MIN_ZONES ||
+    zones.length > COMPARISON_MAX_ZONES
+  ) {
+    return failureSpec('malformed', 'invalid_comparison_request');
+  }
+  const seen = new Set<string>();
+  for (const zone of zones) {
+    if (!nonempty(zone) || seen.has(zone)) return failureSpec('malformed', 'invalid_comparison_request');
+    seen.add(zone);
+  }
+  if (!isComparisonGranularity(request.granularity)) return failureSpec('malformed', 'invalid_comparison_request');
+  const from = instant(request.from);
+  const to = instant(request.to);
+  if (from === null || to === null || from >= to) return failureSpec('malformed', 'invalid_comparison_request');
+  return null;
+}
+
+// The echo check. Position is the comparison axis, so the zone order is compared
+// element by element; the window is compared as instants and the granularity by
+// its wire spelling.
+function comparisonEchoMatches(body: ComparisonCollection, request: ComparisonRequest): boolean {
+  if (body.granularity !== request.granularity) return false;
+  if (instant(body.from) !== instant(request.from)) return false;
+  if (instant(body.to) !== instant(request.to)) return false;
+  if (body.zones.length !== request.zoneIds.length) return false;
+  return body.zones.every((zone, index) => zone.zone_id === request.zoneIds[index]);
+}
+
+// One call answers the whole comparison. This is the reason the view issues ONE
+// read per selection instead of one per zone: the shared cutoff and the shared
+// window are properties of the request, not of each zone's answer.
+export async function compare(
+  request: ComparisonRequest,
+  signal?: AbortSignal,
+): Promise<Outcome<ComparisonCollection>> {
+  const refusal = comparisonRequestFailure(request);
+  if (refusal !== null) return failureOutcome<ComparisonCollection>(refusal);
+  const query = new URLSearchParams();
+  query.set('zone_ids', request.zoneIds.join(','));
+  query.set('from', request.from);
+  query.set('to', request.to);
+  query.set('granularity', request.granularity);
+  const result = await requestJson(
+    'compare',
+    `${gatewayOrigin}${COMPARE_ROUTE}?${query.toString()}`,
+    { authenticated: true },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<ComparisonCollection>(result);
+  if (!isComparisonCollection(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (!comparisonEchoMatches(result.body, request)) {
+    return failureOutcome(failureSpec('malformed', 'comparison_echo_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
 }
 
 // The served payload is nested under `geography` exactly as the declaration

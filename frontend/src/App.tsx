@@ -7,6 +7,7 @@ import type { ViewId } from './app/routes';
 import { ActionsView } from './views/ActionsView';
 import { AuditView } from './views/AuditView';
 import { AuthView } from './views/AuthView';
+import { CompareView } from './views/CompareView';
 import { HistoryView } from './views/HistoryView';
 import { InfrastructureView } from './views/InfrastructureView';
 import { JobsView } from './views/JobsView';
@@ -23,6 +24,7 @@ const views: Record<ViewId, () => ReactElement> = {
   overview: OverviewView,
   infrastructure: InfrastructureView,
   history: HistoryView,
+  compare: CompareView,
   actions: ActionsView,
   observations: ObservationsView,
   simulator: SimulatorView,
