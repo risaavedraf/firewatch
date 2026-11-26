@@ -217,6 +217,12 @@ export interface PreventiveAction {
   // Nullable on the wire: the column is `*string`, so an unassigned action
   // carries `null` rather than an absent field.
   assignee?: string | null;
+  // Directory reference of the responsible, or `null` when unassigned. The
+  // contract types it `format: uuid` and nullable, and the service serializes it
+  // without `omitempty`, so a present value is null or a dashed UUID. It is the
+  // reference NEW assignments use; `assignee` above is the legacy free text.
+  // Optional here because older payloads and fixtures omit it entirely.
+  assignee_id?: string | null;
   due_date?: string | null;
   created_by?: string;
   created_at?: string;
