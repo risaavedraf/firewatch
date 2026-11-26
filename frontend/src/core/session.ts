@@ -77,6 +77,40 @@ export function getAccessToken(): string {
   return accessToken;
 }
 
+// --- Session instance (generation) -----------------------------------------
+//
+// A session-scoped consumer has to be able to tell "this session" from "another
+// instance of it", and `SessionState` cannot: a replacement bearer that declares
+// the SAME status and roles is indistinguishable there, and it must stay that way,
+// because every existing consumer keys on that shape (`subscribeSession` publishes
+// only real changes to it).
+//
+// This is that missing fact, published SEPARATELY so nothing else changes meaning.
+// It is a monotonic COUNT, never the token: a consumer may compare generations and
+// never sees a credential. It moves when the in-memory instance moves — a token
+// adopted, a token dropped — and stays put when there was nothing to replace.
+let sessionGeneration = 0;
+const generationListeners = new Set<() => void>();
+
+function adoptGeneration(): void {
+  sessionGeneration += 1;
+  for (const listener of generationListeners) listener();
+}
+
+export function getSessionGeneration(): number {
+  return sessionGeneration;
+}
+
+// The readonly-subscription half of the pair above, shaped for
+// `useSyncExternalStore` like `subscribeSession` is: subscribing never changes
+// the session, and unsubscribing is the only thing the returned function does.
+export function subscribeSessionGeneration(listener: () => void): () => void {
+  generationListeners.add(listener);
+  return () => {
+    generationListeners.delete(listener);
+  };
+}
+
 // --- Self-contained base64url / UTF-8 decoding -----------------------------
 //
 // The payload decoder deliberately does NOT use `atob`, `Buffer` or
@@ -361,6 +395,9 @@ export async function resumePendingLogin(search: string): Promise<void> {
 function connectSession(token: string, returnedIDToken: string): void {
   accessToken = token;
   idToken = returnedIDToken;
+  // The instance changed before any consumer is told about it, so a subscriber
+  // that reads the generation from its own callback already sees the new one.
+  adoptGeneration();
   publish({ status: 'signed-in', roles: decodeRoles(token), reason: null });
 }
 
@@ -388,8 +425,12 @@ export function signOut(): void {
 // `'login-failed'` only when the callback could not complete; a logout and a
 // tokenless 401 pass `null` and say nothing about a token the server never saw.
 export function resetSession(reason: SessionState['reason'] = null): void {
+  // A reset with nothing in memory is not a new instance: reporting one would
+  // discard session-scoped state that never belonged to a bearer.
+  const hadInstance = accessToken !== '' || idToken !== '';
   accessToken = '';
   idToken = '';
+  if (hadInstance) adoptGeneration();
   publish({ status: 'signed-out', roles: null, reason });
 }
 

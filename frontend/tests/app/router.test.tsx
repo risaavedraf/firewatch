@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { App } from '../../src/App';
 import { routes } from '../../src/app/routes';
@@ -45,21 +46,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the eleven views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
+test('the twelve views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
   // (Acceso) and the sidebar order is the declared order. `#actions` joins
   // Prevención beside the territory and the batch history (T12), and PM-11 adds
   // the dedicated synthetic-infrastructure demo in the same group; `#observations`
-  // follows as the PM-09 field-observation page, and `#notifications` joins
-  // Coordinación beside the activity register (PM-08).
+  // follows as the PM-09 field-observation page, `#simulator` is the PM-03
+  // counterfactual page that explains the rule behind one zone's stored level,
+  // and `#notifications` joins Coordinación beside the activity register (PM-08).
   expect(ids).toEqual([
     'overview',
     'infrastructure',
     'history',
     'actions',
     'observations',
+    'simulator',
     'sources',
     'jobs',
     'pending',
@@ -112,6 +115,35 @@ test('the navigation offers every view, including the "not implemented yet" inve
   expect(screen.getByRole('link', { name: /aún no implementado/i })).toHaveAttribute('href', '#pending');
 });
 
+// The reported keyboard defect (L20): pressing Enter on the workspace "Saltar al
+// contenido" link wrote `#content` into the address bar, the router read that
+// undeclared fragment as the default view, and the reader was moved from the view
+// they had open to Overview with focus still outside the content. The link is a
+// shell concern, so the router keeps its own contract — an unknown fragment still
+// normalises to the default view — and what is pinned here is that the shell no
+// longer produces one.
+test('the skip link keeps the opened view and lands focus in the content region', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+
+  const skipLink = screen.getByRole('link', { name: /saltar al contenido/i });
+  // Both a view other than the default and the default itself: a fallback to
+  // Overview is invisible from Overview, which is how the defect stayed hidden.
+  for (const hash of ['#audit', '#overview'] as const) {
+    navigate(hash);
+    expect(renderedViews()).toEqual([hash.slice(1)]);
+
+    skipLink.focus();
+    await user.keyboard('{Enter}');
+
+    // The fragment the router reads is still the view that was open...
+    expect(window.location.hash).toBe(hash);
+    expect(renderedViews()).toEqual([hash.slice(1)]);
+    // ...and focus is in the content region instead of left behind.
+    expect(document.activeElement).toBe(document.getElementById('content'));
+  }
+});
+
 test('the active navigation entry follows the opened view and marks nothing else', () => {
   render(<App />);
 
@@ -143,4 +175,23 @@ test('the synthetic infrastructure demo has a dedicated #infrastructure route an
   expect(renderedViews()).toEqual(['infrastructure']);
   expect(document.getElementById('infrastructure-title')?.textContent).toBe('Infraestructura prioritaria');
   expect(document.getElementById('infrastructure-synthetic')).not.toBeNull();
+});
+
+// PM-03 — the counterfactual simulator is a page of its own in the Prevención
+// group, not a control hidden inside the territory panel: it explains how the
+// rule produced one zone's stored level, and the operator has to be able to reach
+// it by its own hash.
+test('the counterfactual simulator has a dedicated #simulator route and navigation entry', () => {
+  render(<App />);
+
+  const link = screen.getByRole('link', { name: /^simulador$/i });
+  expect(link).toHaveAttribute('href', '#simulator');
+
+  navigate('#simulator');
+  expect(renderedViews()).toEqual(['simulator']);
+  expect(document.getElementById('simulator-title')?.textContent).toBe('Simulador');
+  // The D-D label is the view's own statement that the result is the rule, not a
+  // forecast: it must be reachable by hash and present without a simulation.
+  expect(document.getElementById('simulator-how-title')?.textContent).toBe('Cómo lo calculó la regla');
+  expect(link).toHaveAttribute('aria-current', 'true');
 });

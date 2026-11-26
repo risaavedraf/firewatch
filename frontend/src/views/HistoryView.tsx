@@ -4,13 +4,14 @@ import { idleCopy, rejectedSessionCopy } from '../app/sessionCopy';
 import {
   getHistoryFilters,
   getSelectedZone,
+  resetHistoryFilters,
   setHistoryQuery,
   setHistoryStatus,
   useHistoryFilters,
   useSelectedZone,
   useSessionState,
 } from '../app/store';
-import { Icon, UnimplementedNote } from '../components/ui';
+import { Icon, TableWrap, UnimplementedNote } from '../components/ui';
 import { history, type Failure } from '../core/api';
 import { historyCsv, saveHistoryCsv } from '../core/history-csv';
 import { getSessionSnapshot } from '../core/session';
@@ -297,6 +298,12 @@ export function HistoryView() {
   // the rows that survived the filter. A search that narrows the table to zero
   // rows must not hide the controls that clear it.
   const hasRows = rows.length > 0;
+  // A zone that returned no row at all is not a zone measured as low risk, and
+  // the artboard says so instead of leaving one sentence. Rows hidden by the
+  // filters are a different state: the data exists, so the panel offers the
+  // whole period back through the same reset the shell's control uses.
+  const filtersActive = query !== '' || statusFilter !== '';
+  const hiddenByFilters = loaded && rows.length > 0 && visible.length === 0 && filtersActive;
 
   return (
     <section className="view" id="history" data-view="history" aria-labelledby="history-title">
@@ -305,6 +312,9 @@ export function HistoryView() {
           <p className="eyebrow">TRAZABILIDAD</p>
           <h2 id="history-title">Historial de lotes</h2>
         </div>
+        {/* The badge shows a number; a reader needs the noun. The name sits in the
+            document before the number, so the reading matches what the badge means. */}
+        <span className="sr-only">Lotes devueltos: </span>
         <span className="count-badge" id="history-count">
           {countLabel}
         </span>
@@ -341,14 +351,34 @@ export function HistoryView() {
               ))}
             </select>
           </label>
-          <span className="result-count" id="history-visible-count">
+          <span className="result-count" id="history-visible-count" role="status" aria-live="polite">
             {visibleLabel}
           </span>
         </div>
         <div id="history-state" className={status.kind === 'failure' ? 'empty-state risk-error' : 'empty-state'}>
           {stateMessage(status, idleCopy(session, 'consultar el historial'))}
+          {status.kind === 'empty' ? (
+            <>
+              <strong>Esta zona no tiene lotes ni evaluación al corte.</strong>
+              <p>La ausencia de datos no es un nivel bajo. Cambia de zona o revisa el corte compartido.</p>
+            </>
+          ) : null}
+          {hiddenByFilters ? (
+            <>
+              <strong>No hay lotes que coincidan con los filtros.</strong>
+              <p>Los filtros no cambian los datos: ocultan filas que la API ya devolvió.</p>
+              <button
+                id="history-show-period"
+                className="secondary-button"
+                type="button"
+                onClick={resetHistoryFilters}
+              >
+                Ver todo el periodo
+              </button>
+            </>
+          ) : null}
         </div>
-        <div className="table-wrap">
+        <TableWrap label="Historial de lotes de la zona">
           <table>
             <thead>
               <tr>
@@ -367,7 +397,7 @@ export function HistoryView() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
         {/* The export row sits outside `.filter-bar` on purpose: a history with
             no rows hides the filter bar, while a header-only export is still a
             valid answer and must be able to say that it carries no rows.

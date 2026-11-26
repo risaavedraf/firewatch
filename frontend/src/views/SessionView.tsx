@@ -1,4 +1,4 @@
-import { PanelHeading, StatusCopy } from '../components/ui';
+import { PanelHeading, StatusCopy, TableWrap } from '../components/ui';
 import { rejectedSessionCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
 import { accountConsoleURL, startLogin, type SessionState } from '../core/session';
@@ -43,15 +43,15 @@ export type PermissionRow = {
 //     admits "viewer" OR "admin" (the test pins the full comparison);
 //     #fail(w, 403, "forbidden") answers any other role with 403 (an
 //     unverifiable token is 401 instead).
-//   backend/services/risk/internal/handler/api.go#return Authorize(verifier, mux)
+//   backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)
 //     wraps the whole risk mux.
 //   backend/services/jobs/internal/handler/security.go#"admin" accepts ONLY
 //     "admin"; #fail(w, 403, "forbidden") answers a verified viewer with 403.
-//   backend/services/jobs/internal/handler/api.go#return Authorize(verifier, mux)
+//   backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)
 //     wraps the whole jobs mux: jobs status, job creation, job read and /v1/audit.
 //   backend/services/gateway/internal/handler/gateway.go#/v1/audit only proxies
 //     /v1/audit and adds no role of its own; #health/ready answers /health/ready
-//     before any bearer check; #auth := strings.Fields and
+//     before any bearer check; #strings.Fields and
 //     #verifier.Verify(ctx, auth[1]) require a verifiable bearer with a subject
 //     but decide no role.
 // eslint-disable-next-line react-refresh/only-export-components
@@ -67,7 +67,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí: exige un bearer verificable con sujeto; no decide ningún rol',
     admin: 'Sí: exige un bearer verificable con sujeto; no decide ningún rol',
     guards: [
-      'backend/services/gateway/internal/handler/gateway.go#auth := strings.Fields',
+      'backend/services/gateway/internal/handler/gateway.go#strings.Fields',
       'backend/services/gateway/internal/handler/gateway.go#verifier.Verify(ctx, auth[1])',
     ],
   },
@@ -78,7 +78,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     guards: [
       'backend/services/risk/internal/handler/api.go#GET /v1/risk/status',
       'backend/services/risk/internal/handler/security.go#"viewer"',
-      'backend/services/risk/internal/handler/api.go#return Authorize(verifier, mux)',
+      'backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)',
     ],
   },
   {
@@ -143,7 +143,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     guards: [
       'backend/services/jobs/internal/handler/api.go#POST /v1/jobs',
       'backend/services/jobs/internal/handler/security.go#"admin"',
-      'backend/services/jobs/internal/handler/api.go#return Authorize(verifier, mux)',
+      'backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)',
     ],
   },
   {
@@ -243,7 +243,7 @@ export function SessionView() {
 
   return (
     <section className="view" id="session" data-view="session" aria-labelledby="session-title">
-      <PanelHeading eyebrow="ACCESO A LA API" title="Sesión y permisos" titleId="session-title" />
+      <PanelHeading eyebrow="ACCESO A LA API" title="Sesión y permisos" titleId="session-title" level={2} />
 
       <div className="lower-grid">
         <article className="panel auth-panel">
@@ -330,12 +330,12 @@ export function SessionView() {
             <code>viewer</code> o <code>admin</code> y{' '}
             <code>backend/services/jobs/internal/handler/security.go#"admin"</code> acepta solo{' '}
             <code>admin</code>, con{' '}
-            <code>backend/services/risk/internal/handler/api.go#return Authorize(verifier, mux)</code> y{' '}
-            <code>backend/services/jobs/internal/handler/api.go#return Authorize(verifier, mux)</code> envolviendo sus
+            <code>backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)</code> y{' '}
+            <code>backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)</code> envolviendo sus
             mux completos. Un token verificado sin ninguno de esos roles recibe 403; un token que no se puede
             verificar recibe 401.
           </p>
-          <div className="table-wrap">
+          <TableWrap label="Matriz de perfiles y permisos">
             <table>
               <caption className="sr-only">
                 Matriz documentada de perfiles y permisos, con la guarda real del servidor que la sustenta
@@ -359,7 +359,7 @@ export function SessionView() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
           <p id="permissions-unimplemented" className="unimplemented-note">
             No portado a propósito: el mockup retirado permitía <em>elegir</em> un rol en la página. Ese selector no se
             implementa porque la página no puede conceder permisos y un selector sería un límite de autorización falso.

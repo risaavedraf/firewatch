@@ -207,6 +207,15 @@ func TestQueryRoutesAreExactlyTheSelectedBusinessReads(t *testing.T) {
 		// zone, same window, same access policy, so it is the same consultation of
 		// the same collection and carries the same action.
 		{http.MethodGet, "/v1/risk/history.csv", "risk.history.read"},
+		// The granular series (PM-04) is that same historical risk collection read
+		// at another granularity: it is recorded under the same action instead of
+		// widening the audit vocabulary with a label the SQL writer would have to
+		// learn.
+		{http.MethodGet, "/v1/risk/history/series", "risk.history.read"},
+		// The comparison (PM-05) is the exception: it asks several zones at one
+		// shared cutoff, so S6 gives it a named action of its own and the trail can
+		// tell it apart from the history reads.
+		{http.MethodGet, "/v1/risk/compare", "risk.compare.read"},
 		{http.MethodGet, "/v1/risk/batches", "risk.batches.read"},
 		{http.MethodGet, "/v1/prevention/observations", "prevention.observations.read"},
 		{http.MethodGet, "/v1/prevention/actions", "prevention.actions.read"},
@@ -227,9 +236,9 @@ func TestQueryRoutesAreExactlyTheSelectedBusinessReads(t *testing.T) {
 		seenAction[got.Action]++
 	}
 	// One action may cover more than one route when the routes are the same read:
-	// risk.history.read covers the JSON history and its CSV export, and nothing
-	// else is allowed to share.
-	sharedActions := map[string]int{"risk.history.read": 2}
+	// risk.history.read covers the JSON history, its CSV export and the granular
+	// series, and nothing else is allowed to share.
+	sharedActions := map[string]int{"risk.history.read": 3}
 	for action, count := range seenAction {
 		if wantCount, shared := sharedActions[action]; shared {
 			if count != wantCount {
@@ -282,6 +291,12 @@ func TestQueryRecordingCoversOnlyTheSelectedSuccessfulReads(t *testing.T) {
 	for _, selected := range []struct{ path, action string }{
 		{"/v1/risk/latest?zone_id=valparaiso-demo", "risk.current.read"},
 		{"/v1/risk/history?zone_id=valparaiso-demo&from=2026-01-01", "risk.history.read"},
+		// The granular series is selected too: it is the historical risk collection
+		// at another granularity, recorded under the same action.
+		{"/v1/risk/history/series?from=2026-11-01T00:00:00Z&to=2026-11-02T00:00:00Z&granularity=day", "risk.history.read"},
+		// The comparison is selected under its own named action (S6), so the trail
+		// distinguishes it from the history read it sits next to.
+		{"/v1/risk/compare?zone_ids=05101,05201&from=2026-11-01T00:00:00Z&to=2026-11-02T00:00:00Z&granularity=day", "risk.compare.read"},
 		{"/v1/risk/batches", "risk.batches.read"},
 		{"/v1/prevention/observations?community_code=valparaiso-demo&status=pendiente", "prevention.observations.read"},
 		{"/v1/prevention/actions?community_code=valparaiso-demo&status=propuesta", "prevention.actions.read"},
@@ -496,7 +511,7 @@ func TestQueryRecordingFailureAnswersStorageUnavailable(t *testing.T) {
 	contract := loadContract(t)
 	key, verifier := newTokenIssuer(t)
 	_, target := auditUpstream(t)
-	for _, path := range []string{"/v1/risk/latest", "/v1/risk/history", "/v1/risk/batches", "/v1/prevention/observations", "/v1/prevention/actions", "/v1/prevention/actions/8f1d0a527b3c4a199e218a1b2c3d4e5f"} {
+	for _, path := range []string{"/v1/risk/latest", "/v1/risk/history", "/v1/risk/history/series?from=2026-11-01T00:00:00Z&to=2026-11-02T00:00:00Z&granularity=day", "/v1/risk/compare?zone_ids=05101,05201&from=2026-11-01T00:00:00Z&to=2026-11-02T00:00:00Z&granularity=day", "/v1/risk/batches", "/v1/prevention/observations", "/v1/prevention/actions", "/v1/prevention/actions/8f1d0a527b3c4a199e218a1b2c3d4e5f"} {
 		t.Run(path, func(t *testing.T) {
 			recorder := &auditRecorder{err: errors.New("audit store unavailable")}
 			request := httptest.NewRequest(http.MethodGet, path, nil)
@@ -528,8 +543,10 @@ func TestQueryRecordingFailureAnswersStorageUnavailable(t *testing.T) {
 			if strings.Contains(response.Body.String(), "valparaiso-demo") {
 				t.Fatalf("the unrecorded upstream body was forwarded: %s", response.Body)
 			}
-			contractPath := path
-			if strings.HasPrefix(path, "/v1/prevention/actions/") {
+			// The contract is keyed by path, so the query of a selected read is
+			// dropped before the lookup; the parameters are not part of the route.
+			contractPath, _, _ := strings.Cut(path, "?")
+			if strings.HasPrefix(contractPath, "/v1/prevention/actions/") {
 				contractPath = "/v1/prevention/actions/{id}"
 			}
 			assertResponseMatchesContract(t, contract, contractPath, http.MethodGet, response)
@@ -721,9 +738,18 @@ func TestQueryLabelsMatchTheDatabaseWriter(t *testing.T) {
 		t.Fatalf("the narrow query writer owns the action vocabulary and must be readable: %v", err)
 	}
 	sql := string(raw)
+	// The comparison action is added forward-only by 007, which replaces the same
+	// function instead of widening the executable surface with a second writer. The
+	// vocabulary is therefore the concatenation of both files, and a label the
+	// gateway sends must be accepted by one of them.
+	raw, err = os.ReadFile(filepath.Join(migrations, "007_comparison_audit_action.sql"))
+	if err != nil {
+		t.Fatalf("the comparison action's writer migration must be readable: %v", err)
+	}
+	sql += string(raw)
 	for _, route := range queryRoutes {
 		if !strings.Contains(sql, "'"+route.Action+"'") {
-			t.Errorf("006_query_audit_writer.sql rejects %q, which the gateway records", route.Action)
+			t.Errorf("the narrow query writer rejects %q, which the gateway records", route.Action)
 		}
 	}
 	// The kind is fixed inside the writer, so a recorded read can never be stored

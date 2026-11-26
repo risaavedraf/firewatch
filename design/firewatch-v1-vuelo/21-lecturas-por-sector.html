@@ -3,24 +3,88 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<style id="fw-product-nav">
+/* FireWatch · navegación global del producto (componente compartido).
+   Fuente del bloque: product-navigation.mjs. */
+.fw-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 5px 12px;
+  border-block-end: 1px solid var(--fw-edge);
+  background: var(--fw-surface);
+  color: var(--fw-ink);
+  font: 600 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.fw-nav--map { --fw-surface: var(--panel, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--border, #647b8a); --fw-accent: var(--focus, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--aerial { --fw-surface: var(--aerial-panel, #17222b); --fw-ink: var(--aerial-ink, #f4f1eb); --fw-muted: var(--aerial-muted, #b8c8d2); --fw-edge: var(--aerial-border, #647b8a); --fw-accent: var(--aerial-focus, #94dfda); --fw-raised: var(--aerial-raised, #243341); }
+.fw-nav--panel { --fw-surface: var(--surface, #17222b); --fw-ink: var(--text, #f4f1eb); --fw-muted: var(--text-muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--surface-raised, #243341); }
+.fw-nav--plain { --fw-surface: var(--surface, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--sticky { position: sticky; top: 0; z-index: 30; min-height: 48px; }
+.fw-nav--fixed { position: fixed; inset: 0 0 auto; z-index: 2; flex-wrap: nowrap; height: var(--fw-nav-h, 48px); padding-block: 3px; }
+html { scroll-padding-top: calc(var(--fw-nav-h, 48px) + 56px); }
+.fw-nav--sticky + .app .viewnav { top: var(--fw-nav-h, 48px); }
+.fw-nav__primary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.fw-nav--fixed .fw-nav__primary { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding-block: 1px; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.fw-nav__link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 9px; color: var(--fw-ink); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.fw-nav__link:hover { background: var(--fw-raised); }
+.fw-nav__link[aria-current="page"] { border-color: var(--fw-edge); background: var(--fw-raised); color: var(--fw-accent); text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav a:focus-visible, .fw-nav summary:focus-visible { outline: 3px solid var(--fw-accent); outline-offset: 2px; }
+.fw-nav--fixed .fw-nav__primary .fw-nav__link:focus-visible { outline-offset: -2px; }
+.fw-nav__more { display: flex; min-width: 0; }
+.fw-nav__summary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 11px; border: 1px solid var(--fw-edge); border-radius: 9px; color: var(--fw-ink); font-weight: 700; white-space: nowrap; cursor: pointer; list-style: none; }
+.fw-nav__summary::-webkit-details-marker { display: none; }
+.fw-nav__summary::after { content: "▾"; font-size: 10px; line-height: 1; }
+.fw-nav__summary:hover { background: var(--fw-raised); }
+.fw-nav__more[open] > .fw-nav__summary { border-color: var(--fw-accent); background: var(--fw-raised); color: var(--fw-accent); }
+.fw-nav__panel { position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 10px; z-index: 40; width: min(720px, calc(100vw - 20px)); max-height: min(70dvh, 520px); overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px 14px; border: 1px solid var(--fw-edge); border-radius: 12px; background: var(--fw-surface); color: var(--fw-ink); box-shadow: 0 16px 32px rgb(0 0 0 / 32%); }
+.fw-nav__panel-title { margin: 0 0 9px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.fw-nav__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 18px; }
+.fw-nav__group-title { margin: 0 0 3px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__list { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.fw-nav__item { display: flex; align-items: center; min-height: 32px; padding: 2px 6px; border-radius: 6px; color: var(--fw-ink); font-size: 12.5px; font-weight: 600; line-height: 1.35; text-decoration: none; }
+.fw-nav__item:hover { background: var(--fw-raised); }
+.fw-nav__item[aria-current="page"] { color: var(--fw-accent); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav__note { margin: 10px 0 0; padding-top: 8px; border-block-start: 1px solid var(--fw-edge); color: var(--fw-muted); font-size: 11.5px; }
+.fw-nav__where { margin: 0 0 0 auto; min-width: 0; color: var(--fw-muted); font-size: 12px; }
+.fw-nav__where-label { font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__where strong { color: var(--fw-ink); font-weight: 750; }
+.fw-nav--fixed .fw-nav__where { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) {
+  .fw-nav--fixed .fw-nav__where { display: none; }
+  .fw-nav--fixed .fw-nav__link, .fw-nav--fixed .fw-nav__summary { font-size: 12px; padding-inline: 7px; }
+}
+@media (max-width: 420px) {
+  .fw-nav { padding-inline: 8px; }
+  .fw-nav__link, .fw-nav__summary { padding-inline: 8px; }
+  .fw-nav--fixed .fw-nav__summary-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fw-nav, .fw-nav * { transition: none !important; animation: none !important; }
+}
+</style>
 <title>FireWatch · Lecturas por sector (maqueta)</title>
 <style>
 :root {
   color-scheme: dark;
   --bg: #152934; --surface: #17222b; --raised: #243341; --ink: #f4f1eb; --muted: #b8c8d2;
-  --edge: #647b8a; --accent: #94dfda; --accent-label: #121c22; --radius: 14px; --control: 8px;
+  --edge: #647b8a; --accent: #94dfda;
+  --missing: #c4cbd1; --radius: 14px; --control: 8px;
   --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 [data-theme="day"] {
   color-scheme: light;
   --bg: #b9d2d9; --surface: #f5f3ee; --raised: #e5e9e8; --ink: #1d2c35; --muted: #475b65;
-  --edge: #637985; --accent: #125650; --accent-label: #ffffff;
+  --edge: #637985; --accent: #125650;
+  --missing: #42525e;
 }
 *, *::before, *::after { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
 h1, h2, h3, p, dl, dd, ul, li { margin: 0; }
 h1, h2, h3 { line-height: 1.2; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -31,90 +95,221 @@ button, input { font: inherit; }
 .mark { width: 34px; height: 34px; flex: none; color: var(--accent); }
 .brand strong { display: block; font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
 .brand small { display: block; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.title-block { flex: 1 1 320px; min-width: 0; }
+.title-block { flex: 1 1 300px; min-width: 0; }
 .eyebrow { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 h1 { margin-top: 3px; font-size: clamp(24px, 3vw, 34px); font-weight: 650; letter-spacing: -.8px; }
-.lead { margin-top: 6px; max-width: 88ch; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.lead { margin-top: 5px; max-width: 74ch; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .top-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.btn { min-height: 44px; padding: 8px 14px; border: 1px solid var(--edge); border-radius: var(--control); background: transparent; color: var(--ink); font-weight: 650; }
+.btn { min-height: 44px; padding: 8px 14px; border: 1px solid var(--edge); border-radius: var(--control); background: transparent; color: var(--ink); font-weight: 650; cursor: pointer; }
 .btn:hover { border-color: var(--accent); color: var(--accent); }
 .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 10px; border: 1px solid var(--edge); border-radius: 999px; font-size: 11px; font-weight: 650; }
 .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .chip-dashed { border-style: dashed; color: var(--muted); }
 .strip { padding: 8px 32px; border-bottom: 1px solid var(--edge); background: var(--raised); color: var(--muted); font-size: 12px; }
 .strip strong { color: var(--accent); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
-main { max-width: 1180px; margin: 0 auto; padding: 22px 32px 30px; }
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 344px; gap: 16px; align-items: start; }
-.stack { display: grid; gap: 16px; min-width: 0; }
+main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; max-width: 1180px; margin: 0 auto; padding: 20px 32px 28px; }
 .panel { background: var(--surface); border: 1px solid var(--edge); border-radius: var(--radius); overflow: hidden; }
-.panel-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 14px; padding: 14px 18px 10px; }
-.panel-head h2 { margin-top: 3px; font-size: 17px; font-weight: 650; letter-spacing: -.3px; }
-.panel-body { padding: 0 18px 16px; }
-.copy { max-width: 78ch; font-size: 12.5px; line-height: 1.65; }
-.note { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); color: var(--muted); font-size: 10.5px; line-height: 1.55; }
 code { padding: 1px 4px; border-radius: 4px; background: var(--raised); font: 600 10.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
-.sectors { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 0; border: 0; min-width: 0; }
-.sectors legend { padding: 0 0 6px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.sector { display: flex; gap: 9px; min-height: 60px; padding: 10px 11px; border: 1px solid var(--edge); border-radius: 10px; cursor: pointer; }
-.sector:hover { background: var(--raised); }
-.sector input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--accent); }
-.sector:has(input:checked) { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
-.sector:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
-.sector strong { display: block; font-size: 12px; font-weight: 700; line-height: 1.35; }
-.sector small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; line-height: 1.45; }
-.facts { display: grid; }
-.facts > div { display: grid; grid-template-columns: 34% minmax(0, 1fr); gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--edge); }
-.facts > div:last-child { border-bottom: 0; padding-bottom: 0; }
-.facts dt { color: var(--muted); font-size: 10px; font-weight: 650; }
-.facts dd { font-size: 11.5px; font-weight: 600; overflow-wrap: anywhere; }
-.state-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
-.state-line strong { font-size: 12px; }
+
+/* Banda de contexto: sector, comunas, fecha y cobertura en una sola fila. */
+.band { display: grid; grid-template-columns: minmax(196px, .95fr) minmax(0, 1.35fr) minmax(150px, .75fr) minmax(180px, .9fr); gap: 10px 26px; padding: 14px 18px; }
+.band-field { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.band-label { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.band-value { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.band-sub { margin-top: 1px; color: var(--muted); font-size: 10.5px; line-height: 1.45; }
+.band-id { margin-top: 1px; color: var(--muted); font-size: 10.5px; overflow-wrap: anywhere; }
+select#sector-select { width: 100%; min-height: 40px; padding: 7px 10px; border: 1px solid var(--edge); border-radius: var(--control); background: var(--raised); color: var(--ink); font-size: 13px; font-weight: 650; }
+select#sector-select:hover { border-color: var(--accent); }
+.band-hint { grid-column: 1 / -1; margin-top: 2px; padding-top: 8px; border-top: 1px solid var(--edge); color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.cov { display: inline-flex; align-items: center; gap: 7px; min-height: 26px; padding: 3px 10px; border: 1px solid currentColor; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.cov::before { content: ""; width: 10px; height: 10px; flex: none; border-radius: 50%; background: currentColor; }
+.cov[data-level="completa"] { color: var(--accent); }
+.cov[data-level="parcial"] { color: var(--ink); }
+.cov[data-level="parcial"]::before { background: transparent; border: 2px solid currentColor; }
+.cov[data-level="ninguna"] { border-style: dashed; color: var(--muted); }
+.cov[data-level="ninguna"]::before { background: transparent; border: 2px dashed currentColor; }
+
+/* Región meteorológica principal. */
+.weather-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; padding: 16px 18px 13px; }
+.weather-head h2 { margin-top: 3px; font-size: 17px; font-weight: 650; letter-spacing: -.3px; }
+.head-meta { color: var(--muted); font-size: 10.5px; font-weight: 650; }
+.notice { margin: 0 18px 14px; padding: 10px 12px; border: 1px dashed var(--edge); border-radius: 10px; color: var(--muted); font-size: 11.5px; line-height: 1.55; }
+.notice strong { color: var(--ink); }
+.weather-body { display: grid; grid-template-columns: minmax(230px, 318px) minmax(0, 1fr); border-top: 1px solid var(--edge); }
+.temp { display: flex; flex-direction: column; padding: 18px 20px 16px; background: var(--raised); border-right: 1px solid var(--edge); }
+.pair { display: grid; margin-top: 10px; }
+.pair-row { display: grid; grid-template-columns: 12px minmax(0, 1fr); column-gap: 12px; }
+.dot { grid-row: 1 / span 2; justify-self: start; width: 11px; height: 11px; margin-top: 7px; border-radius: 50%; background: var(--accent); }
+.dot--min { background: transparent; border: 2px solid var(--accent); }
+#temperatura[data-state="sin-lectura"] .dot { background: transparent; border: 2px dashed var(--missing); }
+#temperatura[data-state="sin-lectura"] .pair-gap { border-left-style: dashed; }
+.pair-tag { grid-column: 2; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.pair-value { grid-column: 2; margin-top: 1px; font-size: clamp(34px, 3.9vw, 54px); font-weight: 650; letter-spacing: -1.8px; line-height: 1.04; }
+.pair-value .unit { margin-left: 6px; color: var(--muted); font-size: .28em; font-weight: 650; letter-spacing: 0; }
+.pair-value .missing { color: var(--missing); font-size: 18px; font-weight: 700; letter-spacing: 0; }
+.pair-gap { display: flex; align-items: baseline; gap: 7px; margin: 4px 0 4px 5px; padding: 2px 0 2px 17px; border-left: 2px solid var(--edge); color: var(--muted); font-size: 10.5px; font-weight: 650; }
+.pair-gap strong { color: var(--ink); font-size: 11.5px; font-weight: 750; }
+.pair-gap[data-missing="true"] strong { color: var(--muted); font-weight: 650; }
+.cell-label { margin-bottom: 2px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.cell-foot { margin-top: auto; padding-top: 8px; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.cells { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 16px 18px 14px; }
+.cell:nth-child(even) { border-left: 1px solid var(--edge); }
+.cell:nth-child(n+3) { border-top: 1px solid var(--edge); }
+.cell-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px; font-size: clamp(22px, 2.1vw, 28px); font-weight: 650; letter-spacing: -.6px; line-height: 1.1; }
+.cell-value .unit { color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0; }
+.cell-value .missing { color: var(--missing); font-size: 16px; font-weight: 700; letter-spacing: 0; }
+.missing { color: var(--missing); }
+.missing::before { content: "— "; }
+.cell-note { margin-top: 5px; padding-left: 7px; border-left: 2px solid var(--accent); color: var(--muted); font-size: 10.5px; line-height: 1.45; }
+.wind { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.rose-slot { display: inline-flex; flex: none; }
+.rose { width: 46px; height: 46px; color: var(--accent); }
+.rose-frame { color: var(--muted); }
+.wind-copy { min-width: 0; }
+.wind-dir { margin-top: 2px; font-size: 11.5px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.wind-dir strong { font-weight: 750; }
+.wind-dir .missing { font-weight: 650; }
+.weather-note { padding: 11px 18px 13px; border-top: 1px solid var(--edge); color: var(--muted); font-size: 10.5px; line-height: 1.55; }
+.weather-note strong { color: var(--ink); }
+
+/* Detalle a demanda: lecturas exactas, método, terreno y procedencia. */
+.folders { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.folder { background: var(--surface); border: 1px solid var(--edge); border-radius: var(--radius); overflow: hidden; min-width: 0; }
+.folder--wide { grid-column: 1 / -1; }
+.folder summary { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; font-size: 12.5px; font-weight: 700; list-style: none; }
+.folder summary::-webkit-details-marker { display: none; }
+.folder summary:hover { background: var(--raised); }
+.folder summary::after { content: "▾"; flex: none; color: var(--muted); font-size: 10px; }
+.folder[open] summary::after { content: "▴"; }
+.folder[open] summary { border-bottom: 1px solid var(--edge); }
+.summary-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; flex: 1 1 auto; min-width: 0; }
+.summary-hint { margin-left: auto; color: var(--muted); font-size: 10.5px; font-weight: 600; }
+.folder-body { padding: 4px 16px 14px; }
+.reading { display: grid; gap: 10px; padding-top: 10px; }
+.reading h3 { font-size: 11.5px; font-weight: 750; }
+.reading p { margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.note { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--edge); color: var(--muted); font-size: 10.5px; line-height: 1.55; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 9px 10px; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; }
 thead th { color: var(--muted); font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 tbody th { font-size: 11px; font-weight: 650; }
-tbody th small { display: block; margin-top: 1px; color: var(--muted); font-size: 9.5px; font-weight: 500; }
+tbody th code { margin-left: 6px; }
+tbody th small { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; font-weight: 500; }
 tbody td { font-size: 11.5px; }
 tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
 .num { font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
 .unit { color: var(--muted); font-size: 10.5px; }
-.missing { color: var(--muted); font-size: 10.5px; font-weight: 650; }
-.missing::before { content: "— "; }
-.aside-panel { display: grid; gap: 10px; }
-.aside-panel h3 { margin-bottom: 3px; font-size: 13px; font-weight: 700; }
-.aside-panel p, .aside-panel li { color: var(--muted); font-size: 11px; line-height: 1.6; }
-.aside-panel ul { margin: 0; padding-left: 16px; }
+.facts { display: grid; padding-top: 4px; }
+.facts > div { display: grid; grid-template-columns: 34% minmax(0, 1fr); gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--edge); }
+.facts > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.facts dt { color: var(--muted); font-size: 10px; font-weight: 650; }
+.facts dd { font-size: 11.5px; font-weight: 600; overflow-wrap: anywhere; }
 .empty { border-style: dashed; }
-.empty .panel-body { display: grid; gap: 8px; }
-.empty strong { font-size: 13px; }
+.empty-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 16px 18px 10px; }
+.empty-head h2 { margin-top: 3px; font-size: 17px; font-weight: 650; letter-spacing: -.3px; }
+.empty-body { display: grid; gap: 8px; padding: 0 18px 16px; font-size: 12.5px; line-height: 1.65; }
 footer { padding: 12px 32px 18px; color: var(--muted); font-size: 10px; text-align: center; }
-@media (max-width: 1000px) {
-  .layout { grid-template-columns: minmax(0, 1fr); }
-  .sectors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 1100px) { .folders { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) {
+  .weather-body { grid-template-columns: minmax(0, 1fr); }
+  .temp { border-right: 0; border-bottom: 1px solid var(--edge); }
+  .folders { grid-template-columns: minmax(0, 1fr); }
+  .folder--wide { grid-column: auto; }
+  .band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
   .topbar, .strip, footer { padding-inline: 16px; }
-  main { padding: 16px 16px 24px; }
-  .panel-body { padding-inline: 14px; }
-  .sectors { grid-template-columns: minmax(0, 1fr); }
-  .facts > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  main { padding: 16px 16px 22px; }
+  .band { padding: 13px 14px; gap: 10px 18px; }
+  .weather-head { padding: 14px 14px 11px; }
+  .notice { margin: 0 14px 12px; }
+  .weather-note { padding-inline: 14px; }
+  .temp { padding: 16px 14px 14px; }
+  .cell { padding: 14px 14px 12px; }
+  .folder summary { padding: 11px 14px; }
+  .folder-body { padding: 4px 14px 12px; }
+  .empty-head, .empty-body { padding-inline: 14px; }
   th, td { padding: 8px 6px; }
+}
+@media (max-width: 560px) {
+  .band { grid-template-columns: minmax(0, 1fr); }
+  .cells { grid-template-columns: minmax(0, 1fr); }
+  .cell:nth-child(even) { border-left: 0; }
+  .cell:nth-child(n+2) { border-top: 1px solid var(--edge); }
+  .facts > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .summary-hint { margin-left: 0; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; } }
 </style>
 </head>
 <body>
 <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+<!-- fw-product-nav:start · navegación global compartida · la escribe design/firewatch-v1-vuelo/product-navigation.mjs; no editar a mano -->
+<nav class="fw-nav fw-nav--sticky fw-nav--plain" aria-label="Navegación del producto FireWatch">
+  <ul class="fw-nav__primary">
+    <li><a class="fw-nav__link" href="01-vista-aerea.html" aria-label="Mapa · Territorio">Mapa</a></li>
+    <li><a class="fw-nav__link" href="07-panel-ejecutivo.html" aria-label="Panel ejecutivo">Panel</a></li>
+    <li><a class="fw-nav__link" href="05-historial-de-lotes.html" aria-label="Historial de lotes">Historial</a></li>
+    <li><a class="fw-nav__link" href="06-acciones-preventivas.html" aria-label="Acciones preventivas">Acciones</a></li>
+  </ul>
+  <details class="fw-nav__more">
+    <summary class="fw-nav__summary"><span class="fw-nav__summary-text">Más destinos</span></summary>
+    <div class="fw-nav__panel">
+      <p class="fw-nav__panel-title">Otras pantallas del producto</p>
+      <div class="fw-nav__groups">
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-territorio">Territorio y lectura</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-territorio">
+            <li><a class="fw-nav__item" href="02-vista-regional.html">Vista regional</a></li>
+            <li><a class="fw-nav__item" href="03-acciones-en-el-mapa.html">Acciones rápidas en el mapa</a></li>
+            <li><a class="fw-nav__item" href="04-cobertura-territorial.html">Cobertura y contexto territorial</a></li>
+            <li><a class="fw-nav__item" href="21-lecturas-por-sector.html" aria-current="page">Lecturas por sector</a></li>
+            <li><a class="fw-nav__item" href="08-comparar-sectores.html">Comparar sectores</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-decision">Decisión y alertas</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-decision">
+            <li><a class="fw-nav__item" href="09-notificaciones.html">Notificaciones</a></li>
+            <li><a class="fw-nav__item" href="10-simulacion-contrafactual.html">Simulación contrafactual</a></li>
+            <li><a class="fw-nav__item" href="11-observaciones-de-campo.html">Observaciones de campo</a></li>
+            <li><a class="fw-nav__item" href="13-ficha-de-zona.html">Ficha de zona · Vista previa PDF</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-datos">Solicitudes y datos</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-datos">
+            <li><a class="fw-nav__item" href="12-exportacion-csv.html">Exportación CSV</a></li>
+            <li><a class="fw-nav__item" href="20-datos-del-modelo.html">Datos del modelo</a></li>
+            <li><a class="fw-nav__item" href="15-fuentes-y-servicios.html">Fuentes y servicios</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-acceso">Acceso y control</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-acceso">
+            <li><a class="fw-nav__item" href="14-acceso.html">Acceso · Iniciar sesión</a></li>
+            <li><a class="fw-nav__item" href="17-sesion-y-permisos.html">Sesión y permisos</a></li>
+            <li><a class="fw-nav__item" href="18-registro-de-actividad.html">Registro de actividad</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="fw-nav__note">Mapa, Panel, Historial y Acciones están siempre en esta barra.</p>
+    </div>
+  </details>
+  <p class="fw-nav__where"><span class="fw-nav__where-label">Estás en</span> <strong>Lecturas por sector</strong></p>
+</nav>
+<!-- fw-product-nav:end -->
 <header class="topbar">
   <div class="brand">
     <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="currentColor"/><path d="M6 23l7-12 4 5 4-9 5 16z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>
     <span><strong>FireWatch</strong><small>Prevención municipal</small></span>
   </div>
   <div class="title-block">
-    <p class="eyebrow">Prevención · Territorio · lectura de ejemplo</p>
+    <p class="eyebrow">Prevención · Territorio</p>
     <h1>Lecturas por sector</h1>
-    <p class="lead">Complemento de Territorio: un sector del handoff sintético con su fecha, sus comunas y su cobertura. Responde qué lectura hay y qué falta; no calcula riesgo ni altera el mapa.</p>
+    <p class="lead">Qué lectura tiene un sector del handoff sintético y qué le falta; no calcula riesgo ni altera el mapa.</p>
   </div>
   <div class="top-actions">
     <span class="chip chip-dashed">Sintético</span>
@@ -125,78 +320,153 @@ footer { padding: 12px 32px 18px; color: var(--muted); font-size: 10px; text-ali
 <div class="strip" role="note"><strong>Datos sintéticos ilustrativos</strong> · No son la fuente real, no certifican calidad técnica, no son probabilidad de riesgo y no son una conversión espacial del panel comuna-día.</div>
 <noscript><p class="strip" role="status">Esta lectura de ejemplo necesita JavaScript para elegir un sector. Sin él no se muestra ningún dato, y no se inventan lecturas.</p></noscript>
 <main id="contenido" tabindex="-1">
-  <div class="layout">
-    <div class="stack">
-      <section class="panel" data-when="data" hidden aria-labelledby="selector-title">
-        <div class="panel-head"><div><p class="eyebrow">Selector</p><h2 id="selector-title" tabindex="-1">Elige un sector</h2></div><span class="chip chip-dashed">3 sectores de ejemplo</span></div>
-        <div class="panel-body">
-          <fieldset class="sectors" id="sectores" aria-describedby="sector-hint"><legend>Sectores del handoff sintético</legend></fieldset>
-          <p class="note" id="sector-hint">Se elige con el teclado (flechas dentro del grupo) o tocando una tarjeta. Cambiar de sector actualiza la fecha, las comunas, la cobertura y las lecturas.</p>
-        </div>
-      </section>
-
-      <section class="panel" data-when="data" hidden aria-labelledby="contexto-title">
-        <div class="panel-head"><div><p class="eyebrow">Contexto</p><h2 id="contexto-title">Sector, fecha y comunas</h2></div></div>
-        <div class="panel-body">
-          <dl class="facts" id="contexto"></dl>
-        </div>
-      </section>
-
-      <section class="panel" data-when="data" hidden aria-labelledby="clima-title">
-        <div class="panel-head"><div><p class="eyebrow">Lectura meteorológica</p><h2 id="clima-title">Cobertura del sector</h2></div><span class="chip" id="coverage-badge">Sin handoff</span></div>
-        <div class="panel-body">
-          <p class="copy" id="coverage-text">Elige un sector para ver cuántas de las siete variables tienen lectura.</p>
-          <div class="table-wrap">
-            <table>
-              <caption class="sr-only">Variables meteorológicas del sector elegido, con su valor o su falta declarada</caption>
-              <thead><tr><th scope="col">Variable y estimador</th><th scope="col">Valor</th></tr></thead>
-              <tbody id="weather-body"></tbody>
-            </table>
-          </div>
-          <p class="note">Un <strong>0 cuenta como lectura</strong>; un campo nulo se muestra como Sin dato. Los valores son ejemplos diarios sintéticos, no lecturas de un lote publicado.</p>
-        </div>
-      </section>
-
-      <section class="panel" data-when="data" hidden aria-labelledby="terreno-title">
-        <div class="panel-head"><div><p class="eyebrow">Fuera del contrato activo</p><h2 id="terreno-title">Terreno candidato</h2></div><span class="chip chip-dashed">No es feature</span></div>
-        <div class="panel-body">
-          <dl class="facts" id="terrain-body"></dl>
-          <p class="note">Elevación, pendiente y cobertura del suelo son candidatos académicos: no forman parte de las siete variables del contrato ni calculan una contribución. Si falta un valor, se muestra Sin dato.</p>
-        </div>
-      </section>
-
-      <section class="panel empty" data-when="empty" role="status" aria-labelledby="empty-title" hidden>
-        <div class="panel-head"><div><p class="eyebrow">Handoff no cargado</p><h2 id="empty-title">Demostración no disponible</h2></div><span class="chip chip-dashed">Sin handoff</span></div>
-        <div class="panel-body">
-          <p class="copy"><strong>No hay lecturas que mostrar.</strong> Este tablero espera el conjunto de datos sintético del handoff en su ranura de datos. Sin sectores declarados no se dibuja un sector vacío ni se inventan valores.</p>
-          <p class="copy">La pantalla queda en este estado hasta que se incorpore el conjunto de ejemplo. No es un error de la aplicación y no requiere reintentar.</p>
-        </div>
-      </section>
+  <section class="panel band" id="banda" data-when="data" hidden aria-labelledby="banda-title">
+    <h2 class="sr-only" id="banda-title">Contexto de la lectura</h2>
+    <div class="band-field">
+      <label class="band-label" for="sector-select">Sector</label>
+      <select id="sector-select" name="sector" aria-describedby="sector-hint"></select>
+      <p class="band-id"><span class="sr-only">Identificador del sector: </span><code id="sector-id">Sin handoff</code></p>
     </div>
+    <div class="band-field">
+      <p class="band-label" id="comunas-label">Comunas</p>
+      <p class="band-value" id="banda-comunas" aria-labelledby="comunas-label">Sin handoff</p>
+    </div>
+    <div class="band-field">
+      <p class="band-label" id="fecha-label">Fecha de la lectura</p>
+      <p class="band-value" id="banda-fecha" aria-labelledby="fecha-label">Sin fecha</p>
+    </div>
+    <div class="band-field">
+      <p class="band-label" id="cobertura-label">Cobertura</p>
+      <p class="band-value"><span class="cov" id="coverage-badge" data-level="ninguna">Sin handoff</span></p>
+      <p class="band-sub" id="coverage-text">Sin sectores cargados.</p>
+    </div>
+    <p class="band-hint" id="sector-hint">Se elige con el teclado o el puntero; al cambiar de sector se actualizan la fecha, las comunas, la cobertura y las lecturas.</p>
+  </section>
 
-    <aside class="stack" aria-label="Cómo leer la lectura y procedencia">
-      <section class="panel" aria-labelledby="leer-title">
-        <div class="panel-head"><div><p class="eyebrow">Lectura crítica</p><h3 id="leer-title">Cómo leer esta pantalla</h3></div></div>
-        <div class="panel-body aside-panel">
-          <div><h3>Día completo contra instante</h3><p>Estos ejemplos usan valores del día completo. El backend usa el día en curso para las temperaturas extremas e instantáneas para humedad, viento y radiación. No son estimadores equivalentes.</p></div>
-          <div><h3>Lluvia de siete días</h3><p><code>precip_sum</code> suma siete días locales, incluida la fecha de referencia. Un 0 mm es una medición; Sin dato significa una ventana incompleta.</p></div>
-          <div><h3>Sin riesgo calculado</h3><p>Este handoff no trae puntaje, alerta ni contribución por variable. No es una probabilidad de riesgo ni una lectura operativa.</p></div>
+  <section class="panel weather" id="clima" data-when="data" hidden aria-labelledby="clima-title">
+    <div class="weather-head">
+      <div>
+        <p class="eyebrow">Lectura meteorológica</p>
+        <h2 id="clima-title">Resumen del sector</h2>
+      </div>
+      <p class="head-meta">Día civil · 7 variables</p>
+    </div>
+    <p class="notice" id="sin-lectura" role="note" hidden><strong>Sin lectura.</strong> Este sector no trae ninguna de las siete variables: se marcan los faltantes en vez de ceros.</p>
+    <div class="weather-body">
+      <div class="temp" id="temperatura">
+        <p class="cell-label">Temperatura del día civil</p>
+        <div class="pair">
+          <div class="pair-row">
+            <span class="dot" aria-hidden="true"></span>
+            <span class="pair-tag">Máxima</span>
+            <span class="pair-value" id="temp-max"></span>
+          </div>
+          <p class="pair-gap" id="temp-amplitud" data-missing="false">Amplitud <strong id="temp-amplitud-valor"></strong></p>
+          <div class="pair-row">
+            <span class="dot dot--min" aria-hidden="true"></span>
+            <span class="pair-tag">Mínima</span>
+            <span class="pair-value" id="temp-min"></span>
+          </div>
         </div>
-      </section>
-      <section class="panel" aria-labelledby="procedencia-title">
-        <div class="panel-head"><div><p class="eyebrow">Procedencia</p><h3 id="procedencia-title">Conjunto de ejemplo</h3></div></div>
-        <div class="panel-body">
-          <dl class="facts" id="procedencia">
-            <div><dt>Conjunto</dt><dd>Sin handoff</dd></div>
-            <div><dt>Procedencia</dt><dd>Sin handoff declarado</dd></div>
-            <div><dt>Zona horaria</dt><dd><code>America/Santiago</code></dd></div>
-            <div><dt>Sectores</dt><dd>0</dd></div>
-          </dl>
-          <p class="note">Un sector no es una comuna ni un punto de estación: es una unidad ilustrativa del handoff. No se convierte en geometría ni en riesgo.</p>
+        <p class="cell-foot">Dos extremos del día civil: no una serie temporal ni un umbral.</p>
+      </div>
+      <div class="cells">
+        <div class="cell" id="celda-humedad">
+          <p class="cell-label">Humedad relativa</p>
+          <p class="cell-value" id="humedad-valor"></p>
+          <p class="cell-foot">media del día</p>
         </div>
-      </section>
-    </aside>
+        <div class="cell" id="celda-viento">
+          <p class="cell-label">Viento</p>
+          <div class="wind">
+            <span class="rose-slot" id="viento-rosa" hidden>
+              <svg class="rose" viewBox="0 0 44 44" aria-hidden="true" focusable="false">
+                <g class="rose-frame">
+                  <circle cx="22" cy="22" r="15" fill="none" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M22 4.6v3.2M22 36.2v3.2M4.6 22h3.2M36.2 22h3.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  <path d="M9.8 9.8l2.1 2.1M32.1 32.1l2.1 2.1M34.2 9.8l-2.1 2.1M11.9 32.1l-2.1 2.1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </g>
+                <g class="rose-needle" transform="rotate(0 22 22)">
+                  <circle cx="22" cy="7" r="2.6" fill="currentColor"/>
+                  <line x1="22" y1="10.6" x2="22" y2="16.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                  <path d="M22 21.6l4-7h-8z" fill="currentColor"/>
+                </g>
+              </svg>
+            </span>
+            <div class="wind-copy">
+              <p class="cell-value" id="viento-valor"></p>
+              <p class="wind-dir" id="viento-direccion"></p>
+            </div>
+          </div>
+          <p class="cell-foot">Velocidad: media del día · Dirección: dominante del día</p>
+        </div>
+        <div class="cell" id="celda-lluvia">
+          <p class="cell-label">Lluvia acumulada · 7 días</p>
+          <p class="cell-value" id="lluvia-valor"></p>
+          <p class="cell-note" id="lluvia-nota" hidden>El 0 es una lectura medida, no un dato faltante.</p>
+          <p class="cell-foot">suma de la ventana</p>
+        </div>
+        <div class="cell" id="celda-radiacion">
+          <p class="cell-label">Radiación solar</p>
+          <p class="cell-value" id="radiacion-valor"></p>
+          <p class="cell-foot">irradiancia media del día</p>
+        </div>
+      </div>
+    </div>
+    <p class="weather-note">Un <strong>0 cuenta como lectura</strong>; un campo nulo se muestra como Sin dato.</p>
+  </section>
+
+  <div class="folders" data-when="data" hidden>
+    <details class="folder folder--wide" id="ficha-lecturas">
+      <summary><span class="summary-text"><span class="summary-title">Lecturas exactas y estimadores</span><span class="summary-hint">7 variables · id y definición</span></span></summary>
+      <div class="folder-body">
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Variables meteorológicas del sector elegido, con su valor o su falta declarada</caption>
+            <thead><tr><th scope="col">Variable y estimador</th><th scope="col">Valor</th></tr></thead>
+            <tbody id="weather-body"></tbody>
+          </table>
+        </div>
+        <p class="note">Los valores son ejemplos diarios sintéticos, no lecturas de un lote publicado.</p>
+      </div>
+    </details>
+    <details class="folder" id="ficha-como-leer">
+      <summary><span class="summary-text"><span class="summary-title">Cómo leer estas lecturas</span><span class="summary-hint">Estimadores y límites</span></span></summary>
+      <div class="folder-body reading">
+        <div><h3>Día completo contra instante</h3><p>Estos ejemplos usan valores del día completo. El backend usa el día en curso para las temperaturas extremas e instantáneas para humedad, viento y radiación. No son estimadores equivalentes.</p></div>
+        <div><h3>Lluvia de siete días</h3><p><code>precip_sum</code> suma siete días locales, incluida la fecha de referencia. Un 0 mm es una medición; Sin dato significa una ventana incompleta.</p></div>
+        <div><h3>Sin riesgo calculado</h3><p>Este handoff no trae puntaje, alerta ni contribución por variable. No es una probabilidad de riesgo ni una lectura operativa.</p></div>
+      </div>
+    </details>
+    <details class="folder" id="ficha-terreno">
+      <summary><span class="summary-text"><span class="summary-title">Terreno candidato</span><span class="summary-hint">Fuera del contrato activo</span></span></summary>
+      <div class="folder-body">
+        <dl class="facts" id="terrain-body"></dl>
+        <p class="note">Elevación, pendiente y cobertura del suelo son candidatos académicos: no forman parte de las siete variables del contrato ni calculan una contribución. Si falta un valor, se muestra Sin dato.</p>
+      </div>
+    </details>
+    <details class="folder" id="ficha-procedencia">
+      <summary><span class="summary-text"><span class="summary-title">Procedencia y conjunto</span><span class="summary-hint">Origen de los datos</span></span></summary>
+      <div class="folder-body">
+        <dl class="facts" id="procedencia"></dl>
+        <p class="note">Un sector no es una comuna ni un punto de estación: es una unidad ilustrativa del handoff. No se convierte en geometría ni en riesgo.</p>
+      </div>
+    </details>
   </div>
+
+  <section class="panel empty" data-when="empty" role="status" aria-labelledby="empty-title" hidden>
+    <div class="empty-head">
+      <div>
+        <p class="eyebrow">Handoff no cargado</p>
+        <h2 id="empty-title">Demostración no disponible</h2>
+      </div>
+      <span class="chip chip-dashed">Sin handoff</span>
+    </div>
+    <div class="empty-body">
+      <p><strong>No hay lecturas que mostrar.</strong> Este tablero espera el conjunto de datos sintético del handoff en su ranura de datos. Sin sectores declarados no se dibuja un sector vacío ni se inventan valores.</p>
+      <p>La pantalla queda en este estado hasta que se incorpore el conjunto de ejemplo. No es un error de la aplicación y no requiere reintentar.</p>
+    </div>
+  </section>
   <p class="sr-only" id="live" role="status" aria-live="polite" aria-atomic="true"></p>
 </main>
 <footer>Maqueta · handoff sintético experimental · sin modelo aprobado, sin ingestión y sin lectura operativa. Datos ilustrativos.</footer>
@@ -293,6 +563,13 @@ const TERRAIN = [
   { id: 'slope_deg', label: 'Pendiente', unit: '°' },
   { id: 'land_cover', label: 'Cobertura del suelo', unit: '' }
 ];
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSO', 'SO', 'OSO', 'O', 'ONO', 'NO', 'NNO'];
+const COMPASS_FULL = {
+  N: 'norte', NNE: 'nor-noreste', NE: 'noreste', ENE: 'este-noreste',
+  E: 'este', ESE: 'este-sureste', SE: 'sureste', SSE: 'sur-sureste',
+  S: 'sur', SSO: 'sur-suroeste', SO: 'suroeste', OSO: 'oeste-suroeste',
+  O: 'oeste', ONO: 'oeste-noroeste', NO: 'noroeste', NNO: 'nor-noroeste'
+};
 const $ = (id) => document.getElementById(id);
 const number = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 });
 const present = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -326,24 +603,77 @@ function weatherValue(field, raw) {
   wrap.append(el('span', 'num', shown), document.createTextNode(' '), el('span', 'unit', field.unit));
   return wrap;
 }
+function setValue(node, raw, unit) {
+  clear(node);
+  if (!present(raw)) {
+    node.append(el('span', 'missing', 'Sin dato'));
+    return;
+  }
+  node.append(document.createTextNode(number.format(raw)), el('span', 'unit', ' ' + unit));
+}
+function bearingOf(deg) {
+  const normalized = ((deg % 360) + 360) % 360;
+  const short = COMPASS[Math.round(normalized / 22.5) % 16];
+  return { normalized, short, full: COMPASS_FULL[short] };
+}
 function render(sector) {
   const weather = sector.weather && typeof sector.weather === 'object' ? sector.weather : {};
   const terrain = sector.terrain && typeof sector.terrain === 'object' ? sector.terrain : {};
   const known = FIELDS.filter((f) => present(weather[f.id])).length;
   const level = known === FIELDS.length ? 'Completa' : known === 0 ? 'Sin lectura' : 'Parcial';
+  const levelKey = known === FIELDS.length ? 'completa' : known === 0 ? 'ninguna' : 'parcial';
   const communes = Array.isArray(sector.communes) ? sector.communes.filter(Boolean) : [];
-  $('coverage-badge').textContent = level + ' · ' + known + '/7';
-  const coverage = $('coverage-text');
-  clear(coverage);
-  coverage.append(el('strong', null, level + ':'), document.createTextNode(' ' + known + ' de 7 variables con lectura para ' + dateLabel(sector.local_date) + '.'));
-  const context = $('contexto');
-  clear(context);
-  context.append(
-    fact('Sector', document.createTextNode(sector.name || sector.sector_id)),
-    fact('Identificador', el('code', null, sector.sector_id)),
-    fact('Fecha local', document.createTextNode(dateLabel(sector.local_date))),
-    fact('Comunas', document.createTextNode(communes.length ? communes.join(' · ') : 'Sin comunas declaradas'))
-  );
+  const date = dateLabel(sector.local_date);
+
+  $('sector-id').textContent = sector.sector_id;
+  $('banda-comunas').textContent = communes.length ? communes.join(' · ') : 'Sin comunas declaradas';
+  $('banda-fecha').textContent = date;
+
+  const badge = $('coverage-badge');
+  badge.textContent = level + ' · ' + known + '/7';
+  badge.dataset.level = levelKey;
+  const missing = FIELDS.filter((f) => !present(weather[f.id])).map((f) => f.label.toLowerCase());
+  if (known === FIELDS.length) $('coverage-text').textContent = 'Las siete variables tienen lectura.';
+  else if (known === 0) $('coverage-text').textContent = 'Ninguna de las siete variables tiene lectura.';
+  else $('coverage-text').textContent = known + ' de 7 variables con lectura; sin dato: ' + missing.join(', ') + '.';
+
+  setValue($('temp-max'), weather.temp_max, '°C');
+  setValue($('temp-min'), weather.temp_min, '°C');
+  const amplitude = $('temp-amplitud');
+  const bothTemperatures = present(weather.temp_max) && present(weather.temp_min);
+  $('temperatura').dataset.state = bothTemperatures ? 'con-lectura' : 'sin-lectura';
+  amplitude.dataset.missing = bothTemperatures ? 'false' : 'true';
+  $('temp-amplitud-valor').textContent = bothTemperatures
+    ? number.format(Math.round((weather.temp_max - weather.temp_min) * 100) / 100) + ' °C'
+    : 'sin dato';
+
+  setValue($('humedad-valor'), weather.humidity_rel, '%');
+
+  setValue($('viento-valor'), weather.wind_speed, 'm/s');
+  const direction = $('viento-direccion');
+  const slot = $('viento-rosa');
+  clear(direction);
+  if (present(weather.wind_dir)) {
+    const bearing = bearingOf(weather.wind_dir);
+    direction.append(
+      document.createTextNode('Desde el '),
+      el('strong', null, bearing.full + ' (' + bearing.short + ')'),
+      document.createTextNode(' · ' + number.format(bearing.normalized) + ' °')
+    );
+    slot.querySelector('.rose-needle').setAttribute('transform', 'rotate(' + bearing.normalized + ' 22 22)');
+    slot.hidden = false;
+  } else {
+    direction.append(el('span', 'missing', 'Dirección sin dato'));
+    slot.hidden = true;
+  }
+
+  setValue($('lluvia-valor'), weather.precip_sum, 'mm');
+  $('lluvia-nota').hidden = weather.precip_sum !== 0;
+
+  setValue($('radiacion-valor'), weather.radiation_sol, 'W/m²');
+
+  $('sin-lectura').hidden = known !== 0;
+
   const body = $('weather-body');
   clear(body);
   FIELDS.forEach((f) => {
@@ -356,6 +686,7 @@ function render(sector) {
     tr.append(th, td);
     body.append(tr);
   });
+
   const terrainList = $('terrain-body');
   clear(terrainList);
   TERRAIN.forEach((t) => {
@@ -365,10 +696,11 @@ function render(sector) {
     else content = present(raw) ? document.createTextNode(number.format(raw) + ' ' + t.unit) : el('span', 'missing', 'Sin dato');
     terrainList.append(fact(t.label, content));
   });
-  $('live').textContent = 'Sector ' + (sector.name || sector.sector_id) + ' seleccionado. Cobertura ' + level + ', ' + known + ' de 7 variables. Fecha ' + dateLabel(sector.local_date) + '.';
+
+  $('live').textContent = 'Sector ' + (sector.name || sector.sector_id) + ' seleccionado. Cobertura ' + level + ', ' + known + ' de 7 variables. Fecha ' + date + '.';
 }
 function showEmpty() {
-  document.querySelectorAll('[data-when="data"]').forEach((el) => { el.hidden = true; });
+  document.querySelectorAll('[data-when="data"]').forEach((node) => { node.hidden = true; });
   document.querySelector('[data-when="empty"]').hidden = false;
   $('live').textContent = 'Demostración no disponible: el handoff sintético no está cargado.';
 }
@@ -377,7 +709,7 @@ function start() {
   try { data = JSON.parse($('sector-fixture').textContent.trim() || '{}'); } catch (error) { data = null; }
   const sectors = data && Array.isArray(data.sectors) ? data.sectors.filter((s) => s && typeof s.sector_id === 'string' && typeof s.name === 'string') : [];
   if (!sectors.length) { showEmpty(); return; }
-  document.querySelectorAll('[data-when="data"]').forEach((el) => { el.hidden = false; });
+  document.querySelectorAll('[data-when="data"]').forEach((node) => { node.hidden = false; });
   const source = $('procedencia');
   clear(source);
   source.append(
@@ -386,21 +718,16 @@ function start() {
     fact('Zona horaria', el('code', null, data.time_zone || 'America/Santiago')),
     fact('Sectores', document.createTextNode(String(sectors.length)))
   );
-  const group = $('sectores');
-  sectors.forEach((s, i) => {
-    const label = el('label', 'sector');
-    const input = el('input');
-    input.type = 'radio';
-    input.name = 'sector';
-    input.value = s.sector_id;
-    input.checked = i === 0;
-    const box = el('span');
-    box.append(el('strong', null, s.name), el('small', null, (s.communes || []).join(' · ') || 'Sin comunas declaradas'));
-    label.append(input, box);
-    group.append(label);
+  const select = $('sector-select');
+  sectors.forEach((s) => {
+    const option = el('option');
+    option.value = s.sector_id;
+    option.textContent = s.name;
+    select.append(option);
   });
-  group.addEventListener('change', (event) => {
-    const chosen = sectors.find((s) => s.sector_id === event.target.value);
+  select.value = sectors[0].sector_id;
+  select.addEventListener('change', () => {
+    const chosen = sectors.find((s) => s.sector_id === select.value);
     if (chosen) render(chosen);
   });
   render(sectors[0]);

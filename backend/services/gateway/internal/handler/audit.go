@@ -63,11 +63,20 @@ type queryRoute struct {
 // UUID parser as prevention and belongs to the same category as its collection.
 // An action may cover more than one route when the routes are one read: the
 // historical risk export selects the same bounded window of the same collection
-// as the JSON history and is recorded as the same consultation.
+// as the JSON history and is recorded as the same consultation, and the granular
+// history series (PM-04) is the same historical risk collection read at a
+// different granularity, so it is recorded under that action too rather than
+// widening the vocabulary with a label the audit writer would have to learn.
+// The multi-zone comparison (PM-05) is different: it asks several zones at one
+// shared cutoff, so S6 gives it its own named action instead of folding it into
+// the history read the trail must stay distinguishable from.
+// A route added here starts writing rows; nothing else about the read changes.
 var queryRoutes = []queryRoute{
 	{Method: "GET", Path: "/v1/risk/latest", Action: "risk.current.read"},
 	{Method: "GET", Path: "/v1/risk/history", Action: "risk.history.read"},
 	{Method: "GET", Path: "/v1/risk/history.csv", Action: "risk.history.read"},
+	{Method: "GET", Path: "/v1/risk/history/series", Action: "risk.history.read"},
+	{Method: "GET", Path: "/v1/risk/compare", Action: "risk.compare.read"},
 	{Method: "GET", Path: "/v1/risk/batches", Action: "risk.batches.read"},
 	{Method: "GET", Path: "/v1/prevention/observations", Action: "prevention.observations.read"},
 	{Method: "GET", Path: "/v1/prevention/actions", Action: "prevention.actions.read"},
