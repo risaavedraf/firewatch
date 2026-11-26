@@ -45,7 +45,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the eleven views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
+test('the twelve views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
@@ -53,13 +53,16 @@ test('the eleven views are declared once, with the two merged pairs, the infrast
   // Prevención beside the territory and the batch history (T12), and PM-11 adds
   // the dedicated synthetic-infrastructure demo in the same group; `#observations`
   // follows as the PM-09 field-observation page, and `#notifications` joins
-  // Coordinación beside the activity register (PM-08).
+  // Coordinación beside the activity register (PM-08). PM-16 adds `#status` as the
+  // operational board of the gateway aggregate, first in Información so the
+  // verdict precedes the provenance detail `#sources` already carries.
   expect(ids).toEqual([
     'overview',
     'infrastructure',
     'history',
     'actions',
     'observations',
+    'status',
     'sources',
     'jobs',
     'pending',
@@ -143,4 +146,20 @@ test('the synthetic infrastructure demo has a dedicated #infrastructure route an
   expect(renderedViews()).toEqual(['infrastructure']);
   expect(document.getElementById('infrastructure-title')?.textContent).toBe('Infraestructura prioritaria');
   expect(document.getElementById('infrastructure-synthetic')).not.toBeNull();
+});
+
+// PM-16 — the operational verdict is its own destination: one hash, one
+// navigation entry in Información, and the board renders its verdict region
+// instead of being folded into `#sources`.
+test('the operational status board has a dedicated #status route and navigation entry', () => {
+  render(<App />);
+
+  const link = screen.getByRole('link', { name: /estado de servicios/i });
+  expect(link).toHaveAttribute('href', '#status');
+
+  navigate('#status');
+  expect(renderedViews()).toEqual(['status']);
+  expect(document.getElementById('status-title')?.textContent).toBe('Estado de servicios');
+  expect(document.getElementById('status-verdict-title')?.textContent).toBe('Veredicto operativo');
+  expect(link).toHaveAttribute('aria-current', 'true');
 });

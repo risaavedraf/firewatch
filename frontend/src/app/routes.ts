@@ -1,6 +1,6 @@
 import type { IconName } from '../components/ui';
 
-// The eleven views of the application. The nine areas of the retired page are all
+// The twelve views of the application. The nine areas of the retired page are all
 // still here: `#sources` also carries the dependent-services status and
 // `#session` also carries the permissions matrix, which is the grouping the user
 // chose (D1). `#pending` gained the navigation entry it never had (D2): the
@@ -10,13 +10,17 @@ import type { IconName } from '../components/ui';
 // panel hidden inside another view. `#observations` is the PM-09
 // field-observation page, reachable by every role: the server decides reads and
 // writes, and the page renders its answer. PM-11 adds `#infrastructure` as its
-// own demo view rather than folding it into territorio.
+// own demo view rather than folding it into territorio. PM-16 adds `#status` as
+// the single operational board of the gateway aggregate, the weather source and
+// the active rule: it is a destination of its own, and `#sources` keeps the
+// provenance and pipeline detail it already carries.
 export type ViewId =
   | 'overview'
   | 'infrastructure'
   | 'history'
   | 'actions'
   | 'observations'
+  | 'status'
   | 'sources'
   | 'jobs'
   | 'pending'
@@ -48,6 +52,7 @@ export const routes: readonly RouteDefinition[] = [
     icon: 'zones',
     title: 'Observaciones de campo',
   },
+  { id: 'status', hash: '#status', label: 'Estado de servicios', group: 'Información', icon: 'pipeline', title: 'Estado de servicios' },
   { id: 'sources', hash: '#sources', label: 'Fuentes y servicios', group: 'Información', icon: 'sources', title: 'Fuentes y servicios' },
   { id: 'jobs', hash: '#jobs', label: 'Procesamiento', group: 'Información', icon: 'jobs', title: 'Procesamiento asíncrono' },
   { id: 'pending', hash: '#pending', label: 'Aún no implementado', group: 'Información', icon: 'pending', title: 'Aún no implementado' },
