@@ -21,6 +21,13 @@ Base: `origin/dev` = `268c893`. Siete ramas ya publicadas en `origin`, sin PR. E
 - **T6 — Matriz y documentación** (S6): matriz hallazgo → fix → prueba → commit y estado de reverificación. Rama `docs/v1-reconciliacion`. Commit: `a8586e4`.
 - **T7 — Reverificación read-only** (S1-S6): pasada corta sobre las siete ramas ya publicadas. Sin edición. Commit: no aplica.
 
+## Pendiente
+
+- **Fusión y PRs:** ninguna rama se fusionó ni abrió PR. El orden de merge sigue sin definir; la última comprobación de `git merge-tree` —previa a esta remediación— registró conflictos PM-01↔PM-03 (OpenAPI), PM-03↔PM-16, PM-03↔PM-04 y PM-16↔PM-04 (README/OpenAPI), y limpios PM-01↔PM-16 y PM-01↔PM-04. Debe re-ejecutarse al ordenar; los puntos calientes son `frontend/src/core/api.ts`, `app/routes.ts`, `App.tsx`, `OverviewView.tsx` y los pins de `session.test.tsx`.
+- **R6:** cada unidad sigue abierta hasta que una persona acepte contrato, backend probado y página. Ninguna fila ni unidad cambió de estado: 64/62/48/14.
+- **Fuera de este ciclo:** `PM-08` sigue solo local (`6a86ee2`); `PM-14` no tiene implementación; `D-C` (rol `analista`) sigue abierta.
+- **Compuerta de despliegue:** publicar PM-04/05/08 exige renombrar el Job de migración y construir imágenes de risk/jobs/gateway; ningún manifiesto lo hace y un CI verde no lo detecta.
+
 ## Log
 
 - **L4 (2026-11-26) — T7 ejecutada: reverificación read-only y cierre del residuo de S4.** La pasada encontró las siete ramas limpias y con tip igual a `origin`; `feat/pm-02-dd-label` sigue en `dc91222` y ningún S# le aplica. Veredictos: **S1 PARTIAL** (prueba PostgreSQL no re-ejecutada; `go vet` y el fixture verificados, corrida aislada previa registrada en el Log de `pm-01`), **S2 PASS** (16/16), **S3 PASS** (45/45 con caché de escritura deshabilitada por la unión de `node_modules` con la raíz), **S5 PASS** (48/48), **S6 PASS** (matriz y conteos 64/62/48/14 intactos) y **S4 PARTIAL**: `instant()` aceptaba `2026-02-31T00:00:00Z` porque `Date.parse` lo desplaza a marzo. Ese residuo se corrigió en `feat/pm-05-comparison-panel` con validación civil (mes, día con año bisiesto, hora/minuto/segundo) y una prueba nueva: 24/24 en el archivo, 606/606 en la suite, `tsc --noEmit` limpio, commit `0d1b0be`. Se retira el riesgo de guard compartido: el endurecimiento es solo del comparador y esa rama no tiene `historySeries`. Sin fusión, PR ni despliegue.
