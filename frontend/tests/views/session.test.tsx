@@ -254,7 +254,7 @@ test('logout returns the role panel to the explicit unavailable state', async ()
 const GUARD_LINES: Record<string, RegExp> = {
   'backend/services/gateway/internal/handler/gateway.go#/v1/audit': /mux\.Handle\("\/v1\/audit"/,
   'backend/services/gateway/internal/handler/gateway.go#health/ready': /health\/ready/,
-  'backend/services/gateway/internal/handler/gateway.go#auth := strings.Fields': /auth := strings\.Fields/,
+  'backend/services/gateway/internal/handler/gateway.go#strings.Fields': /strings\.Fields/,
   'backend/services/gateway/internal/handler/gateway.go#verifier.Verify(ctx, auth[1])':
     /verifier\.Verify\(ctx, auth\[1\]\)/,
   'backend/services/risk/internal/handler/security.go#"viewer"':
@@ -268,16 +268,16 @@ const GUARD_LINES: Record<string, RegExp> = {
   'backend/services/risk/internal/handler/api.go#GET /v1/risk/synthetic-scenarios':
     /"GET \/v1\/risk\/synthetic-scenarios"/,
   'backend/services/risk/internal/handler/api.go#GET /v1/risk/sources': /"GET \/v1\/risk\/sources"/,
-  'backend/services/risk/internal/handler/api.go#return Authorize(verifier, mux)':
-    /return Authorize\(verifier, mux\)/,
+  'backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)':
+    /Authorize\(verifier, mux\)/,
   'backend/services/jobs/internal/handler/security.go#"admin"': /role == "admin"/,
   'backend/services/jobs/internal/handler/security.go#fail(w, 403, "forbidden")': /fail\(w, 403, "forbidden"\)/,
   'backend/services/jobs/internal/handler/api.go#GET /v1/jobs/status': /"GET \/v1\/jobs\/status"/,
   'backend/services/jobs/internal/handler/api.go#POST /v1/jobs': /"POST \/v1\/jobs"/,
   'backend/services/jobs/internal/handler/api.go#GET /v1/jobs/{id}': /"GET \/v1\/jobs\/\{id\}"/,
   'backend/services/jobs/internal/handler/api.go#GET /v1/audit': /"GET \/v1\/audit"/,
-  'backend/services/jobs/internal/handler/api.go#return Authorize(verifier, mux)':
-    /return Authorize\(verifier, mux\)/,
+  'backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)':
+    /Authorize\(verifier, mux\)/,
 };
 
 test('the permissions matrix documents the real server guards and marks what it cannot verify', () => {
@@ -370,8 +370,8 @@ test('no role selector, switcher or picker is ported anywhere in the view', () =
   // The note also cites the two `Authorize` wraps. Both are the same full guard
   // refs the matrix renders, so the matrix test above proves their disk content;
   // a short `api.go` form here would drift unverified, as it did once.
-  expect(matrixNote).toContain('backend/services/risk/internal/handler/api.go#return Authorize(verifier, mux)');
-  expect(matrixNote).toContain('backend/services/jobs/internal/handler/api.go#return Authorize(verifier, mux)');
+  expect(matrixNote).toContain('backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)');
+  expect(matrixNote).toContain('backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)');
 });
 
 // F3 — the sign-in control must answer to the session it starts. `Shell.tsx:153`
