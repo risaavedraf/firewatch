@@ -5,6 +5,68 @@
 <meta charset="utf-8" />
 <meta name="generator" content="design/firewatch-v1-vuelo/build-artboards.mjs" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<style id="fw-product-nav">
+/* FireWatch · navegación global del producto (componente compartido).
+   Fuente del bloque: product-navigation.mjs. */
+.fw-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 5px 12px;
+  border-block-end: 1px solid var(--fw-edge);
+  background: var(--fw-surface);
+  color: var(--fw-ink);
+  font: 600 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.fw-nav--map { --fw-surface: var(--panel, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--border, #647b8a); --fw-accent: var(--focus, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--aerial { --fw-surface: var(--aerial-panel, #17222b); --fw-ink: var(--aerial-ink, #f4f1eb); --fw-muted: var(--aerial-muted, #b8c8d2); --fw-edge: var(--aerial-border, #647b8a); --fw-accent: var(--aerial-focus, #94dfda); --fw-raised: var(--aerial-raised, #243341); }
+.fw-nav--panel { --fw-surface: var(--surface, #17222b); --fw-ink: var(--text, #f4f1eb); --fw-muted: var(--text-muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--surface-raised, #243341); }
+.fw-nav--plain { --fw-surface: var(--surface, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--sticky { position: sticky; top: 0; z-index: 30; min-height: 48px; }
+.fw-nav--fixed { position: fixed; inset: 0 0 auto; z-index: 2; flex-wrap: nowrap; height: var(--fw-nav-h, 48px); padding-block: 3px; }
+html { scroll-padding-top: calc(var(--fw-nav-h, 48px) + 56px); }
+.fw-nav--sticky + .app .viewnav { top: var(--fw-nav-h, 48px); }
+.fw-nav__primary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.fw-nav--fixed .fw-nav__primary { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding-block: 1px; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.fw-nav__link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 9px; color: var(--fw-ink); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.fw-nav__link:hover { background: var(--fw-raised); }
+.fw-nav__link[aria-current="page"] { border-color: var(--fw-edge); background: var(--fw-raised); color: var(--fw-accent); text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav a:focus-visible, .fw-nav summary:focus-visible { outline: 3px solid var(--fw-accent); outline-offset: 2px; }
+.fw-nav--fixed .fw-nav__primary .fw-nav__link:focus-visible { outline-offset: -2px; }
+.fw-nav__more { display: flex; min-width: 0; }
+.fw-nav__summary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 11px; border: 1px solid var(--fw-edge); border-radius: 9px; color: var(--fw-ink); font-weight: 700; white-space: nowrap; cursor: pointer; list-style: none; }
+.fw-nav__summary::-webkit-details-marker { display: none; }
+.fw-nav__summary::after { content: "▾"; font-size: 10px; line-height: 1; }
+.fw-nav__summary:hover { background: var(--fw-raised); }
+.fw-nav__more[open] > .fw-nav__summary { border-color: var(--fw-accent); background: var(--fw-raised); color: var(--fw-accent); }
+.fw-nav__panel { position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 10px; z-index: 40; width: min(720px, calc(100vw - 20px)); max-height: min(70dvh, 520px); overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px 14px; border: 1px solid var(--fw-edge); border-radius: 12px; background: var(--fw-surface); color: var(--fw-ink); box-shadow: 0 16px 32px rgb(0 0 0 / 32%); }
+.fw-nav__panel-title { margin: 0 0 9px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.fw-nav__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 18px; }
+.fw-nav__group-title { margin: 0 0 3px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__list { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.fw-nav__item { display: flex; align-items: center; min-height: 32px; padding: 2px 6px; border-radius: 6px; color: var(--fw-ink); font-size: 12.5px; font-weight: 600; line-height: 1.35; text-decoration: none; }
+.fw-nav__item:hover { background: var(--fw-raised); }
+.fw-nav__item[aria-current="page"] { color: var(--fw-accent); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav__note { margin: 10px 0 0; padding-top: 8px; border-block-start: 1px solid var(--fw-edge); color: var(--fw-muted); font-size: 11.5px; }
+.fw-nav__where { margin: 0 0 0 auto; min-width: 0; color: var(--fw-muted); font-size: 12px; }
+.fw-nav__where-label { font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__where strong { color: var(--fw-ink); font-weight: 750; }
+.fw-nav--fixed .fw-nav__where { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) {
+  .fw-nav--fixed .fw-nav__where { display: none; }
+  .fw-nav--fixed .fw-nav__link, .fw-nav--fixed .fw-nav__summary { font-size: 12px; padding-inline: 7px; }
+}
+@media (max-width: 420px) {
+  .fw-nav { padding-inline: 8px; }
+  .fw-nav__link, .fw-nav__summary { padding-inline: 8px; }
+  .fw-nav--fixed .fw-nav__summary-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fw-nav, .fw-nav * { transition: none !important; animation: none !important; }
+}
+</style>
 <title>FireWatch · Control y acceso (maqueta)</title>
 <style>
 :root {
@@ -607,8 +669,8 @@ code {
 }
 .cap-row h4 { margin: 0; font-size: 11px; font-weight: 700; line-height: 1.4; }
 .cap-row p { margin: 2px 0 0; color: var(--text-muted); font-size: 9.5px; line-height: 1.5; }
-.cap-where { margin-top: 4px; color: var(--text); }
-.cap-where strong { font-weight: 800; }
+.cap-where, .cap-canvas { margin-top: 4px; color: var(--text); }
+.cap-where strong, .cap-canvas strong { font-weight: 800; }
 .row-link {
   display: inline-flex;
   align-items: center;
@@ -687,6 +749,61 @@ code {
 </head>
 <body>
 <a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+<!-- fw-product-nav:start · navegación global compartida · la escribe design/firewatch-v1-vuelo/product-navigation.mjs; no editar a mano -->
+<nav class="fw-nav fw-nav--sticky fw-nav--panel" aria-label="Navegación del producto FireWatch">
+  <ul class="fw-nav__primary">
+    <li><a class="fw-nav__link" href="01-vista-aerea.html" aria-label="Mapa · Territorio">Mapa</a></li>
+    <li><a class="fw-nav__link" href="07-panel-ejecutivo.html" aria-label="Panel ejecutivo">Panel</a></li>
+    <li><a class="fw-nav__link" href="05-historial-de-lotes.html" aria-label="Historial de lotes">Historial</a></li>
+    <li><a class="fw-nav__link" href="06-acciones-preventivas.html" aria-label="Acciones preventivas">Acciones</a></li>
+  </ul>
+  <details class="fw-nav__more">
+    <summary class="fw-nav__summary"><span class="fw-nav__summary-text">Más destinos</span></summary>
+    <div class="fw-nav__panel">
+      <p class="fw-nav__panel-title">Otras pantallas del producto</p>
+      <div class="fw-nav__groups">
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-territorio">Territorio y lectura</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-territorio">
+            <li><a class="fw-nav__item" href="02-vista-regional.html">Vista regional</a></li>
+            <li><a class="fw-nav__item" href="03-acciones-en-el-mapa.html">Acciones rápidas en el mapa</a></li>
+            <li><a class="fw-nav__item" href="04-cobertura-territorial.html">Cobertura y contexto territorial</a></li>
+            <li><a class="fw-nav__item" href="21-lecturas-por-sector.html">Lecturas por sector</a></li>
+            <li><a class="fw-nav__item" href="08-comparar-sectores.html">Comparar sectores</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-decision">Decisión y alertas</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-decision">
+            <li><a class="fw-nav__item" href="09-notificaciones.html">Notificaciones</a></li>
+            <li><a class="fw-nav__item" href="10-simulacion-contrafactual.html">Simulación contrafactual</a></li>
+            <li><a class="fw-nav__item" href="11-observaciones-de-campo.html">Observaciones de campo</a></li>
+            <li><a class="fw-nav__item" href="13-ficha-de-zona.html">Ficha de zona · Vista previa PDF</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-datos">Solicitudes y datos</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-datos">
+            <li><a class="fw-nav__item" href="12-exportacion-csv.html">Exportación CSV</a></li>
+            <li><a class="fw-nav__item" href="20-datos-del-modelo.html">Datos del modelo</a></li>
+            <li><a class="fw-nav__item" href="15-fuentes-y-servicios.html">Fuentes y servicios</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-acceso">Acceso y control</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-acceso">
+            <li><a class="fw-nav__item" href="14-acceso.html">Acceso · Iniciar sesión</a></li>
+            <li><a class="fw-nav__item" href="17-sesion-y-permisos.html">Sesión y permisos</a></li>
+            <li><a class="fw-nav__item" href="18-registro-de-actividad.html">Registro de actividad</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="fw-nav__note">Mapa, Panel, Historial y Acciones están siempre en esta barra.</p>
+    </div>
+  </details>
+  <p class="fw-nav__where"><span class="fw-nav__where-label">Estás en</span> <strong>Prototipos y alcance</strong></p>
+</nav>
+<!-- fw-product-nav:end -->
 <div class="app">
   <header class="topbar">
     <div class="brand">
@@ -722,7 +839,7 @@ code {
       <span class="nav-group">Información</span>
       <a class="nav-link" id="nav-fuentes" data-nav="fuentes" href="#fuentes">Fuentes y servicios</a>
       <a class="nav-link" id="nav-procesamiento" data-nav="procesamiento" href="#procesamiento">Procesamiento</a>
-      <a class="nav-link" id="nav-pendiente" data-nav="pendiente" href="#pendiente" aria-current="page">Aún no implementado</a>
+      <a class="nav-link" id="nav-pendiente" data-nav="pendiente" href="#pendiente" aria-current="page">Prototipos y alcance</a>
       <span class="nav-group">Acceso y coordinación</span>
       <a class="nav-link" id="nav-sesion" data-nav="sesion" href="#sesion">Sesión y permisos</a>
       <a class="nav-link" id="nav-auditoria" data-nav="auditoria" href="#auditoria">Registro de actividad</a>
@@ -1360,13 +1477,13 @@ code {
     <section class="view" id="pendiente" data-view="pendiente" aria-labelledby="title-pendiente">
       <div class="view-head">
         <div>
-          <p class="eyebrow">INFORMACIÓN · INVENTARIO TRANSITORIO</p>
-          <h2 class="view-title" id="title-pendiente" tabindex="-1">Aún no implementado</h2>
-          <p class="view-lead">Las siete capacidades G6 que el backend actual no respalda. Se diseñan donde vivirán; mostrarlas aquí no las cierra.</p>
+          <p class="eyebrow">INFORMACIÓN · ALCANCE DEL PROTOTIPO</p>
+          <h2 class="view-title" id="title-pendiente" tabindex="-1">Prototipos y alcance</h2>
+          <p class="view-lead">Las siete capacidades G6 que el backend actual no respalda. Cada fila separa lo que se puede recorrer en el lienzo de lo que sigue sin existir en el producto: mostrar el prototipo no cierra la fila.</p>
         </div>
         <div class="chips">
           <span class="chip chip-neutral">7 capacidades</span>
-          <span class="chip chip-gold">Inventario transitorio</span>
+          <span class="chip chip-gold">Alcance del prototipo</span>
         </div>
       </div>
       <div class="layout">
@@ -1374,10 +1491,10 @@ code {
           <article class="panel" aria-labelledby="pending-title">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">DEL MOCKUP RETIRADO AL BACKEND ACTUAL</p>
+                <p class="eyebrow">DEL MOCKUP RETIRADO AL PRODUCTO ACTUAL</p>
                 <h3 id="pending-title">Las siete, una por una</h3>
               </div>
-              <span class="chip chip-neutral">Sin datos simulados</span>
+              <span class="chip chip-neutral">Solo lectura</span>
             </div>
             <div class="panel-body">
               <ol class="cap-list" id="pending-list">
@@ -1387,6 +1504,8 @@ code {
                     <h4>Cobertura y entorno por sector</h4>
                     <p>La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Territorio · tabla de sectores (fuera de este tablero).</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> prototipo de la tabla de sectores y de la ficha del foco, con cobertura de lectura y entorno por sector; los valores son ilustrativos.</p>
+                    <a class="row-link" id="link-cobertura" href="../firewatch-v1-vuelo/04-cobertura-territorial.html">Ver el prototipo de cobertura y entorno</a>
                   </div>
                 </li>
                 <li class="cap-row" id="cap-2">
@@ -1395,6 +1514,8 @@ code {
                     <h4>Contexto y prioridad por sector</h4>
                     <p>El backend clasifica la zona con el lote publicado y no calcula prioridad regional ni contexto por comuna.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Territorio · ficha de detalle (fuera de este tablero).</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> prototipo parcial de la prioridad contextual por sector y foco; el contexto por comuna no está dibujado.</p>
+                    <a class="row-link" id="link-prioridad" href="../firewatch-v1-vuelo/04-cobertura-territorial.html">Ver el prototipo de prioridad contextual</a>
                   </div>
                 </li>
                 <li class="cap-row" id="cap-3">
@@ -1403,6 +1524,8 @@ code {
                     <h4>Estados candidate, in_progress, reviewed y closed</h4>
                     <p>El backend informa el estado del trabajo y el estado del dato; esos cuatro estados no existen en ningún contrato.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Acciones preventivas · chips de estado (fuera de este tablero).</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> vista previa de los cuatro estados en Acciones preventivas, tarea «Estados G6»; es una demostración visual, sin transiciones ni persistencia.</p>
+                    <a class="row-link" id="link-estados" href="../firewatch-v1-vuelo/06-acciones-preventivas.html">Ver la vista previa de los cuatro estados</a>
                   </div>
                 </li>
                 <li class="cap-row" id="cap-4">
@@ -1411,14 +1534,17 @@ code {
                     <h4>Historial de todas las zonas</h4>
                     <p><code>GET /v1/risk/history</code> exige <code>zone_id</code> y no hay endpoint agregado; el historial es siempre el de la zona consultada.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Historial de lotes (fuera de este tablero).</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> prototipo parcial en Historial de lotes: una zona y una vista agregada ilustrativa; el endpoint agregado no existe.</p>
+                    <a class="row-link" id="link-historial" href="../firewatch-v1-vuelo/05-historial-de-lotes.html">Ver el prototipo parcial de historial</a>
                   </div>
                 </li>
                 <li class="cap-row" id="cap-5">
                   <span class="cap-num" aria-hidden="true">05</span>
                   <div>
                     <h4>Revisar e incorporar registros, y hallazgos de calidad</h4>
-                    <p><code>GET /v1/risk/sources</code> publica procedencia e integridad reales; no existe un catálogo de hallazgos de calidad.</p>
+                    <p><code>GET /v1/risk/sources</code> publica procedencia e integridad reales; no existe un catálogo de hallazgos de calidad ni una acción para incorporar registros en la aplicación.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Fuentes y servicios · revisión de registros.</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> revisión de registros, hallazgos de calidad y una incorporación simulada en Fuentes y servicios. No se guarda nada.</p>
                     <a class="row-link" id="link-fuentes" href="#fuentes">Ver el prototipo en Fuentes y servicios</a>
                   </div>
                 </li>
@@ -1428,6 +1554,7 @@ code {
                     <h4>Publicar lote, avance manual y reevaluación</h4>
                     <p>No existe endpoint: el servidor decide y publica por su cuenta; la página solo solicita el trabajo y lee el resultado.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Procesamiento · acciones propuestas.</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> confirmación simulada para publicar, avanzar y reevaluar en Procesamiento. No se ejecuta ninguna de las tres acciones.</p>
                     <a class="row-link" id="link-procesamiento" href="#procesamiento">Ver el prototipo en Procesamiento</a>
                   </div>
                 </li>
@@ -1437,11 +1564,12 @@ code {
                     <h4>Nombre del actor, detalle libre e id de evento</h4>
                     <p><code>GET /v1/audit</code> entrega actor_id, action, job_id, trace_id y occurred_at: identificadores opacos, sin nombre ni detalle.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Registro de actividad · detalle del evento.</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> detalle del evento con nombre y detalle ilustrativos en Registro de actividad; el contrato real solo trae identificadores.</p>
                     <a class="row-link" id="link-auditoria" href="#auditoria">Ver el prototipo en Registro de actividad</a>
                   </div>
                 </li>
               </ol>
-              <p class="note" id="pending-note"><strong>Ninguna se cierra por mostrarse aquí:</strong> sacar una entrada de <code>NOT_IMPLEMENTED</code> exige el criterio de su fila en <code>odd/tasks/v1-produccion.md</code>. No hay rutas falsas ni controles deshabilitados que aparenten una función.</p>
+              <p class="note" id="pending-note"><strong>Mostrar un prototipo no cierra ninguna fila:</strong> sacar una entrada de <code>NOT_IMPLEMENTED</code> exige el criterio de su fila en <code>odd/tasks/v1-produccion.md</code>. No hay rutas falsas ni controles deshabilitados que aparenten una función.</p>
             </div>
           </article>
         </div>
@@ -1456,9 +1584,9 @@ code {
             </div>
             <div class="panel-body">
               <ul class="plain-list">
-                <li>Declarar la ausencia es parte de la entrega: ninguna capacidad se simula.</li>
-                <li>El destino enlazado es un panel de esta maqueta, no una ruta del producto.</li>
-                <li>Los destinos fuera del tablero se nombran como texto, sin enlaces falsos.</li>
+                <li>Declarar la ausencia es parte de la entrega: el prototipo ilustra el destino, pero ninguna capacidad opera de verdad.</li>
+                <li>Los enlaces abren tableros y paneles de esta colección de maqueta; no son rutas del producto.</li>
+                <li>Un destino se enlaza solo si su prototipo existe; si no existe, se nombra como texto.</li>
                 <li>Diseñar el destino no cierra la fila: el plan sigue abierto.</li>
                 <li>Este tablero no define contrato, permisos ni validación científica.</li>
               </ul>
@@ -1468,12 +1596,12 @@ code {
             <div class="panel-head">
               <div>
                 <p class="eyebrow">SIETE FILAS</p>
-                <h3 id="pending-map-title">Tres destinos en este tablero</h3>
+                <h3 id="pending-map-title">Tres aquí y cuatro fuera</h3>
               </div>
             </div>
             <div class="panel-body">
-              <p class="copy">Solo tres de las siete viven en este tablero: la revisión de registros, las acciones de publicación y el detalle de auditoría. Las otras cuatro se nombran para que la ausencia no desaparezca.</p>
-              <p class="note">Los paneles enlazados son la vista de diseño de cada capacidad; no son endpoints, contratos ni permisos.</p>
+              <p class="copy">Solo tres de las siete viven en este tablero: la revisión de registros, las acciones de publicación y el detalle de auditoría. Cobertura, prioridad contextual, estados planificados e historial tienen prototipo en otros tableros de esta colección.</p>
+              <p class="note">Los paneles y tableros enlazados son la vista de diseño de cada capacidad; no son endpoints, contratos ni permisos.</p>
             </div>
           </article>
         </aside>
@@ -1504,7 +1632,7 @@ code {
     procesamiento: 'Procesamiento',
     sesion: 'Sesión y permisos',
     auditoria: 'Registro de actividad',
-    pendiente: 'Aún no implementado'
+    pendiente: 'Prototipos y alcance'
   };
   var sections = {};
   VIEWS.forEach(function (id) {

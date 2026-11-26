@@ -15,7 +15,7 @@ single-file, framework-free page; the reasons and the parity obligations are rec
 | `src/app/routes.ts` | The ten workspace views and their four navigation groups |
 | `src/views/AuthView.tsx` | The sign-in and sign-up screen shown instead of the workspace while there is no session. Both buttons open Keycloak; the page renders no credential field |
 | `src/app/useHashRoute.ts` | Hash routing: reads the view from the address bar, follows back/forward, normalises an unknown hash |
-| `src/components/Shell.tsx` | Sidebar, topbar, update bar and footer |
+| `src/components/Shell.tsx` | Sidebar, topbar, update bar and footer, and the workspace skip link that moves focus into `#content` |
 | `src/components/ui.tsx` | Presentation primitives: `Icon`, `Chip`, `Metric`, `PanelHeading`, `DataList`, `StatusCopy`, `EmptyState`, the "not implemented" markers |
 | `src/components/map/` | Territorial map projection and level colouring |
 | `src/core/api.ts` | Transport: one function per consumed route, absolute gateway URLs, sequence fences, deadlines |
@@ -138,6 +138,81 @@ and refuse a reassessment that claims `causal_proof: true`.
 
 The backend rules are documented in
 [`backend/docs/preventive-evidence.md`](../backend/docs/preventive-evidence.md).
+
+## Assignment from the user directory (V1-U-04)
+
+The actions view offers a **responsible** for a new action from the realm's own
+user directory, not from a typed name:
+
+- The selector is filled by `GET /v1/users`, which is **admin-only** and
+  read-only. It is read only while the authorized create UI is offered; a viewer
+  never asks for it and creates nothing. Each option is the `display_name` the
+  service resolved (first and last name, else the username, else the identifier)
+  and its value is the directory `id`.
+- A create sends `assignee_id` — never the legacy free-text `assignee`, which is
+  kept only for compatibility with rows created before the reference existed. The
+  server resolves the identifier before storing anything: an identifier the
+  directory does not know is refused `422 assignee_not_found` and no action is
+  created, so the page renders the refusal with its status, code and
+  `request_id` and does not clear the form or claim a creation.
+- **Unassigned is always offered.** Omitting `assignee_id` creates a valid
+  unassigned action, and a row with no responsible is shown as `Sin asignar`
+  rather than left blank.
+- An **unreadable directory** (`503 directory_unavailable`, `502
+directory_upstream_failed`, a malformed body or a network failure) is stated
+  with its server message and offers a retry; the selector keeps the unassigned
+  option and no person is invented to fill it. `200 []` is different and is
+  rendered as a realm that really has no users.
+- The list and the detail show a row's responsible as the directory name when
+  the directory has been read under this session, otherwise the legacy free text
+  the server stored, otherwise the identifier itself — never a composed name.
+- **The directory belongs to one session INSTANCE.** The page keys it on
+  `getSessionGeneration()` (`src/core/session.ts`), a monotonic count that moves
+  whenever the in-memory bearer is adopted or dropped — never the token itself,
+  and never a new field on `SessionState`, which keeps its shape so every other
+  consumer is unaffected. A replacement that declares the same roles is
+  indistinguishable in the public snapshot, and it is exactly the case the
+  generation covers: the previous instance's list, the chosen reference and any
+  in-flight answer are discarded, and the directory is read again under the new
+  bearer. An answer produced under another instance is dropped, not rendered as a
+  failure — the ownership check runs before any view effect, so a 401 from that
+  read is not published as the notice of a session that did not issue it.
+- **A failed create is reported as what it actually is, and the write boundary
+  belongs to one session instance.** `isConfirmedWriteRefusal` (`src/core/api.ts`)
+  is true only for the pairs the OpenAPI document and the handler actually define:
+  401/403, 429, 415 `json_required`, 422 `invalid_action_request` /
+  `assignee_not_found`, 502 `directory_upstream_failed`, 503
+  `directory_unavailable` and 503 `storage_unavailable`. A documented code on an
+  undocumented status (a `500 assignee_not_found`, say) proves nothing, and
+  neither does any of: no response, a deadline, an aborted or superseded request,
+  an unusable 2xx body, a gateway 502 `upstream_unavailable`, or a status without
+  one of those codes. Those leave the write **undetermined**, and the page says it
+  could not confirm whether the action was stored, keeps the form, and points at
+  **Actualizar lista** before any resubmission because a second POST could
+  duplicate the action.
+- A create is fenced by the session instance at both ends. A submit whose instance
+  already moved sends nothing at all (it would carry a reference that instance
+  never read), and a completion whose instance is gone renders nothing — no
+  notice, no form reset, no selection, no list refresh. The instance reset clears
+  the notice and releases **only the create it owns**, because that completion is
+  fenced. The shared write interlock (`busy`) is untouched by a replacement: a
+  transition, evidence write, review or reassessment keeps every mutation control
+  disabled until that write completes, so a session change cannot let two writes
+  to the same action overlap. A pending create and a pending sibling write still
+  block each other, exactly as before.
+- A read's `assignee_id` is validated as a **nullable UUID**: the contract types
+  it `format: uuid` / nullable and the service always serializes it, so a present
+  value that is neither `null` nor a dashed UUID rejects the whole read as
+  `invalid_shape` instead of rendering an unverified reference. An absent field is
+  still accepted, so payloads and fixtures that predate the reference keep
+  working.
+
+The pure label rule lives in `src/domain/assignment.ts`; the transport guard,
+route and write-outcome classification in `src/core/api.ts` (`users`,
+`isConfirmedWriteRefusal`); the session instance in `src/core/session.ts`
+(`getSessionGeneration`); the view cases in `tests/views/actions.test.tsx` and the
+transport/session cases in `tests/core/prevention-api.test.ts` and
+`tests/core/session.test.ts`.
 
 ## Preventive recommendations on the zone card (PM-18)
 
@@ -360,6 +435,29 @@ or if the 720 px breakpoint stops dropping that height. **The geometry itself is
 nothing**: jsdom has no layout engine, so no suite here can tell whether the controls actually
 fit. That part is measured in a browser. The sign-in control's `disabled` state is the contrast:
 it is ordinary rendered behaviour, and it is asserted in `tests/views/session.test.tsx`.
+
+The workspace **Saltar al contenido** link is pinned in exactly two halves. The content region is a
+focus target and never a Tab stop — `tests/a11y/shell-sidebar-accessibility.test.tsx` walks the whole
+shell with Tab and then activates the link from the keyboard; and the activation must leave the open
+view alone — `tests/app/router.test.tsx` asserts that the fragment still names the view that was open,
+for a non-default view and for the default one, since a fallback to Overview is invisible from Overview.
+Both halves exist because the link used to be a plain fragment link: `#content` is not a declared
+route, so the browser wrote it into the address bar and the router replaced it with the default view.
+What no suite here can establish is the rendered half — that Chromium scrolls the region into view and
+paints the shared focus ring on it — because jsdom has neither layout nor fragment scrolling.
+
+The horizontally scrollable tables are the same kind of split, and they are the reason `.table-wrap` is now
+rendered by a primitive instead of a bare `div`. `.table-wrap` is the element that scrolls (it carries
+`overflow: auto`), so a keyboard user has to be able to reach it. `components/ui.tsx`'s `TableWrap` renders it
+as a Tab stop (`tabindex="0"`) exposed as a region with its own accessible name, and it passes `id` and
+`hidden` through so no consumer loses a state. `tests/a11y/table-scroll-regions.test.tsx` pins that contract
+for the nine wrappers in Actions, Audit, History, Pending and Session, including the actions detail and the
+register that stays hidden until the service returns events, and it fails if a wrapper loses its name or two
+wrappers share one. The class is unchanged, so the shipped focus ring and the `has-rows` hiding rule still
+apply. Chromium made those scrollers focusable through its own scroll-container heuristic, which no other
+engine owes the page; axe-core 4.10.3 reported `scrollable-region-focusable` until the DOM stated it. What no
+suite here can establish is the rendered half — that the browser paints the ring and moves the region with
+arrow keys — which is a browser measurement, not a jsdom one.
 
 ## History
 

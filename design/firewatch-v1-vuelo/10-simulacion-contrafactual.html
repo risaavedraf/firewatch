@@ -5,6 +5,68 @@
 <meta charset="utf-8" />
 <meta name="generator" content="design/firewatch-v1-vuelo/build-artboards.mjs" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<style id="fw-product-nav">
+/* FireWatch · navegación global del producto (componente compartido).
+   Fuente del bloque: product-navigation.mjs. */
+.fw-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 5px 12px;
+  border-block-end: 1px solid var(--fw-edge);
+  background: var(--fw-surface);
+  color: var(--fw-ink);
+  font: 600 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.fw-nav--map { --fw-surface: var(--panel, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--border, #647b8a); --fw-accent: var(--focus, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--aerial { --fw-surface: var(--aerial-panel, #17222b); --fw-ink: var(--aerial-ink, #f4f1eb); --fw-muted: var(--aerial-muted, #b8c8d2); --fw-edge: var(--aerial-border, #647b8a); --fw-accent: var(--aerial-focus, #94dfda); --fw-raised: var(--aerial-raised, #243341); }
+.fw-nav--panel { --fw-surface: var(--surface, #17222b); --fw-ink: var(--text, #f4f1eb); --fw-muted: var(--text-muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--surface-raised, #243341); }
+.fw-nav--plain { --fw-surface: var(--surface, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--sticky { position: sticky; top: 0; z-index: 30; min-height: 48px; }
+.fw-nav--fixed { position: fixed; inset: 0 0 auto; z-index: 2; flex-wrap: nowrap; height: var(--fw-nav-h, 48px); padding-block: 3px; }
+html { scroll-padding-top: calc(var(--fw-nav-h, 48px) + 56px); }
+.fw-nav--sticky + .app .viewnav { top: var(--fw-nav-h, 48px); }
+.fw-nav__primary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.fw-nav--fixed .fw-nav__primary { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding-block: 1px; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.fw-nav__link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 9px; color: var(--fw-ink); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.fw-nav__link:hover { background: var(--fw-raised); }
+.fw-nav__link[aria-current="page"] { border-color: var(--fw-edge); background: var(--fw-raised); color: var(--fw-accent); text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav a:focus-visible, .fw-nav summary:focus-visible { outline: 3px solid var(--fw-accent); outline-offset: 2px; }
+.fw-nav--fixed .fw-nav__primary .fw-nav__link:focus-visible { outline-offset: -2px; }
+.fw-nav__more { display: flex; min-width: 0; }
+.fw-nav__summary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 11px; border: 1px solid var(--fw-edge); border-radius: 9px; color: var(--fw-ink); font-weight: 700; white-space: nowrap; cursor: pointer; list-style: none; }
+.fw-nav__summary::-webkit-details-marker { display: none; }
+.fw-nav__summary::after { content: "▾"; font-size: 10px; line-height: 1; }
+.fw-nav__summary:hover { background: var(--fw-raised); }
+.fw-nav__more[open] > .fw-nav__summary { border-color: var(--fw-accent); background: var(--fw-raised); color: var(--fw-accent); }
+.fw-nav__panel { position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 10px; z-index: 40; width: min(720px, calc(100vw - 20px)); max-height: min(70dvh, 520px); overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px 14px; border: 1px solid var(--fw-edge); border-radius: 12px; background: var(--fw-surface); color: var(--fw-ink); box-shadow: 0 16px 32px rgb(0 0 0 / 32%); }
+.fw-nav__panel-title { margin: 0 0 9px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.fw-nav__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 18px; }
+.fw-nav__group-title { margin: 0 0 3px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__list { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.fw-nav__item { display: flex; align-items: center; min-height: 32px; padding: 2px 6px; border-radius: 6px; color: var(--fw-ink); font-size: 12.5px; font-weight: 600; line-height: 1.35; text-decoration: none; }
+.fw-nav__item:hover { background: var(--fw-raised); }
+.fw-nav__item[aria-current="page"] { color: var(--fw-accent); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav__note { margin: 10px 0 0; padding-top: 8px; border-block-start: 1px solid var(--fw-edge); color: var(--fw-muted); font-size: 11.5px; }
+.fw-nav__where { margin: 0 0 0 auto; min-width: 0; color: var(--fw-muted); font-size: 12px; }
+.fw-nav__where-label { font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__where strong { color: var(--fw-ink); font-weight: 750; }
+.fw-nav--fixed .fw-nav__where { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) {
+  .fw-nav--fixed .fw-nav__where { display: none; }
+  .fw-nav--fixed .fw-nav__link, .fw-nav--fixed .fw-nav__summary { font-size: 12px; padding-inline: 7px; }
+}
+@media (max-width: 420px) {
+  .fw-nav { padding-inline: 8px; }
+  .fw-nav__link, .fw-nav__summary { padding-inline: 8px; }
+  .fw-nav--fixed .fw-nav__summary-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fw-nav, .fw-nav * { transition: none !important; animation: none !important; }
+}
+</style>
 <meta name="theme-color" content="#152934" />
 <title>FireWatch · Campo, simulación y entregables · Prototipo de diseño</title>
 <style>
@@ -649,6 +711,61 @@ input[type="date"]:focus-within { outline: 3px solid var(--aerial-focus); outlin
 </head>
 <body>
 <a class="skip-link" href="#main">Saltar al contenido principal</a>
+<!-- fw-product-nav:start · navegación global compartida · la escribe design/firewatch-v1-vuelo/product-navigation.mjs; no editar a mano -->
+<nav class="fw-nav fw-nav--sticky fw-nav--aerial" aria-label="Navegación del producto FireWatch">
+  <ul class="fw-nav__primary">
+    <li><a class="fw-nav__link" href="01-vista-aerea.html" aria-label="Mapa · Territorio">Mapa</a></li>
+    <li><a class="fw-nav__link" href="07-panel-ejecutivo.html" aria-label="Panel ejecutivo">Panel</a></li>
+    <li><a class="fw-nav__link" href="05-historial-de-lotes.html" aria-label="Historial de lotes">Historial</a></li>
+    <li><a class="fw-nav__link" href="06-acciones-preventivas.html" aria-label="Acciones preventivas">Acciones</a></li>
+  </ul>
+  <details class="fw-nav__more">
+    <summary class="fw-nav__summary"><span class="fw-nav__summary-text">Más destinos</span></summary>
+    <div class="fw-nav__panel">
+      <p class="fw-nav__panel-title">Otras pantallas del producto</p>
+      <div class="fw-nav__groups">
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-territorio">Territorio y lectura</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-territorio">
+            <li><a class="fw-nav__item" href="02-vista-regional.html">Vista regional</a></li>
+            <li><a class="fw-nav__item" href="03-acciones-en-el-mapa.html">Acciones rápidas en el mapa</a></li>
+            <li><a class="fw-nav__item" href="04-cobertura-territorial.html">Cobertura y contexto territorial</a></li>
+            <li><a class="fw-nav__item" href="21-lecturas-por-sector.html">Lecturas por sector</a></li>
+            <li><a class="fw-nav__item" href="08-comparar-sectores.html">Comparar sectores</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-decision">Decisión y alertas</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-decision">
+            <li><a class="fw-nav__item" href="09-notificaciones.html">Notificaciones</a></li>
+            <li><a class="fw-nav__item" href="10-simulacion-contrafactual.html" aria-current="page">Simulación contrafactual</a></li>
+            <li><a class="fw-nav__item" href="11-observaciones-de-campo.html">Observaciones de campo</a></li>
+            <li><a class="fw-nav__item" href="13-ficha-de-zona.html">Ficha de zona · Vista previa PDF</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-datos">Solicitudes y datos</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-datos">
+            <li><a class="fw-nav__item" href="12-exportacion-csv.html">Exportación CSV</a></li>
+            <li><a class="fw-nav__item" href="20-datos-del-modelo.html">Datos del modelo</a></li>
+            <li><a class="fw-nav__item" href="15-fuentes-y-servicios.html">Fuentes y servicios</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-acceso">Acceso y control</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-acceso">
+            <li><a class="fw-nav__item" href="14-acceso.html">Acceso · Iniciar sesión</a></li>
+            <li><a class="fw-nav__item" href="17-sesion-y-permisos.html">Sesión y permisos</a></li>
+            <li><a class="fw-nav__item" href="18-registro-de-actividad.html">Registro de actividad</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="fw-nav__note">Mapa, Panel, Historial y Acciones están siempre en esta barra.</p>
+    </div>
+  </details>
+  <p class="fw-nav__where"><span class="fw-nav__where-label">Estás en</span> <strong>Simulación contrafactual</strong></p>
+</nav>
+<!-- fw-product-nav:end -->
 <div class="app">
   <header class="topbar">
     <div class="brand">

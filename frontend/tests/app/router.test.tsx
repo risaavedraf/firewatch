@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { App } from '../../src/App';
 import { routes } from '../../src/app/routes';
@@ -110,6 +111,35 @@ test('the navigation offers every view, including the "not implemented yet" inve
   // The inventory is the reason this test exists: it was reachable only by
   // scrolling before, and the honesty rule requires it to be visible on its own.
   expect(screen.getByRole('link', { name: /aún no implementado/i })).toHaveAttribute('href', '#pending');
+});
+
+// The reported keyboard defect (L20): pressing Enter on the workspace "Saltar al
+// contenido" link wrote `#content` into the address bar, the router read that
+// undeclared fragment as the default view, and the reader was moved from the view
+// they had open to Overview with focus still outside the content. The link is a
+// shell concern, so the router keeps its own contract — an unknown fragment still
+// normalises to the default view — and what is pinned here is that the shell no
+// longer produces one.
+test('the skip link keeps the opened view and lands focus in the content region', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+
+  const skipLink = screen.getByRole('link', { name: /saltar al contenido/i });
+  // Both a view other than the default and the default itself: a fallback to
+  // Overview is invisible from Overview, which is how the defect stayed hidden.
+  for (const hash of ['#audit', '#overview'] as const) {
+    navigate(hash);
+    expect(renderedViews()).toEqual([hash.slice(1)]);
+
+    skipLink.focus();
+    await user.keyboard('{Enter}');
+
+    // The fragment the router reads is still the view that was open...
+    expect(window.location.hash).toBe(hash);
+    expect(renderedViews()).toEqual([hash.slice(1)]);
+    // ...and focus is in the content region instead of left behind.
+    expect(document.activeElement).toBe(document.getElementById('content'));
+  }
 });
 
 test('the active navigation entry follows the opened view and marks nothing else', () => {
