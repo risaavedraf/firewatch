@@ -37,7 +37,7 @@ import type {
 } from '../types/api';
 // The closed type catalogue is a runtime value: the guards compare the served
 // wire spelling against it, so it cannot travel through `import type`.
-import { OBSERVATION_TYPES } from '../types/api';
+import { OBSERVATION_TYPES, RISK_LEVELS } from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -1158,6 +1158,12 @@ export interface SimulationInput {
 
 const SIMULATION_ROUTE = '/v1/risk/simulate';
 
+// The five risk levels are a closed vocabulary: a level outside it is a contract
+// change, not a label to pass through to the page.
+function isRiskLevel(value: unknown): boolean {
+  return typeof value === 'string' && (RISK_LEVELS as readonly string[]).includes(value);
+}
+
 function isSimulationFactor(value: unknown): boolean {
   if (!record(value) || !nonempty(value.name) || typeof value.known !== 'boolean') return false;
   if (value.known) return Number.isFinite(value.value) && Number.isFinite(value.contribution);
@@ -1169,7 +1175,7 @@ function isSimulationFactor(value: unknown): boolean {
 // actually used, and a missing or extra one is a contract change, not a gap to
 // fill in from elsewhere.
 function isSimulationAssessment(value: unknown): value is SimulationAssessment {
-  if (!record(value) || !nonempty(value.level)) return false;
+  if (!record(value) || !isRiskLevel(value.level)) return false;
   if (!Array.isArray(value.factors) || value.factors.length !== SIMULATION_VARIABLES.length) return false;
   if (!value.factors.every(isSimulationFactor)) return false;
   return value.factors.every((factor, index) => record(factor) && factor.name === SIMULATION_VARIABLES[index]);
@@ -1178,7 +1184,7 @@ function isSimulationAssessment(value: unknown): value is SimulationAssessment {
 function isSimulationResult(value: unknown): value is SimulationResult {
   if (!record(value)) return false;
   if (!nonempty(value.batch_id) || !nonempty(value.zone_id) || !nonempty(value.model_version)) return false;
-  if (!nonempty(value.stored_level) || !nonempty(value.computation_instant) || !nonempty(value.notice)) return false;
+  if (!isRiskLevel(value.stored_level) || !nonempty(value.computation_instant) || !nonempty(value.notice)) return false;
   if (value.freshness !== 'not_evaluated') return false;
   if (!record(value.policy) || !nonempty(value.policy.policy_id) || !nonempty(value.policy.params_hash)) return false;
   return isSimulationAssessment(value.before) && isSimulationAssessment(value.after);

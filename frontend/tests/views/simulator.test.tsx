@@ -295,6 +295,23 @@ test('the answer fails closed on an unreadable body, on a freshness claim and on
   expect(expectFailure(await wrongFactors).reason).toBe('invalid_shape');
 });
 
+test('a level outside the closed risk enum fails closed on the stored and the recomputed side', async () => {
+  const stored = simulateRisk({ zoneId: ZONE_ID, batchId: BATCH_ID, variables: { temperatura: 39 } });
+  await flush();
+  fetchStub.answer(SIMULATE_URL, simulationFixture({ stored_level: 'extremo' }));
+  expect(expectFailure(await stored).reason).toBe('invalid_shape');
+
+  const recomputed = simulateRisk({ zoneId: ZONE_ID, batchId: BATCH_ID, variables: { temperatura: 39 } });
+  await flush();
+  fetchStub.answer(SIMULATE_URL, simulationFixture({ after: assessment('extremo', { temperatura: 39 }) }));
+  expect(expectFailure(await recomputed).reason).toBe('invalid_shape');
+
+  const before = simulateRisk({ zoneId: ZONE_ID, batchId: BATCH_ID, variables: { temperatura: 39 } });
+  await flush();
+  fetchStub.answer(SIMULATE_URL, simulationFixture({ before: assessment('extremo', { temperatura: 31.5 }) }));
+  expect(expectFailure(await before).reason).toBe('invalid_shape');
+});
+
 test('the 404, 422 and 415 answers keep their status and their server code', async () => {
   const noBatch = simulateRisk({ zoneId: ZONE_ID, batchId: BATCH_ID, variables: { temperatura: 39 } });
   await flush();
@@ -381,6 +398,23 @@ test('choosing a zone prefills the five canonical variables with the stored valu
   expect(disabled('simulator-submit')).toBe(true);
   expect(text('simulator-status')).toMatch(/lote publicado de 05101/i);
   expect(text('simulator-badge')).toBe('LEÍDO');
+});
+
+test('a stored factor marked unknown keeps its note in the prefill', async () => {
+  await connect();
+  render(<SimulatorView />);
+  await answerUrl(ZONES_URL, zonesFixture());
+  await userEvent.selectOptions(screen.getByLabelText('Zona del catálogo'), ZONE_ID);
+
+  const batch = batchFixture();
+  batch['factors'] = [
+    ...(batch['factors'] as Record<string, unknown>[]).filter(factor => factor['name'] !== 'incendios_historicos'),
+    factor('incendios_historicos', false, 0, 0, 'La estación no reportó la variable'),
+  ];
+  await answerUrl(latestUrl(ZONE_ID), batch);
+
+  expect(fieldValue('simulator-value-incendios_historicos')).toBe('');
+  expect(text('simulator-reading-incendios_historicos')).toContain('La estación no reportó la variable');
 });
 
 test('substituting one variable sends only that variable and shows the before/after of the same batch', async () => {

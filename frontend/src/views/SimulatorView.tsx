@@ -111,9 +111,10 @@ interface CatalogueState {
 }
 
 // One canonical variable as the stored batch states it: the value and the note it
-// recorded, or null when the batch carries no reading for it.
+// recorded, or null when the batch carries no reading at all. A factor the rule
+// marks `known: false` keeps its own note, but never a value.
 interface Reading {
-  readonly value: number;
+  readonly value: number | null;
   readonly note: string;
 }
 
@@ -193,10 +194,14 @@ function readingsFromBatch(batch: RiskBatch | null): Readings {
   if (batch === null) return readings;
   for (const name of SIMULATION_VARIABLES) {
     const factor = batch.factors.find(entry => entry.name === name);
+    if (factor === undefined) {
+      readings[name] = null;
+      continue;
+    }
     readings[name] =
-      factor !== undefined && factor.known === true && Number.isFinite(factor.value)
+      factor.known === true && Number.isFinite(factor.value)
         ? { value: factor.value, note: nonempty(factor.note) ? factor.note : '' }
-        : null;
+        : { value: null, note: nonempty(factor.note) ? factor.note : '' };
   }
   return readings;
 }
@@ -207,7 +212,7 @@ function rowsFromReadings(readings: Readings): Rows {
   const rows = { ...NO_ROWS };
   for (const name of SIMULATION_VARIABLES) {
     const reading = readings[name];
-    rows[name] = { substitute: false, text: reading === null ? '' : String(reading.value) };
+    rows[name] = { substitute: false, text: reading === null || reading.value === null ? '' : String(reading.value) };
   }
   return rows;
 }
@@ -231,6 +236,11 @@ function collectSubstitutions(rows: Rows): Partial<Record<SimulationVariable, nu
 
 function readingsText(reading: Reading | null): string {
   if (reading === null) return 'sin lectura en el lote guardado';
+  if (reading.value === null) {
+    return reading.note === ''
+      ? 'sin lectura en el lote guardado'
+      : `sin lectura en el lote guardado · ${reading.note}`;
+  }
   return reading.note === ''
     ? `Lectura del lote: ${String(reading.value)} · el servicio no adjuntó una nota`
     : `Lectura del lote: ${String(reading.value)} · ${reading.note}`;
