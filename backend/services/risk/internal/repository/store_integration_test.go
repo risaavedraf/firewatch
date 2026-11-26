@@ -71,10 +71,28 @@ func TestBatchDeduplicationAndOutOfOrderPublication(t *testing.T) {
 	if err = s.Publish(ctx, older, assessment); err != nil {
 		t.Fatal(err)
 	}
-	batches, err := s.List(ctx, "valparaiso-demo", 1)
-	if err != nil || len(batches) != 1 || batches[0].JobID != newer.JobID {
-		t.Fatalf("old batch superseded newest: %+v %v", batches, err)
+	// The zone is shared with other tests and earlier runs, so a row this test did
+	// not write may legitimately rank above these. Read every stored row and judge
+	// only the ordering among this test's own rows: an older publication must not
+	// rank above the newest one.
+	var stored int
+	if err = db.QueryRow(ctx, `SELECT count(*) FROM batches WHERE zone_id='valparaiso-demo'`).Scan(&stored); err != nil {
+		t.Fatal(err)
 	}
+	batches, err := s.List(ctx, "valparaiso-demo", stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	own := make([]Batch, 0, 2)
+	for _, batch := range batches {
+		if batch.JobID == newer.JobID || batch.JobID == duplicate.JobID || batch.JobID == older.JobID {
+			own = append(own, batch)
+		}
+	}
+	if len(own) == 0 || own[0].JobID != newer.JobID {
+		t.Fatalf("newest of this test's batches is missing or outranked: own=%+v total=%d", own, len(batches))
+	}
+	batches = own
 	// A re-dispatched delivery must not be swallowed: it writes a second
 	// completion, and both completions name the one stored batch. An invented
 	// batch id or a second batches row would report a batch that does not exist.
