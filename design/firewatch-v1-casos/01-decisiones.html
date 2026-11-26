@@ -249,8 +249,9 @@ main { flex: 1 0 auto; min-width: 0; }
 .view-title { margin: 0; font-size: clamp(25px, 2.3vw, 32px); font-weight: 600; letter-spacing: -1px; }
 .view-lead { margin: 6px 0 0; max-width: 82ch; color: var(--text-muted); font-size: 12.5px; line-height: 1.6; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 348px; gap: 16px; align-items: start; }
-.stack, .side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.stack { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.panel-hint { margin: 0 0 10px; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
+.panel-hint strong { color: var(--text); }
 
 .eyebrow { margin: 0 0 4px; color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; }
 .chip {
@@ -309,7 +310,6 @@ code {
 .facts dt { color: var(--text-muted); font-size: 9px; font-weight: 700; line-height: 1.45; }
 .facts dd { margin: 0; font-size: 10.5px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
 
-.btn-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
 .btn {
   min-height: 44px;
   padding: 9px 13px;
@@ -340,7 +340,24 @@ code {
 .feedback strong { display: block; margin-bottom: 2px; color: var(--accent); font-size: 10.5px; }
 
 .summary { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-.sum-cell { min-width: 0; padding: 10px 11px; border: 1px solid var(--edge); border-radius: var(--control-radius); background: var(--surface-raised); }
+.summary > li { display: flex; min-width: 0; }
+.sum-cell {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  width: 100%;
+  min-height: 124px;
+  padding: 12px 13px 13px;
+  border: 1px solid var(--control-edge);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sum-cell:hover { border-color: var(--accent); }
+.sum-cell[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .sum-top { display: flex; align-items: center; gap: 7px; }
 .swatch { width: 12px; height: 12px; flex: none; border-radius: 3px; border: 1px solid transparent; }
 .swatch-alto { background: var(--risk-high); }
@@ -348,11 +365,64 @@ code {
 .swatch-bajo { background: var(--risk-low); }
 .swatch-insuf { background: var(--risk-unknown); }
 .swatch-sin { background: transparent; border: 1px dashed var(--risk-unknown); }
-.sum-count { font-size: 21px; font-weight: 600; letter-spacing: -.8px; line-height: 1.1; }
-.sum-label { display: block; margin-top: 3px; font-size: 9px; font-weight: 800; letter-spacing: .05em; }
-.sum-note { display: block; margin-top: 3px; color: var(--text-muted); font-size: 8.5px; line-height: 1.45; }
-.sum-base { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 9.5px; }
-.sum-base strong { color: var(--text); }
+.sum-count { margin-top: 6px; font-size: 44px; font-weight: 600; letter-spacing: -1.8px; line-height: .95; font-variant-numeric: tabular-nums; }
+.sum-label { font-size: 10px; font-weight: 800; letter-spacing: .04em; line-height: 1.25; }
+.sum-note { margin-top: 5px; color: var(--text-muted); font-size: 9px; line-height: 1.45; }
+.sum-action { margin-top: 8px; color: var(--accent); font-size: 8.5px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.sum-cell[aria-pressed="true"] .sum-action { color: var(--text); }
+
+.change-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.change-btn {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-height: 104px;
+  padding: 12px 14px 13px;
+  border: 1px solid var(--control-edge);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.change-btn:hover { border-color: var(--accent); }
+.change-btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.change-kind { color: var(--accent); font-size: 8.5px; font-weight: 850; letter-spacing: .09em; line-height: 1.3; text-transform: uppercase; }
+.change-sector { font-size: 14.5px; font-weight: 650; letter-spacing: -.2px; line-height: 1.3; }
+.change-comunas { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9px; font-weight: 500; letter-spacing: 0; }
+.change-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.change-arrow { color: var(--text-muted); font-size: 12px; line-height: 1; }
+.change-note { margin-top: 2px; color: var(--text-muted); font-size: 9px; line-height: 1.45; }
+
+.disclosure { min-width: 0; border: 1px solid var(--edge); border-radius: var(--control-radius); background: var(--surface); }
+.disclosure > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 8px;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.disclosure > summary::before { content: "\25B8"; flex: none; color: var(--text-muted); font-size: 10px; }
+.disclosure[open] > summary::before { content: "\25BE"; }
+.disclosure > summary:hover { color: var(--accent); }
+.disclosure[open] > summary { border-bottom: 1px solid var(--edge); }
+.disclosure > summary .eyebrow { margin: 0; font-size: 8px; }
+.disclosure > summary .chip { margin-left: auto; }
+.disclosure-title { font-size: 12.5px; font-weight: 650; letter-spacing: -.2px; }
+.disclosure-body { padding: 11px 12px 13px; }
+.disclosure-body > * { margin-top: 0; margin-bottom: 0; }
+.disclosure-body > * + * { margin-top: 8px; }
+.panel-pair { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.compare-layout { display: grid; grid-template-columns: 344px minmax(0, 1fr); gap: 14px; align-items: start; }
+.compare-layout .picks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.limits { display: grid; gap: 8px; }
+.limit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; align-items: start; }
+.limits .facts { margin-top: 2px; }
 
 .lvl {
   display: inline-flex;
@@ -377,12 +447,11 @@ code {
 
 .filter-row { display: flex; align-items: flex-start; gap: 9px; margin: 0 0 10px; min-height: 44px; padding: 6px 0; }
 .filter-row input { width: 24px; height: 24px; margin: 0; flex: none; accent-color: var(--accent); }
-.head-note { margin: 0; max-width: 100%; color: var(--text-muted); font-size: 9.5px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
 .filter-row label { font-size: 10.5px; font-weight: 650; line-height: 1.5; }
 .filter-row .filter-hint { display: block; margin-top: 1px; color: var(--text-muted); font-size: 9px; font-weight: 500; }
 
 .table-wrap { overflow-x: auto; }
-.data-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
 .data-table caption { margin-bottom: 7px; color: var(--text-muted); font-size: 9.5px; text-align: left; }
 .data-table thead th {
   padding: 0 10px 6px 0;
@@ -398,9 +467,15 @@ code {
 .data-table tbody th, .data-table tbody td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--edge); text-align: left; vertical-align: top; font-weight: 600; }
 .data-table tbody tr:last-child th, .data-table tbody tr:last-child td { border-bottom: 0; padding-bottom: 0; }
 .data-table tbody th { width: 24%; }
-.sector-name { display: block; font-size: 10.5px; font-weight: 750; line-height: 1.4; }
-.sector-comunas { display: block; margin-top: 2px; color: var(--text-muted); font-size: 8.5px; font-weight: 500; line-height: 1.45; }
-.cell-note { display: block; margin-top: 3px; color: var(--text-muted); font-size: 8.5px; font-weight: 500; line-height: 1.45; }
+.sector-name { display: block; font-size: 12px; font-weight: 750; line-height: 1.35; }
+.sector-comunas { display: block; margin-top: 2px; color: var(--text-muted); font-size: 9px; font-weight: 500; line-height: 1.45; }
+.cell-note { display: block; margin-top: 3px; color: var(--text-muted); font-size: 9px; font-weight: 500; line-height: 1.45; }
+.data-table tbody tr:focus { outline: 3px solid var(--accent); outline-offset: -3px; }
+.data-table tbody tr[data-highlight="true"] th,
+.data-table tbody tr[data-highlight="true"] td { background: var(--surface-raised); }
+.data-table tbody tr[data-highlight="true"] th { box-shadow: inset 3px 0 0 var(--accent); }
+#sector-empty td { padding: 12px 0 0; }
+.empty-inline { margin: 0 0 8px; font-size: 11px; line-height: 1.5; }
 .table-legend { margin: 10px 0 0; color: var(--text-muted); font-size: 9px; line-height: 1.55; }
 
 .picker { margin: 0; padding: 0; border: 0; min-width: 0; }
@@ -408,8 +483,9 @@ code {
 .picks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 8px; }
 .pick {
   display: grid;
-  gap: 2px;
-  min-height: 54px;
+  align-content: start;
+  gap: 3px;
+  min-height: 62px;
   padding: 8px 10px;
   border: 1px solid var(--control-edge);
   border-radius: var(--control-radius);
@@ -420,35 +496,49 @@ code {
 }
 .pick:hover { background: var(--surface-raised); border-color: var(--accent); }
 .pick[aria-pressed="true"] { background: var(--surface-raised); border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
-.pick-name { font-size: 10.5px; font-weight: 750; }
-.pick-meta { color: var(--text-muted); font-size: 8.5px; font-weight: 500; }
-.pick-level { color: var(--text); font-size: 8px; font-weight: 800; letter-spacing: .05em; }
+.pick-name { font-size: 11.5px; font-weight: 750; }
+.pick-meta { color: var(--text-muted); font-size: 9px; font-weight: 500; }
+.pick .lvl { justify-self: start; margin-top: 2px; }
 
-.compare-wrap { margin-top: 12px; }
-.cmp-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.cmp-table caption { margin-bottom: 8px; color: var(--text-muted); font-size: 9.5px; text-align: left; }
-.cmp-table thead th { padding: 9px 10px; border: 1px solid var(--edge); background: var(--surface-raised); vertical-align: top; text-align: left; }
-.cmp-table thead th + th { border-left: 0; }
-.cmp-corner { width: 132px; background: var(--surface); }
-.cmp-head-name { display: block; font-size: 11px; font-weight: 750; line-height: 1.35; }
-.cmp-head-sub { display: block; margin-top: 2px; color: var(--text-muted); font-size: 8.5px; font-weight: 500; line-height: 1.4; }
-.cmp-head-level { display: block; margin-top: 5px; }
-.cmp-table tbody th { width: 132px; padding: 9px 10px; border: 1px solid var(--edge); background: var(--surface); color: var(--text-muted); font-size: 8.5px; font-weight: 750; letter-spacing: .03em; text-align: left; vertical-align: top; }
-.cmp-table tbody td { padding: 9px 10px; border: 1px solid var(--edge); vertical-align: top; font-size: 10px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
-.cmp-table tbody th + td { border-left: 0; }
-.cmp-note { margin: 4px 0 0; color: var(--text-muted); font-size: 8.5px; font-weight: 500; line-height: 1.5; }
+.compare-wrap { margin-top: 0; }
+.cmp-grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 10px; align-items: start; }
+.cmp-col { min-width: 0; padding: 12px 13px 13px; border: 1px solid var(--edge); border-radius: var(--control-radius); background: var(--surface-raised); }
+.cmp-col-head { display: grid; gap: 1px; }
+.cmp-col-name { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.3px; line-height: 1.3; }
+.cmp-col-level { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 0; }
+.cmp-head-sub { display: block; color: var(--text-muted); font-size: 9px; font-weight: 500; line-height: 1.4; }
+.cmp-meta { display: grid; gap: 3px; margin: 8px 0 0; padding-top: 7px; border-top: 1px solid var(--edge); }
+.cmp-meta > div { display: grid; grid-template-columns: minmax(84px, 40%) minmax(0, 1fr); gap: 1px 10px; }
+.cmp-meta dt { color: var(--text-muted); font-size: 8.5px; font-weight: 750; line-height: 1.35; }
+.cmp-meta dd { margin: 0; font-size: 10.5px; font-weight: 650; line-height: 1.4; }
+.cmp-factors { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--edge); }
+.cmp-factors-title { margin: 0 0 4px; color: var(--text-muted); font-size: 8.5px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.cmp-factor-list { list-style: none; margin: 0; padding: 0; }
+.cmp-factor { display: grid; grid-template-columns: minmax(0, 1fr) 58px 57px; align-items: center; gap: 8px; padding: 4px 0; }
+.cmp-factor + .cmp-factor { border-top: 1px dashed var(--edge); }
+.cmp-factor-name { color: var(--text-muted); font-size: 10px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.cmp-factor-value {
+  font-family: var(--mono);
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -.7px;
+  line-height: 1.1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cmp-factor-track { height: 6px; border: 1px solid var(--edge); border-radius: 3px; background: var(--surface); overflow: hidden; }
+.cmp-factor-fill { display: block; height: 100%; background: var(--accent); }
+.cmp-factor-missing { grid-column: 2 / -1; color: var(--text-muted); font-size: 9.5px; font-weight: 750; text-align: right; }
+.cmp-absence { margin: 0; color: var(--text-muted); font-size: 10.5px; line-height: 1.5; }
+.cmp-note { display: block; margin: 5px 0 0; color: var(--text-muted); font-size: 9px; font-weight: 500; line-height: 1.45; }
+.cmp-reading { margin: 8px 0 0; font-size: 10px; line-height: 1.55; }
+.cmp-col .disclosure { margin-top: 10px; background: var(--surface); }
+.cmp-col .disclosure > summary { font-size: 10px; padding: 8px 10px; }
+.cmp-col .disclosure-body { padding: 9px 10px 10px; }
 .mini { list-style: none; margin: 0; padding: 0; }
-.mini li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; padding: 2px 0; }
+.mini li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; padding: 3px 0; font-size: 10px; }
 .mini li + li { border-top: 1px dashed var(--edge); }
-.mini span:last-child { font-family: var(--mono); font-size: 8.5px; }
-.hist li span:last-child { font-family: var(--font); font-weight: 750; font-size: 8.5px; }
-.cmp-stack { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 10px; }
-.cmp-card { min-width: 0; padding: 12px; border: 1px solid var(--edge); border-radius: var(--control-radius); background: var(--surface-raised); }
-.cmp-card h3 { margin: 0; font-size: 12px; font-weight: 750; line-height: 1.35; }
-.cmp-card .cmp-head-sub { margin-bottom: 6px; }
-.cmp-card .facts { margin-top: 8px; }
-.cmp-card .facts dt { font-size: 8.5px; }
-.cmp-card .facts dd { font-size: 9.5px; font-weight: 600; }
+.hist li span:last-child { font-weight: 750; }
 
 .banner {
   display: flex;
@@ -465,9 +555,21 @@ code {
 .banner strong { color: var(--accent); font-size: 8.5px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
 .banner span { color: var(--text-muted); }
 
+.empty-body { display: grid; justify-items: start; gap: 8px; padding: 26px 24px 28px; }
+.empty-mark { display: grid; place-items: center; width: 58px; height: 58px; margin-bottom: 2px; border: 1px dashed var(--edge); border-radius: 50%; color: var(--accent); }
+.empty-mark svg { width: 28px; height: 28px; }
+.empty-title { margin: 0; font-size: clamp(24px, 2.2vw, 30px); font-weight: 600; letter-spacing: -.9px; }
+.empty-copy { margin: 0; max-width: 62ch; color: var(--text-muted); font-size: 12.5px; line-height: 1.6; }
+.empty-points { list-style: none; display: grid; gap: 4px; max-width: 62ch; margin: 2px 0 6px; padding: 0; }
+.empty-points li { position: relative; padding-left: 13px; color: var(--text-muted); font-size: 10.5px; line-height: 1.5; }
+.empty-points li::before { content: ""; position: absolute; left: 0; top: 6px; width: 5px; height: 5px; border-radius: 50%; background: var(--edge); }
+.empty-body .disclosure { width: 100%; max-width: 680px; margin-top: 4px; }
+.btn-large { min-height: 56px; padding: 15px 20px; font-size: 13px; letter-spacing: -.1px; }
+.btn-note { margin: 0; max-width: 62ch; color: var(--text-muted); font-size: 9.5px; line-height: 1.5; }
 .scenario { display: grid; gap: 12px; }
 .scenario h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
-.controls { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 14px; }
+.controls { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: flex-start; gap: 10px 22px; }
+.controls .micro { flex: 1 1 280px; max-width: 62ch; margin: 0; }
 .field { display: grid; gap: 4px; min-width: 0; }
 .field label { color: var(--text-muted); font-size: 8.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .select {
@@ -494,12 +596,8 @@ code {
 .footer strong { color: var(--text); }
 
 @media (max-width: 1180px) {
-  .summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .picks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 1120px) {
-  .layout { grid-template-columns: minmax(0, 1fr); }
-  .side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panel-pair, .compare-layout { grid-template-columns: minmax(0, 1fr); }
+  .compare-layout .picks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
   .topbar { grid-template-columns: auto minmax(0, 1fr); padding: 14px 20px; }
@@ -512,9 +610,11 @@ code {
   .footer { padding: 10px 20px 13px; }
 }
 @media (max-width: 800px) {
-  .side { grid-template-columns: minmax(0, 1fr); }
-  .cmp-stack { grid-template-columns: minmax(0, 1fr); }
+  .cmp-grid { grid-template-columns: minmax(0, 1fr); }
+  .change-list { grid-template-columns: minmax(0, 1fr); }
+  .limit-grid { grid-template-columns: minmax(0, 1fr); }
   .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summary > li:last-child { grid-column: 1 / -1; }
   .picks { grid-template-columns: minmax(0, 1fr); }
   .data-table thead { display: none; }
   .data-table, .data-table tbody, .data-table tr, .data-table tbody th, .data-table tbody td { display: block; width: 100%; }
@@ -531,11 +631,16 @@ code {
     text-transform: uppercase;
   }
   .data-table tbody tr:last-child th, .data-table tbody tr:last-child td { padding-bottom: 3px; }
-  .cmp-table, .cmp-table thead, .cmp-table tbody, .cmp-table tr, .cmp-table th, .cmp-table td { display: block; width: 100%; }
-  .cmp-corner { display: none; }
+  .data-table caption { display: block; width: 100%; }
+  .data-table tbody th::before, .data-table tbody td::before { grid-row: 1 / span 4; align-self: start; }
+  .data-table tbody th > *, .data-table tbody td > * { justify-self: start; }
+  #sector-empty td { display: block; grid-template-columns: none; padding: 10px 0 2px; }
+  #sector-empty td::before { content: none; }
 }
 @media (max-width: 620px) {
   h1 { font-size: 24px; }
+  .sum-count { font-size: 38px; }
+  .empty-body { padding: 20px 16px 22px; }
   .topbar { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 16px; }
   .context-stamp { grid-column: auto; }
   .brand-mark { width: 28px; height: 28px; }
@@ -614,7 +719,7 @@ code {
         <div>
           <p class="eyebrow">PM-01 · PANEL EJECUTIVO AGREGADO</p>
           <h2 class="view-title" id="title-panel" tabindex="-1">Panel ejecutivo</h2>
-          <p class="view-lead">Qué dice el corte sobre cada sector, qué cambió entre los dos últimos lotes y qué variable pesó más en la regla. Cuenta lo que el lote trae; no cuenta alertas ni zonas críticas, porque esas dos lecturas todavía no existen.</p>
+          <p class="view-lead">Qué dice el corte sobre cada sector y qué cambió entre los dos últimos lotes. Cuenta lo que el lote trae; no cuenta alertas ni zonas críticas, porque esas dos lecturas todavía no existen.</p>
         </div>
         <div class="chips">
           <span class="chip chip-neutral">Datos sintéticos de maqueta</span>
@@ -622,8 +727,8 @@ code {
           <span class="chip chip-g6">D-B sin decidir</span>
         </div>
       </div>
-      <div class="layout">
-        <div class="stack">
+      <div class="stack">
+        <div class="panel-pair">
           <article class="panel" aria-labelledby="summary-title">
             <div class="panel-head">
               <div>
@@ -633,180 +738,216 @@ code {
               <span class="chip chip-neutral">Corte 21 nov 2026 · 18:00</span>
             </div>
             <div class="panel-body">
-              <p class="sum-base" id="summary-total"><strong>6 sectores de maqueta.</strong> Cinco tienen lectura publicada en o antes del corte; uno no tiene lote. En el producto estos conteos los calcula el servidor; aquí están escritos a mano y son inventados.</p>
+              <p class="panel-hint" id="counts-hint">Elige un nivel para filtrar la lista de sectores. Vuelve a elegirlo para quitar el filtro.</p>
               <ul class="summary" aria-label="Conteo por nivel de riesgo">
-                <li class="sum-cell">
-                  <span class="sum-top"><span class="swatch swatch-alto" aria-hidden="true"></span><span class="sum-label">ALTO</span></span>
-                  <strong class="sum-count" id="count-alto">2</strong>
-                  <span class="sum-note">Nivel alto en el último lote ≤ corte.</span>
+                <li>
+                  <button class="sum-cell" type="button" data-level="alto" aria-pressed="false" aria-label="Filtrar los sectores de nivel alto" aria-describedby="counts-hint">
+                    <span class="sum-top"><span class="swatch swatch-alto" aria-hidden="true"></span><span class="sum-label">ALTO</span></span>
+                    <strong class="sum-count" id="count-alto">2</strong>
+                    <span class="sum-note">Último lote ≤ corte.</span>
+                    <span class="sum-action" aria-hidden="true">Filtrar lista</span>
+                  </button>
                 </li>
-                <li class="sum-cell">
-                  <span class="sum-top"><span class="swatch swatch-medio" aria-hidden="true"></span><span class="sum-label">MEDIO</span></span>
-                  <strong class="sum-count" id="count-medio">1</strong>
-                  <span class="sum-note">Nivel medio en el último lote ≤ corte.</span>
+                <li>
+                  <button class="sum-cell" type="button" data-level="medio" aria-pressed="false" aria-label="Filtrar los sectores de nivel medio" aria-describedby="counts-hint">
+                    <span class="sum-top"><span class="swatch swatch-medio" aria-hidden="true"></span><span class="sum-label">MEDIO</span></span>
+                    <strong class="sum-count" id="count-medio">1</strong>
+                    <span class="sum-note">Último lote ≤ corte.</span>
+                    <span class="sum-action" aria-hidden="true">Filtrar lista</span>
+                  </button>
                 </li>
-                <li class="sum-cell">
-                  <span class="sum-top"><span class="swatch swatch-bajo" aria-hidden="true"></span><span class="sum-label">BAJO</span></span>
-                  <strong class="sum-count" id="count-bajo">1</strong>
-                  <span class="sum-note">Hay lote publicado: no es ausencia de datos.</span>
+                <li>
+                  <button class="sum-cell" type="button" data-level="bajo" aria-pressed="false" aria-label="Filtrar los sectores de nivel bajo" aria-describedby="counts-hint">
+                    <span class="sum-top"><span class="swatch swatch-bajo" aria-hidden="true"></span><span class="sum-label">BAJO</span></span>
+                    <strong class="sum-count" id="count-bajo">1</strong>
+                    <span class="sum-note">Hay lote: es un dato.</span>
+                    <span class="sum-action" aria-hidden="true">Filtrar lista</span>
+                  </button>
                 </li>
-                <li class="sum-cell">
-                  <span class="sum-top"><span class="swatch swatch-insuf" aria-hidden="true"></span><span class="sum-label">INFORMACIÓN INSUFICIENTE</span></span>
-                  <strong class="sum-count" id="count-insuficiente">1</strong>
-                  <span class="sum-note">Hay lote, pero falta una lectura. No es Bajo.</span>
+                <li>
+                  <button class="sum-cell" type="button" data-level="insuficiente" aria-pressed="false" aria-label="Filtrar los sectores con información insuficiente" aria-describedby="counts-hint">
+                    <span class="sum-top"><span class="swatch swatch-insuf" aria-hidden="true"></span><span class="sum-label">INFORMACIÓN INSUFICIENTE</span></span>
+                    <strong class="sum-count" id="count-insuficiente">1</strong>
+                    <span class="sum-note">Falta una lectura.</span>
+                    <span class="sum-action" aria-hidden="true">Filtrar lista</span>
+                  </button>
                 </li>
-                <li class="sum-cell">
-                  <span class="sum-top"><span class="swatch swatch-sin" aria-hidden="true"></span><span class="sum-label">SIN EVALUACIÓN</span></span>
-                  <strong class="sum-count" id="count-sin-evaluacion">1</strong>
-                  <span class="sum-note">Sin lote publicado en o antes del corte. No es Bajo.</span>
+                <li>
+                  <button class="sum-cell" type="button" data-level="sin-evaluacion" aria-pressed="false" aria-label="Filtrar los sectores sin evaluación" aria-describedby="counts-hint">
+                    <span class="sum-top"><span class="swatch swatch-sin" aria-hidden="true"></span><span class="sum-label">SIN EVALUACIÓN</span></span>
+                    <strong class="sum-count" id="count-sin-evaluacion">1</strong>
+                    <span class="sum-note">Sin lote en el corte.</span>
+                    <span class="sum-action" aria-hidden="true">Filtrar lista</span>
+                  </button>
                 </li>
               </ul>
-              <p class="note">Un cero sería un cero real; una ausencia se muestra como ausencia. Ningún sector sin lectura completa se suma a Bajo.</p>
+              <details class="disclosure">
+                <summary>Cómo se calculan estos conteos</summary>
+                <div class="disclosure-body">
+                  <p class="note" id="summary-total">6 sectores de maqueta. Cinco tienen lectura publicada en o antes del corte; uno no tiene lote. En el producto estos conteos los calcula el servidor; aquí están escritos a mano y son inventados.</p>
+                  <p class="note"><strong>Bajo</strong> es un dato, no una ausencia. <strong>Información insuficiente</strong> es un nivel publicado al que le falta una lectura. <strong>Sin evaluación</strong> es la ausencia de lote. Un cero sería un cero real; ningún sector sin lectura completa se suma a Bajo.</p>
+                </div>
+              </details>
             </div>
           </article>
 
-          <article class="panel" aria-labelledby="sectores-title">
+          <article class="panel" aria-labelledby="changes-title">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">LECTURA POR SECTOR</p>
-                <h3 id="sectores-title">Sectores del corte</h3>
+                <p class="eyebrow">CAMBIOS RECIENTES</p>
+                <h3 id="changes-title">Dos sectores cambiaron de nivel</h3>
               </div>
-              <span class="head-note" id="change-summary">1 ascenso · 0 descensos · 1 cambio a información insuficiente · 3 sin cambio · 1 sin comparación</span>
+              <span class="chip chip-neutral">Últimos dos lotes del corte</span>
             </div>
             <div class="panel-body">
-              <div class="filter-row">
-                <input type="checkbox" id="filter-change" />
-                <label for="filter-change">Mostrar solo los sectores cuyo nivel cambió entre los dos últimos lotes
-                  <span class="filter-hint">Incluye el paso a información insuficiente; no incluye los sectores sin lote.</span>
-                </label>
+              <p class="panel-hint" id="change-summary">1 ascenso · 0 descensos · 1 paso a información insuficiente · 3 sin cambio · 1 sin comparación</p>
+              <div class="change-list" id="recent-changes" role="group" aria-label="Sectores cuyo nivel cambió entre los dos últimos lotes">
+                <button class="change-btn" type="button" data-sector="belloto" aria-pressed="false">
+                  <span class="change-kind">Ascenso</span>
+                  <span class="change-sector">Interior El Belloto<span class="change-comunas">Quilpué</span></span>
+                  <span class="change-flow"><span class="lvl lvl-bajo">BAJO</span><span class="change-arrow" aria-hidden="true">→</span><span class="sr-only">a</span><span class="lvl lvl-medio">MEDIO</span></span>
+                  <span class="change-note">20 nov 2026 · 15:47</span>
+                </button>
+                <button class="change-btn" type="button" data-sector="penuelas" aria-pressed="false">
+                  <span class="change-kind">Paso a información insuficiente</span>
+                  <span class="change-sector">Franja Peñuelas<span class="change-comunas">Valparaíso · Quilpué</span></span>
+                  <span class="change-flow"><span class="lvl lvl-bajo">BAJO</span><span class="change-arrow" aria-hidden="true">→</span><span class="sr-only">a</span><span class="lvl lvl-insuf">INSUFICIENTE</span></span>
+                  <span class="change-note">20 nov 2026 · 15:22 · no es un descenso: faltó la lectura de viento.</span>
+                </button>
               </div>
-              <div class="table-wrap">
-                <table class="data-table" id="sector-table">
-                  <caption>Sectores del corte 21 nov 2026 · 18:00. Lotes y aportes ilustrativos.</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Sector y comunas</th>
-                      <th scope="col">Nivel actual</th>
-                      <th scope="col">Último lote ≤ corte</th>
-                      <th scope="col">Cambio reciente</th>
-                      <th scope="col">Factores predominantes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr data-sector="qde" data-level="alto" data-changed="false">
-                      <th scope="row" data-label="Sector"><span class="sector-name">Quebrada del Este</span><span class="sector-comunas">Valparaíso · Viña del Mar · Quilpué</span></th>
-                      <td data-label="Nivel"><span class="lvl lvl-alto">ALTO</span></td>
-                      <td data-label="Último lote">20 nov 2026 · 16:05</td>
-                      <td data-label="Cambio">Sin cambio <span class="cell-note">Antes ALTO · 19 nov 2026 · 15:40</span></td>
-                      <td data-label="Factores">temperatura 0,21 · viento 0,17 <span class="cell-note">Aporte ilustrativo de la regla, no causalidad.</span></td>
-                    </tr>
-                    <tr data-sector="costero" data-level="bajo" data-changed="false">
-                      <th scope="row" data-label="Sector"><span class="sector-name">Borde costero Reñaca–Concón</span><span class="sector-comunas">Viña del Mar · Concón</span></th>
-                      <td data-label="Nivel"><span class="lvl lvl-bajo">BAJO</span></td>
-                      <td data-label="Último lote">20 nov 2026 · 15:58</td>
-                      <td data-label="Cambio">Sin cambio <span class="cell-note">Antes BAJO · 19 nov 2026 · 15:31</span></td>
-                      <td data-label="Factores">humedad relativa 0,15 <span class="cell-note">Aporte ilustrativo; un nivel bajo sigue siendo un dato.</span></td>
-                    </tr>
-                    <tr data-sector="belloto" data-level="medio" data-changed="true">
-                      <th scope="row" data-label="Sector"><span class="sector-name">Interior El Belloto</span><span class="sector-comunas">Quilpué</span></th>
-                      <td data-label="Nivel"><span class="lvl lvl-medio">MEDIO</span></td>
-                      <td data-label="Último lote">20 nov 2026 · 15:47</td>
-                      <td data-label="Cambio">Ascenso desde BAJO <span class="cell-note">Antes BAJO · 19 nov 2026 · 15:12</span></td>
-                      <td data-label="Factores">cobertura vegetal 0,12 · temperatura 0,11 <span class="cell-note">Aporte ilustrativo; el cambio no explica la causa.</span></td>
-                    </tr>
-                    <tr data-sector="rodelillo" data-level="alto" data-changed="false">
-                      <th scope="row" data-label="Sector"><span class="sector-name">Ladera Rodelillo</span><span class="sector-comunas">Valparaíso</span></th>
-                      <td data-label="Nivel"><span class="lvl lvl-alto">ALTO</span></td>
-                      <td data-label="Último lote">20 nov 2026 · 15:39</td>
-                      <td data-label="Cambio">Sin cambio <span class="cell-note">Antes ALTO · 19 nov 2026 · 15:05</span></td>
-                      <td data-label="Factores">temperatura 0,22 · viento 0,19 <span class="cell-note">Aporte ilustrativo sostenido en los tres lotes del corte.</span></td>
-                    </tr>
-                    <tr data-sector="penuelas" data-level="insuficiente" data-changed="true">
-                      <th scope="row" data-label="Sector"><span class="sector-name">Franja Peñuelas</span><span class="sector-comunas">Valparaíso · Quilpué</span></th>
-                      <td data-label="Nivel"><span class="lvl lvl-insuf">INFORMACIÓN INSUFICIENTE</span><span class="cell-note">Hay lote, falta la lectura de viento: no es Bajo.</span></td>
-                      <td data-label="Último lote">20 nov 2026 · 15:22</td>
-                      <td data-label="Cambio">Paso a información insuficiente <span class="cell-note">Antes BAJO · 19 nov 2026 · 14:58</span></td>
-                      <td data-label="Factores">humedad relativa 0,16 · viento sin lectura <span class="cell-note">Sin lectura no se completa con cero ni con un nivel.</span></td>
-                    </tr>
-                    <tr data-sector="aromos" data-level="sin-evaluacion" data-changed="false">
-                      <th scope="row" data-label="Sector"><span class="sector-name">Tranque Los Aromos</span><span class="sector-comunas">Quilpué · Villa Alemana</span></th>
-                      <td data-label="Nivel"><span class="lvl lvl-sin">SIN EVALUACIÓN</span><span class="cell-note">Sin lote en o antes del corte; no es Bajo.</span></td>
-                      <td data-label="Último lote">Sin lote ≤ corte</td>
-                      <td data-label="Cambio">Sin comparación <span class="cell-note">No hay lote actual que comparar.</span></td>
-                      <td data-label="Factores">Sin factores <span class="cell-note">El lote no existe; no se inventan aportes.</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p class="sr-only" id="sector-table-status" role="status" aria-live="polite"></p>
-              <p class="table-legend"><strong>Cambio</strong> significa un nivel distinto entre el último lote y el anterior, en el mismo corte. <strong>Factores</strong> es el aporte de dos variables con mayor peso; no es una causa, no es una probabilidad y no predice fecha ni lugar.</p>
+              <p class="micro">Elige un cambio para resaltar su fila en la lista. <strong>Cambio</strong> es un nivel distinto entre el último lote y el anterior en el mismo corte; incluye el paso a información insuficiente y no incluye los sectores sin lote.</p>
             </div>
           </article>
         </div>
 
-        <aside class="side" aria-label="Límites y definiciones del panel">
-          <article class="panel" id="db-panel" aria-labelledby="db-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">DEFINICIÓN ABIERTA · D-B</p>
-                <h3 id="db-title">Zonas críticas: sin definir</h3>
-              </div>
-              <span class="chip chip-g6">Sin decidir</span>
+        <article class="panel" aria-labelledby="sectores-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">LECTURA POR SECTOR</p>
+              <h3 id="sectores-title">Sectores del corte</h3>
             </div>
-            <div class="panel-body">
-              <p class="copy" id="db-question">La pregunta sigue abierta: ¿«zona crítica» es un nivel Alto sostenido N ciclos, o riesgo Alto <strong>y</strong> exposición? Mientras no se decida, este panel no muestra ningún conteo de zonas críticas.</p>
-              <dl class="facts">
-                <div><dt>Estado</dt><dd>Sin decidir (D-B)</dd></div>
-                <div><dt>Opción A</dt><dd>Alto sostenido N ciclos; N todavía no se acuerda.</dd></div>
-                <div><dt>Opción B</dt><dd>Alto + exposición; los datos de exposición dependen de D-A y no existen.</dd></div>
-                <div><dt>Efecto aquí</dt><dd>«Alto» no se presenta como «crítico» y no se ordena por una definición inventada.</dd></div>
-              </dl>
+            <span class="chip chip-neutral" id="sector-count-chip">6 sectores</span>
+          </div>
+          <div class="panel-body">
+            <div class="filter-row">
+              <input type="checkbox" id="filter-change" />
+              <label for="filter-change">Mostrar solo los sectores cuyo nivel cambió entre los dos últimos lotes
+                <span class="filter-hint">Incluye el paso a información insuficiente; no incluye los sectores sin lote.</span>
+              </label>
             </div>
-          </article>
+            <div class="table-wrap">
+              <table class="data-table" id="sector-table">
+                <caption>Sectores del corte 21 nov 2026 · 18:00. Lotes y aportes ilustrativos.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Sector y comunas</th>
+                    <th scope="col">Nivel actual</th>
+                    <th scope="col">Último lote ≤ corte</th>
+                    <th scope="col">Cambio reciente</th>
+                    <th scope="col">Factores predominantes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-sector="qde" data-level="alto" data-changed="false" tabindex="-1">
+                    <th scope="row" data-label="Sector"><span class="sector-name">Quebrada del Este</span><span class="sector-comunas">Valparaíso · Viña del Mar · Quilpué</span></th>
+                    <td data-label="Nivel"><span class="lvl lvl-alto">ALTO</span></td>
+                    <td data-label="Último lote">20 nov 2026 · 16:05</td>
+                    <td data-label="Cambio">Sin cambio <span class="cell-note">Antes ALTO · 19 nov 2026 · 15:40</span></td>
+                    <td data-label="Factores">temperatura 0,21 · viento 0,17 <span class="cell-note">Aporte ilustrativo de la regla, no causalidad.</span></td>
+                  </tr>
+                  <tr data-sector="costero" data-level="bajo" data-changed="false" tabindex="-1">
+                    <th scope="row" data-label="Sector"><span class="sector-name">Borde costero Reñaca–Concón</span><span class="sector-comunas">Viña del Mar · Concón</span></th>
+                    <td data-label="Nivel"><span class="lvl lvl-bajo">BAJO</span></td>
+                    <td data-label="Último lote">20 nov 2026 · 15:58</td>
+                    <td data-label="Cambio">Sin cambio <span class="cell-note">Antes BAJO · 19 nov 2026 · 15:31</span></td>
+                    <td data-label="Factores">humedad relativa 0,15 <span class="cell-note">Aporte ilustrativo; un nivel bajo sigue siendo un dato.</span></td>
+                  </tr>
+                  <tr data-sector="belloto" data-level="medio" data-changed="true" tabindex="-1">
+                    <th scope="row" data-label="Sector"><span class="sector-name">Interior El Belloto</span><span class="sector-comunas">Quilpué</span></th>
+                    <td data-label="Nivel"><span class="lvl lvl-medio">MEDIO</span></td>
+                    <td data-label="Último lote">20 nov 2026 · 15:47</td>
+                    <td data-label="Cambio">Ascenso desde BAJO <span class="cell-note">Antes BAJO · 19 nov 2026 · 15:12</span></td>
+                    <td data-label="Factores">cobertura vegetal 0,12 · temperatura 0,11 <span class="cell-note">Aporte ilustrativo; el cambio no explica la causa.</span></td>
+                  </tr>
+                  <tr data-sector="rodelillo" data-level="alto" data-changed="false" tabindex="-1">
+                    <th scope="row" data-label="Sector"><span class="sector-name">Ladera Rodelillo</span><span class="sector-comunas">Valparaíso</span></th>
+                    <td data-label="Nivel"><span class="lvl lvl-alto">ALTO</span></td>
+                    <td data-label="Último lote">20 nov 2026 · 15:39</td>
+                    <td data-label="Cambio">Sin cambio <span class="cell-note">Antes ALTO · 19 nov 2026 · 15:05</span></td>
+                    <td data-label="Factores">temperatura 0,22 · viento 0,19 <span class="cell-note">Aporte ilustrativo sostenido en los tres lotes del corte.</span></td>
+                  </tr>
+                  <tr data-sector="penuelas" data-level="insuficiente" data-changed="true" tabindex="-1">
+                    <th scope="row" data-label="Sector"><span class="sector-name">Franja Peñuelas</span><span class="sector-comunas">Valparaíso · Quilpué</span></th>
+                    <td data-label="Nivel"><span class="lvl lvl-insuf">INFORMACIÓN INSUFICIENTE</span><span class="cell-note">Hay lote, falta la lectura de viento: no es Bajo.</span></td>
+                    <td data-label="Último lote">20 nov 2026 · 15:22</td>
+                    <td data-label="Cambio">Paso a información insuficiente <span class="cell-note">Antes BAJO · 19 nov 2026 · 14:58</span></td>
+                    <td data-label="Factores">humedad relativa 0,16 · viento sin lectura <span class="cell-note">Sin lectura no se completa con cero ni con un nivel.</span></td>
+                  </tr>
+                  <tr data-sector="aromos" data-level="sin-evaluacion" data-changed="false" tabindex="-1">
+                    <th scope="row" data-label="Sector"><span class="sector-name">Tranque Los Aromos</span><span class="sector-comunas">Quilpué · Villa Alemana</span></th>
+                    <td data-label="Nivel"><span class="lvl lvl-sin">SIN EVALUACIÓN</span><span class="cell-note">Sin lote en o antes del corte; no es Bajo.</span></td>
+                    <td data-label="Último lote">Sin lote ≤ corte</td>
+                    <td data-label="Cambio">Sin comparación <span class="cell-note">No hay lote actual que comparar.</span></td>
+                    <td data-label="Factores">Sin factores <span class="cell-note">El lote no existe; no se inventan aportes.</span></td>
+                  </tr>
+                  <tr id="sector-empty" hidden>
+                    <td colspan="5">
+                      <p class="empty-inline">Ningún sector del corte coincide con el nivel elegido y el filtro de cambio. Quita un filtro para ver más sectores.</p>
+                      <button class="btn btn-secondary" type="button" id="btn-clear-filters">Quitar filtros y ver los 6 sectores</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="sr-only" id="sector-table-status" role="status" aria-live="polite"></p>
+            <p class="table-legend"><strong>Factores</strong> es el aporte de dos variables con mayor peso; no es una causa, no es una probabilidad y no predice fecha ni lugar.</p>
+          </div>
+        </article>
 
-          <article class="panel" id="pm01-alerts" aria-labelledby="alerts-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">FUERA DE ESTE PANEL</p>
-                <h3 id="alerts-title">Alertas activas</h3>
+        <section class="limits" aria-labelledby="limits-title">
+          <h3 class="sr-only" id="limits-title">Límites y definiciones del panel</h3>
+          <div class="limit-grid">
+            <details class="disclosure" id="db-panel">
+              <summary><span class="eyebrow">Definición abierta · D-B</span><span class="disclosure-title">Zonas críticas: sin definir</span><span class="chip chip-g6">Sin decidir</span></summary>
+              <div class="disclosure-body">
+                <p class="copy" id="db-question">La pregunta sigue abierta: ¿«zona crítica» es un nivel Alto sostenido N ciclos, o riesgo Alto <strong>y</strong> exposición? Mientras no se decida, este panel no muestra ningún conteo de zonas críticas.</p>
+                <dl class="facts">
+                  <div><dt>Estado</dt><dd>Sin decidir (D-B)</dd></div>
+                  <div><dt>Opción A</dt><dd>Alto sostenido N ciclos; N todavía no se acuerda.</dd></div>
+                  <div><dt>Opción B</dt><dd>Alto + exposición; los datos de exposición dependen de D-A y no existen.</dd></div>
+                  <div><dt>Efecto aquí</dt><dd>«Alto» no se presenta como «crítico» y no se ordena por una definición inventada.</dd></div>
+                </dl>
               </div>
-              <span class="chip chip-g6">PM-07 pendiente</span>
-            </div>
-            <div class="panel-body">
-              <p class="copy">No disponible: la entidad de alerta no existe hasta PM-07. Este panel no muestra un conteo de alertas, no las usa como métrica y no llama «alerta» a un cambio de nivel.</p>
-              <p class="micro">Las filas de Notificaciones son un escenario de diseño aparte, rotulado como inventado; no son alertas registradas ni entregadas.</p>
-            </div>
-          </article>
+            </details>
 
-          <article class="panel" id="evidence-recommendation" aria-labelledby="evidence-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">EVIDENCIA Y RECOMENDACIÓN</p>
-                <h3 id="evidence-title">Dos cosas distintas</h3>
+            <details class="disclosure" id="pm01-alerts">
+              <summary><span class="eyebrow">Fuera de este panel</span><span class="disclosure-title">Alertas activas</span><span class="chip chip-g6">PM-07 pendiente</span></summary>
+              <div class="disclosure-body">
+                <p class="copy">No disponible: la entidad de alerta no existe hasta PM-07. Este panel no muestra un conteo de alertas, no las usa como métrica y no llama «alerta» a un cambio de nivel.</p>
+                <p class="micro">Las filas de Notificaciones son un escenario de diseño aparte, rotulado como inventado; no son alertas registradas ni entregadas.</p>
               </div>
-            </div>
-            <div class="panel-body">
-              <dl class="facts">
-                <div><dt>Evidencia</dt><dd>Nivel, variables con su aporte y fecha del lote: lo que el cálculo produjo. El aporte dice cuánto pesó una variable en la regla; no explica por qué se quemaría.</dd></div>
-                <div><dt>Recomendación</dt><dd>Sugerencia preventiva del catálogo, separada del cálculo. No cambia el nivel, no crea una acción y no se muestra aquí como si el servicio ya existiera.</dd></div>
-                <div><dt>Lo que no se afirma</dt><dd>Ninguna relación causal entre una variable y un incendio, y ninguna probabilidad de ocurrencia.</dd></div>
-              </dl>
-            </div>
-          </article>
+            </details>
 
-          <article class="panel" aria-labelledby="scope-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">LÍMITE DE LA VISTA</p>
-                <h3 id="scope-title">Solo consulta</h3>
+            <details class="disclosure" id="evidence-recommendation">
+              <summary><span class="eyebrow">Evidencia y recomendación</span><span class="disclosure-title">Dos cosas distintas</span></summary>
+              <div class="disclosure-body">
+                <dl class="facts">
+                  <div><dt>Evidencia</dt><dd>Nivel, variables con su aporte y fecha del lote: lo que el cálculo produjo. El aporte dice cuánto pesó una variable en la regla; no explica por qué se quemaría.</dd></div>
+                  <div><dt>Recomendación</dt><dd>Sugerencia preventiva del catálogo, separada del cálculo. No cambia el nivel, no crea una acción y no se muestra aquí como si el servicio ya existiera.</dd></div>
+                  <div><dt>Lo que no se afirma</dt><dd>Ninguna relación causal entre una variable y un incendio, y ninguna probabilidad de ocurrencia.</dd></div>
+                </dl>
               </div>
-            </div>
-            <div class="panel-body">
-              <p class="copy">Esta vista no publica lotes, no aprueba, no cambia niveles y no consulta la API. Publicar, avanzar y reevaluar viven en Control y acceso; aquí solo se lee el agregado.</p>
-              <p class="micro">La maqueta no define el contrato de PM-01, PM-05 ni PM-08 y no cierra ninguna de esas filas.</p>
-            </div>
-          </article>
-        </aside>
+            </details>
+
+            <details class="disclosure">
+              <summary><span class="eyebrow">Límite de la vista</span><span class="disclosure-title">Solo consulta</span></summary>
+              <div class="disclosure-body">
+                <p class="copy">Esta vista no publica lotes, no aprueba, no cambia niveles y no consulta la API. Publicar, avanzar y reevaluar viven en Control y acceso; aquí solo se lee el agregado.</p>
+                <p class="micro">La maqueta no define el contrato de PM-01, PM-05 ni PM-08 y no cierra ninguna de esas filas.</p>
+              </div>
+            </details>
+          </div>
+        </section>
       </div>
     </section>
 
@@ -815,15 +956,15 @@ code {
         <div>
           <p class="eyebrow">PM-05 · COMPARADOR DE SECTORES</p>
           <h2 class="view-title" id="title-comparar" tabindex="-1">Comparar sectores</h2>
-          <p class="view-lead">Dos o tres sectores, el mismo corte y las mismas filas: nivel, factores e historial. Sin un eje de prioridad vacío y sin convertir una ausencia de lectura en un nivel Bajo.</p>
+          <p class="view-lead">Dos o tres sectores, el mismo corte: nivel, aporte exacto de cada factor e historial. Sin convertir una ausencia de lectura en un nivel Bajo.</p>
         </div>
         <div class="chips">
           <span class="chip chip-neutral">Datos sintéticos de maqueta</span>
           <span class="chip chip-g6">PM-11 pendiente</span>
         </div>
       </div>
-      <div class="layout">
-        <div class="stack">
+      <div class="stack">
+        <div class="compare-layout">
           <article class="panel" aria-labelledby="picker-title">
             <div class="panel-head">
               <div>
@@ -839,32 +980,32 @@ code {
                   <button class="pick" type="button" data-sector="qde" aria-pressed="true">
                     <span class="pick-name">Quebrada del Este</span>
                     <span class="pick-meta">Valparaíso · Viña del Mar · Quilpué</span>
-                    <span class="pick-level">ALTO</span>
+                    <span class="lvl lvl-alto">ALTO</span>
                   </button>
                   <button class="pick" type="button" data-sector="costero" aria-pressed="false">
                     <span class="pick-name">Borde costero Reñaca–Concón</span>
                     <span class="pick-meta">Viña del Mar · Concón</span>
-                    <span class="pick-level">BAJO</span>
+                    <span class="lvl lvl-bajo">BAJO</span>
                   </button>
                   <button class="pick" type="button" data-sector="belloto" aria-pressed="false">
                     <span class="pick-name">Interior El Belloto</span>
                     <span class="pick-meta">Quilpué</span>
-                    <span class="pick-level">MEDIO</span>
+                    <span class="lvl lvl-medio">MEDIO</span>
                   </button>
                   <button class="pick" type="button" data-sector="rodelillo" aria-pressed="false">
                     <span class="pick-name">Ladera Rodelillo</span>
                     <span class="pick-meta">Valparaíso</span>
-                    <span class="pick-level">ALTO</span>
+                    <span class="lvl lvl-alto">ALTO</span>
                   </button>
                   <button class="pick" type="button" data-sector="penuelas" aria-pressed="false">
                     <span class="pick-name">Franja Peñuelas</span>
                     <span class="pick-meta">Valparaíso · Quilpué</span>
-                    <span class="pick-level">INFORMACIÓN INSUFICIENTE</span>
+                    <span class="lvl lvl-insuf">INFORMACIÓN INSUFICIENTE</span>
                   </button>
                   <button class="pick" type="button" data-sector="aromos" aria-pressed="true">
                     <span class="pick-name">Tranque Los Aromos</span>
                     <span class="pick-meta">Quilpué · Villa Alemana</span>
-                    <span class="pick-level">SIN EVALUACIÓN</span>
+                    <span class="lvl lvl-sin">SIN EVALUACIÓN</span>
                   </button>
                 </div>
               </fieldset>
@@ -877,7 +1018,7 @@ code {
             <div class="panel-head">
               <div>
                 <p class="eyebrow">LECTURA COMPARADA</p>
-                <h3 id="compare-table-title">Riesgo, factores e historial</h3>
+                <h3 id="compare-table-title">Factores, nivel e historial</h3>
               </div>
               <span class="chip chip-neutral" id="compare-count">2 de 3</span>
             </div>
@@ -888,59 +1029,46 @@ code {
           </article>
         </div>
 
-        <aside class="side" aria-label="Dependencias del comparador">
-          <article class="panel" id="compare-priority" aria-labelledby="priority-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">DEPENDENCIA REAL</p>
-                <h3 id="priority-title">Prioridad territorial</h3>
+        <section class="limits" aria-labelledby="compare-limits-title">
+          <h3 class="sr-only" id="compare-limits-title">Dependencias, estados y alcance del comparador</h3>
+          <div class="limit-grid">
+            <details class="disclosure" id="compare-priority">
+              <summary><span class="eyebrow">Dependencia real</span><span class="disclosure-title">Prioridad territorial</span><span class="chip chip-g6">PM-11 pendiente</span></summary>
+              <div class="disclosure-body">
+                <p class="copy">La prioridad se suma al comparador cuando exista PM-11, que necesita la infraestructura crítica y los datos de exposición del mandante (D-A). Hoy no hay datos de exposición y por eso el comparador no muestra un cuarto eje vacío.</p>
+                <p class="micro">Comparar dos o tres zonas en riesgo, variables e historial no requiere ese eje; ordenarlas por prioridad sí. La maqueta no insinúa una prioridad calculada.</p>
               </div>
-              <span class="chip chip-g6">PM-11 pendiente</span>
-            </div>
-            <div class="panel-body">
-              <p class="copy">La prioridad se suma al comparador cuando exista PM-11, que necesita la infraestructura crítica y los datos de exposición del mandante (D-A). Hoy no hay datos de exposición y por eso el comparador no muestra un cuarto eje vacío.</p>
-              <p class="micro">Comparar dos o tres zonas en riesgo, variables e historial no requiere ese eje; ordenarlas por prioridad sí. La maqueta no insinúa una prioridad calculada.</p>
-            </div>
-          </article>
+            </details>
 
-          <article class="panel" aria-labelledby="compare-absences-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">CÓMO LEER LAS AUSENCIAS</p>
-                <h3 id="compare-absences-title">Tres estados distintos</h3>
+            <details class="disclosure" id="compare-absences-title">
+              <summary><span class="eyebrow">Cómo leer las ausencias</span><span class="disclosure-title">Tres estados distintos</span></summary>
+              <div class="disclosure-body">
+                <div class="status-row">
+                  <strong>Sin evaluación</strong>
+                  <span class="lvl lvl-sin">SIN EVALUACIÓN</span>
+                  <p class="status-text">No hay lote publicado en o antes del corte. No se muestran factores ni historial.</p>
+                </div>
+                <div class="status-row">
+                  <strong>Información insuficiente</strong>
+                  <span class="lvl lvl-insuf">INSUFICIENTE</span>
+                  <p class="status-text">Hay lote, pero falta al menos una lectura. Es un nivel publicado, no una ausencia.</p>
+                </div>
+                <div class="status-row">
+                  <strong>Bajo</strong>
+                  <span class="lvl lvl-bajo">BAJO</span>
+                  <p class="status-text">Hay lote con lectura completa y su nivel es bajo. Es un dato, no un vacío.</p>
+                </div>
               </div>
-            </div>
-            <div class="panel-body">
-              <div class="status-row">
-                <strong>Sin evaluación</strong>
-                <span class="lvl lvl-sin">SIN EVALUACIÓN</span>
-                <p class="status-text">No hay lote publicado en o antes del corte. No se muestran factores ni historial.</p>
-              </div>
-              <div class="status-row">
-                <strong>Información insuficiente</strong>
-                <span class="lvl lvl-insuf">INSUFICIENTE</span>
-                <p class="status-text">Hay lote, pero falta al menos una lectura. Es un nivel publicado, no una ausencia.</p>
-              </div>
-              <div class="status-row">
-                <strong>Bajo</strong>
-                <span class="lvl lvl-bajo">BAJO</span>
-                <p class="status-text">Hay lote con lectura completa y su nivel es bajo. Es un dato, no un vacío.</p>
-              </div>
-            </div>
-          </article>
+            </details>
 
-          <article class="panel" aria-labelledby="compare-contract-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">ALCANCE</p>
-                <h3 id="compare-contract-title">Lo que no cambia</h3>
+            <details class="disclosure" id="compare-contract-title">
+              <summary><span class="eyebrow">Alcance</span><span class="disclosure-title">Lo que no cambia</span></summary>
+              <div class="disclosure-body">
+                <p class="copy">El comparador no crea ni modifica zonas, no pide un lote nuevo y no ordena acciones. PM-05 sigue abierto: la maqueta no define su contrato ni su respuesta.</p>
               </div>
-            </div>
-            <div class="panel-body">
-              <p class="copy">El comparador no crea ni modifica zonas, no pide un lote nuevo y no ordena acciones. PM-05 sigue abierto: la maqueta no define su contrato ni su respuesta.</p>
-            </div>
-          </article>
-        </aside>
+            </details>
+          </div>
+        </section>
       </div>
     </section>
 
@@ -949,127 +1077,109 @@ code {
         <div>
           <p class="eyebrow">PM-08 · CENTRO DE NOTIFICACIONES</p>
           <h2 class="view-title" id="title-notificaciones" tabindex="-1">Notificaciones</h2>
-          <p class="view-lead">La página lista alertas por cambio de nivel cuando existan. Hoy el estado real es vacío porque la entidad de alerta todavía no existe; el escenario de abajo es una previsualización de diseño, no un servicio.</p>
+          <p class="view-lead">La página listará alertas por cambio de nivel cuando existan. Hoy el estado real es vacío porque la entidad de alerta todavía no existe.</p>
         </div>
         <div class="chips">
           <span class="chip chip-neutral">Estado real: vacío</span>
           <span class="chip chip-g6">Depende de PM-07</span>
         </div>
       </div>
-      <div class="layout">
-        <div class="stack">
-          <article class="panel" id="notif-empty" aria-labelledby="notif-empty-title">
+      <div class="stack">
+        <article class="panel" id="notif-empty" aria-labelledby="notif-empty-title">
+          <div class="panel-body empty-body">
+            <span class="empty-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9Z" /><path d="M10 18.5a2 2 0 0 0 4 0" /><path d="M3.5 3.5 20.5 20.5" stroke-dasharray="2 3" /></svg>
+            </span>
+            <p class="eyebrow">SIN DATOS · ESTADO REAL</p>
+            <h3 class="empty-title" id="notif-empty-title">Sin notificaciones</h3>
+            <p class="empty-copy">No hay alertas registradas porque la entidad de alerta no existe todavía: PM-08 depende de PM-07. Este vacío no es un error de carga y no se rellena con filas que parezcan alertas reales.</p>
+            <ul class="empty-points">
+              <li>Qué llenaría la lista: alertas con sector, nivel anterior, nivel nuevo, umbral y fecha, producidas por PM-07.</li>
+              <li>Qué no hace esta página: no recibe ni entrega correos o avisos, no simula un servicio caído y no cuenta alertas como si existieran.</li>
+            </ul>
+            <button class="btn btn-primary btn-large" type="button" id="btn-scenario" aria-pressed="false" aria-expanded="false" aria-controls="scenario-panel">Ver previsualización ilustrativa</button>
+            <p class="btn-note">Abre 8 filas inventadas para revisar la pantalla. No son alertas registradas ni entregadas y no activan ningún servicio.</p>
+            <details class="disclosure">
+              <summary>Por qué el vacío es correcto y no se disfraza</summary>
+              <div class="disclosure-body">
+                <dl class="facts">
+                  <div><dt>Vacío real</dt><dd>Sin alertas que mostrar. No es un error y no se disfraza con datos.</dd></div>
+                  <div><dt>Previsualización</dt><dd>Ocho filas inventadas, rotuladas, con orden y paginación para revisar la pantalla.</dd></div>
+                  <div><dt>Servicio</dt><dd>No existe: no hay entrega de correo, push ni suscripción en esta maqueta.</dd></div>
+                  <div><dt>Orden por defecto</dt><dd>Más recientes primero; el control cambia el orden visible, no una preferencia guardada.</dd></div>
+                </dl>
+                <p id="pm08-dependency" class="note"><strong>Dependencia declarada:</strong> sin PM-07 no hay entidad de alerta; esta página solo puede mostrar el estado vacío. El escenario no simula PM-07 ni promete su contrato.</p>
+              </div>
+            </details>
+          </div>
+        </article>
+
+        <section class="scenario" id="scenario-panel" aria-labelledby="scenario-title" hidden>
+          <div class="banner" role="note" aria-label="Aviso del modo previsualización">
+            <strong>Previsualización · datos inventados</strong>
+            <span>Estas 8 filas no son alertas registradas, entregadas ni enviadas. Simulan la pantalla que PM-08 construirá cuando PM-07 exista.</span>
+          </div>
+          <div class="panel">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">SIN DATOS</p>
-                <h3 id="notif-empty-title">Sin notificaciones que mostrar</h3>
+                <p class="eyebrow">MODO PREVISUALIZACIÓN</p>
+                <h3 id="scenario-title" tabindex="-1">Escenario de cambios de nivel</h3>
               </div>
-              <span class="chip chip-neutral">Estado vacío correcto</span>
+              <span class="chip chip-g6" id="alert-count">8 filas de escenario</span>
             </div>
             <div class="panel-body">
-              <p class="copy">No hay alertas registradas porque la entidad de alerta no existe todavía: PM-08 depende de PM-07. Este vacío no es un error de carga y no se rellena con filas que parezcan alertas reales.</p>
-              <dl class="facts">
-                <div><dt>Qué llenaría la lista</dt><dd>Alertas con sector, nivel anterior, nivel nuevo, umbral y fecha, producidas por PM-07.</dd></div>
-                <div><dt>Qué no hace esta página</dt><dd>No recibe ni entrega correos o avisos, no simula un servicio caído y no cuenta alertas como si existieran.</dd></div>
-                <div><dt>Por qué el vacío es correcto</dt><dd>Mostrar alertas aquí afirmaría un servicio que no existe. La revisión visual usa un escenario separado y rotulado.</dd></div>
-              </dl>
-              <p id="pm08-dependency" class="note"><strong>Dependencia declarada:</strong> sin PM-07 no hay entidad de alerta; esta página solo puede mostrar el estado vacío. El escenario no simula PM-07 ni promete su contrato.</p>
-              <div class="btn-row">
-                <button class="btn btn-secondary" type="button" id="btn-scenario" aria-pressed="false" aria-controls="scenario-panel">Ver escenario ilustrativo</button>
-              </div>
-            </div>
-          </article>
-
-          <section class="scenario" id="scenario-panel" aria-labelledby="scenario-title" hidden>
-            <div class="banner" role="note" aria-label="Aviso del modo escenario">
-              <strong>MODO ESCENARIO · DATOS INVENTADOS</strong>
-              <span>Estas 8 filas no son alertas registradas, entregadas ni enviadas. Simulan la pantalla que PM-08 construirá cuando PM-07 exista.</span>
-            </div>
-            <div class="panel">
-              <div class="panel-head">
-                <h2 id="scenario-title">Escenario de cambios de nivel</h2>
-                <span class="chip chip-g6" id="alert-count">8 filas de escenario</span>
-              </div>
-              <div class="panel-body">
-                <div class="controls">
-                  <div class="field">
-                    <label for="order-select">Orden de la lista</label>
-                    <select class="select" id="order-select">
-                      <option value="desc">Más recientes primero</option>
-                      <option value="asc">Más antiguas primero</option>
-                    </select>
-                  </div>
-                  <p class="micro">Umbral ilustrativo: el cambio de nivel que dispararía la alerta; ningún umbral está acordado todavía.</p>
+              <div class="controls">
+                <div class="field">
+                  <label for="order-select">Orden de la lista</label>
+                  <select class="select" id="order-select">
+                    <option value="desc">Más recientes primero</option>
+                    <option value="asc">Más antiguas primero</option>
+                  </select>
                 </div>
-                <div class="table-wrap" style="margin-top: 10px;">
-                  <table class="data-table" id="alert-table">
-                    <caption>Escenario inventado: 8 cambios de nivel, todos anteriores al corte 21 nov 2026 · 18:00.</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">Fecha</th>
-                        <th scope="col">Sector</th>
-                        <th scope="col">Cambio de nivel</th>
-                        <th scope="col">Umbral ilustrativo</th>
-                      </tr>
-                    </thead>
-                    <tbody id="alert-body"></tbody>
-                  </table>
-                </div>
-                <p class="sr-only" id="alert-status" role="status" aria-live="polite"></p>
-                <div class="pager">
-                  <button class="btn btn-secondary" type="button" id="btn-prev">Anterior</button>
-                  <span class="page-label" id="page-label">Página 1 de 2 <span>· 8 filas de escenario</span></span>
-                  <button class="btn btn-secondary" type="button" id="btn-next">Siguiente</button>
-                </div>
+                <p class="micro">Umbral ilustrativo: el cambio de nivel que dispararía la alerta; ningún umbral está acordado todavía.</p>
+              </div>
+              <div class="table-wrap" style="margin-top: 10px;">
+                <table class="data-table" id="alert-table">
+                  <caption>Escenario inventado: 8 cambios de nivel, todos anteriores al corte 21 nov 2026 · 18:00.</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Fecha</th>
+                      <th scope="col">Sector</th>
+                      <th scope="col">Cambio de nivel</th>
+                      <th scope="col">Umbral ilustrativo</th>
+                    </tr>
+                  </thead>
+                  <tbody id="alert-body"></tbody>
+                </table>
+              </div>
+              <p class="sr-only" id="alert-status" role="status" aria-live="polite"></p>
+              <div class="pager">
+                <button class="btn btn-secondary" type="button" id="btn-prev">Anterior</button>
+                <span class="page-label" id="page-label">Página 1 de 2 <span>· 8 filas de escenario</span></span>
+                <button class="btn btn-secondary" type="button" id="btn-next">Siguiente</button>
               </div>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
 
-        <aside class="side" aria-label="Límites del centro de notificaciones">
-          <article class="panel" aria-labelledby="notif-limits-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">DEPENDENCIA</p>
-                <h3 id="notif-limits-title">Sin PM-07 no hay alertas</h3>
+        <section class="limits" aria-labelledby="notif-limits-title">
+          <h3 class="sr-only" id="notif-limits-title">Dependencias y alcance de las notificaciones</h3>
+          <div class="limit-grid">
+            <details class="disclosure" id="notif-dependency">
+              <summary><span class="eyebrow">Dependencia</span><span class="disclosure-title">Sin PM-07 no hay alertas</span><span class="chip chip-g6">PM-07 pendiente</span></summary>
+              <div class="disclosure-body">
+                <p class="copy">PM-07 define la entidad de alerta con sector, nivel anterior, nivel nuevo, umbral y fecha. PM-08 solo puede listar lo que ese servicio produzca, ordenado y paginado.</p>
+                <p class="micro">La maqueta declara la dependencia y no la simula: cuando la previsualización está visible, el estado real sigue siendo «sin datos».</p>
               </div>
-              <span class="chip chip-g6">PM-07 pendiente</span>
-            </div>
-            <div class="panel-body">
-              <p class="copy">PM-07 define la entidad de alerta con sector, nivel anterior, nivel nuevo, umbral y fecha. PM-08 solo puede listar lo que ese servicio produzca, ordenado y paginado.</p>
-              <p class="micro">La maqueta declara la dependencia y no la simula: cuando el escenario está visible, el estado real sigue siendo «sin datos».</p>
-            </div>
-          </article>
-
-          <article class="panel" aria-labelledby="notif-empty-rules-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">ESTADOS</p>
-                <h3 id="notif-empty-rules-title">Vacío, escenario y servicio</h3>
+            </details>
+            <details class="disclosure" id="notif-scope">
+              <summary><span class="eyebrow">Alcance</span><span class="disclosure-title">Lo que no cambia</span></summary>
+              <div class="disclosure-body">
+                <p class="copy">Ninguna alerta se crea, se marca como leída ni se envía. La maqueta no toca el contrato y no adelanta la aprobación de PM-07 o PM-08.</p>
               </div>
-            </div>
-            <div class="panel-body">
-              <dl class="facts">
-                <div><dt>Vacío real</dt><dd>Sin alertas que mostrar. No es un error y no se disfraza con datos.</dd></div>
-                <div><dt>Escenario</dt><dd>Ocho filas inventadas, rotuladas, con orden y paginación para revisar la pantalla.</dd></div>
-                <div><dt>Servicio</dt><dd>No existe: no hay entrega de correo, push ni suscripción en esta maqueta.</dd></div>
-                <div><dt>Orden por defecto</dt><dd>Más recientes primero; el control cambia el orden visible, no una preferencia guardada.</dd></div>
-              </dl>
-            </div>
-          </article>
-
-          <article class="panel" aria-labelledby="notif-scope-title">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">ALCANCE</p>
-                <h3 id="notif-scope-title">Lo que no cambia</h3>
-              </div>
-            </div>
-            <div class="panel-body">
-              <p class="copy">Ninguna alerta se crea, se marca como leída ni se envía. La maqueta no toca el contrato y no adelanta la aprobación de PM-07 o PM-08.</p>
-            </div>
-          </article>
-        </aside>
+            </details>
+          </div>
+        </section>
       </div>
     </section>
   </main>
@@ -1226,30 +1336,131 @@ code {
   });
   applyTheme(root.getAttribute('data-theme') || 'night', false);
 
-  /* Panel: the change filter hides rows without inventing a new total. */
+  /* Panel: the five counts and the change filter narrow the same six rows.
+     Both controls combine; a zero result is explained and can be reset. */
   var filter = document.getElementById('filter-change');
-  var sectorRows = Array.prototype.slice.call(document.querySelectorAll('#sector-table tbody tr'));
-  filter.addEventListener('change', function () {
+  var sectorRows = Array.prototype.slice.call(document.querySelectorAll('#sector-table tbody tr[data-sector]'));
+  var sectorStatus = document.getElementById('sector-table-status');
+  var sectorEmpty = document.getElementById('sector-empty');
+  var sectorCountChip = document.getElementById('sector-count-chip');
+  var levelButtons = Array.prototype.slice.call(document.querySelectorAll('#panel .sum-cell'));
+  var recentButtons = Array.prototype.slice.call(document.querySelectorAll('#recent-changes .change-btn'));
+  var levelFilter = '';
+  var LEVEL_NAMES = {
+    alto: 'ALTO',
+    medio: 'MEDIO',
+    bajo: 'BAJO',
+    insuficiente: 'INFORMACIÓN INSUFICIENTE',
+    'sin-evaluacion': 'SIN EVALUACIÓN'
+  };
+
+  function applySectorFilters(announce) {
     var onlyChanged = filter.checked;
+    var level = levelFilter;
     var shown = 0;
+    recentButtons.forEach(function (button) { button.setAttribute('aria-pressed', 'false'); });
     sectorRows.forEach(function (row) {
-      var keep = !onlyChanged || row.getAttribute('data-changed') === 'true';
+      var keep = (!level || row.getAttribute('data-level') === level) &&
+        (!onlyChanged || row.getAttribute('data-changed') === 'true');
       row.hidden = !keep;
+      row.removeAttribute('data-highlight');
       if (keep) shown += 1;
     });
-    document.getElementById('sector-table-status').textContent = onlyChanged
-      ? 'Mostrando ' + shown + ' de 6 sectores con cambio de nivel entre los dos últimos lotes.'
-      : 'Mostrando los 6 sectores del corte.';
+    sectorEmpty.hidden = shown !== 0;
+    sectorCountChip.textContent = shown === 6 ? '6 sectores' : shown + ' de 6 sectores';
+    levelButtons.forEach(function (button) {
+      var pressed = button.getAttribute('aria-pressed') === 'true';
+      var action = button.querySelector('.sum-action');
+      if (action) action.textContent = pressed ? 'Quitar filtro' : 'Filtrar lista';
+    });
+    if (!announce) return;
+    var levelText = level ? LEVEL_NAMES[level] : '';
+    if (shown === 0) {
+      sectorStatus.textContent = 'Ningún sector del corte coincide con los filtros activos' +
+        (level && onlyChanged ? ' (' + levelText + ' y cambio de nivel)' : '') +
+        '. Quita un filtro para ver otros sectores.';
+    } else if (level && onlyChanged) {
+      sectorStatus.textContent = 'Mostrando ' + shown + ' de 6 sectores con nivel ' + levelText +
+        ' y cambio de nivel entre los dos últimos lotes.';
+    } else if (level) {
+      sectorStatus.textContent = 'Mostrando ' + shown + ' de 6 sectores con nivel ' + levelText +
+        '. Filtro de nivel activo.';
+    } else if (onlyChanged) {
+      sectorStatus.textContent = 'Mostrando ' + shown + ' de 6 sectores con cambio de nivel entre los dos últimos lotes.';
+    } else {
+      sectorStatus.textContent = 'Mostrando los 6 sectores del corte. Sin filtros.';
+    }
+  }
+
+  levelButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var level = button.getAttribute('data-level');
+      levelFilter = levelFilter === level ? '' : level;
+      levelButtons.forEach(function (other) {
+        other.setAttribute('aria-pressed', other.getAttribute('data-level') === levelFilter ? 'true' : 'false');
+      });
+      applySectorFilters(true);
+    });
   });
 
-  /* Comparator: exactly two or three sectors. The guard is visible, not silent. */
+  filter.addEventListener('change', function () {
+    applySectorFilters(true);
+  });
+
+  document.getElementById('btn-clear-filters').addEventListener('click', function () {
+    levelFilter = '';
+    levelButtons.forEach(function (button) { button.setAttribute('aria-pressed', 'false'); });
+    filter.checked = false;
+    applySectorFilters(true);
+    filter.focus();
+  });
+
+  /* A recent change highlights its row instead of hiding the rest: the user
+     keeps the full list in view. Any filter that would hide the row is
+     removed and announced, never left silently contradictory. */
+  recentButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var id = button.getAttribute('data-sector');
+      var row = document.querySelector('#sector-table tbody tr[data-sector="' + id + '"]');
+      if (!row) return;
+      var wasOn = button.getAttribute('aria-pressed') === 'true' && row.getAttribute('data-highlight') === 'true';
+      sectorRows.forEach(function (other) { other.removeAttribute('data-highlight'); });
+      recentButtons.forEach(function (other) { other.setAttribute('aria-pressed', 'false'); });
+      if (wasOn) {
+        sectorStatus.textContent = 'Resaltado quitado. La lista conserva sus filtros.';
+        return;
+      }
+      var cleared = false;
+      if (levelFilter) {
+        levelFilter = '';
+        levelButtons.forEach(function (other) { other.setAttribute('aria-pressed', 'false'); });
+        cleared = true;
+      }
+      if (filter.checked) {
+        filter.checked = false;
+        cleared = true;
+      }
+      if (cleared) applySectorFilters(false);
+      row.setAttribute('data-highlight', 'true');
+      button.setAttribute('aria-pressed', 'true');
+      row.focus();
+      var sector = SECTORS[id];
+      sectorStatus.textContent = 'Sector ' + (sector ? sector.name : id) + ' resaltado en la lista.' +
+        (cleared ? ' Se quitaron los filtros para mostrarlo.' : '');
+    });
+  });
+
+  applySectorFilters(false);
+
+  /* Comparator: exactly two or three sectors. Every column repeats the same
+     factor order, so the exact values can be scanned across sectors without
+     leaving the row. The guard is visible, not silent. */
   var picks = Array.prototype.slice.call(document.querySelectorAll('.pick'));
   var selected = picks.filter(function (button) { return button.getAttribute('aria-pressed') === 'true'; })
     .map(function (button) { return button.getAttribute('data-sector'); });
   var compareRegion = document.getElementById('compare-region');
   var compareStatus = document.getElementById('compare-status');
   var compareCount = document.getElementById('compare-count');
-  var narrow = window.matchMedia('(max-width: 800px)');
 
   function el(tag, className, text) {
     var node = document.createElement(tag);
@@ -1259,19 +1470,7 @@ code {
   }
 
   function levelChip(sector) {
-    var chip = el('span', 'lvl lvl-' + sector.level, sector.label);
-    return chip;
-  }
-
-  function miniList(items) {
-    var list = el('ul', 'mini');
-    items.forEach(function (item) {
-      var row = el('li');
-      row.appendChild(el('span', '', item[0]));
-      row.appendChild(el('span', '', item[1]));
-      list.appendChild(row);
-    });
-    return list;
+    return el('span', 'lvl lvl-' + sector.level, sector.label);
   }
 
   function historyList(items) {
@@ -1285,136 +1484,103 @@ code {
     return list;
   }
 
-  function valueFor(sector, key) {
-    var wrap = el('div');
-    if (key === 'level') {
-      wrap.appendChild(levelChip(sector));
-      if (sector.level === 'insuficiente') {
-        wrap.appendChild(el('p', 'cmp-note', 'Hay lote, falta una lectura: no es Bajo.'));
-      }
-      if (sector.level === 'sin-evaluacion') {
-        wrap.appendChild(el('p', 'cmp-note', 'No hay lote en o antes del corte: no es Bajo.'));
-      }
-      return wrap;
-    }
-    if (key === 'lot') {
-      wrap.textContent = sector.lot || 'Sin lote en o antes del corte';
-      return wrap;
-    }
-    if (key === 'change') {
-      wrap.textContent = sector.change;
-      if (sector.prev) {
-        wrap.appendChild(el('p', 'cmp-note', 'Lote anterior: ' + sector.prev + ' · ' + sector.prevLabel));
-      } else {
-        wrap.appendChild(el('p', 'cmp-note', 'No hay lote actual que comparar.'));
-      }
-      return wrap;
-    }
-    if (key === 'factors') {
-      if (sector.factors.length === 0) {
-        wrap.textContent = 'Sin factores: el lote no existe.';
-      } else {
-        wrap.appendChild(miniList(sector.factors));
-      }
-      return wrap;
-    }
-    if (key === 'history') {
-      if (sector.history.length === 0) {
-        wrap.textContent = 'Sin lotes publicados en o antes del corte.';
-      } else {
-        wrap.appendChild(historyList(sector.history));
-      }
-      return wrap;
-    }
-    wrap.textContent = sector.reading;
-    return wrap;
+  function metaRow(label, value, note) {
+    var row = el('div');
+    row.appendChild(el('dt', '', label));
+    var dd = el('dd', '', value);
+    if (note) dd.appendChild(el('span', 'cmp-note', note));
+    row.appendChild(dd);
+    return row;
   }
 
-  var ATTRS = [
-    ['Nivel', 'level'],
-    ['Último lote ≤ corte', 'lot'],
-    ['Cambio entre los dos últimos lotes', 'change'],
-    ['Factores (aporte ilustrativo)', 'factors'],
-    ['Historial (3 lotes)', 'history'],
-    ['Lectura', 'reading']
-  ];
+  function factorRow(name, value) {
+    var row = el('li', 'cmp-factor');
+    row.appendChild(el('span', 'cmp-factor-name', name));
+    if (/^[0-9]+,[0-9]{2}$/.test(value)) {
+      row.appendChild(el('span', 'cmp-factor-value', value));
+      var track = el('span', 'cmp-factor-track');
+      track.setAttribute('aria-hidden', 'true');
+      var fill = el('span', 'cmp-factor-fill');
+      var share = Math.min(1, parseFloat(value.replace(',', '.')) / 0.25);
+      fill.style.width = Math.round(share * 100) + '%';
+      track.appendChild(fill);
+      row.appendChild(track);
+    } else {
+      row.appendChild(el('span', 'cmp-factor-missing', value));
+    }
+    return row;
+  }
+
+  function compareColumn(id, index, total) {
+    var sector = SECTORS[id];
+    var column = el('article', 'cmp-col');
+    column.setAttribute('data-sector-col', id);
+    column.setAttribute('aria-labelledby', 'cmp-title-' + id);
+
+    var head = el('header', 'cmp-col-head');
+    head.appendChild(el('p', 'eyebrow', 'Sector ' + (index + 1) + ' de ' + total));
+    var heading = el('h4', 'cmp-col-name', sector.name);
+    heading.id = 'cmp-title-' + id;
+    head.appendChild(heading);
+    head.appendChild(el('p', 'cmp-head-sub', sector.comunas));
+    var levelWrap = el('p', 'cmp-col-level');
+    levelWrap.appendChild(levelChip(sector));
+    head.appendChild(levelWrap);
+    if (sector.level === 'insuficiente') {
+      head.appendChild(el('p', 'cmp-note', 'Hay lote, falta una lectura: no es Bajo.'));
+    }
+    if (sector.level === 'sin-evaluacion') {
+      head.appendChild(el('p', 'cmp-note', 'No hay lote en o antes del corte: no es Bajo.'));
+    }
+    column.appendChild(head);
+
+    var meta = el('dl', 'cmp-meta');
+    meta.appendChild(metaRow('Último lote ≤ corte', sector.lot || 'Sin lote en o antes del corte'));
+    meta.appendChild(metaRow(
+      'Cambio entre los dos últimos lotes',
+      sector.change,
+      sector.prev ? 'Lote anterior: ' + sector.prev + ' · ' + sector.prevLabel : 'No hay lote actual que comparar.'
+    ));
+    column.appendChild(meta);
+
+    var factors = el('section', 'cmp-factors');
+    factors.setAttribute('aria-label', 'Factores de ' + sector.name);
+    factors.appendChild(el('p', 'cmp-factors-title', 'Factores (aporte ilustrativo)'));
+    if (sector.factors.length === 0) {
+      factors.appendChild(el('p', 'cmp-absence', 'Sin factores: el lote no existe.'));
+    } else {
+      var list = el('ol', 'cmp-factor-list');
+      sector.factors.forEach(function (factor) { list.appendChild(factorRow(factor[0], factor[1])); });
+      factors.appendChild(list);
+    }
+    column.appendChild(factors);
+
+    var history = el('details', 'disclosure');
+    history.appendChild(el('summary', '', sector.history.length === 0
+      ? 'Historial (sin lotes) y lectura'
+      : 'Historial (3 lotes) y lectura'));
+    var body = el('div', 'disclosure-body');
+    if (sector.history.length === 0) {
+      body.appendChild(el('p', 'cmp-absence', 'Sin lotes publicados en o antes del corte.'));
+    } else {
+      body.appendChild(historyList(sector.history));
+    }
+    body.appendChild(el('p', 'cmp-reading', sector.reading));
+    history.appendChild(body);
+    column.appendChild(history);
+
+    return column;
+  }
 
   function renderCompare() {
     compareRegion.replaceChildren();
-    var ids = selected.slice();
-    if (ids.length < 2) return;
-
-    if (narrow.matches) {
-      var stack = el('div', 'cmp-stack');
-      stack.style.setProperty('--cols', String(ids.length));
-      ids.forEach(function (id, index) {
-        var sector = SECTORS[id];
-        var card = el('article', 'cmp-card');
-        card.setAttribute('data-sector-col', id);
-        card.setAttribute('data-sector-head', id);
-        card.appendChild(el('p', 'eyebrow', 'SECTOR ' + (index + 1) + ' DE ' + ids.length));
-        var heading = el('h3', '', sector.name);
-        heading.id = 'cmp-title-' + id;
-        card.appendChild(heading);
-        card.appendChild(el('p', 'cmp-head-sub', sector.comunas));
-        var levelWrap = el('div');
-        levelWrap.appendChild(levelChip(sector));
-        card.appendChild(levelWrap);
-        var facts = el('dl', 'facts');
-        ATTRS.forEach(function (attr) {
-          var row = el('div');
-          row.appendChild(el('dt', '', attr[0]));
-          var dd = el('dd');
-          dd.appendChild(valueFor(sector, attr[1]));
-          row.appendChild(dd);
-          facts.appendChild(row);
-        });
-        card.appendChild(facts);
-        stack.appendChild(card);
-      });
-      compareRegion.appendChild(stack);
-      return;
-    }
-
-    var table = el('table', 'cmp-table');
-    var caption = el('caption', 'sr-only', 'Comparación de ' + ids.length + ' sectores del corte 21 nov 2026 · 18:00');
-    table.appendChild(caption);
-    var thead = el('thead');
-    var headRow = el('tr');
-    var corner = el('th', 'cmp-corner', 'Atributo');
-    corner.scope = 'col';
-    headRow.appendChild(corner);
-    ids.forEach(function (id) {
-      var sector = SECTORS[id];
-      var th = el('th');
-      th.scope = 'col';
-      th.setAttribute('data-sector-head', id);
-      var name = el('span', 'cmp-head-name', sector.name);
-      th.appendChild(name);
-      th.appendChild(el('span', 'cmp-head-sub', sector.comunas));
-      var level = el('span', 'cmp-head-level');
-      level.appendChild(levelChip(sector));
-      th.appendChild(level);
-      headRow.appendChild(th);
-    });
-    thead.appendChild(headRow);
-    table.appendChild(thead);
-    var tbody = el('tbody');
-    ATTRS.forEach(function (attr) {
-      var row = el('tr');
-      var label = el('th', '', attr[0]);
-      label.scope = 'row';
-      row.appendChild(label);
-      ids.forEach(function (id) {
-        var cell = el('td');
-        cell.setAttribute('data-sector-col', id);
-        cell.appendChild(valueFor(SECTORS[id], attr[1]));
-        row.appendChild(cell);
-      });
-      tbody.appendChild(row);
-    });
-    table.appendChild(tbody);
-    compareRegion.appendChild(table);
+    if (selected.length < 2) return;
+    var board = el('div', 'cmp-grid');
+    board.style.setProperty('--cols', String(selected.length));
+    board.setAttribute('role', 'group');
+    board.setAttribute('aria-label', 'Comparación de ' + selected.length + ' sectores del corte 21 nov 2026 · 18:00');
+    selected.forEach(function (id, index) { board.appendChild(compareColumn(id, index, selected.length)); });
+    compareRegion.appendChild(board);
   }
 
   function updatePicks() {
@@ -1457,11 +1623,10 @@ code {
   });
 
   renderCompare();
-  if (narrow.addEventListener) narrow.addEventListener('change', renderCompare);
-  else if (narrow.addListener) narrow.addListener(renderCompare);
 
-  /* Notifications: the real state is empty; the scenario is a separate,
-     labelled preview with ordering and pagination. Nothing is persisted. */
+  /* Notifications: the real state is empty; the preview is a separate,
+     labelled disclosure with its own ordering and pagination. Nothing is
+     persisted and no service is contacted. */
   var ALERTS = [
     ['20 nov 2026 · 15:47', 'Interior El Belloto', 'BAJO → MEDIO', 'Cruce de nivel hacia arriba'],
     ['20 nov 2026 · 15:22', 'Franja Peñuelas', 'BAJO → INFORMACIÓN INSUFICIENTE', 'Pérdida de lectura (no es descenso)'],
@@ -1478,6 +1643,7 @@ code {
   var page = 1;
   var scenarioButton = document.getElementById('btn-scenario');
   var scenarioPanel = document.getElementById('scenario-panel');
+  var scenarioTitle = document.getElementById('scenario-title');
   var orderSelect = document.getElementById('order-select');
   var alertBody = document.getElementById('alert-body');
   var pageLabel = document.getElementById('page-label');
@@ -1529,23 +1695,30 @@ code {
     prevButton.disabled = page <= 1;
     nextButton.disabled = page >= pages;
     if (announce) {
-      alertStatus.textContent = 'Página ' + page + ' de ' + pages + ' del escenario, ' +
+      alertStatus.textContent = 'Página ' + page + ' de ' + pages + ' de la previsualización, ' +
         (order === 'desc' ? 'más recientes primero' : 'más antiguas primero') + '.';
     }
   }
 
-  scenarioButton.addEventListener('click', function () {
-    scenarioOn = !scenarioOn;
-    scenarioButton.setAttribute('aria-pressed', scenarioOn ? 'true' : 'false');
-    scenarioButton.textContent = scenarioOn ? 'Ocultar escenario ilustrativo' : 'Ver escenario ilustrativo';
-    scenarioPanel.hidden = !scenarioOn;
-    if (scenarioOn) {
+  function setScenario(on) {
+    scenarioOn = on;
+    scenarioButton.setAttribute('aria-pressed', on ? 'true' : 'false');
+    scenarioButton.setAttribute('aria-expanded', on ? 'true' : 'false');
+    scenarioButton.textContent = on ? 'Ocultar previsualización ilustrativa' : 'Ver previsualización ilustrativa';
+    scenarioPanel.hidden = !on;
+    if (on) {
       page = 1;
       renderAlerts(false);
-      alertStatus.textContent = 'Escenario visible: 8 filas inventadas, no alertas registradas. El estado real sigue vacío.';
+      alertStatus.textContent = 'Previsualización visible: 8 filas inventadas, no alertas registradas. El estado real sigue vacío.';
+      scenarioTitle.focus();
     } else {
-      alertStatus.textContent = 'Escenario oculto. Estado real: sin notificaciones.';
+      alertStatus.textContent = 'Previsualización oculta. Estado real: sin notificaciones.';
+      scenarioButton.focus();
     }
+  }
+
+  scenarioButton.addEventListener('click', function () {
+    setScenario(!scenarioOn);
   });
 
   orderSelect.addEventListener('change', function () {
@@ -1558,12 +1731,18 @@ code {
     if (page > 1) {
       page -= 1;
       renderAlerts(true);
+      /* The pager control that was just used disables itself on the first page:
+         hand focus to the enabled complementary control instead of dropping it
+         to the document body. The live region still announces the page. */
+      if (prevButton.disabled) nextButton.focus();
     }
   });
 
   nextButton.addEventListener('click', function () {
+    if (nextButton.disabled) return;
     page += 1;
     renderAlerts(true);
+    if (nextButton.disabled) prevButton.focus();
   });
 
   renderAlerts(false);

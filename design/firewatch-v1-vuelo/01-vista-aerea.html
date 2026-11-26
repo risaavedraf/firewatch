@@ -3,7 +3,69 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FireWatch · Vista aérea de Valparaíso</title>
+<style id="fw-product-nav">
+/* FireWatch · navegación global del producto (componente compartido).
+   Fuente del bloque: product-navigation.mjs. */
+.fw-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 5px 12px;
+  border-block-end: 1px solid var(--fw-edge);
+  background: var(--fw-surface);
+  color: var(--fw-ink);
+  font: 600 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.fw-nav--map { --fw-surface: var(--panel, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--border, #647b8a); --fw-accent: var(--focus, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--aerial { --fw-surface: var(--aerial-panel, #17222b); --fw-ink: var(--aerial-ink, #f4f1eb); --fw-muted: var(--aerial-muted, #b8c8d2); --fw-edge: var(--aerial-border, #647b8a); --fw-accent: var(--aerial-focus, #94dfda); --fw-raised: var(--aerial-raised, #243341); }
+.fw-nav--panel { --fw-surface: var(--surface, #17222b); --fw-ink: var(--text, #f4f1eb); --fw-muted: var(--text-muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--surface-raised, #243341); }
+.fw-nav--plain { --fw-surface: var(--surface, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--sticky { position: sticky; top: 0; z-index: 30; min-height: 48px; }
+.fw-nav--fixed { position: fixed; inset: 0 0 auto; z-index: 2; flex-wrap: nowrap; height: var(--fw-nav-h, 48px); padding-block: 3px; }
+html { scroll-padding-top: calc(var(--fw-nav-h, 48px) + 56px); }
+.fw-nav--sticky + .app .viewnav { top: var(--fw-nav-h, 48px); }
+.fw-nav__primary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.fw-nav--fixed .fw-nav__primary { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding-block: 1px; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.fw-nav__link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 9px; color: var(--fw-ink); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.fw-nav__link:hover { background: var(--fw-raised); }
+.fw-nav__link[aria-current="page"] { border-color: var(--fw-edge); background: var(--fw-raised); color: var(--fw-accent); text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav a:focus-visible, .fw-nav summary:focus-visible { outline: 3px solid var(--fw-accent); outline-offset: 2px; }
+.fw-nav--fixed .fw-nav__primary .fw-nav__link:focus-visible { outline-offset: -2px; }
+.fw-nav__more { display: flex; min-width: 0; }
+.fw-nav__summary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 11px; border: 1px solid var(--fw-edge); border-radius: 9px; color: var(--fw-ink); font-weight: 700; white-space: nowrap; cursor: pointer; list-style: none; }
+.fw-nav__summary::-webkit-details-marker { display: none; }
+.fw-nav__summary::after { content: "▾"; font-size: 10px; line-height: 1; }
+.fw-nav__summary:hover { background: var(--fw-raised); }
+.fw-nav__more[open] > .fw-nav__summary { border-color: var(--fw-accent); background: var(--fw-raised); color: var(--fw-accent); }
+.fw-nav__panel { position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 10px; z-index: 40; width: min(720px, calc(100vw - 20px)); max-height: min(70dvh, 520px); overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px 14px; border: 1px solid var(--fw-edge); border-radius: 12px; background: var(--fw-surface); color: var(--fw-ink); box-shadow: 0 16px 32px rgb(0 0 0 / 32%); }
+.fw-nav__panel-title { margin: 0 0 9px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.fw-nav__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 18px; }
+.fw-nav__group-title { margin: 0 0 3px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__list { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.fw-nav__item { display: flex; align-items: center; min-height: 32px; padding: 2px 6px; border-radius: 6px; color: var(--fw-ink); font-size: 12.5px; font-weight: 600; line-height: 1.35; text-decoration: none; }
+.fw-nav__item:hover { background: var(--fw-raised); }
+.fw-nav__item[aria-current="page"] { color: var(--fw-accent); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav__note { margin: 10px 0 0; padding-top: 8px; border-block-start: 1px solid var(--fw-edge); color: var(--fw-muted); font-size: 11.5px; }
+.fw-nav__where { margin: 0 0 0 auto; min-width: 0; color: var(--fw-muted); font-size: 12px; }
+.fw-nav__where-label { font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__where strong { color: var(--fw-ink); font-weight: 750; }
+.fw-nav--fixed .fw-nav__where { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) {
+  .fw-nav--fixed .fw-nav__where { display: none; }
+  .fw-nav--fixed .fw-nav__link, .fw-nav--fixed .fw-nav__summary { font-size: 12px; padding-inline: 7px; }
+}
+@media (max-width: 420px) {
+  .fw-nav { padding-inline: 8px; }
+  .fw-nav__link, .fw-nav__summary { padding-inline: 8px; }
+  .fw-nav--fixed .fw-nav__summary-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fw-nav, .fw-nav * { transition: none !important; animation: none !important; }
+}
+</style>
+<title>FireWatch · Territorio · Solicitudes de lote por comuna</title>
 <style>
 :root {
   color-scheme: dark;
@@ -11,6 +73,8 @@
   --muted: #b8c8d2; --border: #647b8a; --focus: #94dfda; --terrain-low: #46575a;
   --terrain-high: #738077; --roof: #aeb7b8; --wall: #3f4b52; --coast: #829a9d;
   --high: #d97962; --medium: #d7b16a; --low: #72b1a1; --label: #121c22; --unknown: #c4cbd1;
+  /* Alto de la barra global del producto: la cabecera y los paneles fijos se desplazan por debajo. */
+  --fw-nav-h: 48px;
 }
 [data-theme="day"] {
   color-scheme: light;
@@ -23,58 +87,196 @@
 body { margin: 0; background: var(--water); color: var(--ink); font: 400 14px/1.45 system-ui, sans-serif; }
 canvas { position: fixed; inset: 0; width: 100vw; height: 100dvh; touch-action: none; cursor: grab; }
 canvas:active { cursor: grabbing; }
-header, .controls, .info, .legend, .note { position: fixed; z-index: 1; }
+header, .controls, .work-rail, .legend, .info, .result-dock { position: fixed; z-index: 1; }
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
-header { inset: 14px 14px auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
-.brand { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.skip { position: fixed; z-index: 3; top: 8px; left: 8px; padding: 9px 13px; border-radius: 9px; border: 1px solid var(--focus); background: var(--panel); color: var(--ink); font-weight: 700; text-decoration: none; transform: translateY(calc(-100% - 16px)); }
+.skip:focus { transform: translateY(0); }
+header { inset: calc(14px + var(--fw-nav-h)) 14px auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 10px 14px; }
+.brand { display: flex; gap: 11px; align-items: center; min-width: 0; flex: 1 1 320px; }
 .mark { width: 34px; height: 34px; flex: none; color: var(--focus); }
-small, .muted { color: var(--muted); }
-h1, h2, p { margin: 0; }
+.brand-text { min-width: 0; }
+small, .muted, .hint { color: var(--muted); }
+h1, h2, h3, p { margin: 0; }
 h1 { font-size: clamp(16px, 2.3vw, 22px); line-height: 1.15; letter-spacing: -.025em; }
 h2 { font-size: 19px; line-height: 1.24; }
+h3 { font-size: 15px; line-height: 1.3; }
 .product { color: var(--focus); font-size: 11px; font-weight: 720; letter-spacing: .12em; text-transform: uppercase; }
+.sub { font-size: 12px; line-height: 1.35; margin-top: 2px; }
+.header-side { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 button { border: 1px solid var(--border); border-radius: 8px; background: var(--raised); color: var(--ink); font: inherit; font-weight: 650; min-height: 40px; min-width: 40px; padding: 6px 10px; cursor: pointer; }
 button:hover, button[aria-pressed="true"] { border-color: var(--focus); color: var(--focus); }
-button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.controls { top: 88px; right: 14px; display: grid; gap: 8px; padding: 8px; }
+button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+a { color: var(--focus); }
+.primary { background: var(--focus); border-color: var(--focus); color: var(--label); font-weight: 800; }
+.primary:hover { background: var(--focus); border-color: var(--ink); color: var(--label); }
+.controls { top: calc(104px + var(--fw-nav-h)); right: 14px; display: grid; gap: 8px; padding: 8px; }
 .controls [role="group"] { display: flex; justify-content: space-between; gap: 6px; }
-.info { inset: auto auto 37px 14px; width: min(375px, calc(100vw - 28px)); padding: 14px; display: grid; gap: 11px; }
-.cutrow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 9px; }
-input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
-.sectors { display: flex; flex-wrap: wrap; gap: 5px; }
-.sectors button { font-size: 12px; padding: 4px 8px; min-height: 36px; }
-#details { padding-top: 10px; border-top: 1px solid var(--border); }
-#details p { margin-top: 4px; }
-.tag { display: inline-block; font-size: 12px; font-weight: 760; }
-.tag::before { content: '◆'; margin-inline-end: 5px; }
-.legend { right: 14px; bottom: 37px; padding: 8px 11px; display: flex; align-items: center; flex-wrap: wrap; gap: 5px 12px; }
-.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.chip { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 999px; padding: 2px 7px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; white-space: nowrap; }
+.rail-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panel-title { font-size: 15px; }
+.work-rail { left: 14px; top: calc(104px + var(--fw-nav-h)); bottom: 36px; width: 400px; display: grid; align-content: start; gap: 10px; padding: 12px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.rail-block { display: grid; gap: 9px; align-content: start; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--raised); }
+.rail-block .hint { font-size: 12px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+#request-lots { display: grid; gap: 6px; }
+.bulk-selection { display: flex; flex-wrap: wrap; gap: 6px; }
+.bulk-selection button { min-height: 36px; font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.lot-choice { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 6px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); cursor: pointer; }
+.lot-choice input { width: 20px; height: 20px; flex: none; accent-color: var(--focus); }
+.lot-choice > span:first-of-type { font-weight: 700; }
+.lot-choice .commune-state { margin-inline-start: auto; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.lot-choice:has(input:checked) { border-color: var(--focus); }
+.lot-choice[data-busy="true"] { opacity: .7; cursor: not-allowed; }
+#send-lots { width: 100%; }
+#request-feedback { font-size: 12px; color: var(--muted); }
+#request-feedback:empty { display: none; }
+.jobs { display: grid; gap: 8px; }
+.job-empty { padding: 10px 0; color: var(--muted); font-size: 13px; }
+.job { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--border); border-inline-start: 4px solid var(--border); border-radius: 10px; background: var(--panel); }
+.job[data-state="pending"] { border-inline-start-color: var(--medium); }
+.job[data-state="ready"] { border-inline-start-color: var(--low); }
+.job[data-state="failed"] { border-inline-start-color: var(--high); }
+.job-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.job-id { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.job-line { font-size: 13px; }
+.job-meta { color: var(--muted); font-size: 12px; }
+.job-note { color: var(--muted); font-size: 12px; }
+.status { border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.status-pending { color: var(--medium); }
+.status-ready { color: var(--low); }
+.status-failed { color: var(--high); }
+.job-action-slot:empty { display: none; }
+.job-action { width: 100%; min-height: 36px; padding: 4px 10px; }
+.legend { right: 14px; top: calc(264px + var(--fw-nav-h)); display: grid; gap: 5px; padding: 8px 11px; }
+.legend-caption { color: var(--muted); font-size: 11px; font-weight: 700; }
+.legend-items { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 11px; font-size: 12px; }
+.legend-items span { display: inline-flex; align-items: center; gap: 5px; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 .high { background: var(--high); } .medium { background: var(--medium); } .low { background: var(--low); }
 .unknown { border: 1px dashed var(--unknown); }
-.note { bottom: 0; left: 0; right: 0; padding: 5px 14px; background: var(--panel); color: var(--muted); font-size: 12px; }
+.info { right: 14px; top: calc(328px + var(--fw-nav-h)); bottom: 36px; width: 352px; display: grid; align-content: start; gap: 10px; padding: 14px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.info-head { display: grid; gap: 4px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.info-head .hint { font-size: 12px; }
+.cutrow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 9px; }
+input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
+#cutoff-help { font-size: 12px; }
+.sectors { display: flex; flex-wrap: wrap; gap: 5px; }
+.sectors button { font-size: 12px; padding: 4px 8px; min-height: 36px; }
+#details { display: grid; gap: 4px; padding-top: 10px; border-top: 1px solid var(--border); }
+#details h2 { font-size: 18px; }
+#details p { font-size: 13px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 760; }
+.tag::before { content: '◆'; margin-inline-end: 5px; }
+.result-dock { left: 428px; right: 380px; bottom: 40px; max-width: 560px; margin-inline: auto; display: grid; gap: 8px; padding: 12px 14px; }
+.result-dock .lot-result { max-height: 30dvh; overflow-y: auto; }
+.lot-result { display: grid; gap: 5px; }
+.lot-result h3 { font-size: 16px; }
+.lot-result p { font-size: 13px; }
+.lot-result .hint { font-size: 12px; }
 [hidden] { display: none !important; }
-@media (max-width: 600px) {
-  header { inset: 7px 7px auto; padding: 6px 9px; }
-  .mark { width: 27px; height: 27px; }
-  .controls { top: 67px; right: 7px; gap: 5px; padding: 5px; }
-  .controls button { font-size: 12px; min-height: 36px; }
-  .info { inset: auto 7px 34px; width: auto; padding: 10px; gap: 6px; max-height: 44dvh; overflow-y: auto; }
-  .legend { inset: auto 7px calc(34px + min(44dvh, 287px) + 6px); font-size: 11px; padding: 4px 8px; width: fit-content; max-width: calc(100vw - 14px); }
-  .note { font-size: 10px; padding: 4px 8px; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media (max-width: 1120px) {
+  /* La barra deja de fijarse cuando la estación pasa a flujo normal. */
+  .fw-nav--fixed { position: sticky; top: 0; height: auto; }
+  main { display: grid; gap: 8px; padding: 8px 8px 18px; }
+  canvas { position: static; inset: auto; display: block; order: 2; width: 100%; height: min(58dvh, 460px); min-height: 240px; border-radius: 14px; }
+  header { position: static; inset: auto; order: 1; padding: 8px 10px; }
+  .brand { flex: 1 1 220px; }
+  .controls { position: static; inset: auto; order: 3; display: flex; flex-wrap: wrap; justify-self: start; }
+  .legend { position: static; inset: auto; order: 4; justify-self: start; max-width: 100%; }
+  .work-rail { position: static; inset: auto; order: 5; width: auto; max-height: none; overflow: visible; }
+  .info { position: static; inset: auto; order: 6; width: auto; max-height: none; overflow: visible; }
+  .result-dock { position: static; inset: auto; order: 7; width: auto; max-width: none; margin: 0; }
+}
+@media (max-width: 560px) {
+  .mark { width: 26px; height: 26px; }
+  h1 { font-size: 16px; }
+  .sub { font-size: 11px; }
+  header .header-side button { font-size: 12px; min-height: 36px; }
+  .controls button { font-size: 12px; min-height: 36px; padding: 4px 8px; }
+  .work-rail, .rail-block { padding: 10px; }
+  .info { padding: 11px; }
+  .job-note { font-size: 11px; }
+  .result-dock { padding: 10px 11px; }
 }
 </style>
 </head>
 <body>
-<main aria-label="Explorador territorial aéreo">
-  <canvas id="terrain" role="img" aria-label="Mapa esquemático inclinado de Valparaíso. Los controles y la lista permiten explorar el mismo territorio sin usar el mapa."></canvas>
+<a class="skip" href="#work-rail">Ir a las solicitudes de lote</a>
+<!-- fw-product-nav:start · navegación global compartida · la escribe design/firewatch-v1-vuelo/product-navigation.mjs; no editar a mano -->
+<nav class="fw-nav fw-nav--fixed fw-nav--map" aria-label="Navegación del producto FireWatch">
+  <ul class="fw-nav__primary">
+    <li><a class="fw-nav__link" href="01-vista-aerea.html" aria-label="Mapa · Territorio" aria-current="page">Mapa</a></li>
+    <li><a class="fw-nav__link" href="07-panel-ejecutivo.html" aria-label="Panel ejecutivo">Panel</a></li>
+    <li><a class="fw-nav__link" href="05-historial-de-lotes.html" aria-label="Historial de lotes">Historial</a></li>
+    <li><a class="fw-nav__link" href="06-acciones-preventivas.html" aria-label="Acciones preventivas">Acciones</a></li>
+  </ul>
+  <details class="fw-nav__more">
+    <summary class="fw-nav__summary"><span class="fw-nav__summary-text">Más destinos</span></summary>
+    <div class="fw-nav__panel">
+      <p class="fw-nav__panel-title">Otras pantallas del producto</p>
+      <div class="fw-nav__groups">
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-territorio">Territorio y lectura</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-territorio">
+            <li><a class="fw-nav__item" href="02-vista-regional.html">Vista regional</a></li>
+            <li><a class="fw-nav__item" href="03-acciones-en-el-mapa.html">Acciones rápidas en el mapa</a></li>
+            <li><a class="fw-nav__item" href="04-cobertura-territorial.html">Cobertura y contexto territorial</a></li>
+            <li><a class="fw-nav__item" href="21-lecturas-por-sector.html">Lecturas por sector</a></li>
+            <li><a class="fw-nav__item" href="08-comparar-sectores.html">Comparar sectores</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-decision">Decisión y alertas</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-decision">
+            <li><a class="fw-nav__item" href="09-notificaciones.html">Notificaciones</a></li>
+            <li><a class="fw-nav__item" href="10-simulacion-contrafactual.html">Simulación contrafactual</a></li>
+            <li><a class="fw-nav__item" href="11-observaciones-de-campo.html">Observaciones de campo</a></li>
+            <li><a class="fw-nav__item" href="13-ficha-de-zona.html">Ficha de zona · Vista previa PDF</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-datos">Solicitudes y datos</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-datos">
+            <li><a class="fw-nav__item" href="12-exportacion-csv.html">Exportación CSV</a></li>
+            <li><a class="fw-nav__item" href="20-datos-del-modelo.html">Datos del modelo</a></li>
+            <li><a class="fw-nav__item" href="15-fuentes-y-servicios.html">Fuentes y servicios</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-acceso">Acceso y control</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-acceso">
+            <li><a class="fw-nav__item" href="14-acceso.html">Acceso · Iniciar sesión</a></li>
+            <li><a class="fw-nav__item" href="17-sesion-y-permisos.html">Sesión y permisos</a></li>
+            <li><a class="fw-nav__item" href="18-registro-de-actividad.html">Registro de actividad</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="fw-nav__note">Mapa, Panel, Historial y Acciones están siempre en esta barra.</p>
+    </div>
+  </details>
+  <p class="fw-nav__where"><span class="fw-nav__where-label">Estás en</span> <strong>Territorio · Vista aérea</strong></p>
+</nav>
+<!-- fw-product-nav:end -->
+<main aria-label="Estación de trabajo territorial: mapa y solicitudes de lote por comuna">
+  <canvas id="terrain" role="img" aria-label="Mapa de riesgo por sector de Valparaíso, Viña del Mar y Quilpué. Usa la lista de sectores para consultar cada lectura sin interactuar con el mapa."></canvas>
   <header class="panel">
     <div class="brand">
       <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="currentColor"/><path d="M6 23l7-12 4 5 4-9 5 16z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.6"/></svg>
-      <div><p class="product">FireWatch / Territorio</p><h1>Valparaíso desde el aire</h1></div>
+      <div class="brand-text">
+        <p class="product">FireWatch / Territorio</p>
+        <h1>Solicitudes de lote por comuna</h1>
+        <p class="sub muted">Valparaíso, Viña del Mar y Quilpué sobre el mapa de trabajo</p>
+      </div>
     </div>
-    <button id="expand" type="button" aria-pressed="false">Expandir mapa</button>
+    <div class="header-side">
+      <button id="expand" type="button" aria-pressed="false" aria-controls="work-rail">Expandir mapa</button>
+    </div>
   </header>
+
   <nav class="controls panel" aria-label="Controles del mapa">
     <div role="group" aria-label="Perspectiva">
       <button id="aerial" type="button" aria-pressed="true">Vista aérea</button>
@@ -92,11 +294,64 @@ input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
       <button id="reset" type="button" aria-label="Restablecer cámara">Centrar</button>
     </div>
   </nav>
-  <section class="info panel" id="info" aria-label="Corte temporal y sectores a revisar">
+
+  <aside id="work-rail" class="work-rail panel" aria-label="Estación de solicitudes de lote">
+    <section class="rail-block" aria-labelledby="request-title">
+      <div class="rail-head">
+        <h2 class="panel-title" id="request-title">1 · Solicitar lotes</h2>
+        <span class="chip">Por comuna</span>
+      </div>
+      <p class="hint">Selecciona comunas una a una, por provincia o todas las disponibles. Luego pulsa «Solicitar lotes».</p>
+      <div class="bulk-selection" role="group" aria-label="Selección rápida de comunas">
+        <button type="button" id="select-all-communes">Seleccionar todas</button>
+        <button type="button" data-select-province="valparaiso" aria-label="Seleccionar comunas de la provincia de Valparaíso">Prov. Valparaíso</button>
+        <button type="button" data-select-province="marga-marga" aria-label="Seleccionar comunas de la provincia de Marga Marga">Prov. Marga Marga</button>
+      </div>
+      <fieldset id="request-lots">
+        <legend class="sr-only">Comunas para solicitar un lote</legend>
+        <label class="lot-choice"><input type="checkbox" value="valparaiso" data-province="valparaiso"><span>Valparaíso</span><span class="commune-state" data-commune-state="valparaiso"></span></label>
+        <label class="lot-choice"><input type="checkbox" value="vina" data-province="valparaiso"><span>Viña del Mar</span><span class="commune-state" data-commune-state="vina"></span></label>
+        <label class="lot-choice"><input type="checkbox" value="quilpue" data-province="marga-marga"><span>Quilpué</span><span class="commune-state" data-commune-state="quilpue"></span></label>
+      </fieldset>
+      <button id="send-lots" class="primary" type="button">Solicitar lotes</button>
+      <p id="request-feedback" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="rail-block" aria-labelledby="jobs-title">
+      <div class="rail-head">
+        <h2 class="panel-title" id="jobs-title">2 · Solicitudes</h2>
+        <span class="chip" id="jobs-count">0</span>
+      </div>
+      <p class="hint">Cada fila avanza por su cuenta. La primera solicitud no bloquea la respuesta de las demás.</p>
+      <div id="lot-jobs" class="jobs">
+        <p class="job-empty" id="lot-jobs-empty">Todavía no has solicitado lotes</p>
+      </div>
+    </section>
+
+  </aside>
+
+  <aside id="legend" class="legend panel" aria-label="Leyenda de riesgo">
+    <p class="legend-caption">Nivel de riesgo</p>
+    <div class="legend-items">
+      <span><i class="swatch high" aria-hidden="true"></i> Alto</span>
+      <span><i class="swatch medium" aria-hidden="true"></i> Medio</span>
+      <span><i class="swatch low" aria-hidden="true"></i> Bajo</span>
+      <span><i class="swatch unknown" aria-hidden="true"></i> Sin evaluación</span>
+    </div>
+  </aside>
+
+  <section class="info panel" id="info" aria-labelledby="territorio-title">
+    <div class="info-head">
+      <div class="rail-head">
+        <h2 class="panel-title" id="territorio-title">Lectura territorial</h2>
+        <span class="chip">Sectores</span>
+      </div>
+      <p class="hint">El riesgo se lee por sector. La comuna de una solicitud no se usa como geografía de riesgo.</p>
+    </div>
     <div>
       <div class="cutrow"><label for="cutoff"><strong>Fecha de corte</strong></label><output class="muted" id="cutoff-label" for="cutoff"></output></div>
       <input id="cutoff" type="range" min="0" max="1" value="1" aria-describedby="cutoff-help">
-      <p id="cutoff-help" class="muted">Último lote disponible por sector hasta esta fecha.</p>
+      <p id="cutoff-help" class="muted">Muestra el último lote publicado por sector hasta la fecha de corte.</p>
     </div>
     <div class="sectors" role="group" aria-label="Seleccionar sector">
       <button type="button" data-sector="east" aria-pressed="true">Quebrada del Este</button>
@@ -111,13 +366,16 @@ input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
       <p id="factors" class="muted"></p>
     </div>
   </section>
-  <aside id="legend" class="legend panel" aria-label="Leyenda de riesgo">
-    <span><i class="swatch high" aria-hidden="true"></i> Alto</span>
-    <span><i class="swatch medium" aria-hidden="true"></i> Medio</span>
-    <span><i class="swatch low" aria-hidden="true"></i> Bajo</span>
-    <span><i class="swatch unknown" aria-hidden="true"></i> Sin evaluación</span>
-  </aside>
-  <footer class="note">Prototipo · Relieve, edificios, límites y lecturas son ilustrativos; no sirven para decisiones operativas.</footer>
+
+  <section class="result-dock panel" aria-labelledby="result-title">
+    <div class="rail-head">
+      <h2 class="panel-title" id="result-title">Resultado abierto</h2>
+    </div>
+    <div id="lot-result" class="lot-result" role="status" aria-live="polite">
+      <p class="hint">Abre una solicitud que esté lista para consultar el resultado del lote.</p>
+    </div>
+  </section>
+
 </main>
 <script>
 'use strict';
@@ -137,13 +395,13 @@ const areas = {
   east: {
     name: 'Foco Quebrada del Este', short: 'Quebrada del Este', places: 'Valparaíso · Viña del Mar · Quilpué', x: .59, y: .43, rx: .182, ry: .135,
     lots: [
-      { level: 'Medio', color: 'medium', time: '2026-11-18T14:20:00-03:00', label: '18 nov 2026 · 14:20', factors: 'Vegetación seca y baja humedad observadas en el escenario.' },
-      { level: 'Alto', color: 'high', time: '2026-11-20T16:05:00-03:00', label: '20 nov 2026 · 16:05', factors: 'Vegetación seca, ladera y mayor viento en el escenario.' }
+      { level: 'Medio', color: 'medium', time: '2026-11-18T14:20:00-03:00', label: '18 nov 2026 · 14:20', factors: 'Vegetación seca y baja humedad.' },
+      { level: 'Alto', color: 'high', time: '2026-11-20T16:05:00-03:00', label: '20 nov 2026 · 16:05', factors: 'Vegetación seca, ladera y viento.' }
     ]
   },
   shore: {
     name: 'Borde costero', short: 'Borde costero', places: 'Valparaíso · Viña del Mar', x: .32, y: .66, rx: .103, ry: .105,
-    lots: [{ level: 'Bajo', color: 'low', time: '2026-11-18T14:20:00-03:00', label: '18 nov 2026 · 14:20', factors: 'Menor continuidad de vegetación en el escenario.' }]
+    lots: [{ level: 'Bajo', color: 'low', time: '2026-11-18T14:20:00-03:00', label: '18 nov 2026 · 14:20', factors: 'Menor continuidad de la vegetación.' }]
   },
   inland: { name: 'Interior sin lectura', short: 'Interior', places: 'Quilpué', x: .79, y: .55, rx: .095, ry: .09, lots: [] }
 };
@@ -221,7 +479,7 @@ function draw() {
   ctx.fillStyle=col('water'); ctx.fillRect(0,0,size.w,size.h);
   const projected = land.map(p=>({p, q:p.map(v=>project(...v))}));
   projected.sort((a,b)=>depth(a.q)-depth(b.q));
-  const risks = Object.fromEntries(keys.map(k=>[k,reading(areas[k])?.color]));
+  const risks = Object.fromEntries(keys.map(k=>[k, reading(areas[k])?.color]));
   for (const {p,q} of projected) {
     const x=p.reduce((v,t)=>v+t[0]/3,0), y=p.reduce((v,t)=>v+t[1]/3,0), z=p.reduce((v,t)=>v+t[2]/3,0);
     const slope=(p[2][2]-p[0][2])*8+(p[1][2]-p[0][2])*5;
@@ -264,7 +522,8 @@ function draw() {
   }
   markers=keys.map(k=>{
     const a=areas[k], p=onGround(a.x,a.y);
-    return {key:k,x:p[0],y:p[1], label:k===selected?a.short:reading(a)?.level||'Sin evaluación'};
+    const tone = reading(a);
+    return {key:k,x:p[0],y:p[1], label:k===selected?a.short:(tone?.level||'Sin evaluación')};
   });
   if (layer) markers.forEach(m=>marker(m,col));
   ctx.fillStyle=col('ink'); ctx.font='600 12px system-ui, sans-serif';
@@ -289,9 +548,9 @@ function refresh() {
   const snap=snapshots[cutoff.value], a=areas[selected], lot=reading(a);
   el('cutoff-label').textContent=snap.cutoff;
   cutoff.setAttribute('aria-valuetext',snap.cutoff);
-  el('level').textContent=lot?.level||'Sin evaluación';
   el('name').textContent=a.name;
   el('places').textContent=a.places;
+  el('level').textContent=lot?.level||'Sin evaluación';
   el('lot').textContent=lot?`Lote del ${lot.label} · ${age(snap.time,lot.time)} antes del corte`:'Sin lote publicado hasta este corte.';
   el('factors').textContent=lot?.factors||'No hay factores disponibles para este sector.';
   document.querySelectorAll('[data-sector]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.sector===selected)));
@@ -300,7 +559,7 @@ function refresh() {
 function resize() {
   const rect=terrain.getBoundingClientRect(), narrow=rect.width<=600;
   const dpr=Math.min(devicePixelRatio||1,2);
-  size={w:rect.width,h:rect.height,cx:rect.width*(narrow?.49:.55),cy:rect.height*(narrow?.46:.52),scale:Math.min(rect.width*(narrow?1.45:1.08),rect.height*(narrow?1.0:1.45))};
+  size={w:rect.width,h:rect.height,cx:rect.width*(narrow?.49:.55),cy:rect.height*(narrow?.46:.52),scale:Math.min(rect.width*(narrow?1.45:1.08),rect.height*1.45)};
   terrain.width=Math.round(size.w*dpr); terrain.height=Math.round(size.h*dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
   refresh();
@@ -324,7 +583,7 @@ click('reset',()=>{Object.assign(camera,cameraStart);pose(cameraStart.pitch);});
 click('risk',()=>{
   layer=!layer; el('risk').setAttribute('aria-pressed',String(layer));
   el('risk').setAttribute('aria-label',layer?'Ocultar capa de riesgo':'Mostrar capa de riesgo');
-  el('legend').hidden=!layer||expanded; draw();
+  el('legend').hidden=!layer; draw();
 });
 click('theme',()=>{
   const day=root.dataset.theme!=='day'; root.dataset.theme=day?'day':'night';
@@ -333,10 +592,195 @@ click('theme',()=>{
 });
 click('expand',()=>{
   expanded=!expanded;
-  el('info').hidden=expanded; el('legend').hidden=expanded||!layer;
-  el('expand').textContent=expanded?'Mostrar paneles':'Expandir mapa';
+  el('work-rail').hidden=expanded;
+  el('expand').textContent=expanded?'Mostrar solicitudes':'Expandir mapa';
   el('expand').setAttribute('aria-pressed',String(expanded));
 });
+
+/* Solicitudes de lote: una por comuna, con respuesta independiente y simulada. */
+const COMMUNES = {
+  valparaiso: { name: 'Valparaíso', delay: 3000, failsFirst: false },
+  vina: { name: 'Viña del Mar', delay: 950, failsFirst: false },
+  quilpue: { name: 'Quilpué', delay: 2100, failsFirst: true }
+};
+const SAMPLE_RESULTS = {
+  valparaiso: { level: 'Medio', sector: 'Quebrada del Este', factor: 'Vegetación seca y baja humedad.' },
+  vina: { level: 'Bajo', sector: 'Borde costero', factor: 'Menor continuidad de la vegetación.' },
+  quilpue: { level: 'Sin evaluación', sector: 'Interior', factor: 'El lote no contiene una evaluación para este sector.' }
+};
+const STATE_TEXT = { pending: 'En proceso', ready: 'Listo', failed: 'No disponible' };
+const RETRY_DELAY = 1100;
+const jobs = [];
+let lotSeq = 0;
+let openLotId = null;
+
+function communeOf(id) { return COMMUNES[id] || { name: id, delay: 1500, failsFirst: false }; }
+function jobOf(lot) { return jobs.find(job => job.lot === lot); }
+function say(text) { el('request-feedback').textContent = text; }
+function checkedCommunes() {
+  return [...document.querySelectorAll('#request-lots input[type="checkbox"]')].filter(input => input.checked && !input.disabled);
+}
+
+function submitLots() {
+  const chosen = checkedCommunes();
+  if (!chosen.length) {
+    say('Marca al menos una comuna que no esté en proceso para solicitar su lote.');
+    return;
+  }
+  chosen.forEach(input => {
+    const cfg = communeOf(input.value);
+    const job = { lot: ++lotSeq, commune: input.value, status: 'pending', attempts: 0, result: null, timer: null };
+    jobs.push(job);
+    input.checked = false;
+    startJob(job, cfg.delay);
+  });
+  say(chosen.length === 1
+    ? `Solicitud enviada para ${communeOf(chosen[0].value).name}. Puedes seguir enviando mientras responde.`
+    : `${chosen.length} solicitudes enviadas, una por comuna. Cada una responde cuando termina.`);
+}
+function startJob(job, delay) {
+  job.status = 'pending';
+  if (job.timer) clearTimeout(job.timer);
+  job.timer = setTimeout(() => finishJob(job), delay);
+  renderJobs();
+  syncCommuneControls();
+}
+function finishJob(job) {
+  job.timer = null;
+  const cfg = communeOf(job.commune);
+  if (job.attempts === 0 && cfg.failsFirst) {
+    job.status = 'failed'; job.result = null; job.attempts = 1;
+    say(`${cfg.name} no respondió en este intento. El lote ${job.lot} quedó disponible para reintentar solo esa solicitud.`);
+  } else {
+    job.status = 'ready'; job.attempts += 1;
+    job.result = SAMPLE_RESULTS[job.commune] || { level: 'Sin evaluación', sector: 'Sin sector', factor: 'No hay una evaluación disponible.' };
+    say(`Lote ${job.lot} de ${cfg.name} listo. Ábrelo desde su fila; no reemplaza la lectura territorial ni otras solicitudes.`);
+  }
+  renderJobs();
+  syncCommuneControls();
+}
+function retryLot(lot) {
+  const job = jobOf(lot);
+  if (!job || job.status !== 'failed') return;
+  say(`Reintentando el lote ${lot} de ${communeOf(job.commune).name}. Las demás filas no se tocan.`);
+  startJob(job, RETRY_DELAY);
+}
+function syncCommuneControls() {
+  document.querySelectorAll('#request-lots input[type="checkbox"]').forEach(input => {
+    const busy = jobs.some(job => job.commune === input.value && job.status === 'pending');
+    input.disabled = busy;
+    const label = input.closest('.lot-choice');
+    if (!label) return;
+    label.dataset.busy = String(busy);
+    const state = label.querySelector('[data-commune-state]');
+    if (state) state.textContent = busy ? 'en proceso' : '';
+  });
+}
+function make(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+function actionButton(action, lot) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'job-action';
+  button.dataset.action = action;
+  button.dataset.target = String(lot);
+  button.textContent = action === 'open' ? 'Abrir resultado' : 'Reintentar';
+  return button;
+}
+function jobRow(job) {
+  const row = document.createElement('article');
+  row.className = 'job';
+  row.dataset.lot = String(job.lot);
+  const head = make('div', 'job-head');
+  const status = make('span', 'status');
+  status.dataset.jobStatus = '';
+  head.append(make('h3', 'job-id'), status);
+  const line = make('p', 'job-line');
+  line.append(make('strong', 'job-commune'), document.createTextNode(' '), make('span', 'job-meta'));
+  row.append(head, line, make('p', 'job-note'), make('div', 'job-action-slot'));
+  return row;
+}
+function jobNote(status) {
+  if (status === 'pending') return 'En camino; las demás solicitudes siguen su curso.';
+  if (status === 'ready') return 'Lote disponible para consultar.';
+  return 'No se pudo generar el lote. Reintenta la solicitud.';
+}
+function renderJobs() {
+  const list = el('lot-jobs');
+  const empty = el('lot-jobs-empty');
+  if (empty && jobs.length) empty.remove();
+  jobs.forEach(job => {
+    let row = list.querySelector('[data-lot="' + job.lot + '"]');
+    if (!row) {
+      row = jobRow(job);
+      list.append(row);
+    }
+    const cfg = communeOf(job.commune);
+    row.dataset.state = job.status;
+    row.querySelector('.job-id').textContent = `Lote ${job.lot}`;
+    row.querySelector('.job-commune').textContent = cfg.name;
+    row.querySelector('.job-meta').textContent = '· solicitud independiente por comuna';
+    const status = row.querySelector('[data-job-status]');
+    status.textContent = STATE_TEXT[job.status];
+    status.className = 'status status-' + job.status;
+    row.querySelector('.job-note').textContent = jobNote(job.status);
+    const slot = row.querySelector('.job-action-slot');
+    const action = job.status === 'ready' ? 'open' : job.status === 'failed' ? 'retry' : null;
+    if (!action) { slot.replaceChildren(); return; }
+    let button = slot.firstElementChild;
+    if (!button || button.dataset.action !== action) {
+      button = actionButton(action, job.lot);
+      slot.replaceChildren(button);
+    }
+    if (action === 'open') button.setAttribute('aria-pressed', String(openLotId === job.lot));
+    else button.removeAttribute('aria-pressed');
+  });
+  el('jobs-count').textContent = String(jobs.length);
+}
+function openResult(lot) {
+  const job = jobOf(lot);
+  if (!job || job.status !== 'ready') return;
+  openLotId = lot;
+  const cfg = communeOf(job.commune);
+  const r = job.result;
+  const levelLine = document.createElement('p');
+  levelLine.append(make('strong', '', r.level === 'Sin evaluación' ? r.level : `Nivel ${r.level}`), document.createTextNode(` · ${r.sector}`));
+  el('lot-result').replaceChildren(
+    make('h3', '', `${cfg.name} · lote ${job.lot}`),
+    levelLine,
+    make('p', 'hint', r.factor)
+  );
+  renderJobs();
+}
+function selectCommunes(province) {
+  const available = [...el('request-lots').querySelectorAll('input:enabled')]
+    .filter(input => !province || input.dataset.province === province);
+  if (!available.length) {
+    say('No hay comunas disponibles en esta selección.');
+    return;
+  }
+  available.forEach(input => { input.checked = true; });
+  const count = checkedCommunes().length;
+  say(count === 1 ? '1 comuna seleccionada.' : `${count} comunas seleccionadas.`);
+}
+el('select-all-communes').addEventListener('click', () => selectCommunes());
+document.querySelectorAll('[data-select-province]').forEach(button => {
+  button.addEventListener('click', () => selectCommunes(button.dataset.selectProvince));
+});
+el('send-lots').addEventListener('click', submitLots);
+el('lot-jobs').addEventListener('click', event => {
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  const lot = Number(button.dataset.target);
+  if (button.dataset.action === 'open') openResult(lot);
+  else if (button.dataset.action === 'retry') retryLot(lot);
+});
+syncCommuneControls();
+
 cutoff.addEventListener('input',refresh);
 document.querySelectorAll('[data-sector]').forEach(button=>button.addEventListener('click',()=>choose(button.dataset.sector)));
 terrain.addEventListener('pointerdown',e=>{

@@ -1,0 +1,85 @@
+{
+  "arrangement": "grid",
+  "positions": {
+    "system": {
+      "x": 0,
+      "y": 0
+    },
+    "01-vista-aerea.html": {
+      "x": 1520,
+      "y": 0
+    },
+    "04-cobertura-territorial.html": {
+      "x": 3040,
+      "y": 0
+    },
+    "05-historial-de-lotes.html": {
+      "x": 4560,
+      "y": 0
+    },
+    "06-acciones-preventivas.html": {
+      "x": 6080,
+      "y": 0
+    },
+    "07-panel-ejecutivo.html": {
+      "x": 0,
+      "y": 1351
+    },
+    "08-comparar-sectores.html": {
+      "x": 1520,
+      "y": 1351
+    },
+    "09-notificaciones.html": {
+      "x": 3040,
+      "y": 1351
+    },
+    "10-simulacion-contrafactual.html": {
+      "x": 4560,
+      "y": 1351
+    },
+    "11-observaciones-de-campo.html": {
+      "x": 6080,
+      "y": 1351
+    },
+    "12-exportacion-csv.html": {
+      "x": 0,
+      "y": 2381
+    },
+    "13-ficha-de-zona.html": {
+      "x": 1520,
+      "y": 2381
+    },
+    "14-acceso.html": {
+      "x": 3040,
+      "y": 2381
+    },
+    "15-fuentes-y-servicios.html": {
+      "x": 4560,
+      "y": 2381
+    },
+    "16-procesamiento.html": {
+      "x": 6080,
+      "y": 2381
+    },
+    "17-sesion-y-permisos.html": {
+      "x": 0,
+      "y": 3411
+    },
+    "18-registro-de-actividad.html": {
+      "x": 1520,
+      "y": 3411
+    },
+    "19-aun-no-implementado.html": {
+      "x": 3040,
+      "y": 3411
+    },
+    "02-vista-regional.html": {
+      "x": 4560,
+      "y": 3411
+    },
+    "03-acciones-en-el-mapa.html": {
+      "x": 6080,
+      "y": 3411
+    }
+  }
+}
