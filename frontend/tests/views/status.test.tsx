@@ -234,6 +234,71 @@ test('an unknown service or an unknown state is refused, and ready is never inve
   expect(expectFailure(await unknownState)).toMatchObject({ kind: 'malformed' });
 });
 
+test('a 2xx other than 200 is refused instead of being normalized to 200', async () => {
+  const { fetchStub } = await connect();
+
+  // The contract documents exactly two answers: 200 with a ready body, or 503
+  // with the same body. Any other accepted code is an undocumented answer, so it
+  // is refused instead of being rewritten into a 200 the service did not send.
+  const created = aggregateStatus();
+  await flush();
+  fetchStub.answer(STATUS_URL, statusBody(), 201);
+  expect(expectFailure(await created)).toMatchObject({ kind: 'malformed', reason: 'invalid_shape', status: 201 });
+
+  // The whole 2xx family, not just 201: `response.ok` is what used to leak here.
+  const partial = aggregateStatus();
+  await flush();
+  fetchStub.answer(STATUS_URL, statusBody(), 202);
+  expect(expectFailure(await partial)).toMatchObject({ kind: 'malformed', reason: 'invalid_shape', status: 202 });
+
+  // A bodyless 204 never reaches the guard at all: the transport reports it as
+  // `empty`, so it is refused there and must stay refused.
+  const noContent = aggregateStatus();
+  await flush();
+  fetchStub.answer(STATUS_URL, null, 204);
+  expect(expectFailure(await noContent)).toMatchObject({ kind: 'malformed', reason: 'invalid_shape', status: 204 });
+});
+
+test('not_configured is refused for every service except inference', async () => {
+  const { fetchStub } = await connect();
+
+  // Only the inference entry can report an unset address; the contract says so and
+  // the gateway's operational parser never emits it. A 200 that carries it for
+  // risk, jobs or prevention is therefore not a shape this client can render.
+  for (const index of [0, 1, 2]) {
+    const read = aggregateStatus();
+    await flush();
+    const services = [
+      { service: 'risk', state: 'ready' },
+      { service: 'jobs', state: 'ready' },
+      { service: 'prevention', state: 'ready' },
+      { service: 'inference', state: 'ready' },
+    ];
+    services[index].state = 'not_configured';
+    fetchStub.answer(STATUS_URL, statusBody({ services }));
+    expect(expectFailure(await read)).toMatchObject({ kind: 'malformed', reason: 'invalid_shape' });
+  }
+
+  // The inference entry keeps its own state: it is the rule-only deployment.
+  const accept = aggregateStatus();
+  await flush();
+  fetchStub.answer(
+    STATUS_URL,
+    statusBody({
+      services: [
+        { service: 'risk', state: 'ready' },
+        { service: 'jobs', state: 'ready' },
+        { service: 'prevention', state: 'ready' },
+        { service: 'inference', state: 'not_configured' },
+      ],
+    }),
+  );
+  const outcome = await accept;
+  expect(outcome).toMatchObject({ ok: true, status: 200 });
+  if (!outcome.ok) return;
+  expect(outcome.data.services[3]).toEqual({ service: 'inference', state: 'not_configured' });
+});
+
 test('a body with fewer than the four declared services is refused', async () => {
   const { fetchStub } = await connect();
 

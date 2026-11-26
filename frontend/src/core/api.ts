@@ -548,8 +548,11 @@ export async function jobsStatus(signal?: AbortSignal): Promise<Outcome<ServiceS
 // A 503 is not a transport failure here. The contract states that a not-ready
 // service makes the aggregate answer 503 WITH THE SAME BODY, and that body is the
 // only place that says which service is not ready; so the read preserves it and
-// reports the code it arrived with. Only an unreadable body, an incoherent
-// code/body pair or a real transport failure is a failure.
+// reports the code it arrived with. 200 and 503 are the only two codes the
+// contract documents, so any other accepted code (a 201, a 202, ...) is refused
+// rather than rewritten into a 200 the service did not send. Only an unreadable
+// body, an undocumented code, an incoherent code/body pair or a real transport
+// failure is a failure.
 export const SERVICE_ORDER = ['risk', 'jobs', 'prevention', 'inference'] as const;
 export type ServiceName = (typeof SERVICE_ORDER)[number];
 
@@ -578,6 +581,15 @@ function isServiceState(value: unknown): value is ServiceState {
   return typeof value === 'string' && SERVICE_STATES.includes(value as ServiceState);
 }
 
+// One state of the closed catalogue is positional: `not_configured` reports an
+// unset inference address, which only risk's inference evidence can state. The
+// gateway's operational parser (risk, jobs, prevention) has no way to emit it, so
+// accepting it there would render a state no service is able to report.
+function isServiceStateOf(service: ServiceName, value: unknown): value is ServiceState {
+  if (!isServiceState(value)) return false;
+  return value !== 'not_configured' || service === 'inference';
+}
+
 function isMultiserviceStatus(value: unknown): value is MultiserviceStatus {
   if (!record(value)) return false;
   if (!nonempty(value.checked_at)) return false;
@@ -585,10 +597,12 @@ function isMultiserviceStatus(value: unknown): value is MultiserviceStatus {
   if (!Array.isArray(value.services) || value.services.length !== SERVICE_ORDER.length) return false;
   for (const [index, entry] of value.services.entries()) {
     if (!record(entry)) return false;
+    const service = SERVICE_ORDER[index];
     // The position is the contract: entry i must name service i, so a shuffled
-    // list can never be rendered under the order the server did not send.
-    if (entry.service !== SERVICE_ORDER[index]) return false;
-    if (!isServiceState(entry.state)) return false;
+    // list can never be rendered under the order the server did not send. Once
+    // the name matches, the state is validated against that same service.
+    if (entry.service !== service) return false;
+    if (!isServiceStateOf(service, entry.state)) return false;
   }
   return true;
 }
@@ -611,9 +625,12 @@ export async function aggregateStatus(signal?: AbortSignal): Promise<AggregateSt
     signal,
   );
   // The second arm is the documented not-ready answer, not an error: its body is
-  // the verdict and it is read exactly like the 200 one.
-  const aggregatable = result.state === 'ok' || (result.state === 'httpError' && result.status === 503);
-  if (!aggregatable) return statusFailure(failureOf(result));
+  // the verdict and it is read exactly like the 200 one. The codes are named one
+  // by one on purpose: `response.ok` covers every 2xx, so testing the transport's
+  // own success flag here would accept a 201/202 and normalize it to 200.
+  const documented =
+    (result.state === 'ok' && result.status === 200) || (result.state === 'httpError' && result.status === 503);
+  if (!documented) return statusFailure(failureOf(result));
   const status: 200 | 503 = result.status === 503 ? 503 : 200;
   if (!isMultiserviceStatus(result.body)) {
     return statusFailure(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
