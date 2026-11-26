@@ -207,6 +207,11 @@ func TestQueryRoutesAreExactlyTheSelectedBusinessReads(t *testing.T) {
 		// zone, same window, same access policy, so it is the same consultation of
 		// the same collection and carries the same action.
 		{http.MethodGet, "/v1/risk/history.csv", "risk.history.read"},
+		// The granular series (PM-04) is that same historical risk collection read
+		// at another granularity: it is recorded under the same action instead of
+		// widening the audit vocabulary with a label the SQL writer would have to
+		// learn.
+		{http.MethodGet, "/v1/risk/history/series", "risk.history.read"},
 		{http.MethodGet, "/v1/risk/batches", "risk.batches.read"},
 		{http.MethodGet, "/v1/prevention/observations", "prevention.observations.read"},
 		{http.MethodGet, "/v1/prevention/actions", "prevention.actions.read"},
@@ -227,9 +232,9 @@ func TestQueryRoutesAreExactlyTheSelectedBusinessReads(t *testing.T) {
 		seenAction[got.Action]++
 	}
 	// One action may cover more than one route when the routes are the same read:
-	// risk.history.read covers the JSON history and its CSV export, and nothing
-	// else is allowed to share.
-	sharedActions := map[string]int{"risk.history.read": 2}
+	// risk.history.read covers the JSON history, its CSV export and the granular
+	// series, and nothing else is allowed to share.
+	sharedActions := map[string]int{"risk.history.read": 3}
 	for action, count := range seenAction {
 		if wantCount, shared := sharedActions[action]; shared {
 			if count != wantCount {
@@ -282,6 +287,9 @@ func TestQueryRecordingCoversOnlyTheSelectedSuccessfulReads(t *testing.T) {
 	for _, selected := range []struct{ path, action string }{
 		{"/v1/risk/latest?zone_id=valparaiso-demo", "risk.current.read"},
 		{"/v1/risk/history?zone_id=valparaiso-demo&from=2026-01-01", "risk.history.read"},
+		// The granular series is selected too: it is the historical risk collection
+		// at another granularity, recorded under the same action.
+		{"/v1/risk/history/series?from=2026-11-01T00:00:00Z&to=2026-11-02T00:00:00Z&granularity=day", "risk.history.read"},
 		{"/v1/risk/batches", "risk.batches.read"},
 		{"/v1/prevention/observations?community_code=valparaiso-demo&status=pendiente", "prevention.observations.read"},
 		{"/v1/prevention/actions?community_code=valparaiso-demo&status=propuesta", "prevention.actions.read"},
@@ -496,7 +504,7 @@ func TestQueryRecordingFailureAnswersStorageUnavailable(t *testing.T) {
 	contract := loadContract(t)
 	key, verifier := newTokenIssuer(t)
 	_, target := auditUpstream(t)
-	for _, path := range []string{"/v1/risk/latest", "/v1/risk/history", "/v1/risk/batches", "/v1/prevention/observations", "/v1/prevention/actions", "/v1/prevention/actions/8f1d0a527b3c4a199e218a1b2c3d4e5f"} {
+	for _, path := range []string{"/v1/risk/latest", "/v1/risk/history", "/v1/risk/history/series?from=2026-11-01T00:00:00Z&to=2026-11-02T00:00:00Z&granularity=day", "/v1/risk/batches", "/v1/prevention/observations", "/v1/prevention/actions", "/v1/prevention/actions/8f1d0a527b3c4a199e218a1b2c3d4e5f"} {
 		t.Run(path, func(t *testing.T) {
 			recorder := &auditRecorder{err: errors.New("audit store unavailable")}
 			request := httptest.NewRequest(http.MethodGet, path, nil)
@@ -528,8 +536,10 @@ func TestQueryRecordingFailureAnswersStorageUnavailable(t *testing.T) {
 			if strings.Contains(response.Body.String(), "valparaiso-demo") {
 				t.Fatalf("the unrecorded upstream body was forwarded: %s", response.Body)
 			}
-			contractPath := path
-			if strings.HasPrefix(path, "/v1/prevention/actions/") {
+			// The contract is keyed by path, so the query of a selected read is
+			// dropped before the lookup; the parameters are not part of the route.
+			contractPath, _, _ := strings.Cut(path, "?")
+			if strings.HasPrefix(contractPath, "/v1/prevention/actions/") {
 				contractPath = "/v1/prevention/actions/{id}"
 			}
 			assertResponseMatchesContract(t, contract, contractPath, http.MethodGet, response)

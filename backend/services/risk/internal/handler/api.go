@@ -47,6 +47,11 @@ type Repository interface {
 	// by default, with a stable keyset boundary. An empty page is a valid answer,
 	// not an error.
 	ListAlerts(ctx context.Context, query repository.AlertPageQuery) (repository.AlertPage, error)
+	// HistorySeries reads at most one point per zone and bucket inside a half-open
+	// window of requested_at, in one bucketed query. It exists so the granular
+	// history is answered by one read for the whole territory instead of one read
+	// per zone; an empty result is a valid answer, not an error.
+	HistorySeries(ctx context.Context, query repository.HistorySeriesQuery) ([]repository.HistoryPoint, error)
 }
 
 // DescriptorProvider is the read-only description surface of the active publisher provider.
@@ -76,6 +81,15 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 	// mirrors: it is additive, and the pair shares one read (readHistory), one
 	// zone gate and one window, so neither representation can drift from the other.
 	mux.HandleFunc("GET /v1/risk/history.csv", historyCSV(store))
+	// The granular series is a sibling read, not a revision of the window above:
+	// it is registered as its own exact path with its own query vocabulary, so the
+	// 100 row history and its export keep their bodies byte for byte.
+	mux.HandleFunc("GET /v1/risk/history/series", historySeries(store))
+	mux.HandleFunc("HEAD /v1/risk/history/series", func(w http.ResponseWriter, _ *http.Request) {
+		// ServeMux otherwise runs the GET handler for HEAD, outside GET auditing.
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
 	mux.HandleFunc("GET /v1/risk/batches", latestPerZone(store))
 	mux.HandleFunc("GET /v1/risk/executive-summary", executiveSummary(store))
 	// The alert timeline is a viewer/admin read like its neighbours: it is inside

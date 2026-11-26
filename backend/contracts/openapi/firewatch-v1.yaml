@@ -381,6 +381,86 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
+  /v1/risk/history/series:
+    get:
+      operationId: getRiskHistorySeries
+      description: >-
+        Viewer/admin. One series per zone over a required window, bucketed by hour,
+        day or week. This is an additive sibling of GET /v1/risk/history: that
+        route keeps its fixed 100 row window, its body and its CSV export
+        unchanged, and this one answers a different question through its own
+        parameters. Every parameter is required except zone_id, and a parameter this
+        read does not define is refused rather than ignored, so an answer always
+        describes the question that was asked.
+
+        The window is half-open on requested_at: a batch whose requested_at equals
+        from belongs to this window, and one equal to to belongs to the next one, so
+        two adjacent windows neither both contain a batch nor both omit it. Both
+        instants are RFC 3339 instants and the window length is capped per
+        granularity, inclusively: 48 hours for hour, 31 days for day and week. The
+        cap bounds the answer before storage is read: at most 49 hour buckets, 33
+        day buckets or 6 week buckets per zone, and the whole territory is served by
+        one bucketed read instead of one read per zone.
+
+        Day and week buckets are America/Santiago civil days and Monday-starting
+        civil weeks, and bucket_start is the instant that civil day or week begins,
+        which is its local midnight. On the spring-forward night that local midnight
+        does not exist, so the bucket starts at the transition instant, which is the
+        first instant of that civil day. Hour buckets are aligned to the UTC hour
+        instead: an hour has no civil boundary to respect, and on the night a clock
+        goes back the repeated wall-clock hour is two distinct UTC buckets rather
+        than one collapsed bucket. A client that wants the civil label of a day or
+        week converts bucket_start to America/Santiago.
+
+        Within a bucket the batch with the newest requested_at wins and the batch id
+        breaks a tie in descending order, the same newest-first rule the per-zone
+        reads use. Each point names the batch that produced it (batch_id), its level
+        including desconocido, and its provenance (model_version, synthetic) read
+        from the stored row. Nothing is interpolated and no freshness is derived: an
+        empty bucket is absent from buckets rather than filled with an invented or
+        repeated level, a zone with no point in the window is absent from series, and
+        a point carries no data_status, notice or valid_until, because those describe
+        the current state of a batch and are recomputed at read time.
+
+        Omitting zone_id asks for every zone that has a point. A zone_id that names
+        no catalogue zone is rejected with invalid_zone exactly like the sibling
+        reads. A missing, repeated, empty or unknown parameter, a granularity outside
+        the closed vocabulary, and an unparseable, empty, reversed or over-long
+        window are rejected with invalid_series_query. No rejected query reads
+        history buckets; an unknown zone requires a catalogue lookup. A window with no publication is 200 with an
+        empty series array, never 404.
+      parameters:
+        - $ref: '#/components/parameters/SeriesFrom'
+        - $ref: '#/components/parameters/SeriesTo'
+        - $ref: '#/components/parameters/SeriesGranularity'
+        - $ref: '#/components/parameters/ZoneOptional'
+      responses:
+        '200':
+          description: >-
+            One series per zone with at least one batch in the window, ordered by
+            zone_id, each series' buckets in chronological order. The echoed from,
+            to and granularity are the accepted ones, with both instants in UTC.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HistorySeriesCollection'}
+        '400':
+          description: >-
+            Rejected before any bucket read. The response code
+            is invalid_series_query for a missing, repeated, empty or unknown
+            parameter, a granularity outside the closed vocabulary, or an
+            unparseable, empty, reversed or over-long window, and invalid_zone for a
+            zone_id that is repeated, empty or absent from the catalogue.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
   /v1/risk/batches:
     get:
       operationId: listLatestBatchesPerZone
@@ -951,12 +1031,12 @@ paths:
         and occurred_at, and their actor_name and detail are null rather than a
         synthesized name. The application role can only select and insert audit
         rows; it cannot update or delete them. The gateway records successful
-        GETs for latest risk, historical risk and its CSV export, aggregate
-        published batches, observations, and the preventive-action collection
-        and detail. It does not record this endpoint, catalogues, geometry
-        requests, or failed upstream reads. If recording a selected successful
-        result fails, that read returns 503 storage_unavailable instead of the
-        upstream success.
+        GETs for latest risk, historical risk, its CSV export and the granular
+        history series, aggregate published batches, observations, and the
+        preventive-action collection and detail. It does not record this endpoint,
+        catalogues, geometry requests, or failed upstream reads. If recording a
+        selected successful result fails, that read returns 503
+        storage_unavailable instead of the upstream success.
       responses:
         '200':
           description: Audit entries
@@ -991,13 +1071,17 @@ paths:
                         The action the event records. The mutation actions
                         written by the job transitions are job.requested and
                         batch.published. The query actions are risk.current.read
-                        (GET /v1/risk/latest), risk.history.read (GET /v1/risk/history
-                        or its CSV export at GET /v1/risk/history.csv),
-                        risk.batches.read (GET /v1/risk/batches),
-                        prevention.observations.read (GET /v1/prevention/observations),
-                        and prevention.actions.read (GET /v1/prevention/actions or
-                        its action detail). Request query parameters, tokens and
-                        resource IDs are not copied into the record.
+                        (GET /v1/risk/latest), risk.history.read (GET /v1/risk/history,
+                        its CSV export at GET /v1/risk/history.csv, or the granular
+                        series at GET /v1/risk/history/series), risk.batches.read
+                        (GET /v1/risk/batches), prevention.observations.read
+                        (GET /v1/prevention/observations), and
+                        prevention.actions.read (GET /v1/prevention/actions or its
+                        action detail). The series is the same historical risk
+                        collection read at another granularity, so it shares the
+                        action instead of widening the vocabulary. Request query
+                        parameters, tokens and resource IDs are not copied into the
+                        record.
                     event_kind:
                       type: string
                       enum: [mutation, query]
@@ -1948,6 +2032,58 @@ components:
           Catalogue zone code. The valid set is the zone catalogue, served by
           the zones endpoint. It is deliberately not an enum: an enum here
           would drift from the table.
+    ZoneOptional:
+      in: query
+      name: zone_id
+      required: false
+      schema:
+        type: string
+        example: valparaiso-demo
+        description: >-
+          Catalogue zone code, optional for this read only. Omitting it asks for
+          every zone that has a point in the window, each answered as its own
+          series. A value that names no catalogue zone is rejected with
+          invalid_zone, and a repeated or empty value is rejected the same way,
+          exactly as the required single-zone reads do it.
+    SeriesFrom:
+      in: query
+      name: from
+      required: true
+      schema:
+        type: string
+        format: date-time
+        example: '2026-11-01T00:00:00Z'
+        description: >-
+          RFC 3339 instant at which the window opens, inclusive. It is compared
+          with the batch's requested_at, not with its publication instant, so the
+          bucket a batch lands in is the one its assessment belongs to. An
+          instant in any offset is accepted and canonicalised to UTC.
+    SeriesTo:
+      in: query
+      name: to
+      required: true
+      schema:
+        type: string
+        format: date-time
+        example: '2026-11-02T00:00:00Z'
+        description: >-
+          RFC 3339 instant at which the window closes, exclusive, so a batch at
+          exactly this instant belongs to the next window. It must be after from
+          and within the cap of the requested granularity: 48 hours for hour, 31
+          days for day and week.
+    SeriesGranularity:
+      in: query
+      name: granularity
+      required: true
+      schema:
+        type: string
+        enum: [hour, day, week]
+        example: day
+        description: >-
+          Bucket size. hour buckets are aligned to the UTC hour; day and week
+          buckets are America/Santiago civil days and Monday-starting civil
+          weeks. The value is a member of this closed vocabulary and any other
+          value is rejected, never defaulted.
   headers:
     RequestID:
       description: >-
@@ -2706,6 +2842,120 @@ components:
             One element per zone with at least one published batch, ordered by
             zone_id ascending. A zone with no published batch is absent.
           items: {$ref: '#/components/schemas/ZoneBatch'}
+    HistoryBucket:
+      type: object
+      description: >-
+        One point of one series: the explicit start of the bucket, the identity of
+        the batch the bucket reports, and that batch's level and provenance. It is
+        deliberately narrower than Batch: a historical point carries no freshness,
+        because data_status, notice and valid_until describe the current state of a
+        batch and would be recomputed at read time.
+      required:
+        - bucket_start
+        - batch_id
+        - requested_at
+        - published_at
+        - risk_level
+        - model_version
+        - synthetic
+      additionalProperties: false
+      properties:
+        bucket_start:
+          type: string
+          format: date-time
+          description: >-
+            Instant the bucket begins, in UTC. For day and week it is the
+            America/Santiago civil day or Monday-starting civil week that begins
+            there; for hour it is the UTC hour. On the spring-forward night, where
+            the local midnight does not exist, a day bucket starts at the
+            transition instant, which is the first instant of that civil day.
+        batch_id:
+          type: string
+          format: uuid
+          description: >-
+            Identity of the batch the bucket reports: the one with the newest
+            requested_at in the bucket, with the batch id as the descending
+            tie-break. It can be fetched from the per-zone reads.
+        requested_at:
+          type: string
+          format: date-time
+          description: >-
+            Request instant of that batch, which is what the bucket was computed
+            from and what the ordering rule compares.
+        published_at:
+          type: string
+          format: date-time
+          description: >-
+            Publication instant of that batch. It is provenance, not freshness:
+            how old the point is now is a property of the read, not of the point.
+        risk_level:
+          type: string
+          enum: [bajo, medio, alto, desconocido]
+          description: >-
+            The recorded level, including desconocido. The latest assessment of a
+            bucket is shown even when its level is unknown, because insufficient
+            inputs is the answer that batch recorded, and hiding it would present a
+            gap as a determined level.
+        model_version:
+          type: string
+          example: academic-rule-v1
+          description: >-
+            Classifier version that produced the batch, read from the stored row.
+        synthetic:
+          type: boolean
+          description: >-
+            The batch's own demo flag, read and never inferred from the
+            environment: true means the point came from a synthetic or
+            demonstrative input.
+    HistoryZoneSeries:
+      type: object
+      description: >-
+        One zone's series. A zone appears only when it has at least one point in
+        the window, so buckets is never empty, and a gap in the array is a bucket
+        with no publication rather than an interpolated value.
+      required: [zone_id, buckets]
+      additionalProperties: false
+      properties:
+        zone_id:
+          type: string
+          example: '05101'
+          description: >-
+            Catalogue zone code. The accepted set is whatever the catalogue
+            holds, so it is deliberately not an enum here.
+        buckets:
+          type: array
+          description: >-
+            The zone's points in chronological order, one per bucket that holds a
+            publication.
+          items: {$ref: '#/components/schemas/HistoryBucket'}
+    HistorySeriesCollection:
+      type: object
+      description: >-
+        The granular history read's body. series is never null: a window with no
+        publication is an empty array with 200, never 404, and no series is ever
+        invented for a zone without a point.
+      required: [from, to, granularity, series]
+      additionalProperties: false
+      properties:
+        from:
+          type: string
+          format: date-time
+          description: The accepted window opening instant, in UTC.
+        to:
+          type: string
+          format: date-time
+          description: The accepted window closing instant, in UTC.
+        granularity:
+          type: string
+          enum: [hour, day, week]
+          description: >-
+            The accepted bucket size, echoed so a cached answer is attributable.
+        series:
+          type: array
+          description: >-
+            One element per zone with at least one batch in the window, ordered
+            by zone_id ascending.
+          items: {$ref: '#/components/schemas/HistoryZoneSeries'}
     AlertLevel:
       type: string
       description: >-
