@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import { routes } from '../../src/app/routes';
 import { Shell } from '../../src/components/Shell';
@@ -101,6 +102,53 @@ test('the sidebar navigation keeps WCAG AA contrast on the sidebar background', 
 
   const ratio = contrast(foreground as string, background as string);
   expect(ratio).toBeGreaterThanOrEqual(4.5);
+});
+
+// ── The skip link ─────────────────────────────────────────────────────────
+//
+// The workspace's "Saltar al contenido" never actually skipped: the link was a
+// plain fragment link, so activating it wrote `#content` into the address bar,
+// the hash router read that undeclared fragment as the default view, and the
+// content region never received focus — the reader was moved to Overview instead
+// (odd/tasks/g1-production-frontend.md, L20).
+//
+// jsdom has no layout engine and no sequential focus navigation of its own, but
+// the user-event keyboard is enough for both halves that matter here: whether the
+// activation keeps the fragment, and where focus actually lands. Whether Chromium
+// then reveals the region on screen is measured in a browser, not here.
+test('the skip link moves focus into the content region and keeps the fragment', async () => {
+  const user = userEvent.setup();
+  renderShell();
+  fetchStub.answer(READY_URL, null, 204);
+  await waitFor(() => expect(fetchStub.callsFor(READY_URL)).toHaveLength(1));
+
+  const skipLink = screen.getByRole('link', { name: /saltar al contenido/i });
+  const content = document.getElementById('content');
+  expect(content).toBeInstanceOf(HTMLElement);
+  expect((content as HTMLElement).tagName).toBe('MAIN');
+  // Still a link, so it keeps its role, its name and anchor keyboard activation.
+  expect(skipLink).toHaveAttribute('href', '#content');
+
+  // The region is a target, not a stop: walking every control of the shell with
+  // Tab must never land on it.
+  const tabStops: Element[] = [];
+  for (let step = 0; step < 20; step += 1) {
+    await user.tab();
+    const active = document.activeElement;
+    if (active === null || active === document.body) break;
+    tabStops.push(active);
+  }
+  expect(tabStops[0]).toBe(skipLink);
+  expect(tabStops).not.toContain(content);
+
+  // Activating it from the keyboard puts focus inside the content region and
+  // leaves the fragment — and with it the open view — untouched.
+  window.location.hash = '#audit';
+  skipLink.focus();
+  expect(document.activeElement).toBe(skipLink);
+  await user.keyboard('{Enter}');
+  expect(document.activeElement).toBe(content);
+  expect(window.location.hash).toBe('#audit');
 });
 
 test('the 720px layout keeps the sidebar static and the navigation three-column (no regression)', () => {

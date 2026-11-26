@@ -8,14 +8,17 @@
  *   node design/firewatch-v1-vuelo/build-artboards.mjs --check  read-only drift check
  *
  * With line endings normalized, each output is its source board except for
- * the generated marker, the initial `hidden`/`aria-current` state and the
- * bootstrap's default view. Palette, fonts, layout and interactions are
- * unchanged. The three map artboards are never read or written here.
+ * the generated marker, the initial `hidden`/`aria-current` state, the
+ * bootstrap's default view and the shared product-navigation component
+ * (`product-navigation.mjs`) injected after the skip link. Palette, fonts,
+ * layout and interactions are unchanged. The three map artboards are never
+ * read or written here.
  */
 import { existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
+import { injectNavigation, SOURCE_VARIANTS } from './product-navigation.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DESIGN = resolve(HERE, '..');
@@ -74,7 +77,7 @@ const ARTBOARDS = [
   { file: '16-procesamiento.html', title: 'Procesamiento', source: 'control', view: 'procesamiento' },
   { file: '17-sesion-y-permisos.html', title: 'Sesión y permisos', source: 'control', view: 'sesion' },
   { file: '18-registro-de-actividad.html', title: 'Registro de actividad', source: 'control', view: 'auditoria' },
-  { file: '19-aun-no-implementado.html', title: 'Aún no implementado', source: 'control', view: 'pendiente' },
+  { file: '19-aun-no-implementado.html', title: 'Prototipos y alcance', source: 'control', view: 'pendiente' },
   { file: '02-vista-regional.html', title: 'Complemento · Vista regional', map: true },
   { file: '03-acciones-en-el-mapa.html', title: 'Complemento · Acciones rápidas desde el mapa', map: true }
 ];
@@ -177,7 +180,11 @@ function buildArtboard(source, entry) {
   }
   html = setSectionHidden(html, entry.view, false);
   html = setNavCurrent(html, entry.view, true);
-  return markGenerated(setBootDefault(html, source, entry.view), source, entry);
+  const marked = markGenerated(setBootDefault(html, source, entry.view), source, entry);
+  /* The product bar is the only intended addition to the source bytes: it gives
+     every generated board the same return to the map and the same product menu,
+     without touching the source boards or their in-document view navigation. */
+  return injectNavigation(marked, { file: entry.file, mode: 'sticky', variant: SOURCE_VARIANTS[entry.source] });
 }
 
 function firstDifferingLine(actual, expected) {

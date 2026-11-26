@@ -610,6 +610,95 @@ export function OverviewView() {
         </span>
       </div>
 
+      <section className="dashboard-grid" aria-label="Estado del riesgo y ubicación">
+        <MapPanel
+          collection={mapCollection}
+          loadState={mapState}
+          selectedCode={selectedZone}
+          zoneLevels={zoneLevelLookup}
+          onSelect={selectZone}
+          sessionReason={session.reason}
+          jobProgress={jobProgress}
+        />
+
+        <article className="panel risk-panel">
+          <PanelHeading
+            eyebrow="ESTADO DEL RIESGO"
+            title="Último lote publicado"
+            badge={
+              <span className="risk-pill" id="risk-pill">
+                {risk.pill}
+              </span>
+            }
+          />
+          <StatusCopy id="risk-status">{risk.status}</StatusCopy>
+          <div className="risk-state">
+            <span className="risk-symbol" aria-hidden="true">
+              —
+            </span>
+            <div>
+              <strong id="risk-level">{risk.level}</strong>
+              <small>Clasificación informada por el backend</small>
+            </div>
+          </div>
+          <DataList
+            items={[
+              { label: 'Código CUT', value: <span id="zone-code">{orUninformed(selectedFeature?.properties.code)}</span> },
+              { label: 'Comuna', value: <span id="zone-name">{orUninformed(selectedFeature?.properties.name)}</span> },
+              {
+                label: 'Provincia',
+                value: <span id="zone-province">{orUninformed(selectedFeature?.properties.province)}</span>,
+              },
+            ]}
+          />
+          <p id="batch-origin">{originText}</p>
+          <p id="batch-notice">{noticeText}</p>
+          <StatusCopy id="batch-validity">{validityText}</StatusCopy>
+          {/* With no reading and no omission the card has nothing to put under a
+              "Factores" heading, and a heading over an empty list reads as a
+              broken widget. The artboard names no heading here: it states the
+              absence in one muted sentence, which is what the card does. */}
+          {factorRows.length > 0 || showFactorOmission ? (
+            <>
+              <h4>Factores</h4>
+              <ul id="risk-factors">
+                {factorRows.map((row) => (
+                  <li key={row.key}>
+                    {row.text}
+                    {row.widthPercent !== null ? (
+                      <div className="factor-track">
+                        <span style={{ width: `${row.widthPercent}%` }} />
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+                {showFactorOmission ? (
+                  <li>Factores ausentes o inválidos; solo se muestran entradas válidas.</li>
+                ) : null}
+              </ul>
+            </>
+          ) : (
+            <p className="panel-note">No hay factores disponibles para este sector.</p>
+          )}
+          <h4>Cómo lo calculó la regla</h4>
+          <p id="risk-rationale">{rationaleText}</p>
+          <h4>Política informada</h4>
+          <p id="risk-policy">{policyText}</p>
+          <DataList
+            items={[
+              { label: 'Estado del dato', value: <span id="data-status">{batchField(batchData?.data_status)}</span> },
+              { label: 'Versión', value: <span id="model-version">{batchField(batchData?.model_version)}</span> },
+              { label: 'Vigencia hasta', value: <span id="valid-until">{batchField(batchData?.valid_until)}</span> },
+              { label: 'Identificador', value: <span id="batch-id">{batchField(batchData?.id)}</span> },
+            ]}
+          />
+          <UnimplementedNote>
+            Cobertura por sector: la API no publica un porcentaje de cobertura por comuna, así que esta ficha no lo
+            muestra.
+          </UnimplementedNote>
+        </article>
+      </section>
+
       <section className="metrics-grid metrics-three" aria-label="Resumen real de la sesión">
         <Metric
           label="Zonas analizadas"
@@ -682,83 +771,6 @@ export function OverviewView() {
           sembrada como activa no prueba que el servicio la haya usado.
         </p>
       </article>
-
-      <section className="dashboard-grid" aria-label="Estado del riesgo y ubicación">
-        <MapPanel
-          collection={mapCollection}
-          loadState={mapState}
-          selectedCode={selectedZone}
-          zoneLevels={zoneLevelLookup}
-          onSelect={selectZone}
-          sessionReason={session.reason}
-          jobProgress={jobProgress}
-        />
-
-        <article className="panel risk-panel">
-          <PanelHeading
-            eyebrow="ESTADO DEL RIESGO"
-            title="Último lote publicado"
-            badge={
-              <span className="risk-pill" id="risk-pill">
-                {risk.pill}
-              </span>
-            }
-          />
-          <StatusCopy id="risk-status">{risk.status}</StatusCopy>
-          <div className="risk-state">
-            <span className="risk-symbol" aria-hidden="true">
-              —
-            </span>
-            <div>
-              <strong id="risk-level">{risk.level}</strong>
-              <small>Clasificación informada por el backend</small>
-            </div>
-          </div>
-          <DataList
-            items={[
-              { label: 'Código CUT', value: <span id="zone-code">{orUninformed(selectedFeature?.properties.code)}</span> },
-              { label: 'Comuna', value: <span id="zone-name">{orUninformed(selectedFeature?.properties.name)}</span> },
-              {
-                label: 'Provincia',
-                value: <span id="zone-province">{orUninformed(selectedFeature?.properties.province)}</span>,
-              },
-            ]}
-          />
-          <p id="batch-origin">{originText}</p>
-          <p id="batch-notice">{noticeText}</p>
-          <StatusCopy id="batch-validity">{validityText}</StatusCopy>
-          <h4>Factores</h4>
-          <ul id="risk-factors">
-            {factorRows.map((row) => (
-              <li key={row.key}>
-                {row.text}
-                {row.widthPercent !== null ? (
-                  <div className="factor-track">
-                    <span style={{ width: `${row.widthPercent}%` }} />
-                  </div>
-                ) : null}
-              </li>
-            ))}
-            {showFactorOmission ? <li>Factores ausentes o inválidos; solo se muestran entradas válidas.</li> : null}
-          </ul>
-          <h4>Justificación</h4>
-          <p id="risk-rationale">{rationaleText}</p>
-          <h4>Política informada</h4>
-          <p id="risk-policy">{policyText}</p>
-          <DataList
-            items={[
-              { label: 'Estado del dato', value: <span id="data-status">{batchField(batchData?.data_status)}</span> },
-              { label: 'Versión', value: <span id="model-version">{batchField(batchData?.model_version)}</span> },
-              { label: 'Vigencia hasta', value: <span id="valid-until">{batchField(batchData?.valid_until)}</span> },
-              { label: 'Identificador', value: <span id="batch-id">{batchField(batchData?.id)}</span> },
-            ]}
-          />
-          <UnimplementedNote>
-            Cobertura por sector: la API no publica un porcentaje de cobertura por comuna, así que esta ficha no lo
-            muestra.
-          </UnimplementedNote>
-        </article>
-      </section>
 
       {/*
         PM-18 — the zone card suggests from the written catalogue. The list is

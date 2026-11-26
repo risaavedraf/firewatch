@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { idleCopy } from '../app/sessionCopy';
-import { PanelHeading } from '../components/ui';
+import { PanelHeading, TableWrap } from '../components/ui';
 import { useSessionState } from '../app/store';
 import { audit, type Outcome } from '../core/api';
 import type { SessionState } from '../core/session';
@@ -162,6 +162,7 @@ function AuditRegister({ session }: { session: SessionState }) {
           eyebrow="COORDINACIÓN"
           title="Registro de actividad"
           titleId="audit-title"
+          level={2}
           badge={
             <span className="neutral-tag" id="audit-badge">
               {state.badge}
@@ -181,7 +182,7 @@ function AuditRegister({ session }: { session: SessionState }) {
           eventos recientes) y esta página no pagina, no filtra ni ordena. El nombre del actor proviene de la identidad
           verificada; cuando el registro no lo capturó, se muestra el <code>actor_id</code> sin inventar un nombre.
         </p>
-        <div className="table-wrap" id="audit-table" hidden={!state.showTable}>
+        <TableWrap label="Eventos del registro de actividad" id="audit-table" hidden={!state.showTable}>
           <table>
             <caption className="sr-only">Registro de actividad devuelto por /v1/audit</caption>
             <thead>
@@ -213,7 +214,7 @@ function AuditRegister({ session }: { session: SessionState }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
         <div className="audit-foot">
           <span className="count-badge" id="audit-count">
             {count}
