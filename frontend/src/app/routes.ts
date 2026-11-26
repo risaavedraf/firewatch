@@ -10,13 +10,17 @@ import type { IconName } from '../components/ui';
 // panel hidden inside another view. `#observations` is the PM-09
 // field-observation page, reachable by every role: the server decides reads and
 // writes, and the page renders its answer. PM-11 adds `#infrastructure` as its
-// own demo view rather than folding it into territorio.
+// own demo view rather than folding it into territorio. PM-03 adds `#simulator`
+// as its own destination: the counterfactual recalculation is a page the operator
+// opens, not a control hidden inside the territory panel, and it belongs to
+// Prevención because it explains the rule that produced a zone's level.
 export type ViewId =
   | 'overview'
   | 'infrastructure'
   | 'history'
   | 'actions'
   | 'observations'
+  | 'simulator'
   | 'sources'
   | 'jobs'
   | 'pending'
@@ -47,6 +51,14 @@ export const routes: readonly RouteDefinition[] = [
     group: 'Prevención',
     icon: 'zones',
     title: 'Observaciones de campo',
+  },
+  {
+    id: 'simulator',
+    hash: '#simulator',
+    label: 'Simulador',
+    group: 'Prevención',
+    icon: 'refresh',
+    title: 'Simulador contrafactual',
   },
   { id: 'sources', hash: '#sources', label: 'Fuentes y servicios', group: 'Información', icon: 'sources', title: 'Fuentes y servicios' },
   { id: 'jobs', hash: '#jobs', label: 'Procesamiento', group: 'Información', icon: 'jobs', title: 'Procesamiento asíncrono' },

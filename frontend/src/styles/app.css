@@ -170,7 +170,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    against the border, which clips the right-aligned values of a data list
    (`model-panel`, `cycle-panel` both shipped that way). `tests/styles/
    layout-padding.test.tsx` reads this rule against the shipped markup. */
-.map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel { padding: 18px; }
+.map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .simulator-panel, .simulator-result-panel { padding: 18px; }
 .padded { padding: 22px; }
 .status-copy { min-height: 32px; margin: 13px 0 7px; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .8fr); gap: 16px; }
@@ -539,6 +539,201 @@ footer .icon { width: 13px; height: 13px; }
    zone table and the geometry list, while removing the shell chrome and the
    print control itself. The scope is the infrastructure route, so printing any
    other view is unchanged. */
+/* ── Counterfactual simulator (PM-03) ───────────────────────────────────── */
+/* Presentation only: the two columns of the substitution form and the result,
+   the per-variable row and the before/after pair. Every colour is a token, the
+   level is stated in TEXT (the chip only repeats it), and no rule here decides
+   what the service answered. The focused control keeps the page's native focus
+   ring, declared once at the top of this sheet. */
+.simulator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.simulator-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.simulator-form .field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.simulator-form .field label,
+.simulator-variable label,
+.simulator-variables legend {
+  color: var(--forest-700);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.simulator-form .field select {
+  max-width: 100%;
+}
+
+.simulator-form .panel-note,
+.simulator-variables .field-note,
+.simulator-variable .field-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.simulator-variables {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.simulator-variables legend {
+  padding: 0 4px;
+}
+
+.simulator-variables > .field-note {
+  margin-bottom: 10px;
+}
+
+.simulator-variable {
+  display: grid;
+  gap: 4px;
+  padding: 9px 0;
+  border-top: 1px solid #e6eae4;
+}
+
+.simulator-variable:first-of-type {
+  border-top: 0;
+}
+
+.simulator-variable-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The page's global input rule fills its container; a checkbox must not. */
+.simulator-variable-head input[type="checkbox"] {
+  width: auto;
+  min-width: 0;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+}
+
+.simulator-variable-head label {
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.simulator-variable-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.simulator-variable-field input {
+  max-width: 100%;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.simulator-form .form-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.simulator-form .form-actions .panel-note {
+  margin: 0;
+}
+
+.simulator-form #simulator-feedback:empty,
+.simulator-result-panel #simulator-run-status:empty {
+  display: none;
+}
+
+.simulator-outcomes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 10px 0 4px;
+}
+
+.simulator-outcome {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f8faf7;
+}
+
+.simulator-outcome .eyebrow {
+  margin: 0 0 6px;
+  color: var(--forest-700);
+}
+
+.simulator-level {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.simulator-level .chip {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.simulator-result-panel #simulator-factors {
+  min-width: 0;
+  margin-top: 4px;
+}
+
+.simulator-result-panel .data-list dd {
+  max-width: 62%;
+}
+
+#simulator-batch-id,
+#simulator-policy-id,
+#simulator-params-hash,
+#simulator-notice { white-space: normal; overflow-wrap: anywhere; }
+
+#simulator-params-hash { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* AA: the shared neutral tag is 8 px here, so its colour is darkened until it
+   clears 4.5:1 on its own background, exactly as `#observations` and `#actions`
+   already do. */
+#simulator .neutral-tag {
+  color: var(--ink);
+  background: #edf1f2;
+}
+
+@media (max-width: 1000px) {
+  .simulator-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .simulator-outcomes {
+    grid-template-columns: 1fr;
+  }
+
+  .simulator-form .form-actions,
+  .simulator-form .form-actions .primary-button {
+    justify-items: stretch;
+    justify-self: stretch;
+  }
+}
+
 @media print {
   body:has(#infrastructure) .sidebar,
   body:has(#infrastructure) .topbar,
