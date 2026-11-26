@@ -256,7 +256,12 @@ func run() error {
 	snapshot := func() messaging.DeadLetterSnapshot { return broker.Snapshot(time.Now(), dlqReadyMaxAge) }
 	mux := http.NewServeMux()
 	check := statusEvaluator(db.Ping, snapshot, dlqReadyMaxDepth, dlqReadyMaxAge)
-	mux.Handle("/v1/", handler.NewWithCycleAndClassifier(store, verifier, check, cycleRunner, classifierSource, publisher.Provider))
+	// PM-16: the inference evidence read reports what this process can establish
+	// about the inference service it is configured to call, using the same
+	// INFERENCE_URL and the same internal CA the model path already uses. It is
+	// mounted through the handler package, so it passes the same Authorize gate as
+	// every other risk read, and no caller credential is forwarded onward.
+	mux.Handle("/v1/", handler.NewWithInferenceEvidence(store, verifier, check, cycleRunner, classifierSource, newInferenceStatusCheck(os.Getenv(inferenceURLEnv), rootCAs, inferenceStatusTimeout, os.Getenv("APP_ENV")), publisher.Provider))
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
 	mux.Handle("GET /health/ready", healthHandler(check))
 	var requests atomic.Uint64

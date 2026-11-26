@@ -79,6 +79,14 @@ func NewWithStatus(store Repository, verifier Verifier, check StatusCheck, provi
 // trigger answer cycle_unavailable, so a deployment that does not schedule a
 // cycle is still valid. The sources route (sources.go) carries the freshness.
 func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner CycleRunner, providers ...DescriptorProvider) http.Handler {
+	return newRiskHandler(store, verifier, check, runner, nil, nil, providers...)
+}
+
+// newRiskHandler is the one router every constructor above delegates to. The
+// inference evidence read is mounted here for all of them and answers unknown
+// when no evaluator was wired, so the surface is additive: an existing caller
+// sees one more documented route and the same behaviour everywhere else.
+func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runner CycleRunner, classifiers ClassifierSource, evidence InferenceStatusCheck, providers ...DescriptorProvider) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/risk/status", statusHandler(check))
 	mux.HandleFunc("GET /v1/risk/latest", latestBatch(store))
@@ -118,6 +126,11 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
 	mux.HandleFunc("GET /v1/risk/infrastructure", listInfrastructure())
+	// S4 (PM-16): the inference evidence read. It is mounted inside the same
+	// Authorize gate as every sibling read, and the evaluator it reports was built
+	// from configuration by the process: no parameter of this request reaches the
+	// inference service, and the caller's credential is never forwarded to it.
+	mux.HandleFunc("GET /v1/risk/inference/status", inferenceStatusHandler(evidence))
 	// Model registry: the list is a read route; activation is admin-only through
 	// requireAdmin, defined in security.go.
 	mux.HandleFunc("GET /v1/models", listModels(store))
@@ -128,7 +141,13 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 		provider = providers[0]
 	}
 	mux.HandleFunc("GET /v1/risk/sources", sourcesWithCycle(provider, runner))
-	return Authorize(verifier, mux)
+	authorized := Authorize(verifier, mux)
+	if classifiers == nil {
+		return authorized
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorized.ServeHTTP(w, r.WithContext(withClassifierSource(r.Context(), classifiers)))
+	})
 }
 
 // historyWindow is the bounded number of batches the per-zone history serves, in
@@ -219,13 +238,15 @@ func history(store Repository) http.HandlerFunc {
 // unavailable. Authentication, roles and every other route are unchanged: the
 // source is attached to the request context and only the models read consumes it.
 func NewWithCycleAndClassifier(store Repository, verifier Verifier, check StatusCheck, runner CycleRunner, classifiers ClassifierSource, providers ...DescriptorProvider) http.Handler {
-	handler := NewWithCycle(store, verifier, check, runner, providers...)
-	if classifiers == nil {
-		return handler
-	}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler.ServeHTTP(w, r.WithContext(withClassifierSource(r.Context(), classifiers)))
-	})
+	return newRiskHandler(store, verifier, check, runner, classifiers, nil, providers...)
+}
+
+// NewWithInferenceEvidence is the additive form of NewWithCycleAndClassifier that
+// also reports the inference service this deployment is configured to call. The
+// evidence read is authenticated like its siblings; a nil evaluator is a process
+// that wired none, and it answers unknown instead of guessing.
+func NewWithInferenceEvidence(store Repository, verifier Verifier, check StatusCheck, runner CycleRunner, classifiers ClassifierSource, evidence InferenceStatusCheck, providers ...DescriptorProvider) http.Handler {
+	return newRiskHandler(store, verifier, check, runner, classifiers, evidence, providers...)
 }
 
 // batchCollection is the aggregate read's body. Batches is never nil, so an empty
