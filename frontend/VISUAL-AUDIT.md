@@ -271,3 +271,39 @@ Two product changes came out of it. The eyebrow colour rule was scoped to the vi
 Two more product fixes came from the populated pass. The infrastructure breakdown arrived from the merge using the plain `div.table-wrap` the audit had already flagged elsewhere, so it was a scroll container no keyboard user could reach: it now uses `TableWrap` as a named, focusable region. And the notifications empty state exposed an eyebrow outside `.intro-row` at **3.87:1**; the base eyebrow token is now the readable one and no view re-colours it, which removes the whole class of defect instead of adding a fourth selector to a list.
 
 **What remains unmeasured.** The populated states are the ones these probes could reach: the alert list, the synthetic catalogue and a created observation. Every other workflow behind them — transitions, adoption, paging, the CSV download, the print path — is covered by the merged test suites, not by a rendered capture.
+
+## T1 — global product navigation (2026-11-26, corrected)
+
+The shell now renders [`ProductNav`](src/components/ProductNav.tsx) as the approved canvas' arrangement: a thin horizontal bar above and outside the workspace, with three shortcuts and an out-of-flow **Más destinos** panel. Routing, the document title, the session gate, the store, the role handling and the gateway polling are untouched; the same fourteen hashes are the only destinations. The canvas' fourth shortcut, `Panel ejecutivo`, was not implemented because no route serves it; that decision is T4's.
+
+**Environment.** Chromium **158.0.8127.38**, headless, against the locally built application (`npm run build:local` served by `scripts/serve.mjs`), driven over the DevTools protocol. The workspace sits behind Keycloak, so the run used an isolated fixture: the identity token response and every gateway read were intercepted inside the browser session — a locally generated, unsigned token payload declaring `viewer`, and gateway reads answered `403` so no view could claim data. No real credential, realm or gateway was used, and nothing was installed. No screenshot was written; the evidence is rendered geometry, computed styles and the accessibility tree.
+
+**Before the correction.** The first T1 implementation kept the navigation inside the vertical sidebar and expanded the menu in flow. Measured in the same browser method:
+
+| Viewport | Before |
+| --- | --- |
+| 1440×900 | Bar/sidebar list at `x=19 y=184`, inside `aside.sidebar`; panel `position: static`, `196×629`, starting at `y=439`; `main` began at `x=234` |
+| 1024×720 | Navigation inside the sidebar at `y=196`; panel `169×633`, extending to `y=1084`, below the 720px viewport; logout at `y=658` |
+| 390×800 | Panel in flow inserted eleven links before the shell content: `topbar` pushed to `y=1084`, `main` to `y=1211`, logout to `y=1047`; document height `4478` |
+
+**After the correction.**
+
+| Sample | Result |
+| --- | --- |
+| Arrangement, 1440×900 | Bar `x=0 y=0 1425×48`, `position: sticky`, outside `.app-shell`; sidebar and topbar start at `y=49`; panel opens at `x=649 y=52 760×325` with `position: absolute` and three group columns |
+| Out of flow | Opening the panel left `topbar`, `main`, the logout control and `document.scrollHeight` byte-for-byte unchanged at 1440×900 (`2097`) and at 390×800 (`858`); the panel is not inside `.app-shell` or the sidebar |
+| Sticky | At `scrollY=400` the bar stayed at `y=0`, the sidebar stuck at `y=48`, and the topbar scrolled under the bar; the logout control stayed at `y=838` inside the 900px viewport |
+| 390×800 overlay | Bar `48px`; panel `x=8 y=51 359×480`, fully inside the viewport, `scrollHeight 537 > clientHeight 478`; scrolling the panel to its end left `window.scrollY` at `0` |
+| Landmark and control | One `navigation`, name `Navegación del producto FireWatch`; the disclosure is a `button` named `Más destinos` with `aria-expanded` true/false and `aria-controls` resolving to the panel |
+| Keyboard, 1024×720 | Tab: skip link → **Mapa · Territorio** → **Historial de lotes** → **Acciones preventivas** → **Más destinos** → brand. Enter on the button opened the panel; the first and last grouped links kept a visible `3px rgb(215, 170, 115)` outline with `outline-offset 0` fully inside the 48px bar, and the panel's rows were not clipped (`clipped: false` for both ends) |
+| Dismiss | Escape closed the panel and returned focus to the **Más destinos** button; a pointer press on the sidebar brand closed it without moving focus; the panel stayed closed after a same-route gateway re-render |
+| History | Choosing **Notificaciones** and then **Registro de actividad** from the menu closed it on arrival (`aria-expanded=false` each time); Back reopened it on `#notifications` with that link `aria-current="page"`; Forward reopened it on `#audit` |
+| Focus ring | Bar controls: `3px rgb(215, 170, 115)`, offset `0`, outline box `1..47` inside the `0..48` bar. Panel rows: offset `2px`, first and last rows inside the panel box |
+| Rendered colours | Bar `#173c3b`, panel `#1e4241` (opaque); panel labels `rgb(165, 200, 191)` = `#a5c8bf` (6.08:1); grouped items `#c3d6cf` (7.24:1); current grouped item `#f0eee0` (9.43:1); current shortcut `#173c3b` on `#f0eee0` (10.32:1); bar labels `#a5c8bf` on `#173c3b` (6.65:1) |
+| Reflow | 1440×900, 1024×720 and 390×800: no horizontal page overflow. The bar wraps below 480px instead of scrolling horizontally |
+
+**Automated.** `npm run verify` passed after the correction: lint, typecheck, 56 test files / 734 tests, the source gate over 64 shipped files, the local build and the HTTP smoke. The focused correction suites produced a RED run before the source edit (4 files, 12 failed of 39) and a GREEN run after it (4 files, 39 passed). The previously passing T1 focused baseline (4 files, 39 tests) was preserved.
+
+**Not measured.** No axe scan, text-spacing override, virtual screen reader, browser zoom pass or real assistive technology ran for this change; the earlier passes in this document predate it. The fixture answers 403 to every gateway read, so the navigation was exercised over permission-denied view states, not populated ones. Whether NVDA, JAWS or VoiceOver announce the bar's disclosure and the `Estás en` live region as expected was not tested.
+
+**Known follow-up.** `scripts/check.mjs` still asserts the retired `.sidebar nav` declaration set and is outside this unit's edit surface; `app.css` keeps that rule with no rendered consumer until the gate is retired with it.

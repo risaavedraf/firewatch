@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-import { navigationGroups, routes, type RouteDefinition } from '../app/routes';
+import type { RouteDefinition } from '../app/routes';
 import { sessionDetailCopy } from '../app/sessionCopy';
 import { resetHistoryFilters, useSelectedZoneLabel, useSessionState } from '../app/store';
 import { ready, type Outcome } from '../core/api';
 import { signOut } from '../core/session';
+import { ProductNav } from './ProductNav';
 import { Icon } from './ui';
 
 // The application shell: sidebar, topbar, update bar and footer, ported from the
@@ -133,6 +134,7 @@ export function Shell({ route, children }: { route: RouteDefinition; children: R
       >
         Saltar al contenido
       </a>
+      <ProductNav route={route} />
       <div className="app-shell">
         <aside className="sidebar">
           <a className="brand" href="#overview" aria-label="FireWatch, inicio">
@@ -154,30 +156,6 @@ export function Shell({ route, children }: { route: RouteDefinition; children: R
             </div>
             <Icon name="territory" />
           </div>
-          <nav aria-label="Navegación principal">
-            {navigationGroups.map(group => (
-              <div key={group}>
-                <p className="nav-group">{group}</p>
-                {routes
-                  .filter(candidate => candidate.group === group)
-                  .map(candidate => {
-                    const active = candidate.id === route.id;
-                    return (
-                      <a
-                        key={candidate.id}
-                        id={`nav-${candidate.id}`}
-                        className={active ? 'nav-link is-active' : 'nav-link'}
-                        href={candidate.hash}
-                        aria-current={active ? 'true' : undefined}
-                      >
-                        <Icon name={candidate.icon} />
-                        <span>{candidate.label}</span>
-                      </a>
-                    );
-                  })}
-              </div>
-            ))}
-          </nav>
           <div className="sidebar-bottom">
             <section className="health-card" aria-labelledby="health-title">
               <div className="health-head">

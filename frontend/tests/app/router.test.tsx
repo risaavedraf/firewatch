@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { App } from '../../src/App';
@@ -22,6 +22,15 @@ function navigate(hash: string) {
 
 function renderedViews(): string[] {
   return [...document.querySelectorAll('[data-view]')].map(node => node.getAttribute('data-view') ?? '');
+}
+
+// The global product navigation keeps its three shortcuts in the bar and the rest
+// of the destinations behind the "Más destinos" disclosure. A hidden panel's
+// links are not reachable, so the queries that need them open the panel first.
+async function openMoreDestinations(): Promise<void> {
+  const button = document.querySelector('.product-nav__summary');
+  if (!(button instanceof HTMLButtonElement) || button.getAttribute('aria-expanded') === 'true') return;
+  await userEvent.click(button);
 }
 
 // The workspace is only rendered with an established session (the sign-in screen
@@ -109,8 +118,9 @@ test('every declared view is reachable by its hash and only that one is rendered
   }
 });
 
-test('the navigation offers every view, including the "not implemented yet" inventory that had no entry', () => {
+test('the navigation offers every view, including the "not implemented yet" inventory that had no entry', async () => {
   render(<App />);
+  await openMoreDestinations();
 
   for (const route of routes) {
     const link = screen.getByRole('link', { name: new RegExp(route.label, 'i') });
@@ -119,6 +129,103 @@ test('the navigation offers every view, including the "not implemented yet" inve
   // The inventory is the reason this test exists: it was reachable only by
   // scrolling before, and the honesty rule requires it to be visible on its own.
   expect(screen.getByRole('link', { name: /aún no implementado/i })).toHaveAttribute('href', '#pending');
+});
+
+// The reported grouped→grouped history defect: the reader closed the panel on
+// #audit, went Back to #notifications, and the new current grouped destination
+// never became visible. A route change the reader did not make from the menu
+// reveals it; a same-route re-render does not reopen what they closed; choosing
+// a destination from the menu closes the menu on arrival.
+test('Back/Forward reveals the new current grouped destination and menu selection closes the panel', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+
+  navigate('#audit');
+  const button = screen.getByRole('button', { name: /más destinos/i });
+  // A route change to a grouped destination reveals its entry, so the reader
+  // starts from an open panel and closes it, which is the reported sequence.
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+  await user.click(button);
+  expect(button).toHaveAttribute('aria-expanded', 'false');
+
+  // Back to a previously visited grouped route: its current entry is revealed.
+  navigate('#notifications');
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+  const revealed = [...document.querySelectorAll('.product-nav [aria-current="page"]')];
+  expect(revealed).toHaveLength(1);
+  expect(revealed[0]).toHaveAttribute('href', '#notifications');
+  expect(document.querySelector('.product-nav__panel')).not.toHaveAttribute('hidden');
+
+  // Same-route re-render must not reopen a panel the reader closed.
+  await user.click(button);
+  expect(button).toHaveAttribute('aria-expanded', 'false');
+  act(() => {
+    window.dispatchEvent(new Event('hashchange'));
+  });
+  expect(button).toHaveAttribute('aria-expanded', 'false');
+
+  // Selecting a destination from the menu closes the menu on arrival.
+  await user.click(button);
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+  await user.click(screen.getByRole('link', { name: 'Registro de actividad' }));
+  expect(window.location.hash).toBe('#audit');
+  expect(button).toHaveAttribute('aria-expanded', 'false');
+  expect(renderedViews()).toEqual(['audit']);
+
+  // Back again is a history change: the previous grouped entry is revealed.
+  navigate('#notifications');
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+  expect([...document.querySelectorAll('.product-nav [aria-current="page"]')].map(link => link.getAttribute('href'))).toEqual(['#notifications']);
+});
+
+// The remaining grouped→grouped history case: a modified activation is the
+// browser's, so it must not touch this tab. Ctrl/Cmd+click (and a non-primary
+// button) opens elsewhere and leaves the document on #notifications; the menu
+// and the "selected from the menu" flag must stay exactly as they were, or the
+// later Forward to #audit is mistaken for a menu selection and never reveals the
+// new current grouped destination. jsdom navigates unconditionally on a
+// dispatched click, so the harness prevents the same-tab default exactly where a
+// browser would use a new tab; the product never calls preventDefault itself.
+test.each([
+  ['Control', { ctrlKey: true, button: 0 }],
+  ['Meta', { metaKey: true, button: 0 }],
+  ['non-primary', { button: 1 }],
+] as const)('a %s activation on a grouped destination leaves this tab current, and Forward still reveals the next grouped route', async (_label, clickOptions) => {
+  const user = userEvent.setup();
+  render(<App />);
+
+  // Start on a grouped route, then choose #audit from the menu as usual.
+  navigate('#notifications');
+  const button = screen.getByRole('button', { name: /más destinos/i });
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+  await user.click(screen.getByRole('link', { name: 'Registro de actividad' }));
+  expect(window.location.hash).toBe('#audit');
+  expect(button).toHaveAttribute('aria-expanded', 'false');
+
+  // Back reveals #notifications again.
+  navigate('#notifications');
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+
+  const compare = screen.getByRole('link', { name: /comparador/i });
+  const nativeNewTab = (event: MouseEvent) => {
+    if (event.ctrlKey || event.metaKey || event.button !== 0) event.preventDefault();
+  };
+  compare.addEventListener('click', nativeNewTab);
+  fireEvent.click(compare, clickOptions);
+  compare.removeEventListener('click', nativeNewTab);
+
+  // The old tab did not move, and the menu was not closed behind its back.
+  expect(window.location.hash).toBe('#notifications');
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+  expect([...document.querySelectorAll('.product-nav [aria-current="page"]')].map(link => link.getAttribute('href'))).toEqual(['#notifications']);
+
+  // The reader closes the panel, then uses Forward in this tab. The history
+  // change is not a menu selection: it must reveal the new current destination.
+  await user.click(button);
+  expect(button).toHaveAttribute('aria-expanded', 'false');
+  navigate('#audit');
+  expect(button).toHaveAttribute('aria-expanded', 'true');
+  expect([...document.querySelectorAll('.product-nav [aria-current="page"]')].map(link => link.getAttribute('href'))).toEqual(['#audit']);
 });
 
 // The reported keyboard defect (L20): pressing Enter on the workspace "Saltar al
@@ -150,44 +257,51 @@ test('the skip link keeps the opened view and lands focus in the content region'
   }
 });
 
-test('the active navigation entry follows the opened view and marks nothing else', () => {
+test('the active navigation entry follows every opened view and marks nothing else', () => {
   render(<App />);
 
-  navigate('#audit');
-  const active = [...document.querySelectorAll('nav a[aria-current="true"]')];
-  expect(active).toHaveLength(1);
-  expect(active[0]).toHaveAttribute('href', '#audit');
+  for (const route of routes) {
+    navigate(route.hash);
+    const active = [...document.querySelectorAll('nav a[aria-current="page"]')];
+    expect(active).toHaveLength(1);
+    expect(active[0]).toHaveAttribute('href', route.hash);
+    // The location line names the open screen, not the previous one.
+    expect(document.querySelector('.product-nav__where')?.textContent).toContain(route.label);
+  }
 });
 
-test('the notification centre has its own hash and navigation entry', () => {
+test('the notification centre has its own hash and navigation entry', async () => {
   render(<App />);
+  await openMoreDestinations();
 
   navigate('#notifications');
   expect(renderedViews()).toEqual(['notifications']);
 
   const link = screen.getByRole('link', { name: /notificaciones/i });
   expect(link).toHaveAttribute('href', '#notifications');
-  expect(link).toHaveAttribute('aria-current', 'true');
+  expect(link).toHaveAttribute('aria-current', 'page');
 });
 
 // PM-05 — the zone comparator is a destination of its own, not a panel inside
 // the batch history: comparing two or three zones in one read is a different
 // question from one zone's rows.
-test('the zone comparator has a dedicated #compare route and navigation entry', () => {
+test('the zone comparator has a dedicated #compare route and navigation entry', async () => {
   render(<App />);
+  await openMoreDestinations();
 
   expect(screen.getByRole('link', { name: /comparador/i })).toHaveAttribute('href', '#compare');
 
   navigate('#compare');
   expect(renderedViews()).toEqual(['compare']);
   expect(document.getElementById('compare-title')?.textContent).toBe('Comparador de zonas');
-  expect(screen.getByRole('link', { name: /comparador/i })).toHaveAttribute('aria-current', 'true');
+  expect(screen.getByRole('link', { name: /comparador/i })).toHaveAttribute('aria-current', 'page');
 });
 
 // PM-11 — the synthetic infrastructure demo is a dedicated view, not a panel
 // appended to the territory overview. It keeps its own hash and navigation entry.
-test('the synthetic infrastructure demo has a dedicated #infrastructure route and navigation entry', () => {
+test('the synthetic infrastructure demo has a dedicated #infrastructure route and navigation entry', async () => {
   render(<App />);
+  await openMoreDestinations();
 
   expect(screen.getByRole('link', { name: /infraestructura/i })).toHaveAttribute('href', '#infrastructure');
 
@@ -201,8 +315,9 @@ test('the synthetic infrastructure demo has a dedicated #infrastructure route an
 // group, not a control hidden inside the territory panel: it explains how the
 // rule produced one zone's stored level, and the operator has to be able to reach
 // it by its own hash.
-test('the counterfactual simulator has a dedicated #simulator route and navigation entry', () => {
+test('the counterfactual simulator has a dedicated #simulator route and navigation entry', async () => {
   render(<App />);
+  await openMoreDestinations();
 
   const link = screen.getByRole('link', { name: /^simulador$/i });
   expect(link).toHaveAttribute('href', '#simulator');
@@ -213,14 +328,15 @@ test('the counterfactual simulator has a dedicated #simulator route and navigati
   // The D-D label is the view's own statement that the result is the rule, not a
   // forecast: it must be reachable by hash and present without a simulation.
   expect(document.getElementById('simulator-how-title')?.textContent).toBe('Cómo lo calculó la regla');
-  expect(link).toHaveAttribute('aria-current', 'true');
+  expect(link).toHaveAttribute('aria-current', 'page');
 });
 
 // PM-16 — the operational verdict is its own destination: one hash, one
 // navigation entry in Información, and the board renders its verdict region
 // instead of being folded into `#sources`.
-test('the operational status board has a dedicated #status route and navigation entry', () => {
+test('the operational status board has a dedicated #status route and navigation entry', async () => {
   render(<App />);
+  await openMoreDestinations();
 
   const link = screen.getByRole('link', { name: /estado de servicios/i });
   expect(link).toHaveAttribute('href', '#status');
@@ -229,5 +345,5 @@ test('the operational status board has a dedicated #status route and navigation 
   expect(renderedViews()).toEqual(['status']);
   expect(document.getElementById('status-title')?.textContent).toBe('Estado de servicios');
   expect(document.getElementById('status-verdict-title')?.textContent).toBe('Veredicto operativo');
-  expect(link).toHaveAttribute('aria-current', 'true');
+  expect(link).toHaveAttribute('aria-current', 'page');
 });

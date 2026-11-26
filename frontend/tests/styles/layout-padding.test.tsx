@@ -129,17 +129,20 @@ function panelModifiers(): string[] {
   return [...modifiers].sort();
 }
 
-test('the shell and the sidebar fill the viewport, so the sidebar paints no blank band (S1)', () => {
+test('the shell and the sidebar fill the viewport below the product bar, so the sidebar paints no blank band (S1)', () => {
   // The retired demonstration strip was a 34 px band above the shell. It is no
   // longer rendered, so every offset that reserved its height is a hole.
   expect(appCss).not.toMatch(/100vh\s*-\s*34px/);
 
+  // T1 put the product bar above the shell; the shell and the sticky column
+  // reserve exactly that bar's declared height and nothing more.
   const shell = baseRule('.app-shell');
-  expect(declaration(shell, 'min-height')).toBe('100vh');
+  expect(declaration(shell, 'min-height')).toBe('calc(100vh - var(--product-nav-h, 48px))');
 
   const sidebar = baseRule('.sidebar');
-  expect(declaration(sidebar, 'height')).toBe('100vh');
+  expect(declaration(sidebar, 'height')).toBe('calc(100vh - var(--product-nav-h, 48px))');
   expect(declaration(sidebar, 'position')).toBe('sticky');
+  expect(declaration(sidebar, 'top')).toBe('var(--product-nav-h, 48px)');
 });
 
 test('the sidebar workspace block keeps the boxed rule set it was designed with (S2)', async () => {

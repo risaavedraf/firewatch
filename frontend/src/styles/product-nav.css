@@ -1,0 +1,288 @@
+/* FireWatch · global product navigation (T1).
+
+   One component, one source of truth: `components/ProductNav.tsx` renders every
+   destination from `app/routes.ts`. This file only decides how the shell shows
+   it: a thin horizontal bar above the workspace, outside `.app-shell`, with the
+   grouped destinations in an out-of-flow, bounded, multi-column panel.
+
+   The panel is opaque on purpose. It overlays the light workspace, so its labels
+   are measured against `#1e4241` — the tone the former 3% white overlay produced
+   over `--forest-900` — instead of a translucent surface whose ratio depends on
+   what happens to be behind it. The pairs are recorded in
+   `WCAG-AA-CONFORMANCE.md`. */
+
+:root {
+  /* Height the shell reserves for the bar; the sidebar offsets itself by it. */
+  --product-nav-h: 48px;
+}
+
+.product-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-height: var(--product-nav-h, 48px);
+  padding: 3px 16px;
+  border-bottom: 1px solid #41625b;
+  background: var(--forest-900);
+  color: #e7faf5;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.product-nav__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.product-nav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #c3d6cf;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.product-nav__link:hover:not([aria-current='page']) {
+  background: #254d47;
+  color: #effdf9;
+}
+
+.product-nav__link[aria-current='page'] {
+  border-color: #f0eee0;
+  background: #f0eee0;
+  color: var(--forest-900);
+}
+
+/* The control boundary clears 3:1 against the bar; the label is the same
+   `#e7faf5` the shell's health card already uses. */
+.product-nav__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid #90aaa0;
+  border-radius: 7px;
+  background: transparent;
+  color: #e7faf5;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.product-nav__summary:hover {
+  background: #254d47;
+  color: #effdf9;
+}
+
+.product-nav__summary[aria-expanded='true'] {
+  border-color: #e7faf5;
+  background: #254d47;
+  color: #effdf9;
+}
+
+.product-nav__chevron {
+  font-size: 10px;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+
+.product-nav__summary[aria-expanded='true'] .product-nav__chevron {
+  transform: rotate(180deg);
+}
+
+/* Out of flow at every width: opening the panel cannot push the shell, the
+   sidebar, the logout control or `main` down. The height is bounded and the
+   panel scrolls inside itself, with padding for the focus ring of its first and
+   last rows. */
+.product-nav__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 16px;
+  z-index: 31;
+  width: min(760px, calc(100% - 24px));
+  max-height: min(70dvh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding: 8px;
+  padding: 14px 16px;
+  border: 1px solid #5d7d74;
+  border-radius: 10px;
+  background: #1e4241;
+  color: #e7faf5;
+  box-shadow: 0 18px 40px rgb(4 20 19 / 45%);
+}
+
+.product-nav__panel-title {
+  margin: 0 0 10px;
+  color: #a5c8bf;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.product-nav__groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px 20px;
+}
+
+.product-nav__group-title {
+  margin: 0 0 4px;
+  color: #a5c8bf;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.product-nav__list {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.product-nav__item {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  color: #c3d6cf;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.product-nav__item:hover {
+  background: #254d47;
+  color: #effdf9;
+}
+
+/* The current destination is marked by `aria-current="page"`; the underline and
+   weight keep the meaning visible without relying on colour alone. */
+.product-nav__item[aria-current='page'] {
+  color: #f0eee0;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.product-nav__note {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid #41625b;
+  color: #a5c8bf;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.product-nav__where {
+  min-width: 0;
+  margin: 0 0 0 auto;
+  overflow: hidden;
+  color: #e7faf5;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-nav__where-label {
+  margin-right: 6px;
+  color: #a5c8bf;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.product-nav__where strong {
+  font-weight: 650;
+}
+
+.product-nav :is(a, button):focus-visible {
+  outline: 3px solid #d7aa73;
+  outline-offset: 2px;
+}
+
+/* A 40px control inside the 48px bar cannot carry a 5px ring around itself: it
+   would lose 1px at the viewport edge and paint 1px over the shell. The bar's
+   own controls keep the ring on the bar surface, where its 5.66:1 contrast is
+   measured; the panel's rows keep the 2px gap because the panel has padding. */
+.product-nav :is(.product-nav__link, .product-nav__summary):focus-visible {
+  outline-offset: 0;
+}
+
+/* Below 720px the sidebar stops being sticky, so the bar is the only fixed
+   vertical offset; it stays one row and the panel covers the width it has. */
+@media (max-width: 720px) {
+  .product-nav {
+    padding-inline: 12px;
+  }
+
+  .product-nav__panel {
+    right: 8px;
+    width: calc(100% - 16px);
+    max-height: min(72dvh, 480px);
+    padding: 12px 14px;
+  }
+
+  .product-nav__groups {
+    gap: 12px 16px;
+  }
+}
+
+/* At 320–390 px the three shortcuts and the disclosure no longer fit on one
+   line beside their full labels; the bar wraps instead of clipping or scrolling
+   horizontally, so every control keeps its visible focus ring. */
+@media (max-width: 480px) {
+  .product-nav {
+    flex-wrap: wrap;
+    gap: 2px 6px;
+    padding-block: 3px;
+  }
+
+  .product-nav__link,
+  .product-nav__summary {
+    padding-inline: 8px;
+  }
+}
+
+/* The location line stops taking row width on a phone but stays in the
+   accessibility tree: it is the polite live region that names the new route. */
+@media (max-width: 560px) {
+  .product-nav__where {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-nav .product-nav__chevron {
+    transition: none;
+  }
+}

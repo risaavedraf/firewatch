@@ -7,10 +7,15 @@
 
    Two rule groups changed home rather than content: the demonstration strip and
    the warning banner are no longer the headline of the page (they became the
-   discreet technical notice the data-status view owns), and the navigation now
-   carries nine grouped entries instead of nine flat ones. */
+   discreet technical notice the data-status view owns), and the navigation is
+   the global product navigation T1 ported from the approved canvas: a thin
+   horizontal bar above the shell with three shortcuts, a grouped "Más destinos"
+   panel and the current location. Its component rules live in
+   `product-nav.css`; the rules here own the bar's offset and the shell it sits
+   above. */
 
 @import './notifications.css';
+@import './product-nav.css';
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
@@ -33,7 +38,7 @@ a { color: inherit; text-decoration: none; }
 code { font-size: 11px; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .icon { width: 17px; height: 17px; flex: 0 0 auto; vertical-align: middle; }
-.skip-link { position: fixed; top: -60px; left: 12px; z-index: 20; padding: 12px; border-radius: 8px; background: var(--paper); }
+.skip-link { position: fixed; top: -60px; left: 12px; z-index: 60; padding: 12px; border-radius: 8px; background: var(--paper); }
 .skip-link:focus { top: 12px; }
 
 /* ── Demonstration strip ─────────────────────────────────────────────────── */
@@ -41,13 +46,12 @@ code { font-size: 11px; }
 .demo-strip strong { color: #a6e1d4; letter-spacing: .08em; }
 
 /* ── Shell ──────────────────────────────────────────────────────────────── */
-/* The shell used to sit below the demonstration strip, so both the flex column
-   and the sidebar subtracted the strip's height. The strip is no longer
-   rendered (S15 moved its statement to the technical notice), and the residual
-   offset left a blank band under the sidebar: the column now fills the viewport
-   it actually has. */
-.app-shell { min-height: 100vh; display: flex; }
-.sidebar { position: sticky; top: 0; width: 234px; height: 100vh; min-height: 560px; display: flex; flex-direction: column; padding: 30px 19px 22px; color: #d5e1db; background: var(--forest-900); overflow-y: auto; }
+/* The shell used to sit below the demonstration strip; the strip is no longer
+   rendered, and T1 put the product bar above the shell instead. Both the shell
+   and the sticky column reserve exactly the bar's declared height, so no blank
+   band is left under the column and the sign-out control stays on screen. */
+.app-shell { min-height: calc(100vh - var(--product-nav-h, 48px)); display: flex; }
+.sidebar { position: sticky; top: var(--product-nav-h, 48px); width: 234px; height: calc(100vh - var(--product-nav-h, 48px)); min-height: 560px; display: flex; flex-direction: column; padding: 30px 19px 22px; color: #d5e1db; background: var(--forest-900); overflow-y: auto; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; margin-bottom: 26px; color: #fffdf4; }
 .brand-mark { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; background: #d7aa73; color: var(--forest-900); font-family: Georgia, serif; font-size: 20px; font-style: italic; }
 .brand strong, .brand small { display: block; }
@@ -62,23 +66,19 @@ code { font-size: 11px; }
 .workspace-mark { display: grid; place-items: center; background: #36564e; border-radius: 7px; width: 29px; height: 33px; color: #ebd8b4; }
 .workspace small { font-size: 9px; color: #acbfb6; }
 .workspace > .icon { width: 15px; margin-left: auto; color: #95b2a6; }
-.nav-label, .nav-group { margin: 21px 13px 9px; color: #90aaa0; font-size: 9px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
 /* The column's chrome — the brand, the workspace, the Gateway card and the
    session card that holds the only sign-out control — has to stay on screen at
-   the laptop heights this page is used at. The navigation is the one region that
-   can yield the space: it takes whatever height the chrome leaves and scrolls
-   inside itself, so a short viewport shortens the visible list instead of
-   pushing the sign-out control past the fold. The column keeps its own overflow
-   as the fallback for anything the navigation cannot absorb. */
+   the laptop heights this page is used at. T1 moved the navigation out of the
+   column into the bar above the shell, so the column no longer yields space to
+   it; it keeps its own viewport-bounded height and overflow as the fallback, and
+   the bottom block is pinned with `margin-top: auto`.
+
+   The selector below is intentionally retained: `scripts/check.mjs` still
+   asserts this declaration set as part of the sidebar scroll contract, and that
+   script is outside this unit's edit surface. It has no rendered consumer since
+   the product bar replaced the sidebar list; retiring both together is a
+   follow-up. */
 .sidebar nav { display: grid; gap: 3px; flex: 1 1 auto; min-height: 0; align-content: start; overflow-y: auto; }
-/* Foreground and background must switch together so labels remain readable between routes. */
-.nav-link { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid transparent; border-radius: 7px; color: #c3d6cf; font-size: 12px; }
-.nav-link .icon { opacity: .8; }
-.nav-link:hover { background: #254d47; color: #effdf9; }
-.nav-link.active, .nav-link.is-active { background: #f0eee0; border-color: #f0eee0; color: var(--forest-900); font-weight: 650; }
-.nav-link.active .icon, .nav-link.is-active .icon { opacity: 1; }
-.nav-link.is-active:focus-visible { outline-color: #d7aa73; }
-.nav-marker { width: 5px; height: 5px; margin-left: auto; border-radius: 50%; background: var(--forest-700); }
 .sidebar-bottom { margin-top: auto; padding: 28px 4px 0; font-size: 10px; color: #bdd0c3; }
 .health-card { margin-bottom: 15px; padding: 13px; border: 1px solid #41625b; border-radius: 9px; background: rgb(255 255 255 / 3%); }
 .health-head { display: flex; align-items: center; justify-content: space-between; color: #e7faf5; font-size: 11px; }
@@ -535,11 +535,7 @@ footer .icon { width: 13px; height: 13px; }
   .app-shell { display: block; }
   .sidebar { position: static; width: auto; height: auto; min-height: 0; padding: 14px 15px 10px; }
   .brand { padding: 0 2px 12px; margin-bottom: 0; }
-  .sidebar nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .nav-label, .nav-group, .health-card { display: none; }
-  .nav-link { justify-content: center; padding: 9px 4px; font-size: 9px; }
-  .nav-link .icon { display: none; }
-  .nav-marker { display: none; }
+  .health-card { display: none; }
   .topbar { min-height: 68px; padding: 11px 16px; }
   .topbar h1 { font-size: 17px; }
   .zone-chip { padding: 5px 7px; }
@@ -827,6 +823,7 @@ footer .icon { width: 13px; height: 13px; }
 
 @media print {
   body:has(#infrastructure) .sidebar,
+  body:has(#infrastructure) .product-nav,
   body:has(#infrastructure) .topbar,
   body:has(#infrastructure) .update-bar,
   body:has(#infrastructure) footer,
@@ -878,6 +875,7 @@ footer .icon { width: 13px; height: 13px; }
    and the composed rows stay in black on white. */
 @media print {
   body:has(#status) .sidebar,
+  body:has(#status) .product-nav,
   body:has(#status) .topbar,
   body:has(#status) .update-bar,
   body:has(#status) footer,

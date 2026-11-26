@@ -2,7 +2,7 @@
 
 Use this document to audit the real frontend before changing styles. The committed prototype in `docs/pitch-g1-design` (`d651459`) is a reference for layout and hierarchy, not a reason to port fixtures or replace working product behavior.
 
-Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), and [sign-in styles](src/styles/auth.css) at the local baseline `742e760`. The inventory adapts the active-source sections of `design/system.md` from the prototype branch; it does not adopt its experimental aerial palette.
+Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), and [sign-in styles](src/styles/auth.css) at the local baseline `742e760`, plus the T1 navigation change on 2026-11-26. The inventory adapts the active-source sections of `design/system.md` from the prototype branch; it does not adopt its experimental aerial palette.
 
 ## Palette
 
@@ -70,9 +70,9 @@ In-use sizes, with the role they carry:
 | Panel title | `15px` / `600`-family heading, tracking `-.3px` | `app.css` `.panel-heading h3, h2` |
 | Section heading | `17px` / `600` / tracking `-.3px`; `24px` for `.intro-row h2` | `app.css` h2 |
 | Subheading | `13px` / `650`; `11px` for h4 | `app.css` h3, h4 |
-| Interface label | `12px` (`nav-link`, inputs), `11px` (`small-label`, body-ish), `10px` (buttons, tables, chips, notes), `9px` (table headers, data lists, sidebar meta), `8px` (badges, legend labels, technical notice) | `app.css` |
+| Interface label | `12px` (product navigation links and items, inputs), `11px` (`small-label`, body-ish), `10px` (buttons, tables, chips, notes), `9px` (table headers, data lists, sidebar meta), `8px` (badges, legend labels, technical notice) | `app.css`, `product-nav.css` |
 | Smallest label | `7px` / `850` / tracking `.08em` for `.source-label` | `app.css` |
-| Eyebrow / nav group | `9px` / `800` / tracking `1.4–1.5px` / uppercase | `app.css` `.eyebrow`, `.nav-group` |
+| Eyebrow / navigation group | `9px` / `800` / tracking `1.4–1.5px` / uppercase | `app.css` `.eyebrow`; `product-nav.css` `.product-nav__group-title`, `.product-nav__panel-title`, `.product-nav__where-label` |
 | Metric value | `25px` / `550` / tracking `-.8px` / `1.1` | `app.css` `.metric > strong` |
 | Auth hero title | `clamp(30px, 3.4vw, 46px)` / heading / `1.08`, tracking `-1.6px` | `auth.css` `.auth-hero h1` |
 | Auth card title | `23px` / heading / tracking `-.8px` | `auth.css` `.auth-panel-body h2` |
@@ -93,10 +93,10 @@ There is **no spacing scale token**. All spacing is literal. The recurring value
 | Panels | Heading `20px 22px 17px`; body `18px` (`14px` at `≤720px`); `.padded` `22px` |
 | Grids | `16px` metric/dashboard/lower gap; `22px` two/three-column and pipeline gap; `20px` job layout; `10px` map stage |
 | Dense rows | `8px 0` data-list rows (`5px 0` compact); `11px 14px` table headers; `12px 14px` table cells; `10px 0` quality findings |
-| Controls | `8px 11px` buttons, min-height `34px` (`29px` secondary); `9px 11px` inputs; `11px 13px` nav links; `5px 8px` chips and badges; `7px 11px` zone chip |
+| Controls | `8px 11px` buttons, min-height `34px` (`29px` secondary); `9px 11px` inputs; navigation bar `0 10px` shortcuts at min-height `40px` and `3px 8px` panel items at min-height `32px` (`product-nav.css`); `5px 8px` chips and badges; `7px 11px` zone chip |
 | Auth | Card padding `30px 30px 24px`; hero `44px clamp(28px, 5vw, 72px) 36px`; primary/Google min-height `46px`; tabs `36px`; steps gap `10px` |
 
-Breakpoints: `1200px`, `1000px`, `720px` in `app.css`; `900px` and `420px` in `auth.css`. The map viewport drops from `298px` min-height to `250px` and then `220px`.
+Breakpoints: `1200px`, `1000px`, `720px` in `app.css`; `900px` and `420px` in `auth.css`; `720px` and `480px` in `product-nav.css`. The map viewport drops from `298px` min-height to `250px` and then `220px`.
 
 ## Radius
 
@@ -121,7 +121,20 @@ These ratios use WCAG relative luminance for opaque sRGB pairs. Compare before r
 | `--muted #5c6c65` on `#eef2e8` map surface | `#5c6c65` | `#eef2e8` | 4.88:1 | Meets 4.5:1 |
 | `--forest-700 #285e56` on `--paper #fffefa` | `#285e56` | `#fffefa` | 7.36:1 | Meets 4.5:1 |
 | `--paper #fffefa` on `--forest-900 #173c3b` | `#fffefa` | `#173c3b` | 11.92:1 | Meets 4.5:1 |
-| `#c3d6cf` nav link on `--forest-900 #173c3b` | `#c3d6cf` | `#173c3b` | 7.93:1 | Meets 4.5:1 |
+| `#c3d6cf` bar shortcut on `--forest-900 #173c3b` | `#c3d6cf` | `#173c3b` | 7.93:1 | Meets 4.5:1 |
+| `#c3d6cf` panel item on `#1e4241` | `#c3d6cf` | `#1e4241` | 7.24:1 | Meets 4.5:1 |
+| `#a5c8bf` bar labels on `--forest-900 #173c3b` | `#a5c8bf` | `#173c3b` | 6.65:1 | Meets 4.5:1 |
+| `#a5c8bf` panel labels and note on `#1e4241` | `#a5c8bf` | `#1e4241` | 6.08:1 | Meets 4.5:1 |
+| `#f0eee0` current panel item on `#1e4241` | `#f0eee0` | `#1e4241` | 9.43:1 | Meets 4.5:1 |
+| `#d7aa73` navigation focus ring on the bar | `#d7aa73` | `#173c3b` | 5.66:1 | Meets 3:1 |
+| `#d7aa73` navigation focus ring on the panel | `#d7aa73` | `#1e4241` | 5.17:1 | Meets 3:1 |
+| `#90aaa0` disclosure boundary on the bar | `#90aaa0` | `#173c3b` | 4.84:1 | Meets 3:1 |
+| `#90aaa0` former label on the opaque panel | `#90aaa0` | `#1e4241` | 4.42:1 | **Below 4.5:1 — corrected to `#a5c8bf`** |
+| `#e7faf5` disclosure summary and current-location value on `--forest-900 #173c3b` | `#e7faf5` | `#173c3b` | 11.11:1 | Meets 4.5:1 |
+| `#a5c8bf` disclosure note on `--forest-900 #173c3b` | `#a5c8bf` | `#173c3b` | 6.65:1 | Meets 4.5:1 |
+| `#f0eee0` current grouped item on `--forest-900 #173c3b` | `#f0eee0` | `#173c3b` | 10.32:1 | Meets 4.5:1 |
+| `#90aaa0` disclosure control boundary on `--forest-900 #173c3b` | `#90aaa0` | `#173c3b` | 4.84:1 | Meets 3:1 |
+| `#d7aa73` navigation focus ring on `--forest-900 #173c3b` | `#d7aa73` | `#173c3b` | 5.66:1 | Meets 3:1 |
 | `#a8c2b7` brand tagline on `--forest-900 #173c3b` | `#a8c2b7` | `#173c3b` | 6.34:1 | Meets 4.5:1 |
 | `#7d6c3f` unimplemented notice on `#faf7ee` | `#7d6c3f` | `#faf7ee` | 4.79:1 | Meets 4.5:1 |
 | `#9c472f` on `--terracotta-soft #f7e9e2` | `#9c472f` | `#f7e9e2` | 5.28:1 | Meets 4.5:1 |
@@ -173,10 +186,31 @@ These ratios use WCAG relative luminance for opaque sRGB pairs. Compare before r
 | Map neutral boundary against map surface | `#9fb3ab` | `#eef2e8` | 1.95:1 | Below 3:1 |
 | Map neutral selection stroke against fill | `#102c2d` | `#e6ecea` | 12.36:1 | Meets 3:1 |
 
+## Global product navigation (T1)
+
+[`src/components/ProductNav.tsx`](src/components/ProductNav.tsx) replaces the flat sidebar list with the approved canvas' arrangement: a thin horizontal bar above and outside the workspace (`.app-shell`), three always-present shortcuts (`#overview`, `#history`, `#actions`), a **Más destinos** disclosure whose panel is out of flow, and an **Estás en** line naming the open route. The other eleven routes are grouped by the navigation groups declared in [`src/app/routes.ts`](src/app/routes.ts). Every link is derived from `routes`; the canvas' fourth shortcut (Panel ejecutivo) is deferred to T4 because no route serves it yet. The component CSS is [`src/styles/product-nav.css`](src/styles/product-nav.css), scoped to `.product-nav`; `app.css` owns the bar's offset and the shell it sits above.
+
+| Class | Role | Values |
+| --- | --- | --- |
+| `.product-nav` | Bar above the shell | `position: sticky`, `top: 0`, `min-height: var(--product-nav-h, 48px)`, `--forest-900`, `3px 16px`, bottom border `#41625b` |
+| `.product-nav__link` | Always-visible shortcut | visible word `Mapa`/`Historial`/`Acciones`; `aria-label` carries the route label; `12px/1.3`, min-height `40px`, `0 10px`, radius `7px`, `#c3d6cf`; current row `#f0eee0` with `--forest-900` text |
+| `.product-nav__summary` | Disclosure control | `button` with `aria-expanded`/`aria-controls`; `12px/650`, min-height `40px`, border `#90aaa0`, `#e7faf5`; expanded `#effdf9` on `#254d47` |
+| `.product-nav__panel` | Out-of-flow menu | `position: absolute`, `top: calc(100% + 4px)`, `right: 16px`, `width: min(760px, calc(100% - 24px))`, `max-height: min(70dvh, 520px)`, `overflow-y: auto`, opaque `#1e4241`, `14px 16px`, radius `10px` |
+| `.product-nav__item` | Grouped destination | `12px/1.35`, min-height `32px`, `3px 8px`, radius `5px`, `#c3d6cf`; current `#f0eee0`, underlined |
+| `.product-nav__group-title`, `.product-nav__panel-title` | Navigation labels | `9px/800`, tracking `1.4px`, uppercase, `#a5c8bf` |
+| `.product-nav__note` | Panel footnote | `10px/1.5`, `#a5c8bf` |
+| `.product-nav__where` | Current-location line | right-aligned `11px`, value `#e7faf5`, label `#a5c8bf`; visually hidden but still announced below `560px` |
+| `.product-nav :is(a, button):focus-visible` | Focus ring | `3px` `#d7aa73`, offset `2px`; bar controls use offset `0` so the ring stays inside the 48px bar |
+
+The panel is opaque instead of translucent: it overlays the light workspace, so its labels are measured against the declared `#1e4241` rather than against whatever happens to be behind it. Layout: `.app-shell` and `.sidebar` reserve `calc(100vh - var(--product-nav-h, 48px))`, and the sidebar sticks at `top: var(--product-nav-h, 48px)`. At `≤720px` the sidebar becomes static and the panel narrows to `calc(100% - 16px)`; at `≤480px` the bar wraps instead of scrolling horizontally.
+
+**Known follow-up.** `scripts/check.mjs` still asserts the old `.sidebar nav` declaration set, and that script is outside this unit's edit surface. The rule remains in `app.css` with no rendered consumer; the gate and the rule should be retired together in a follow-up.
+
 ## What still needs a browser
 
 - Resolve inherited backgrounds, disabled and focus states, and route-specific overrides in the rendered views. For example, Actions already overrides some chip and tag colors, so their base ratios do not describe every view.
 - Sign-in hero gradients and translucent sidebar surfaces are now measured from rendered pixels, not from token pairs: see "Mixed surfaces" in the [visual audit](VISUAL-AUDIT.md). The lowest legitimate text sample is 5.07:1; the only sub-threshold value is a decorative `aria-hidden` glyph.
+- The corrected T1 product navigation was measured in Chromium 158 (headless) at 1440×900, 1024×720 and 390×800 under an intercepted local fixture; see ["T1 — global product navigation"](VISUAL-AUDIT.md#t1--global-product-navigation-2026-11-26-corrected). Its axe rule subset, text-spacing override and assistive-technology pass were not run for this change.
 - Capture the eight production views before restyling, then verify the same states and viewports after changes. Include keyboard focus, zoom and data loading, empty and error states where applicable.
 
 ### Public sign-in baseline
