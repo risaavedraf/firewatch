@@ -170,7 +170,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    against the border, which clips the right-aligned values of a data list
    (`model-panel`, `cycle-panel` both shipped that way). `tests/styles/
    layout-padding.test.tsx` reads this rule against the shipped markup. */
-.map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel { padding: 18px; }
+.map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel { padding: 18px; }
 .padded { padding: 22px; }
 .status-copy { min-height: 32px; margin: 13px 0 7px; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .8fr); gap: 16px; }
@@ -423,6 +423,36 @@ footer .icon { width: 13px; height: 13px; }
 .technical-notice { margin-left: auto; padding: 3px 8px; border: 1px dashed #c8bda0; border-radius: 6px; background: #faf7ee; color: #7d6c3f; font-size: 8px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; }
 .technical-notice:hover { background: #f4efe0; }
 
+/* ── Zone comparator (PM-05) ────────────────────────────────────────────── */
+/* The comparison is ONE read, so the card is organised as one control row, one
+   ordered selection and one axis per zone. The priority statement sits at the
+   bottom of the card as an `unimplemented-note`: the axis does not exist, and
+   the page says so instead of drawing an empty column. */
+.compare-controls { display: flex; flex-wrap: wrap; gap: 12px 18px; margin: 0 0 6px; }
+.compare-controls label { display: grid; gap: 5px; min-width: 220px; color: var(--forest-700); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+.compare-controls select { max-width: 100%; }
+/* The selection is an `<ol>`: position is the comparison axis, so the number is
+   rendered as text and the list marker is removed rather than hidden by colour. */
+.compare-selection { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
+.compare-selection:empty { display: none; }
+.compare-selection li { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); font-size: 10px; }
+.compare-order { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--forest-700); color: var(--paper); font-size: 8px; font-weight: 800; }
+.compare-selection-label { font-weight: 650; }
+.compare-zones { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 14px; }
+.compare-zone { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: #f8faf7; }
+.compare-zone h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: -.2px; }
+.compare-zone h5 { margin: 12px 0 5px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.compare-level { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.compare-origin { color: var(--muted); font-size: 9px; }
+/* A null assessment is a stated absence, not a low level: the block is set apart
+   from the surrounding data so it cannot be read as a value. */
+.compare-absent { padding: 10px 12px; border: 1px dashed #c8bda0; border-radius: 7px; background: #faf7ee; color: #57441c; font-size: 10px; line-height: 1.55; }
+.compare-absent p { margin: 0; }
+.compare-factors { margin: 0; padding-left: 16px; font-size: 10px; line-height: 1.6; }
+.compare-quiet { color: var(--muted); font-size: 9px; }
+.compare-zone .data-list dd { max-width: 66%; }
+.compare-history { min-width: 420px; }
+
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 1200px) {
   .sidebar { width: 208px; padding-inline: 12px; }
@@ -464,7 +494,7 @@ footer .icon { width: 13px; height: 13px; }
   main { padding: 20px 15px 28px; }
   .intro-row { align-items: flex-start; flex-direction: column; gap: 9px; }
   .intro-row h2 { font-size: 21px; }
-  .map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel { padding: 14px; }
+  .map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel { padding: 14px; }
   .metrics-three { grid-template-columns: 1fr; }
   .metric { padding: 14px; }
   .map-viewport, .map-svg { min-height: 220px; }
@@ -473,6 +503,12 @@ footer .icon { width: 13px; height: 13px; }
   .search-field { flex-basis: 100%; max-width: none; }
   .filter-label { flex: 1; }
   .filter-label select { flex: 1; }
+  /* The comparator's control row stacks so a 390 px viewport never clips the
+     zone picker or the granularity selector. */
+  .compare-controls { flex-direction: column; align-items: stretch; }
+  .compare-controls label, .compare-controls select { width: 100%; max-width: none; }
+  .compare-zones { grid-template-columns: 1fr; }
+  .compare-history { min-width: 0; }
   td { white-space: nowrap; }
   td.audit-detail { min-width: 210px; white-space: normal; }
   /* The new actions layout collapses to a single column so a 390 px viewport
