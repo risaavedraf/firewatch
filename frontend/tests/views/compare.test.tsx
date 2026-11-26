@@ -247,6 +247,74 @@ test('a window instant that is not RFC 3339 is refused before anything is read',
   }
 });
 
+// RFC 3339 spells a civil date, so a well-shaped date the calendar does not hold
+// is not an instant: `Date.parse` rolls `2026-02-31` into March, which would
+// accept a window the route never serves and an echo that names another day.
+test('a well-shaped but impossible civil date is refused, not rolled into the next month', async () => {
+  const fetchStub = prepare();
+
+  const impossibleFrom = compare({
+    zoneIds: ['05101', '05201'],
+    granularity: 'day',
+    from: '2026-02-31T00:00:00Z',
+    to: WINDOW.to,
+  });
+  const impossibleTo = compare({
+    zoneIds: ['05101', '05201'],
+    granularity: 'day',
+    from: WINDOW.from,
+    to: '2026-02-31T00:00:00Z',
+  });
+
+  // The guard answers locally, so an impossible window costs no request.
+  await flush();
+  expect(fetchStub.calls).toHaveLength(0);
+
+  for (const failure of [expectFailure(await impossibleFrom), expectFailure(await impossibleTo)]) {
+    expect(failure.kind).toBe('malformed');
+    expect(failure.reason).toBe('invalid_comparison_request');
+  }
+
+  // The same impossible date inside the body refuses the whole answer.
+  async function readWith(build: (url: URL) => unknown) {
+    const read = compare({ zoneIds: ['05101', '05201'], granularity: 'day', ...WINDOW });
+    await flush();
+    const url = new URL(fetchStub.calls[fetchStub.calls.length - 1].url);
+    fetchStub.answer(url.toString(), build(url));
+    return read;
+  }
+
+  const impossibleAssessment = expectFailure(
+    await readWith(url =>
+      collectionFor(url, [
+        {
+          ...zone('05101'),
+          assessment: { ...assessment('05101', 'alto'), requested_at: '2026-02-31T00:00:00Z' },
+        },
+        zone('05201'),
+      ]),
+    ),
+  );
+  const impossibleBucket = expectFailure(
+    await readWith(url =>
+      collectionFor(url, [
+        {
+          ...zone('05101'),
+          history: [
+            { ...point('05101', '2026-11-01T00:00:00Z', 'medio'), bucket_start: '2026-02-31T00:00:00Z' },
+          ],
+        },
+        zone('05201'),
+      ]),
+    ),
+  );
+
+  for (const failure of [impossibleAssessment, impossibleBucket]) {
+    expect(failure.kind).toBe('malformed');
+    expect(failure.reason).toBe('invalid_shape');
+  }
+});
+
 // `batch_id` is `format: uuid` in ComparisonAssessment and HistoryBucket, while
 // `zone_id` is deliberately a plain catalogue code: the guard enforces the first
 // and must not invent the second.

@@ -638,12 +638,35 @@ function closedRecord(value: unknown, members: readonly string[]): value is Reco
 // `format: date-time` is RFC 3339, not "whatever `Date.parse` tolerates": the
 // contract's instant names a date, a time and a MANDATORY offset (`Z` or
 // `±HH:MM`), so `01/02/2026` and a bare `2026-11-01T00:00:00` are not instants
-// the route accepts. The shape is checked before the value, and `Date.parse`
-// still rejects a well-shaped but impossible date such as `2026-02-31`.
-const RFC3339_INSTANT = /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/;
+// the route accepts. The shape is checked first, then the civil fields, and only
+// then the value: `Date.parse` alone would ACCEPT an impossible civil date such
+// as `2026-02-31` by rolling it into March, so this guard rejects a month outside
+// 1-12, a day outside the month (leap February included) and an hour, minute or
+// second outside 00-23, 00-59 and 00-59.
+const RFC3339_INSTANT = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$/;
+
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+// The leap rule the calendar uses, not the one `year % 4` suggests: 1900 is not
+// a leap year and 2000 is.
+function daysInMonth(year: number, month: number): number {
+  if (month !== 2) return DAYS_IN_MONTH[month - 1];
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 29 : 28;
+}
 
 function instant(value: unknown): number | null {
-  if (!nonempty(value) || !RFC3339_INSTANT.test(value)) return null;
+  if (!nonempty(value)) return null;
+  const fields = RFC3339_INSTANT.exec(value);
+  if (fields === null) return null;
+  const year = Number(fields[1]);
+  const month = Number(fields[2]);
+  const day = Number(fields[3]);
+  const hour = Number(fields[4]);
+  const minute = Number(fields[5]);
+  const second = Number(fields[6]);
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > daysInMonth(year, month)) return null;
+  if (hour > 23 || minute > 59 || second > 59) return null;
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? null : parsed;
 }
