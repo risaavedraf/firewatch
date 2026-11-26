@@ -559,6 +559,97 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/executive-summary:
+    get:
+      operationId: getExecutiveRiskSummary
+      description: >-
+        Viewer/admin. Read-only, with no query parameters. Counts each catalogue
+        zone's newest published batch by risk level, including expired and demo
+        batches. Zones without a batch are counted separately, never as unknown.
+        For each zone, newest means descending requested_at then batch ID, as in
+        /v1/risk/batches. Compares the two newest batches only when model version,
+        demo flag and scenario ID match; never searches further back for a match.
+        Counts the strongest known positive contribution from each newest batch
+        (ties by variable name). This is a frequency of recorded model factors,
+        not a ranking of observed causes. No critical-zone definition or alert
+        lifecycle is implied by this summary.
+      responses:
+        '200':
+          description: Summary from a single catalogue and batch snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [coverage, levels, delta, predominant_variables]
+                properties:
+                  coverage:
+                    type: object
+                    additionalProperties: false
+                    required: [catalogue_zones, zones_without_batch, stale_zones, demo_zones]
+                    properties:
+                      catalogue_zones: {type: integer, minimum: 0}
+                      zones_without_batch: {type: integer, minimum: 0}
+                      stale_zones:
+                        description: Newest batch is at or beyond valid_until.
+                        type: integer
+                        minimum: 0
+                      demo_zones: {type: integer, minimum: 0}
+                  levels:
+                    type: object
+                    additionalProperties: false
+                    required: [alto, medio, bajo, desconocido]
+                    properties:
+                      alto: {type: integer, minimum: 0}
+                      medio: {type: integer, minimum: 0}
+                      bajo: {type: integer, minimum: 0}
+                      desconocido: {type: integer, minimum: 0}
+                  delta:
+                    type: object
+                    additionalProperties: false
+                    required: [zones_compared, zones_changed, zones_without_previous, zones_incomparable, transitions]
+                    properties:
+                      zones_compared: {type: integer, minimum: 0}
+                      zones_changed: {type: integer, minimum: 0}
+                      zones_without_previous:
+                        description: Zones with exactly one batch.
+                        type: integer
+                        minimum: 0
+                      zones_incomparable:
+                        description: Zones with two latest batches that differ in model version, demo flag or scenario ID.
+                        type: integer
+                        minimum: 0
+                      transitions:
+                        description: Changed pairs only, ordered lexically by from then to.
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required: [from, to, zones]
+                          properties:
+                            from: {type: string, enum: [alto, medio, bajo, desconocido]}
+                            to: {type: string, enum: [alto, medio, bajo, desconocido]}
+                            zones: {type: integer, minimum: 1}
+                  predominant_variables:
+                    description: Nonzero counts ordered by zone count descending, then by name ascending.
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [name, zones]
+                      properties:
+                        name: {type: string, minLength: 1}
+                        zones: {type: integer, minimum: 1}
+        '400':
+          description: Query parameters are not supported (invalid_executive_summary_query).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
   /v1/risk/alerts:
     get:
       operationId: listRiskAlerts

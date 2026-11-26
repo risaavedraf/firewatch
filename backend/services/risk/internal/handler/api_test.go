@@ -37,9 +37,12 @@ type fakeStore struct {
 	activated   []string
 	// latestPerZone answers the aggregate read, and the counters prove the route
 	// asks storage once for every zone instead of once per zone.
-	latestPerZone []repository.Batch
-	aggregateErr  error
-	aggregateCall int
+	latestPerZone    []repository.Batch
+	aggregateErr     error
+	aggregateCall    int
+	executiveBatches [][]repository.Batch
+	executiveErr     error
+	executiveCalls   int
 	// Alert timeline state for the PM-08 read route. alertQueries records what the
 	// route asked for, so a test can prove the page window and the keyset boundary
 	// reached storage instead of being dropped or replaced by defaults.
@@ -60,6 +63,11 @@ type fakeStore struct {
 	compareErr     error
 	compareCalls   int
 	compareQueries []repository.ComparisonQuery
+}
+
+func (s *fakeStore) ExecutiveBatches(context.Context) ([][]repository.Batch, error) {
+	s.executiveCalls++
+	return s.executiveBatches, s.executiveErr
 }
 
 func (s *fakeStore) ListModels(context.Context) ([]repository.ModelVersion, error) {
