@@ -36,8 +36,18 @@ import {
 import { idleCopy } from '../app/sessionCopy';
 import { MapPanel, type MapLoadState, type ZoneLevelLookup } from '../components/map/MapPanel';
 import { zoneLabel } from '../components/map/projection';
+import { ExecutivePanel, type ExecutiveSummaryState } from '../components/executive/ExecutivePanel';
 import { DataList, Metric, PanelHeading, StatusCopy, UnimplementedNote } from '../components/ui';
-import { batches, history, latest, modelVersions, zones, type Failure, type Outcome } from '../core/api';
+import {
+  batches,
+  executiveSummary,
+  history,
+  latest,
+  modelVersions,
+  zones,
+  type Failure,
+  type Outcome,
+} from '../core/api';
 import type { SessionState } from '../core/session';
 import {
   computeFactorBars,
@@ -337,6 +347,9 @@ export function OverviewView() {
   const [catalogue, setCatalogue] = useState<CatalogueState | null>(null);
   const [read, setRead] = useState<ReadState | null>(null);
   const [activeModel, setActiveModel] = useState<ActiveModel | null>(null);
+  // PM-01 — the executive summary is one session-scoped read. `null` while it is
+  // in flight; a failure is stored as a stated outcome, never as zeros.
+  const [executive, setExecutive] = useState<ExecutiveSummaryState | null>(null);
   const [sessionClosed, setSessionClosed] = useState(false);
   // Whether a real session was ever established. It separates "never connected"
   // (the count is still unknown, `—`) from "the session was closed" (the count
@@ -454,6 +467,40 @@ export function OverviewView() {
     };
   }, [signedIn]);
 
+  // PM-01 — one read of the server's executive summary, alongside the catalogue
+  // and the registry: it answers the whole territory, so it is not tied to the
+  // selected zone and a new selection never re-issues it. A failed or superseded
+  // answer is stated inline and owns only that section; the transport's deadline
+  // is what bounds a hung read, so the panel cannot spin forever.
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    const controller = new AbortController();
+    let active = true;
+    void (async () => {
+      const outcome = await executiveSummary(controller.signal);
+      if (!active) return;
+      if (outcome.ok) {
+        setExecutive({ kind: 'ready', summary: outcome.data });
+        return;
+      }
+      // A superseded, aborted or unauthorized answer belongs to a request this
+      // view already replaced, or is the session's own verdict: neither is a
+      // failure of the summary this page should print.
+      if (
+        outcome.failure.reason === 'superseded' ||
+        outcome.failure.reason === 'aborted' ||
+        outcome.failure.kind === 'unauthorized'
+      ) {
+        return;
+      }
+      setExecutive({ kind: 'failed', message: failureMessage(outcome.failure, 'consultar el resumen ejecutivo') });
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [signedIn]);
+
   // Ending a session clears everything the private view was describing. The
   // shared zone state is cleared here as well so the view stays honest even when
   // it is mounted without the session binding installed at application start.
@@ -468,6 +515,7 @@ export function OverviewView() {
     setCatalogue(null);
     setRead(null);
     setActiveModel(null);
+    setExecutive(null);
     setSessionClosed(true);
   }, [signedIn]);
 
@@ -496,6 +544,17 @@ export function OverviewView() {
   const zoneLevelLookup = useMemo(
     (): ZoneLevelLookup => ({ levelFor: (code: string) => levels.get(code) ?? '' }),
     [levels],
+  );
+
+  // The catalogue's display names, keyed the way the summary reports zones. The
+  // panel names a critical zone when this catalogue knows it and falls back to
+  // the code the summary sent when it does not.
+  const zoneNames = useMemo(
+    (): ReadonlyMap<string, string> =>
+      catalogue !== null && catalogue.kind === 'ready'
+        ? catalogueZoneLabels(catalogue.collection)
+        : new Map<string, string>(),
+    [catalogue],
   );
 
   const highCount = useMemo(() => {
@@ -597,6 +656,15 @@ export function OverviewView() {
             : 'NO DECLARADO';
   const modelStatusText = activeModel === null ? 'Sin consultar el registro de modelos.' : activeModel.label;
 
+  // PM-01 — the panel's state. A signed-out view is idle (it never shows a number
+  // it did not read); a signed-in view with no settled answer is loading, and
+  // every settled answer is either the summary or a stated failure.
+  const executiveState: ExecutiveSummaryState = !signedIn
+    ? { kind: 'idle' }
+    : executive !== null
+      ? executive
+      : { kind: 'loading' };
+
   return (
     <section className="view" id="overview" data-view="overview" aria-labelledby="overview-title">
       <div className="intro-row">
@@ -609,6 +677,13 @@ export function OverviewView() {
           ENTRADA SINTÉTICA · SIN CALIBRACIÓN
         </span>
       </div>
+
+      {/*
+        PM-01 — the executive panel opens the view: it is the server's
+        territory-wide answer, and its failure owns only this section, so the
+        metrics, the map and the batch card keep working below it.
+      */}
+      <ExecutivePanel state={executiveState} zoneNames={zoneNames} batchIsDemo={batchData?.demo === true} />
 
       <section className="dashboard-grid" aria-label="Estado del riesgo y ubicación">
         <MapPanel

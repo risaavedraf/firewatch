@@ -37,7 +37,7 @@ import type {
 } from '../types/api';
 // The closed type catalogue is a runtime value: the guards compare the served
 // wire spelling against it, so it cannot travel through `import type`.
-import { OBSERVATION_TYPES } from '../types/api';
+import { OBSERVATION_TYPES, RISK_LEVELS } from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -103,6 +103,7 @@ type RequestKind =
   | 'latest'
   | 'history'
   | 'batches'
+  | 'executiveSummary'
   | 'sources'
   | 'riskStatus'
   | 'jobsStatus'
@@ -122,6 +123,7 @@ type RequestKind =
   | 'createObservation'
   | 'adoptObservation'
   | 'models'
+  | 'simulate'
   | 'users';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
@@ -533,6 +535,144 @@ export async function batches(signal?: AbortSignal): Promise<Outcome<RiskBatch[]
     collection.push(entry);
   }
   return { ok: true, data: collection };
+}
+
+// --- Executive summary ------------------------------------------------------
+//
+// PM-01's aggregate read. The server computes every count in this body; the
+// panel that renders it performs no arithmetic of its own, so the types here are
+// the contract's own members and nothing derived.
+
+export interface ExecutiveCoverage {
+  catalogue_zones: number;
+  zones_without_batch: number;
+  stale_zones: number;
+  demo_zones: number;
+}
+
+// The four levels the contract fixes. `desconocido` is a level the rule can
+// state, not an absence of data: a batch without a determined level counts here.
+export interface ExecutiveLevelCounts {
+  alto: number;
+  medio: number;
+  bajo: number;
+  desconocido: number;
+}
+
+export interface ExecutiveTransition {
+  from: string;
+  to: string;
+  zones: number;
+}
+
+export interface ExecutiveDelta {
+  zones_compared: number;
+  zones_changed: number;
+  zones_without_previous: number;
+  zones_incomparable: number;
+  transitions: ExecutiveTransition[];
+}
+
+export interface ExecutiveVariable {
+  name: string;
+  zones: number;
+}
+
+// D-B "Alto sostenido dos lotes": the zones whose two newest published batches
+// are both `alto`, ordered by zone id on the server, with `count` as its length.
+export interface ExecutiveCriticalZones {
+  count: number;
+  zone_ids: string[];
+}
+
+export interface ExecutiveSummary {
+  coverage: ExecutiveCoverage;
+  levels: ExecutiveLevelCounts;
+  delta: ExecutiveDelta;
+  predominant_variables: ExecutiveVariable[];
+  critical_zones: ExecutiveCriticalZones;
+  // Rows stored in `risk_alerts`, unfiltered. Not an unread count: no read or
+  // dismissed state exists yet, and the panel must not imply one.
+  active_alerts: { count: number };
+}
+
+const EXECUTIVE_LEVELS = ['alto', 'medio', 'bajo', 'desconocido'] as const;
+
+function isSummaryCount(value: unknown): value is number {
+  // A negative, fractional or non-numeric count is not a count: the panel would
+  // print it as if the service had measured it.
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function isExecutiveLevel(value: unknown): value is string {
+  return EXECUTIVE_LEVELS.some((level) => level === value);
+}
+
+// Fail-closed boundary guard. The panel shows six blocks side by side, so an
+// answer missing one of them - or carrying a count it contradicts - is rejected
+// whole rather than rendered partially. `critical_zones.count` must equal the
+// list it summarises, because the contract states that invariant and a body that
+// disagrees with itself cannot be shown honestly either way.
+function isExecutiveSummary(value: unknown): value is ExecutiveSummary {
+  if (!record(value)) return false;
+
+  if (!record(value.coverage)) return false;
+  const coverage = value.coverage;
+  if (
+    !isSummaryCount(coverage.catalogue_zones) ||
+    !isSummaryCount(coverage.zones_without_batch) ||
+    !isSummaryCount(coverage.stale_zones) ||
+    !isSummaryCount(coverage.demo_zones)
+  ) {
+    return false;
+  }
+
+  if (!record(value.levels)) return false;
+  const levels = value.levels;
+  for (const level of EXECUTIVE_LEVELS) if (!isSummaryCount(levels[level])) return false;
+
+  if (!record(value.delta)) return false;
+  const delta = value.delta;
+  for (const key of ['zones_compared', 'zones_changed', 'zones_without_previous', 'zones_incomparable'] as const) {
+    if (!isSummaryCount(delta[key])) return false;
+  }
+  if (!Array.isArray(delta.transitions)) return false;
+  for (const entry of delta.transitions) {
+    if (!record(entry) || !isExecutiveLevel(entry.from) || !isExecutiveLevel(entry.to)) return false;
+    if (!isSummaryCount(entry.zones) || entry.zones < 1) return false;
+  }
+
+  if (!Array.isArray(value.predominant_variables)) return false;
+  for (const entry of value.predominant_variables) {
+    if (!record(entry) || !nonempty(entry.name) || !isSummaryCount(entry.zones) || entry.zones < 1) return false;
+  }
+
+  if (!record(value.critical_zones)) return false;
+  const critical = value.critical_zones;
+  if (!isSummaryCount(critical.count) || !Array.isArray(critical.zone_ids)) return false;
+  for (const zone of critical.zone_ids) if (!nonempty(zone)) return false;
+  if (critical.count !== critical.zone_ids.length) return false;
+
+  if (!record(value.active_alerts)) return false;
+  return isSummaryCount(value.active_alerts.count);
+}
+
+// `config.routes` is the shared route table this unit does not own, so the route
+// is named here the way the transport names the job creation path. The page
+// reads through the gateway, like every other `/v1/*` read.
+const EXECUTIVE_SUMMARY_ROUTE = '/v1/risk/executive-summary';
+
+// One read answers the executive summary: coverage, levels, the recent variation
+// and the two PM-01 members. A failure is an outcome, never a partial summary:
+// the panel states it inline and the rest of the view keeps working.
+export async function executiveSummary(signal?: AbortSignal): Promise<Outcome<ExecutiveSummary>> {
+  const result = await requestJson(
+    'executiveSummary',
+    `${gatewayOrigin}${EXECUTIVE_SUMMARY_ROUTE}`,
+    { authenticated: true },
+    signal,
+  );
+  return guardOutcome(result, isExecutiveSummary);
 }
 
 // The served payload is nested under `geography` exactly as the declaration
@@ -1173,4 +1313,150 @@ export async function modelRegistry(signal?: AbortSignal): Promise<Outcome<Model
     return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
   }
   return { ok: true, data: { models: result.body.models, effective: result.body.effective } };
+}
+
+// --- PM-03: counterfactual simulation (`POST /v1/risk/simulate`) ------------
+//
+// The route re-applies the rule the stored batch recorded to substituted values
+// and writes nothing: no batch, no outbox event, no alert and no audit row. Three
+// properties travel with this code:
+//   1. the body names ONE zone and ONLY the canonical variables that were
+//      substituted — a request with no substitution is refused here, before the
+//      fetch, because the contract's `minProperties: 1` would answer 400 for it;
+//   2. the answer is refused when it echoes another zone or another stored batch,
+//      so a slow answer for a batch the operator never prefilled from can never be
+//      painted as that batch's counterfactual;
+//   3. `freshness` must still say `not_evaluated`: this route takes no staleness
+//      decision, and a value that claimed one would be a statement nobody made.
+//
+// The result is the stored rule applied to hypothetical values. It is not a
+// forecast, a probability or an official index, and the view says so.
+
+export const SIMULATION_VARIABLES = [
+  'temperatura',
+  'humedad_relativa',
+  'viento',
+  'cobertura_vegetal',
+  'incendios_historicos',
+] as const;
+
+export type SimulationVariable = (typeof SIMULATION_VARIABLES)[number];
+
+export interface SimulationFactor {
+  name: string;
+  known: boolean;
+  // Omitted when the variable is absent: a missing observation is never served
+  // as zero, and the page must not draw it as a measurement.
+  value?: number;
+  contribution?: number;
+}
+
+export interface SimulationAssessment {
+  level: string;
+  factors: SimulationFactor[];
+}
+
+export interface SimulationPolicy {
+  policy_id: string;
+  params_hash: string;
+}
+
+export interface SimulationResult {
+  batch_id: string;
+  zone_id: string;
+  model_version: string;
+  stored_level: string;
+  policy: SimulationPolicy;
+  computation_instant: string;
+  freshness: 'not_evaluated';
+  before: SimulationAssessment;
+  after: SimulationAssessment;
+  notice: string;
+}
+
+export interface SimulationInput {
+  readonly zoneId: string;
+  // The stored batch the page prefilled from. It is verified against the answer's
+  // echo and never travels in the body: the route always simulates the newest one.
+  readonly batchId: string;
+  readonly variables: Partial<Record<SimulationVariable, number | null>>;
+}
+
+const SIMULATION_ROUTE = '/v1/risk/simulate';
+
+// The five risk levels are a closed vocabulary: a level outside it is a contract
+// change, not a label to pass through to the page.
+function isRiskLevel(value: unknown): boolean {
+  return typeof value === 'string' && (RISK_LEVELS as readonly string[]).includes(value);
+}
+
+function isSimulationFactor(value: unknown): boolean {
+  if (!record(value) || !nonempty(value.name) || typeof value.known !== 'boolean') return false;
+  if (value.known) return Number.isFinite(value.value) && Number.isFinite(value.contribution);
+  return value.value === undefined && value.contribution === undefined;
+}
+
+// One assessment states a level and exactly one entry per canonical variable, in
+// canonical order: the five rows the page renders are the five variables the rule
+// actually used, and a missing or extra one is a contract change, not a gap to
+// fill in from elsewhere.
+function isSimulationAssessment(value: unknown): value is SimulationAssessment {
+  if (!record(value) || !isRiskLevel(value.level)) return false;
+  if (!Array.isArray(value.factors) || value.factors.length !== SIMULATION_VARIABLES.length) return false;
+  if (!value.factors.every(isSimulationFactor)) return false;
+  return value.factors.every((factor, index) => record(factor) && factor.name === SIMULATION_VARIABLES[index]);
+}
+
+function isSimulationResult(value: unknown): value is SimulationResult {
+  if (!record(value)) return false;
+  if (!nonempty(value.batch_id) || !nonempty(value.zone_id) || !nonempty(value.model_version)) return false;
+  if (!isRiskLevel(value.stored_level) || !nonempty(value.computation_instant) || !nonempty(value.notice)) return false;
+  if (value.freshness !== 'not_evaluated') return false;
+  if (!record(value.policy) || !nonempty(value.policy.policy_id) || !nonempty(value.policy.params_hash)) return false;
+  return isSimulationAssessment(value.before) && isSimulationAssessment(value.after);
+}
+
+// The substitution document. An absent variable is OMITTED rather than sent as
+// its stored value, so the request states exactly the counterfactual the operator
+// asked for and the service keeps the rest of the stored batch.
+export async function simulateRisk(input: SimulationInput, signal?: AbortSignal): Promise<Outcome<SimulationResult>> {
+  const zoneId = input.zoneId.trim();
+  const batchId = input.batchId.trim();
+  if (zoneId === '' || batchId === '') return failureOutcome(failureSpec('malformed', 'invalid_simulation'));
+  const variables: Partial<Record<SimulationVariable, number | null>> = {};
+  for (const name of SIMULATION_VARIABLES) {
+    const candidate = input.variables[name];
+    if (candidate === undefined) continue;
+    // `null` is the contract's own "force the variable to be absent"; anything
+    // that is neither null nor a finite number is refused instead of coerced.
+    if (candidate !== null && !Number.isFinite(candidate)) {
+      return failureOutcome(failureSpec('malformed', 'invalid_simulation'));
+    }
+    variables[name] = candidate;
+  }
+  if (Object.keys(variables).length === 0) {
+    return failureOutcome(failureSpec('malformed', 'invalid_simulation'));
+  }
+  const result = await requestJson(
+    'simulate',
+    `${gatewayOrigin}${SIMULATION_ROUTE}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ zone_id: zoneId, variables }),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<SimulationResult>(result);
+  if (!isSimulationResult(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (result.body.zone_id !== zoneId) {
+    return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
+  }
+  if (result.body.batch_id !== batchId) {
+    return failureOutcome(failureSpec('malformed', 'batch_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
 }

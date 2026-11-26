@@ -99,7 +99,11 @@ func run() error {
 		ClientSecret: os.Getenv("DIRECTORY_CLIENT_SECRET"),
 	})
 	mux := http.NewServeMux()
-	mux.Handle("/v1/", handler.New(store, verifier, directoryClient))
+	// PM-16: the status read reports this service's own database evidence, through
+	// the operationalStatusCheck seam in operational_status.go and the same
+	// Authorize gate as every other route of this process, so it is never reachable
+	// unauthenticated.
+	mux.Handle("/v1/", handler.NewWithOperationalStatus(store, verifier, directoryClient, operationalStatusCheck(db.Ping, operationalStatusTimeout)))
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
 	mux.Handle("GET /health/ready", readyHandler(db.Ping))
 	// /metrics is answered here, next to the health checks and before any bearer

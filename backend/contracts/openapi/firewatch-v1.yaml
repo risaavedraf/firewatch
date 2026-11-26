@@ -26,6 +26,70 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /v1/risk/inference/status:
+    get:
+      operationId: getInferenceStatus
+      description: >-
+        Viewer/admin. Evidence about the inference service this deployment is
+        configured to call, gathered by risk itself: the only service that
+        already holds the configured internal address and the internal CA. The
+        public surface never reaches inference directly, and this read never
+        carries the caller's credential onward: risk asks the configured
+        inference health path with no Authorization header, follows no redirect
+        and reads a bounded body.
+
+        Evidence, not pipeline delivery: ready means the configured inference
+        service answered its own health document at this instant, not that a
+        prediction was produced end to end.
+
+        An unconfigured inference address is not a failure: it means this
+        deployment runs rule classifiers only, so the state is not_configured
+        and the answer is 200. A configured service that cannot be reached,
+        answers another status, or sends a body that is not its ready health
+        document is degraded, answered 503. The address is read from
+        configuration only: no request parameter chooses a target, so a caller
+        can neither point this route at another host nor widen it into a scan.
+
+        The document that counts as ready is the one the inference contract
+        declares (contracts/openapi/inference-v1.yaml, schema Health): status
+        ready, format firewatch-model/v1, a model version and data hash, a kind
+        of logistic or forest, a parsable training instant, a feature count and
+        both thresholds inside the unit interval. A body that merely says
+        "ready" is not that document and is degraded evidence.
+
+        This probe requires HTTPS outside the literal development environment. A
+        plaintext http address is refused before anything is dialled, and a
+        configured internal CA does not change that, so a refused address is
+        never contacted. The body is read under one short deadline and one bound;
+        a document larger than the bound is degraded rather than truncated into a
+        prefix that happens to parse.
+      responses:
+        '200':
+          description: >-
+            Evidence that is not a failure: ready, or not_configured when no
+            inference address is configured.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InferenceStatusEvidence'}
+        '503':
+          description: >-
+            The configured inference service is degraded or its evidence could
+            not be established: unreachable, refused by the outbound TLS policy,
+            another status, an oversized body, or a body that is not the
+            contracted health document.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InferenceStatusEvidence'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/jobs/status:
     get:
       operationId: getJobsStatus
@@ -44,6 +108,82 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /v1/status:
+    get:
+      operationId: getServiceStatus
+      description: >-
+        Viewer/admin. One bounded, parallel read of the four declared status
+        surfaces: risk, jobs, prevention and the inference evidence risk
+        publishes. It is answered by the gateway itself, so the gateway entry
+        stays ready even when an upstream is not: the aggregate summarises what
+        each dependency reported, it is not a global readiness verdict and not
+        an end-to-end delivery test. There is deliberately no overall boolean;
+        the answer is the per-service list, always the same four entries in the
+        same order.
+
+        Each entry holds exactly one state. ready means the service answered its
+        own documented status body as ready. degraded means it answered 503 with
+        a not-ready body. unknown means the gateway could not obtain usable
+        evidence: unreachable, too slow, another status, a body that is not the
+        contracted one, or a status and body that contradict each other.
+        unauthorized means this caller's token is not permitted to check that
+        service (403) or was refused there (401); that is a fact about the
+        caller's permission, not about the service, so it is never reported as
+        degraded. not_configured is used only by the inference entry, when the
+        deployment configures no inference address at all.
+
+        The code and the body must agree for an entry to carry a documented
+        state: 200 with a ready body (or not_configured for inference only), or
+        503 with an unready body. Any other pair, including a 503 that claims an
+        unset configuration, is reported unknown
+        instead of being turned into a state the service did not report, so an
+        inconsistent answer can never become a success.
+
+        This route is declared for viewer and admin, and it enforces that itself
+        from the realm roles of the verified token, before it contacts any
+        service: a token holding neither role is answered 403 and no status
+        target is reached. A caller-supplied role header grants nothing.
+
+        The fan-out is fixed and bounded: four targets taken from configuration,
+        one short deadline covering the requests and their bodies, no redirect
+        followed, and a bounded read of each body. Only the caller's own
+        Authorization and the correlation id this gateway minted reach those
+        targets; no other inbound header, and no path or query of this request,
+        chooses a target. No upstream body is relayed here, only the state
+        derived from it.
+
+        The bound is a length check, not a truncation: a body larger than the read
+        bound is unknown, so a valid prefix followed by padding cannot pass as the
+        contracted document. The read also stops with the caller: a cancelled
+        request ends the fan-out, and the entries it did not obtain are unknown.
+
+        200 means no service is degraded or unknown. 503 means at least one is,
+        and the body still carries all four states. Weather is not integrated and
+        therefore has no entry.
+      responses:
+        '200':
+          description: >-
+            Summary of the four status surfaces in fixed order; none of them
+            degraded or unknown.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MultiserviceStatus'}
+        '503':
+          description: >-
+            At least one status surface is degraded or unknown. The body carries
+            every entry, so a caller can tell which one.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MultiserviceStatus'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
   /v1/jobs:
     post:
       operationId: createDemoJob
@@ -554,6 +694,238 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/BatchCollection'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/simulate:
+    post:
+      operationId: simulateRiskBatch
+      description: >-
+        Viewer/admin. Counterfactual recalculation of the newest stored batch of
+        one zone: the same rule that produced the stored level is applied again
+        to the stored variables (before) and to the caller's substituted variables
+        (after), and both results are returned. Nothing is published: the route
+        writes no batch, no outbox event, no alert and no audit row, and it
+        performs no inference call. The recomputation is local arithmetic over a
+        built-in rule, so it stays answerable without the inference service.
+
+        Only a built-in rule this service can rebuild is simulated. The version
+        recorded on the batch selects the rule, and the policy reference recorded
+        with the batch must match it exactly: the same policy_id, the fingerprint
+        of the reconstructed parameter set, and a parameter map that hashes to
+        that fingerprint. When any of those cannot be reproduced - a row written
+        before policy persistence, a different identifier or fingerprint, a
+        fixture executed by the inference service, a trained artifact or a
+        placeholder - the answer is 422 unsupported_original_rule. This service
+        never falls back to the currently active or default model, because the
+        result would then describe a policy that did not produce the stored level.
+
+        Both evaluations pin the observation and evaluation instant to the batch's
+        recorded request instant. That is what makes before and after comparable
+        and the answer reproducible, and it is why freshness is reported as
+        `not_evaluated`: this route takes no staleness decision and claims nothing
+        about whether the stored data is current. The result is the stored rule
+        applied to hypothetical values. It is not a forecast, not a probability,
+        not an official index and not a new publication forecast.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SimulationRequest'}
+      responses:
+        '200':
+          description: >-
+            The stored batch's identity, its stored level, the recorded policy
+            identity, both recomputed assessments and the explicit freshness
+            status. No row was written.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SimulationResult'}
+        '400':
+          description: >-
+            The body is not one JSON object of at most 4096 bytes with zone_id
+            and a non-empty subset of the five canonical variables
+            (invalid_simulation): an unknown member, a duplicate member, trailing
+            input, a missing or empty member, a variable outside the canonical
+            vocabulary, a value that is neither a number nor null, and a
+            non-finite number are all refused before storage is read. A zone
+            absent from the catalogue is invalid_zone, exactly as the per-zone
+            reads answer it.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404':
+          description: >-
+            The zone has no published batch, so there is no stored rule to
+            simulate. This is the same empty-state answer /v1/risk/latest
+            serves: code and data_status, and no request_id.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, data_status]
+                properties:
+                  code: {type: string, enum: [no_published_batch]}
+                  data_status: {type: string, enum: [insufficient]}
+        '415':
+          description: JSON content type required (json_required).
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '422':
+          description: >-
+            The stored batch's rule cannot be reproduced locally
+            (unsupported_original_rule): no recorded policy reference, a different
+            policy identifier or fingerprint, a reference that does not carry the
+            parameters it fingerprints, a model version that is not a built-in
+            rule, unreadable stored factors, or no recorded request instant. No
+            fallback policy is used and no level is returned.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/executive-summary:
+    get:
+      operationId: getExecutiveRiskSummary
+      description: >-
+        Viewer/admin. Read-only, with no query parameters. Counts each catalogue
+        zone's newest published batch by risk level, including expired and demo
+        batches. Zones without a batch are counted separately, never as unknown.
+        For each zone, newest means descending requested_at then batch ID, as in
+        /v1/risk/batches. Compares the two newest batches only when model version,
+        demo flag and scenario ID match; never searches further back for a match.
+        Counts the strongest known positive contribution from each newest batch
+        (ties by variable name). This is a frequency of recorded model factors,
+        not a ranking of observed causes.
+
+        critical_zones applies D-B, the responsible's definition written as "Alto
+        sostenido dos lotes": a zone is critical when BOTH of its two newest
+        published batches have level alto. The rule reads those two levels only. A
+        stale pair still counts, because freshness is what coverage.stale_zones
+        reports, and a pair whose model version, demo flag or scenario ID differs
+        still counts, because comparability is what delta reports. A zone with a
+        single batch, and a zone whose newest batch is not alto, is never critical.
+
+        active_alerts counts the rows stored in risk_alerts. It applies no filter
+        and reports no read or dismissed state: that lifecycle does not exist yet,
+        and the count states only how many level-change alerts the service has
+        recorded.
+      responses:
+        '200':
+          description: Summary from a single catalogue and batch snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [coverage, levels, delta, predominant_variables, critical_zones, active_alerts]
+                properties:
+                  coverage:
+                    type: object
+                    additionalProperties: false
+                    required: [catalogue_zones, zones_without_batch, stale_zones, demo_zones]
+                    properties:
+                      catalogue_zones: {type: integer, minimum: 0}
+                      zones_without_batch: {type: integer, minimum: 0}
+                      stale_zones:
+                        description: Newest batch is at or beyond valid_until.
+                        type: integer
+                        minimum: 0
+                      demo_zones: {type: integer, minimum: 0}
+                  levels:
+                    type: object
+                    additionalProperties: false
+                    required: [alto, medio, bajo, desconocido]
+                    properties:
+                      alto: {type: integer, minimum: 0}
+                      medio: {type: integer, minimum: 0}
+                      bajo: {type: integer, minimum: 0}
+                      desconocido: {type: integer, minimum: 0}
+                  delta:
+                    type: object
+                    additionalProperties: false
+                    required: [zones_compared, zones_changed, zones_without_previous, zones_incomparable, transitions]
+                    properties:
+                      zones_compared: {type: integer, minimum: 0}
+                      zones_changed: {type: integer, minimum: 0}
+                      zones_without_previous:
+                        description: Zones with exactly one batch.
+                        type: integer
+                        minimum: 0
+                      zones_incomparable:
+                        description: Zones with two latest batches that differ in model version, demo flag or scenario ID.
+                        type: integer
+                        minimum: 0
+                      transitions:
+                        description: Changed pairs only, ordered lexically by from then to.
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: false
+                          required: [from, to, zones]
+                          properties:
+                            from: {type: string, enum: [alto, medio, bajo, desconocido]}
+                            to: {type: string, enum: [alto, medio, bajo, desconocido]}
+                            zones: {type: integer, minimum: 1}
+                  predominant_variables:
+                    description: Nonzero counts ordered by zone count descending, then by name ascending.
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [name, zones]
+                      properties:
+                        name: {type: string, minLength: 1}
+                        zones: {type: integer, minimum: 1}
+                  critical_zones:
+                    description: >-
+                      D-B "Alto sostenido dos lotes": the zone_ids whose two newest
+                      published batches both have level alto, ordered lexically by
+                      zone_id. count is always the length of zone_ids, and an
+                      answer with no critical zone is an empty array, never null.
+                    type: object
+                    additionalProperties: false
+                    required: [count, zone_ids]
+                    properties:
+                      count: {type: integer, minimum: 0}
+                      zone_ids:
+                        type: array
+                        items: {type: string, minLength: 1}
+                  active_alerts:
+                    description: >-
+                      Rows stored in risk_alerts, unfiltered. Not an unread or
+                      undismissed count: no read or dismissed state exists yet, so
+                      the member reports only how many alerts were recorded.
+                    type: object
+                    additionalProperties: false
+                    required: [count]
+                    properties:
+                      count: {type: integer, minimum: 0}
+        '400':
+          description: Query parameters are not supported (invalid_executive_summary_query).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
@@ -2075,6 +2447,46 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamOrDirectoryFailed'}
         '503': {$ref: '#/components/responses/DirectoryUnavailable'}
+  /v1/prevention/status:
+    get:
+      operationId: getPreventionStatus
+      description: >-
+        Viewer/admin. The prevention service's own operational status, read from
+        the dependency it actually has: one bounded ping of its database. It does
+        not report a broker or a dead-letter queue, because this service talks to
+        neither and reporting them would be a fabricated dependency. It is not a
+        delivery or end-to-end test.
+
+        200 means the database answered. 503 means it did not, and the body names
+        database_unavailable. The body carries no other dependency.
+
+        A process that wired no evaluator at all fails closed instead of
+        claiming ready: it answers 503 with reason status_unavailable and the
+        database state unknown, and this document declares that answer.
+      responses:
+        '200':
+          description: The prevention database answered the bounded ping.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PreventionStatus'}
+        '503':
+          description: >-
+            The prevention database did not answer the bounded ping
+            (database_unavailable), or this process wired no evaluator at all
+            (status_unavailable, database unknown). Neither case claims ready.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PreventionStatus'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
 components:
   securitySchemes:
     bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
@@ -2933,6 +3345,141 @@ components:
             One element per zone with at least one published batch, ordered by
             zone_id ascending. A zone with no published batch is absent.
           items: {$ref: '#/components/schemas/ZoneBatch'}
+    SimulationRequest:
+      type: object
+      description: >-
+        The counterfactual document: one catalogue zone and the variables to
+        substitute. It is a closed object of at most 4096 bytes; an unknown member,
+        a duplicate member or trailing input is refused with invalid_simulation.
+      additionalProperties: false
+      required: [zone_id, variables]
+      properties:
+        zone_id:
+          type: string
+          minLength: 1
+          example: '05101'
+          description: >-
+            Catalogue zone code whose newest stored batch is simulated. The accepted
+            set is the zone catalogue, served by the zones endpoint, so it is
+            deliberately not an enum: an enum would drift from the table.
+        variables:
+          type: object
+          description: >-
+            Non-empty subset of the five canonical variables. A number replaces the
+            observation stored with the batch; null forces the variable to be
+            absent, which is not the same as zero and makes the rule answer
+            desconocido.
+          additionalProperties: false
+          minProperties: 1
+          properties:
+            temperatura: {$ref: '#/components/schemas/SimulationVariableValue'}
+            humedad_relativa: {$ref: '#/components/schemas/SimulationVariableValue'}
+            viento: {$ref: '#/components/schemas/SimulationVariableValue'}
+            cobertura_vegetal: {$ref: '#/components/schemas/SimulationVariableValue'}
+            incendios_historicos: {$ref: '#/components/schemas/SimulationVariableValue'}
+    SimulationVariableValue:
+      type: number
+      nullable: true
+      description: >-
+        A substituted observation, or null to force the variable to be absent. The
+        value is scored by the stored rule exactly as a stored factor is; this route
+        does not validate it against a plausible range, so the caller is responsible
+        for the counterfactual it asks for.
+    SimulationResult:
+      type: object
+      description: >-
+        One counterfactual recalculation. It is a read: the stored batch, its level
+        and every published row are untouched. The answer states the stored rule
+        identity, the stored level, both recomputations and the explicit freshness
+        status; it carries no forecast, probability or horizon, and its notice says
+        so.
+      additionalProperties: false
+      required:
+        - batch_id
+        - zone_id
+        - model_version
+        - stored_level
+        - policy
+        - computation_instant
+        - freshness
+        - before
+        - after
+        - notice
+      properties:
+        batch_id: {type: string, format: uuid}
+        zone_id: {type: string}
+        model_version:
+          type: string
+          description: >-
+            The rule version recorded on the stored batch and rebuilt for this
+            answer. It is never the currently active model: a batch whose version
+            cannot be rebuilt is refused instead.
+        stored_level:
+          type: string
+          enum: [bajo, medio, alto, desconocido]
+          description: >-
+            The level persisted with the batch, quoted unchanged so the caller can
+            compare it with the recomputed before without a second read.
+        policy: {$ref: '#/components/schemas/SimulationPolicy'}
+        computation_instant:
+          type: string
+          format: date-time
+          description: >-
+            The single instant used as both the observation and the evaluation
+            instant of both recomputations: the batch's recorded request instant.
+        freshness:
+          type: string
+          enum: [not_evaluated]
+          description: >-
+            Always not_evaluated. Both instants are pinned to the batch's recorded
+            instant, so no staleness comparison is taken here and the answer says
+            nothing about whether the stored data is current.
+        before: {$ref: '#/components/schemas/SimulationAssessment'}
+        after: {$ref: '#/components/schemas/SimulationAssessment'}
+        notice:
+          type: string
+          description: >-
+            The declaration that this is a counterfactual application of the stored
+            rule, not a forecast or an official index, and that no published row
+            changed.
+    SimulationPolicy:
+      type: object
+      description: >-
+        The policy identity recorded with the stored batch, after it was verified
+        against the rule rebuilt here: the identifier and the fingerprint of the
+        parameter set. The parameter map itself is not repeated because the batch
+        read already serves it.
+      additionalProperties: false
+      required: [policy_id, params_hash]
+      properties:
+        policy_id: {type: string}
+        params_hash: {type: string}
+    SimulationAssessment:
+      type: object
+      description: One recomputation of the stored rule.
+      additionalProperties: false
+      required: [level, factors]
+      properties:
+        level: {type: string, enum: [bajo, medio, alto, desconocido]}
+        factors:
+          type: array
+          description: >-
+            One entry per canonical variable, in canonical order. An absent variable
+            carries known=false and neither value nor contribution.
+          items: {$ref: '#/components/schemas/SimulationFactor'}
+    SimulationFactor:
+      type: object
+      description: >-
+        One canonical variable of a recomputation. value and contribution are
+        omitted when the variable is absent: a missing observation is never served
+        as zero.
+      additionalProperties: false
+      required: [name, known]
+      properties:
+        name: {type: string}
+        known: {type: boolean}
+        value: {type: number}
+        contribution: {type: number}
     HistoryBucket:
       type: object
       description: >-
@@ -3764,3 +4311,84 @@ components:
             Province the catalogue records, or null when it records none. The
             empty string is not substituted, because "no province recorded" and
             "a province with an empty name" are different facts.
+    MultiserviceStatus:
+      type: object
+      description: >-
+        Summary of the declared status surfaces. It is a list, never a single
+        global readiness boolean.
+      required: [checked_at, gateway, services]
+      properties:
+        checked_at:
+          type: string
+          format: date-time
+          description: UTC completion of the bounded fan-out
+        gateway:
+          type: object
+          description: >-
+            The gateway process that answered this read. It is ready whenever a
+            body exists, which is what keeps the reachability of the gateway
+            itself separate from the state of its dependencies.
+          required: [state]
+          properties:
+            state: {type: string, enum: [ready]}
+        services:
+          type: array
+          description: >-
+            Fixed order: risk, jobs, prevention, inference. Always these four
+            entries, even when one of them is unknown.
+          minItems: 4
+          maxItems: 4
+          items: {$ref: '#/components/schemas/MultiserviceStatusEntry'}
+    MultiserviceStatusEntry:
+      type: object
+      required: [service, state]
+      properties:
+        service: {type: string, enum: [risk, jobs, prevention, inference]}
+        state:
+          type: string
+          enum: [ready, degraded, unknown, unauthorized, not_configured]
+          description: >-
+            ready and not_configured are not failures; unauthorized reports the
+            caller's permission, not the service; degraded and unknown are the
+            only states that make the aggregate answer 503.
+    InferenceStatusEvidence:
+      type: object
+      required: [checked_at, state, reason]
+      properties:
+        checked_at:
+          type: string
+          format: date-time
+          description: UTC evaluation completion
+        state: {type: string, enum: [ready, degraded, unknown, not_configured]}
+        reason:
+          type: string
+          enum: ['', not_configured, inference_unavailable, status_unavailable]
+          description: >-
+            Empty when ready; not_configured when no inference address is
+            configured; inference_unavailable when the configured service could
+            not supply a ready health document; status_unavailable when no
+            evaluator is wired at all.
+    PreventionStatus:
+      type: object
+      required: [checked_at, ready, reason, dependencies]
+      properties:
+        checked_at:
+          type: string
+          format: date-time
+          description: UTC evaluation completion
+        ready: {type: boolean}
+        reason:
+          type: string
+          enum: ['', database_unavailable, status_unavailable]
+          description: >-
+            Empty on success; database_unavailable when the bounded ping failed;
+            status_unavailable when no evaluator is wired at all.
+        dependencies:
+          type: object
+          required: [database]
+          properties:
+            database:
+              type: object
+              required: [state]
+              properties:
+                state: {type: string, enum: [ready, degraded, unknown]}
