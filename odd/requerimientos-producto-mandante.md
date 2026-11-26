@@ -115,7 +115,7 @@ El orden no lo decide el atractivo, lo decide la dependencia.
 |---|---|---|
 | **A — Cálculo sobre lo que ya hay** | 3, 1, 7, 8, 4 | Cero migraciones, cero datos nuevos. Todo sale de `batches.factors`, `readings` y la regla pura. Es la capa con mejor retorno y la única que se puede probar con valores dorados |
 | **B — Persistencia nueva** | 9, 6, 17, 18, 10 | Exige migraciones. Sin entidad de alerta no hay centro de notificaciones (`#18` depende de `#6`), y sin observación de campo no hay vínculo observación→acción (`#17` depende de `#10`) |
-| **C — Datos externos** | 12, 13, 2 | **Bloqueada por el mandante.** Catálogo de infraestructura crítica y fuente NDVI. Sin eso, la priorización del ítem 2 se calcula sobre datos inventados |
+| **C — Datos externos** | 12, 13, 2 | **D-A resuelta (2026-11-25):** se aceptan fixtures sintéticos declarados; el insumo del mandante ya no bloquea. Faltan el catálogo/NDVI y la aceptación de la priorización. |
 | **D — Entrega** | 14, 15 | Depende de A para las causas y de C para el mapa y el entorno |
 | **E — Transversal** | 16, 19 | `analista` es una decisión de política de acceso; el tablero de servicios ya tiene casi todas sus fuentes |
 | **Última** | 20 | Depende de 3, 4 y 7 juntos, y exige cerrar antes `GRD-I1`/`GRD-I2` |

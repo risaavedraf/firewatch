@@ -39,7 +39,7 @@ Consecuencia: la explicación se rotula como aritmética de la regla, no como ca
 |---|---|---|
 | PM-07 | Entidad de alertas por cambio de nivel, ruta paginada y página | `backend/services/risk/migrations/017_risk_alerts.sql`; `backend/contracts/openapi/firewatch-v1.yaml:409`; `frontend/src/views/NotificationsView.tsx`; fusionado por #117 |
 | PM-09 | Observaciones de campo, tipos cerrados, página | `firewatch-v1.yaml:1546`; `backend/services/prevention/migrations/015_field_observations.sql`, `016_observation_adoption.sql`; `frontend/src/views/ObservationsView.tsx`; #117 |
-| PM-10 | `/v1/audit` con detalle, `event_kind` y consultas; **sin nombre de actor** | `firewatch-v1.yaml:812-821`; `frontend/src/views/AuditView.tsx`; #117/#118 |
+| PM-10 | `/v1/audit` con `actor_name`, detalle, `event_kind` y consultas | `firewatch-v1.yaml:842-884`; `frontend/src/views/AuditView.tsx:61`; #117/#118 |
 | PM-11 | Catálogo de infraestructura **sintético**, score de demo, mapa | `firewatch-v1.yaml:516-541`; `backend/services/risk/internal/source/infrastructure.go`; `frontend/src/views/InfrastructureView.tsx`; #117/#119 |
 | PM-13 | `GET /v1/risk/history.csv` y descarga CSV | `firewatch-v1.yaml:293`; `ddf1277` fusionado en `540fb38`; `frontend/src/views/HistoryView.tsx` |
 | PM-18 | Catálogo escrito y ficha de solo lectura en el cliente | `frontend/src/domain/recommendations.ts`; panel de `frontend/src/views/OverviewView.tsx`; `odd/plan-produccion/catalogo-recomendaciones-preventivas.md`; #107 |
