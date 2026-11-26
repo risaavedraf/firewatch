@@ -80,6 +80,7 @@ Use the demo script or an API client to obtain a token from Keycloak's `/realms/
 | `GET /v1/models` | viewer/admin | Registered classifier versions, the single `active` row and the additive `effective` projection of the classifier the next publication would resolve (a rule with its version and verified fingerprint, `non_rule`, or `unavailable`; identity is omitted unless it is proven) |
 | `POST /v1/models/{version}/activate` | admin | Activates a registered version; publications resolved after the call run it, in-flight ones keep their snapshot |
 | `POST /v1/risk/cycle/run` | admin | Runs the ingestion cycle immediately and reports completion |
+| `POST /v1/risk/simulate` | viewer/admin | Counterfactual recalculation of the zone's newest stored batch: JSON `{"zone_id":"05101","variables":{"temperatura":40}}` returns the stored level, the recorded policy identity, the recomputed `before`/`after` and `freshness: not_evaluated`; writes nothing and is not a forecast |
 | `GET /v1/prevention/actions?community_code=&status=` | viewer/admin | Preventive actions, at most 200 rows |
 | `GET /v1/prevention/actions/{id}` | viewer/admin | Action detail with its history |
 | `POST /v1/prevention/actions` | admin | Creates a preventive action in `propuesta` |
@@ -95,6 +96,14 @@ The CSV export is encoded by Go's `encoding/csv` with its default settings, whic
 Send `Authorization: Bearer <access_token>`. No cookies are used in this backend slice. Unknown or invalid JWTs produce `401`; insufficient roles produce `403`. Full definitions: [`contracts/openapi/firewatch-v1.yaml`](contracts/openapi/firewatch-v1.yaml).
 
 The gateway records a selected successful business read before its body reaches the caller: `risk.current.read` for the latest batch, `risk.history.read` for the JSON history, its CSV export and the granular series, `risk.batches.read` for the aggregate zone read, and the two prevention actions. A read the upstream refused is forwarded and not recorded, and if the audit row cannot be written the caller receives `503 storage_unavailable` instead of the document. The granular series adds one migration, risk `018_risk_history_series_index.sql`, which creates the time-led index `batches(requested_at, zone_id)` the all-zone window needs; it is additive and leaves `batches_latest`, the index the per-zone reads use, untouched.
+
+### Counterfactual simulation
+
+`POST /v1/risk/simulate` recalculates the newest stored batch of one zone twice with the rule that produced it: once over the stored variables (`before`) and once over the substituted ones (`after`). The body is one JSON object of at most 4096 bytes, `zone_id` plus a non-empty subset of the five canonical variables (`temperatura`, `humedad_relativa`, `viento`, `cobertura_vegetal`, `incendios_historicos`). A number replaces the stored observation; `null` forces the variable to be absent, which the rule answers `desconocido`, never `bajo`. An unknown variable, an unknown member, a duplicate member, trailing input or a non-numeric value is `400 invalid_simulation`; a zone outside the catalogue is `400 invalid_zone`; a zone with no published batch is the `404 no_published_batch` empty state `/v1/risk/latest` already serves.
+
+Only a built-in rule is simulated, and only when the batch's recorded provenance reproduces it exactly. The version recorded on the batch selects the rule, and the recorded `policy` must carry that rule's `policy_id`, the fingerprint of the reconstructed parameter set, and a parameter map that hashes to that same fingerprint. A row with no reference, a different identifier or fingerprint, a fixture executed by the inference service, a trained artifact or a placeholder is `422 unsupported_original_rule`. The route never falls back to the active or default model, because the answer would then describe a policy that did not produce the stored level.
+
+Both evaluations pin the observation and evaluation instant to the batch's `requested_at`, so `before` and `after` differ only by the substitution. That is why `freshness` is `not_evaluated`: the route takes no staleness decision and claims nothing about whether the stored data is current. The handler reads the zone catalogue and the newest batch and writes nothing — no batch, no outbox event, no alert, no audit row — and it calls no inference service. The result is the stored rule applied to hypothetical values: it is not a forecast, not a probability and not an official index, and the response `notice` says so.
 
 ### Reproducible synthetic scenarios
 
