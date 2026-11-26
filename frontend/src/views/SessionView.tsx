@@ -1,4 +1,4 @@
-import { PanelHeading, StatusCopy } from '../components/ui';
+import { PanelHeading, StatusCopy, TableWrap } from '../components/ui';
 import { rejectedSessionCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
 import { accountConsoleURL, startLogin, type SessionState } from '../core/session';
@@ -243,7 +243,7 @@ export function SessionView() {
 
   return (
     <section className="view" id="session" data-view="session" aria-labelledby="session-title">
-      <PanelHeading eyebrow="ACCESO A LA API" title="Sesión y permisos" titleId="session-title" />
+      <PanelHeading eyebrow="ACCESO A LA API" title="Sesión y permisos" titleId="session-title" level={2} />
 
       <div className="lower-grid">
         <article className="panel auth-panel">
@@ -335,7 +335,7 @@ export function SessionView() {
             mux completos. Un token verificado sin ninguno de esos roles recibe 403; un token que no se puede
             verificar recibe 401.
           </p>
-          <div className="table-wrap">
+          <TableWrap label="Matriz de perfiles y permisos">
             <table>
               <caption className="sr-only">
                 Matriz documentada de perfiles y permisos, con la guarda real del servidor que la sustenta
@@ -359,7 +359,7 @@ export function SessionView() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
           <p id="permissions-unimplemented" className="unimplemented-note">
             No portado a propósito: el mockup retirado permitía <em>elegir</em> un rol en la página. Ese selector no se
             implementa porque la página no puede conceder permisos y un selector sería un límite de autorización falso.

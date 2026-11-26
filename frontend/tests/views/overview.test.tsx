@@ -139,6 +139,20 @@ async function openSignedOut(): Promise<void> {
   await settle();
 }
 
+test('shows the territorial map and its zone selector before the session summary and model details', async () => {
+  await openSignedIn();
+
+  const mapHeading = screen.getByRole('heading', { name: 'Vista territorial de las comunas' });
+  const zoneSelector = screen.getByRole('combobox', { name: 'Zona a consultar' });
+  const summary = screen.getByRole('region', { name: 'Resumen real de la sesión' });
+  const modelHeading = screen.getByRole('heading', { name: 'Versión de modelo activa' });
+  for (const item of [mapHeading, zoneSelector]) {
+    for (const secondary of [summary, modelHeading]) {
+      expect(item.compareDocumentPosition(secondary) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    }
+  }
+});
+
 async function serveCatalogue(collection: ZoneCollection): Promise<void> {
   fetchStub.answer(ZONES_URL, collection);
   await settle();
@@ -212,7 +226,6 @@ test('the view keeps the overview identity, every contracted identifier and the 
     'batch-origin',
     'batch-notice',
     'batch-validity',
-    'risk-factors',
     'risk-rationale',
     'risk-policy',
     'data-status',
@@ -320,7 +333,23 @@ test('selection reads latest and history; a 404 is absence, never low risk', asy
   expect(textOf('risk-level')).toBe('Sin lote publicado');
   expect(textOf('risk-level')).not.toBe('BAJO');
   expect(textOf('metric-batches')).toBe('0');
-  expect(element('risk-factors').children).toHaveLength(0);
+  expect(document.getElementById('risk-factors')).toBeNull();
+});
+
+// A heading over an empty list reads as a broken widget, and the artboard names
+// no factors in a card that has no lot. The block appears only when the card has
+// a reading to show or an omission to declare.
+test('a card without a published lot renders no Factores heading and no empty list', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', null, 404, []);
+
+  expect(textOf('risk-pill')).toBe('SIN LOTE');
+  expect(textOf('risk-level')).toBe('Sin lote publicado');
+  expect(screen.queryByRole('heading', { name: 'Factores' })).toBeNull();
+  expect(document.getElementById('risk-factors')).toBeNull();
+  // The artboard states the absence in one muted sentence instead of a heading.
+  expect(screen.getByText('No hay factores disponibles para este sector.')).toBeInTheDocument();
 });
 
 test('wrong-zone and superseded latest responses cannot render; catalogue geometry stays unchanged', async () => {
@@ -377,13 +406,13 @@ test('unknown level, false demo discrepancy, loading and logout clear prior deta
 
   // A new selection clears the previous batch's details while the read is in flight.
   await choose('05101');
-  expect(element('risk-factors').children).toHaveLength(0);
+  expect(document.getElementById('risk-factors')).toBeNull();
   expect(textOf('risk-policy')).toBe('Sin consultar');
   expect(textOf('risk-rationale')).toBe('Sin consultar');
 
   await logOut();
   expect(textOf('zone-code')).toBe('No informado');
-  expect(element('risk-factors').children).toHaveLength(0);
+  expect(document.getElementById('risk-factors')).toBeNull();
   expect(textOf('risk-policy')).toBe('Sin consultar');
   expect(textOf('risk-pill')).toBe('SIN CONSULTAR');
 });
@@ -485,6 +514,10 @@ test('synthetic warning independent of notice; unknown factor never displays zer
   expect(textOf('batch-origin')).toMatch(/Sintético/);
   expect(textOf('batch-notice')).toMatch(/no riesgo real observado/);
   expect(textOf('batch-notice')).toMatch(/ausente o inválido/);
+  // The approved label describes the rule's calculation, not a cause or forecast (PM-02).
+  expect(screen.getByRole('heading', { name: 'Cómo lo calculó la regla' }).nextElementSibling).toBe(
+    element('risk-rationale'),
+  );
   // The rationale is reproduced as text, never interpreted as markup.
   expect(textOf('risk-rationale')).toBe('<img onerror=evil>');
   // The unknown entry is found by name, not by position: the row list names the
@@ -550,7 +583,7 @@ test('factor bars use the real contribution and a factor without data draws no b
 // from the payload; neither may become a zero or a bar. The measured inputs keep
 // their real value, contribution, note and proportional bar, and a batch with no
 // usable factor entry still renders no rows at all.
-test('the factor list names the five canonical inputs and states every missing reading without inventing a value (PM-02)', async () => {
+test('the factor list names the five canonical inputs, states every missing reading without inventing a value, and carries the D-D label (PM-02)', async () => {
   await openSignedIn();
   await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
   await serveZone(
@@ -577,6 +610,13 @@ test('the factor list names the five canonical inputs and states every missing r
     'cobertura_vegetal',
     'incendios_historicos',
   ]);
+
+  // D-D: the note names the label and denies causality and forecast in the same
+  // breath, so the copy cannot drift into "por qué se quemaría".
+  const ruleNote = element('factor-rule-note');
+  expect(ruleNote.textContent).toContain('Cómo lo calculó la regla');
+  expect(ruleNote.textContent).toMatch(/no es una causa del incendio ni un pronóstico/);
+  expect(ruleNote.textContent).not.toMatch(/por qué se quemaría|predicción/);
   const rowOf = (name: string): Element => {
     const matches = rows.filter((row) => (row.textContent ?? '').startsWith(`${name}:`));
     expect(matches, `row ${name}`).toHaveLength(1);
