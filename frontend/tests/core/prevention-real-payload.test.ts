@@ -8,13 +8,19 @@ import { createCryptoStub, createFetchStub, createStorageStub, flush, jwt } from
 
 // The shapes below are what the running service actually emits, taken from its own
 // structs (`prevention/internal/repository/store.go`): `assignee` and `due_date`
-// are `*string`, so an unassigned action answers `null`, and `action_history.id`
-// is an `int64`, so it arrives as a JSON number.
+// are `*string`, so an unassigned action answers `null`, `assignee_id` is
+// `*string` tagged without `omitempty`, so the directory reference is present and
+// `null` when the action is unassigned, and `action_history.id` is an `int64`, so
+// it arrives as a JSON number.
 //
 // The browser check found what no unit test had: the transport rejected a real 200
 // list and a real 201 create as `invalid_shape`, so the view showed no list and
 // opened no detail. These cases pin the real payload, and the last one pins that
 // the guard was loosened for the int64 and not for any shape at all.
+//
+// `UNASSIGNED` carries `assignee_id: null` because the reference is always
+// serialized; payloads that omit it entirely (older fixtures, older proxies) stay
+// valid too, and `prevention-api.test.ts` pins that separately.
 
 const ACTIONS_URL = `${gatewayOrigin}/v1/prevention/actions`;
 const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
@@ -27,6 +33,7 @@ const UNASSIGNED = {
   priority: '',
   status: 'propuesta',
   assignee: null,
+  assignee_id: null,
   due_date: null,
   created_by: 'demo-admin',
   created_at: '2026-10-18T15:56:21.588946Z',

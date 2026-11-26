@@ -14,7 +14,7 @@ this one, so its versions cannot collide with the two below.
 
 | Module | Versions in the shared ledger | Source |
 | --- | --- | --- |
-| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17 | [risk embed.go](../services/risk/migrations/embed.go):68-80 |
+| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17, 18 | [risk embed.go](../services/risk/migrations/embed.go):68-80 |
 | `prevention` | 9, 11, 14, 15, 16 | [prevention embed.go](../services/prevention/migrations/embed.go):40-48 |
 | `jobs` | 1, 2, 3, 4, 5, 6 | own database, not in this ledger |
 
@@ -28,7 +28,8 @@ The gaps in risk's sequence are deliberate: 9, 11, 14, 15 and 16 belong to
 `prevention` — 15 is PM-09's field observations and 16 is PM-10's adoption link — and
 nothing may be inserted into a gap to "tidy" the sequence. Integrating the two chains
 turned those two reservations into files without moving a number: `risk` keeps 17 for
-its alert table and `prevention` keeps 15 and 16, so the claims stay disjoint.
+its alert table and 18 for the time-led index of the granular history series, and
+`prevention` keeps 15 and 16, so the claims stay disjoint.
 
 ## The rule
 
@@ -44,15 +45,15 @@ its alert table and `prevention` keeps 15 and 16, so the claims stay disjoint.
 5. A collision is a test failure, not a review comment. The guard below already
    exists; a reviewer does not need to spot the overlap by eye.
 
-## Next free version = 18
+## Next free version = 19
 
-The highest version claimed in this tree is **17**, `risk`'s
-`backend/services/risk/migrations/017_risk_alerts.sql`, so the next free integer
-across both services is **18**. Prevention's next migration must take version 18,
-not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13 and
-17, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
-determination the rule asks for: a migration is numbered against the integrated
-tree, never against its own module.
+The highest version claimed in this tree is **18**, `risk`'s
+`backend/services/risk/migrations/018_risk_history_series_index.sql`, so the next free
+integer across both services is **19**. Prevention's next migration must take version
+19, not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13, 17
+and 18, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
+determination the rule asks for: a migration is numbered against the integrated tree,
+never against its own module.
 
 The previous determinations were consumed in order, and that is the rule working,
 not an exception: this section said 15 when PM-09 and PM-10 reserved 15 and 16
@@ -85,6 +86,13 @@ guarantee — a green run in a split tree proves nothing about collisions, and t
 claim only holds where both modules were checked out together.
 
 ## History
+
+Version 18 is PM-04's time-led index for the granular history series
+(`018_risk_history_series_index.sql`). It was claimed against the integrated tree
+after 17 was taken by the alert table, and it takes the next free integer the
+previous determination named instead of the next integer in risk's own list. It is
+additive: it creates one index on `batches(requested_at, zone_id)`, rewrites no row
+and leaves `batches_latest` — the index the per-zone reads use — exactly as it was.
 
 Version 17 is PM-07's alert table (`017_risk_alerts.sql`). It was claimed against
 the integrated tree after 15 and 16 were reserved by PM-09 and PM-10, and it is

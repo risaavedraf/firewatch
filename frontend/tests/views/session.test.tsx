@@ -244,33 +244,40 @@ test('logout returns the role panel to the explicit unavailable state', async ()
   expect(document.getElementById('session-roles-status')?.textContent).toMatch(/sin token/i);
 });
 
-// Every matrix row must cite a REAL server-side guard by `path:line`. The test
-// holds its own expectation of what each cited line must contain, so a stale or
-// invented citation fails here instead of being asserted on screen. This is the
-// port of the legacy assertion
+// Every matrix row must cite a REAL server-side guard by `path#token`. The test
+// holds its own expectation of what each cited guard must contain, so a stale or
+// invented citation fails here instead of being asserted on screen. The token is
+// the route string, the role literal or the symbol/expression the guard carries,
+// never a line number: inserting a line above a cited handler must not break this
+// test. This is the port of the legacy assertion
 // `the permissions matrix documents the real server guards and marks what it cannot verify`.
 const GUARD_LINES: Record<string, RegExp> = {
-  'backend/services/gateway/internal/handler/gateway.go:126': /mux\.Handle\("\/v1\/audit"/,
-  'backend/services/gateway/internal/handler/gateway.go:216': /health\/ready/,
-  'backend/services/gateway/internal/handler/gateway.go:240': /auth := strings\.Fields/,
-  'backend/services/gateway/internal/handler/gateway.go:246': /verifier\.Verify\(ctx, auth\[1\]\)/,
-  'backend/services/risk/internal/handler/security.go:59': /role == "viewer" \|\| role == "admin"/,
-  'backend/services/risk/internal/handler/security.go:64': /fail\(w, 403, "forbidden"\)/,
-  'backend/services/risk/internal/handler/api.go:62': /"GET \/v1\/risk\/status"/,
-  'backend/services/risk/internal/handler/api.go:63': /"GET \/v1\/risk\/latest"/,
-  'backend/services/risk/internal/handler/api.go:64': /"GET \/v1\/risk\/history"/,
-  'backend/services/risk/internal/handler/api.go:69': /"GET \/v1\/risk\/batches"/,
-  'backend/services/risk/internal/handler/api.go:78': /"GET \/v1\/risk\/zones"/,
-  'backend/services/risk/internal/handler/api.go:79': /"GET \/v1\/risk\/synthetic-scenarios"/,
-  'backend/services/risk/internal/handler/api.go:90': /"GET \/v1\/risk\/sources"/,
-  'backend/services/risk/internal/handler/api.go:91': /return Authorize\(verifier, mux\)/,
-  'backend/services/jobs/internal/handler/security.go:44': /role == "admin"/,
-  'backend/services/jobs/internal/handler/security.go:49': /fail\(w, 403, "forbidden"\)/,
-  'backend/services/jobs/internal/handler/api.go:86': /"GET \/v1\/jobs\/status"/,
-  'backend/services/jobs/internal/handler/api.go:87': /"POST \/v1\/jobs"/,
-  'backend/services/jobs/internal/handler/api.go:170': /"GET \/v1\/jobs\/\{id\}"/,
-  'backend/services/jobs/internal/handler/api.go:228': /"GET \/v1\/audit"/,
-  'backend/services/jobs/internal/handler/api.go:236': /return Authorize\(verifier, mux\)/,
+  'backend/services/gateway/internal/handler/gateway.go#/v1/audit': /mux\.Handle\("\/v1\/audit"/,
+  'backend/services/gateway/internal/handler/gateway.go#health/ready': /health\/ready/,
+  'backend/services/gateway/internal/handler/gateway.go#strings.Fields': /strings\.Fields/,
+  'backend/services/gateway/internal/handler/gateway.go#verifier.Verify(ctx, auth[1])':
+    /verifier\.Verify\(ctx, auth\[1\]\)/,
+  'backend/services/risk/internal/handler/security.go#"viewer"':
+    /role == "viewer" \|\| role == "admin"/,
+  'backend/services/risk/internal/handler/security.go#fail(w, 403, "forbidden")': /fail\(w, 403, "forbidden"\)/,
+  'backend/services/risk/internal/handler/api.go#GET /v1/risk/status': /"GET \/v1\/risk\/status"/,
+  'backend/services/risk/internal/handler/api.go#GET /v1/risk/latest': /"GET \/v1\/risk\/latest"/,
+  'backend/services/risk/internal/handler/api.go#GET /v1/risk/history': /"GET \/v1\/risk\/history"/,
+  'backend/services/risk/internal/handler/api.go#GET /v1/risk/batches': /"GET \/v1\/risk\/batches"/,
+  'backend/services/risk/internal/handler/api.go#GET /v1/risk/zones': /"GET \/v1\/risk\/zones"/,
+  'backend/services/risk/internal/handler/api.go#GET /v1/risk/synthetic-scenarios':
+    /"GET \/v1\/risk\/synthetic-scenarios"/,
+  'backend/services/risk/internal/handler/api.go#GET /v1/risk/sources': /"GET \/v1\/risk\/sources"/,
+  'backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)':
+    /Authorize\(verifier, mux\)/,
+  'backend/services/jobs/internal/handler/security.go#"admin"': /role == "admin"/,
+  'backend/services/jobs/internal/handler/security.go#fail(w, 403, "forbidden")': /fail\(w, 403, "forbidden"\)/,
+  'backend/services/jobs/internal/handler/api.go#GET /v1/jobs/status': /"GET \/v1\/jobs\/status"/,
+  'backend/services/jobs/internal/handler/api.go#POST /v1/jobs': /"POST \/v1\/jobs"/,
+  'backend/services/jobs/internal/handler/api.go#GET /v1/jobs/{id}': /"GET \/v1\/jobs\/\{id\}"/,
+  'backend/services/jobs/internal/handler/api.go#GET /v1/audit': /"GET \/v1\/audit"/,
+  'backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)':
+    /Authorize\(verifier, mux\)/,
 };
 
 test('the permissions matrix documents the real server guards and marks what it cannot verify', () => {
@@ -295,9 +302,25 @@ test('the permissions matrix documents the real server guards and marks what it 
     for (const ref of cell.split(' · ')) {
       expect(GUARD_LINES[ref], `uncited or unknown guard reference: ${ref}`).toBeDefined();
       cited.add(ref);
-      const [file, line] = ref.split(':');
+      // A citation is `<repo-relative-path>#<token>`: the path plus the route or
+      // expression the guard carries. `#` is the delimiter because the ` · `
+      // separator cannot appear inside a citation. Nothing here indexes by line,
+      // so inserting a line above a cited handler cannot fail this test: the
+      // named file only has to carry at least one line that matches the guard.
+      const hash = ref.indexOf('#');
+      expect(hash, `a guard citation must be <path>#<token>: ${ref}`).toBeGreaterThan(0);
+      const file = ref.slice(0, hash);
+      const token = ref.slice(hash + 1);
+      expect(token.length, `a guard citation must name a token: ${ref}`).toBeGreaterThan(0);
       const source = readFileSync(resolve(process.cwd(), '..', file), 'utf8').split('\n');
-      expect(source[Number(line) - 1] ?? '', ref).toMatch(GUARD_LINES[ref]);
+      expect(
+        source.some(line => GUARD_LINES[ref].test(line)),
+        `the named file no longer carries the cited guard: ${ref}`,
+      ).toBe(true);
+      expect(
+        source.some(line => line.includes(token)),
+        `the citation names a token the named file does not carry: ${ref}`,
+      ).toBe(true);
     }
   }
   expect(unverified).toBeGreaterThanOrEqual(1);
@@ -339,16 +362,16 @@ test('no role selector, switcher or picker is ported anywhere in the view', () =
     /no portado a propósito/i,
   );
 
-  // The matrix note names the real guards and the `ruta:línea` citation format.
+  // The matrix note names the real guards and the `ruta#token` citation format.
   const matrixNote = document.getElementById('permissions-matrix-note')?.textContent ?? '';
-  expect(matrixNote).toMatch(/ruta:línea/);
-  expect(matrixNote).toMatch(/risk\/internal\/handler\/security\.go:59/);
-  expect(matrixNote).toMatch(/jobs\/internal\/handler\/security\.go:44/);
+  expect(matrixNote).toMatch(/ruta#token/);
+  expect(matrixNote).toMatch(/risk\/internal\/handler\/security\.go#"viewer"/);
+  expect(matrixNote).toMatch(/jobs\/internal\/handler\/security\.go#"admin"/);
   // The note also cites the two `Authorize` wraps. Both are the same full guard
   // refs the matrix renders, so the matrix test above proves their disk content;
-  // a short `api.go:N` form here would drift unverified, as it did once.
-  expect(matrixNote).toContain('backend/services/risk/internal/handler/api.go:91');
-  expect(matrixNote).toContain('backend/services/jobs/internal/handler/api.go:236');
+  // a short `api.go` form here would drift unverified, as it did once.
+  expect(matrixNote).toContain('backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)');
+  expect(matrixNote).toContain('backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)');
 });
 
 // F3 — the sign-in control must answer to the session it starts. `Shell.tsx:153`

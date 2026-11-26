@@ -108,8 +108,7 @@ test('the session card follows the session and the logout control stays single a
   expect(document.getElementById('logout')).not.toHaveAttribute('hidden');
 });
 
-test('the footer control resets the history filters', async () => {
-  setHistoryQuery('05501');
+test('the footer control resets the history filters', async () => {  setHistoryQuery('05501');
   setHistoryStatus('publicado');
   renderShell();
   fetchStub.answer(READY_URL, null, 204);
@@ -117,6 +116,18 @@ test('the footer control resets the history filters', async () => {
   await userEvent.click(screen.getByRole('button', { name: /restablecer filtros/i }));
 
   expect(getHistoryFilters()).toEqual({ query: '', status: '' });
+});
+
+// The footer is its own landmark. Nested inside `main` it became part of the main
+// region, which is the defect the reader pass recorded.
+test('the footer is a landmark outside the main region', async () => {
+  renderShell();
+  fetchStub.answer(READY_URL, null, 204);
+
+  expect(document.querySelector('main footer')).toBeNull();
+  const footer = document.querySelector('.main-area > footer');
+  expect(footer).not.toBeNull();
+  expect(footer?.querySelector('#reset-filters')).not.toBeNull();
 });
 
 // S2 — the sidebar session card must name a rejected token instead of falling
