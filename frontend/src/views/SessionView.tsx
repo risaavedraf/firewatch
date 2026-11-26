@@ -1,4 +1,4 @@
-import { PanelHeading, StatusCopy } from '../components/ui';
+import { PanelHeading, StatusCopy, TableWrap } from '../components/ui';
 import { rejectedSessionCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
 import { accountConsoleURL, startLogin, type SessionState } from '../core/session';
@@ -9,7 +9,8 @@ import { accountConsoleURL, startLogin, type SessionState } from '../core/sessio
 //   1. the Keycloak sign-in control, with the honest note that the access token
 //      lives in memory only — no token is persisted and no cookie is sent;
 //   2. a documentation matrix of which REAL role may do what, cited guard by
-//      guard as `ruta:línea` from the server's own code, plus the role this
+//      guard as `ruta#token` from the server's own code — the path plus the route
+//      or expression that guard carries, never a line number — plus the role this
 //      session's token DECLARES.
 //
 // The retired mockup let the operator PICK a role. That selector is deliberately
@@ -34,18 +35,24 @@ export type PermissionRow = {
 // read-only documentation table, not a fast-refresh boundary, so its advisory is
 // suppressed here on purpose, exactly as `PendingView` does.
 //
-// The guards were read from the repository, verified line by line:
-//   backend/services/risk/internal/handler/security.go:58-59 accepts a token
-//     whose realm_access.roles contains "viewer" OR "admin"; line 64 answers any
-//     other role with 403 (an unverifiable token is 401 instead).
-//   backend/services/risk/internal/handler/api.go:99 wraps the whole risk mux.
-//   backend/services/jobs/internal/handler/security.go:43-44 accepts ONLY "admin";
-//     line 49 answers a verified viewer with 403.
-//   backend/services/jobs/internal/handler/api.go:236 wraps the whole jobs mux:
-//     jobs status, job creation, job read and /v1/audit.
-//   backend/services/gateway/internal/handler/gateway.go:126 only proxies
-//     /v1/audit and adds no role of its own; line 224 answers /health/ready before
-//     any bearer check; lines 248-254 require a verifiable bearer with a subject
+// The guards were read from the repository and are cited as `path#token`: the
+// path plus the route string, role literal or expression each guard carries. No
+// citation holds a line number, so inserting a line in a backend file cannot
+// invalidate one:
+//   backend/services/risk/internal/handler/security.go#"viewer" is the guard that
+//     admits "viewer" OR "admin" (the test pins the full comparison);
+//     #fail(w, 403, "forbidden") answers any other role with 403 (an
+//     unverifiable token is 401 instead).
+//   backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)
+//     wraps the whole risk mux.
+//   backend/services/jobs/internal/handler/security.go#"admin" accepts ONLY
+//     "admin"; #fail(w, 403, "forbidden") answers a verified viewer with 403.
+//   backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)
+//     wraps the whole jobs mux: jobs status, job creation, job read and /v1/audit.
+//   backend/services/gateway/internal/handler/gateway.go#/v1/audit only proxies
+//     /v1/audit and adds no role of its own; #health/ready answers /health/ready
+//     before any bearer check; #strings.Fields and
+//     #verifier.Verify(ctx, auth[1]) require a verifiable bearer with a subject
 //     but decide no role.
 // eslint-disable-next-line react-refresh/only-export-components
 export const PERMISSION_MATRIX: readonly PermissionRow[] = [
@@ -53,15 +60,15 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     capability: 'Disponibilidad del gateway · GET /health/ready',
     viewer: 'Sí: responde 204 sin comprobar token ni rol',
     admin: 'Sí: responde 204 sin comprobar token ni rol',
-    guards: ['backend/services/gateway/internal/handler/gateway.go:224'],
+    guards: ['backend/services/gateway/internal/handler/gateway.go#health/ready'],
   },
   {
     capability: 'Autenticación de cualquier ruta /v1/* · bearer verificado en el gateway',
     viewer: 'Sí: exige un bearer verificable con sujeto; no decide ningún rol',
     admin: 'Sí: exige un bearer verificable con sujeto; no decide ningún rol',
     guards: [
-      'backend/services/gateway/internal/handler/gateway.go:248',
-      'backend/services/gateway/internal/handler/gateway.go:254',
+      'backend/services/gateway/internal/handler/gateway.go#strings.Fields',
+      'backend/services/gateway/internal/handler/gateway.go#verifier.Verify(ctx, auth[1])',
     ],
   },
   {
@@ -69,9 +76,9 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:70',
-      'backend/services/risk/internal/handler/security.go:59',
-      'backend/services/risk/internal/handler/api.go:99',
+      'backend/services/risk/internal/handler/api.go#GET /v1/risk/status',
+      'backend/services/risk/internal/handler/security.go#"viewer"',
+      'backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)',
     ],
   },
   {
@@ -79,8 +86,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:71',
-      'backend/services/risk/internal/handler/security.go:59',
+      'backend/services/risk/internal/handler/api.go#GET /v1/risk/latest',
+      'backend/services/risk/internal/handler/security.go#"viewer"',
     ],
   },
   {
@@ -89,8 +96,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:77',
-      'backend/services/risk/internal/handler/security.go:59',
+      'backend/services/risk/internal/handler/api.go#GET /v1/risk/batches',
+      'backend/services/risk/internal/handler/security.go#"viewer"',
     ],
   },
   {
@@ -98,8 +105,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:72',
-      'backend/services/risk/internal/handler/security.go:59',
+      'backend/services/risk/internal/handler/api.go#GET /v1/risk/history',
+      'backend/services/risk/internal/handler/security.go#"viewer"',
     ],
   },
   {
@@ -107,8 +114,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:81',
-      'backend/services/risk/internal/handler/security.go:59',
+      'backend/services/risk/internal/handler/api.go#GET /v1/risk/zones',
+      'backend/services/risk/internal/handler/security.go#"viewer"',
     ],
   },
   {
@@ -116,8 +123,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:82',
-      'backend/services/risk/internal/handler/security.go:59',
+      'backend/services/risk/internal/handler/api.go#GET /v1/risk/synthetic-scenarios',
+      'backend/services/risk/internal/handler/security.go#"viewer"',
     ],
   },
   {
@@ -125,8 +132,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:98',
-      'backend/services/risk/internal/handler/security.go:59',
+      'backend/services/risk/internal/handler/api.go#GET /v1/risk/sources',
+      'backend/services/risk/internal/handler/security.go#"viewer"',
     ],
   },
   {
@@ -134,9 +141,9 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'No: 403 forbidden',
     admin: 'Sí',
     guards: [
-      'backend/services/jobs/internal/handler/api.go:87',
-      'backend/services/jobs/internal/handler/security.go:44',
-      'backend/services/jobs/internal/handler/api.go:236',
+      'backend/services/jobs/internal/handler/api.go#POST /v1/jobs',
+      'backend/services/jobs/internal/handler/security.go#"admin"',
+      'backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)',
     ],
   },
   {
@@ -144,8 +151,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'No: 403 forbidden',
     admin: 'Sí',
     guards: [
-      'backend/services/jobs/internal/handler/api.go:170',
-      'backend/services/jobs/internal/handler/security.go:44',
+      'backend/services/jobs/internal/handler/api.go#GET /v1/jobs/{id}',
+      'backend/services/jobs/internal/handler/security.go#"admin"',
     ],
   },
   {
@@ -153,8 +160,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'No: 403 forbidden',
     admin: 'Sí',
     guards: [
-      'backend/services/jobs/internal/handler/api.go:86',
-      'backend/services/jobs/internal/handler/security.go:44',
+      'backend/services/jobs/internal/handler/api.go#GET /v1/jobs/status',
+      'backend/services/jobs/internal/handler/security.go#"admin"',
     ],
   },
   {
@@ -162,9 +169,9 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'No: 403 forbidden',
     admin: 'Sí',
     guards: [
-      'backend/services/jobs/internal/handler/api.go:228',
-      'backend/services/jobs/internal/handler/security.go:44',
-      'backend/services/gateway/internal/handler/gateway.go:126',
+      'backend/services/jobs/internal/handler/api.go#GET /v1/audit',
+      'backend/services/jobs/internal/handler/security.go#"admin"',
+      'backend/services/gateway/internal/handler/gateway.go#/v1/audit',
     ],
   },
   {
@@ -172,8 +179,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'No: 403 forbidden',
     admin: 'No: 403 forbidden',
     guards: [
-      'backend/services/risk/internal/handler/security.go:64',
-      'backend/services/jobs/internal/handler/security.go:49',
+      'backend/services/risk/internal/handler/security.go#fail(w, 403, "forbidden")',
+      'backend/services/jobs/internal/handler/security.go#fail(w, 403, "forbidden")',
     ],
   },
   {
@@ -236,7 +243,7 @@ export function SessionView() {
 
   return (
     <section className="view" id="session" data-view="session" aria-labelledby="session-title">
-      <PanelHeading eyebrow="ACCESO A LA API" title="Sesión y permisos" titleId="session-title" />
+      <PanelHeading eyebrow="ACCESO A LA API" title="Sesión y permisos" titleId="session-title" level={2} />
 
       <div className="lower-grid">
         <article className="panel auth-panel">
@@ -317,14 +324,18 @@ export function SessionView() {
           <h4>Matriz de perfiles y permisos</h4>
           <p id="permissions-matrix-note" className="panel-note">
             Documentación verificada contra las guardas reales del servidor, no contra lo que la interfaz promete. Cada
-            fila cita la guarda por <code>ruta:línea</code>:{' '}
-            <code>backend/services/risk/internal/handler/security.go:59</code> acepta <code>viewer</code> o{' '}
-            <code>admin</code> y <code>backend/services/jobs/internal/handler/security.go:44</code> acepta solo{' '}
-            <code>admin</code>, con <code>backend/services/risk/internal/handler/api.go:99</code> y{' '}
-            <code>backend/services/jobs/internal/handler/api.go:236</code> envolviendo sus mux completos. Un
-            token verificado sin ninguno de esos roles recibe 403; un token que no se puede verificar recibe 401.
+            fila cita la guarda por <code>ruta#token</code>, la ruta y la cadena de ruta o expresión que la guarda
+            contiene, sin número de línea:{' '}
+            <code>backend/services/risk/internal/handler/security.go#"viewer"</code> acepta{' '}
+            <code>viewer</code> o <code>admin</code> y{' '}
+            <code>backend/services/jobs/internal/handler/security.go#"admin"</code> acepta solo{' '}
+            <code>admin</code>, con{' '}
+            <code>backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)</code> y{' '}
+            <code>backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)</code> envolviendo sus
+            mux completos. Un token verificado sin ninguno de esos roles recibe 403; un token que no se puede
+            verificar recibe 401.
           </p>
-          <div className="table-wrap">
+          <TableWrap label="Matriz de perfiles y permisos">
             <table>
               <caption className="sr-only">
                 Matriz documentada de perfiles y permisos, con la guarda real del servidor que la sustenta
@@ -334,7 +345,7 @@ export function SessionView() {
                   <th scope="col">Capacidad</th>
                   <th scope="col">viewer</th>
                   <th scope="col">admin</th>
-                  <th scope="col">Guarda verificada (ruta:línea)</th>
+                  <th scope="col">Guarda verificada (ruta#token)</th>
                 </tr>
               </thead>
               <tbody id="permissions-rows">
@@ -348,7 +359,7 @@ export function SessionView() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
           <p id="permissions-unimplemented" className="unimplemented-note">
             No portado a propósito: el mockup retirado permitía <em>elegir</em> un rol en la página. Ese selector no se
             implementa porque la página no puede conceder permisos y un selector sería un límite de autorización falso.

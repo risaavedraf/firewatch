@@ -268,6 +268,93 @@ test('search and the data-status filter narrow only the returned rows and issue 
   expect(visibleCount()).toBe('2 de 2');
 });
 
+// The artboard explains the absence instead of leaving one line: a zone with no
+// published lot was not measured as low risk.
+test('an empty history states that absence is not a low risk level', async () => {
+  const { fetchStub } = await connect();
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, []);
+  await waitFor(() => expect(count()).toBe('0'));
+
+  expect(state()).toHaveTextContent('Esta zona no tiene lotes ni evaluación al corte.');
+  expect(state()).toHaveTextContent('La ausencia de datos no es un nivel bajo.');
+  // Nothing to reveal, so the period reset is not offered.
+  expect(document.getElementById('history-show-period')).toBeNull();
+});
+
+// The rows the API returned exist; the filters are what hid them. The in-panel
+// reset gives the period back without the reader having to find the search box.
+test('filters that hide every returned row offer the whole period back', async () => {
+  const { fetchStub } = await connect();
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, [batch('lote-uno', { data_status: 'sufficient' })]);
+  await waitFor(() => expect(count()).toBe('1'));
+
+  fireEvent.change(screen.getByLabelText('Buscar en el historial de la zona'), {
+    target: { value: 'sin coincidencias' },
+  });
+  expect(tbody().children).toHaveLength(0);
+  expect(visibleCount()).toBe('0 de 1');
+  expect(state()).toHaveTextContent('No hay lotes que coincidan con los filtros.');
+
+  const reset = document.getElementById('history-show-period') as HTMLButtonElement;
+  expect(reset).not.toBeNull();
+  expect(reset).toHaveTextContent('Ver todo el periodo');
+
+  fireEvent.click(reset);
+  expect((screen.getByLabelText('Buscar en el historial de la zona') as HTMLInputElement).value).toBe('');
+  expect(tbody().children).toHaveLength(1);
+  expect(document.getElementById('history-show-period')).toBeNull();
+});
+
+// The badge spoke a bare number, so its meaning depended on where it sat on the
+// page. The name travels with it in document order, before the number it names.
+test('the count badge is named for a reader before its number', async () => {
+  const { fetchStub } = await connect();
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, [batch('lote-uno')]);
+  await waitFor(() => expect(count()).toBe('1'));
+
+  const label = document.querySelector('#history .intro-row > .sr-only');
+  expect(label).toHaveTextContent('Lotes devueltos:');
+  expect(label?.nextElementSibling?.id).toBe('history-count');
+  expect(count()).toBe('1');
+});
+
+// 4.1.3 — the result count is the only copy that reports what survived the// filters, and a search that drops every row changes it without moving focus,
+// so the count must expose itself as a status message instead of a silently
+// repainted span. No other live region in the view repeats it.
+test('the visible count exposes itself as a polite status message', async () => {
+  const { fetchStub } = await connect();
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, [
+    batch('lote-uno', { requested_at: '2026-01-01T00:00:00Z', data_status: 'sufficient' }),
+  ]);
+  await waitFor(() => expect(visibleCount()).toBe('1 de 1'));
+
+  fireEvent.change(screen.getByLabelText('Buscar en el historial de la zona'), {
+    target: { value: 'sin-coincidencias' },
+  });
+
+  const badge = document.getElementById('history-visible-count') as HTMLElement;
+  expect(tbody().children).toHaveLength(0);
+  expect(visibleCount()).toBe('0 de 1');
+  expect(badge).toHaveAttribute('role', 'status');
+  expect(badge).toHaveAttribute('aria-live', 'polite');
+});
+
 test('a 503 read is stated as unavailable and never rendered as a row', async () => {
   const { fetchStub } = await connect();
   selectZone(ZONE);

@@ -103,6 +103,11 @@ export const routes = {
   observations: '/v1/prevention/observations',
   observationZones: '/v1/prevention/observations/zones',
   models: '/v1/models',
+  // The realm's user directory (V1-U-04). Admin-only and read-only: it is what
+  // fills the assignee selector, and what an `assignee_id` is resolved against.
+  // An unreadable directory is answered 503/502, never with an empty list, so the
+  // page can tell "nobody could ask" from "the realm has no users".
+  users: '/v1/users',
 } as const;
 
 export function jobRoute(id: string): string {

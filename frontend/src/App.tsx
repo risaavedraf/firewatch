@@ -15,6 +15,7 @@ import { ObservationsView } from './views/ObservationsView';
 import { OverviewView } from './views/OverviewView';
 import { PendingView } from './views/PendingView';
 import { SessionView } from './views/SessionView';
+import { SimulatorView } from './views/SimulatorView';
 import { SourcesView } from './views/SourcesView';
 import { StatusView } from './views/StatusView';
 
@@ -24,6 +25,7 @@ const views: Record<ViewId, () => ReactElement> = {
   history: HistoryView,
   actions: ActionsView,
   observations: ObservationsView,
+  simulator: SimulatorView,
   status: StatusView,
   sources: SourcesView,
   jobs: JobsView,

@@ -36,8 +36,18 @@ import {
 import { idleCopy } from '../app/sessionCopy';
 import { MapPanel, type MapLoadState, type ZoneLevelLookup } from '../components/map/MapPanel';
 import { zoneLabel } from '../components/map/projection';
+import { ExecutivePanel, type ExecutiveSummaryState } from '../components/executive/ExecutivePanel';
 import { DataList, Metric, PanelHeading, StatusCopy, UnimplementedNote } from '../components/ui';
-import { batches, history, latest, modelVersions, zones, type Failure, type Outcome } from '../core/api';
+import {
+  batches,
+  executiveSummary,
+  history,
+  latest,
+  modelVersions,
+  zones,
+  type Failure,
+  type Outcome,
+} from '../core/api';
 import type { SessionState } from '../core/session';
 import {
   computeFactorBars,
@@ -337,6 +347,9 @@ export function OverviewView() {
   const [catalogue, setCatalogue] = useState<CatalogueState | null>(null);
   const [read, setRead] = useState<ReadState | null>(null);
   const [activeModel, setActiveModel] = useState<ActiveModel | null>(null);
+  // PM-01 — the executive summary is one session-scoped read. `null` while it is
+  // in flight; a failure is stored as a stated outcome, never as zeros.
+  const [executive, setExecutive] = useState<ExecutiveSummaryState | null>(null);
   const [sessionClosed, setSessionClosed] = useState(false);
   // Whether a real session was ever established. It separates "never connected"
   // (the count is still unknown, `—`) from "the session was closed" (the count
@@ -454,6 +467,40 @@ export function OverviewView() {
     };
   }, [signedIn]);
 
+  // PM-01 — one read of the server's executive summary, alongside the catalogue
+  // and the registry: it answers the whole territory, so it is not tied to the
+  // selected zone and a new selection never re-issues it. A failed or superseded
+  // answer is stated inline and owns only that section; the transport's deadline
+  // is what bounds a hung read, so the panel cannot spin forever.
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    const controller = new AbortController();
+    let active = true;
+    void (async () => {
+      const outcome = await executiveSummary(controller.signal);
+      if (!active) return;
+      if (outcome.ok) {
+        setExecutive({ kind: 'ready', summary: outcome.data });
+        return;
+      }
+      // A superseded, aborted or unauthorized answer belongs to a request this
+      // view already replaced, or is the session's own verdict: neither is a
+      // failure of the summary this page should print.
+      if (
+        outcome.failure.reason === 'superseded' ||
+        outcome.failure.reason === 'aborted' ||
+        outcome.failure.kind === 'unauthorized'
+      ) {
+        return;
+      }
+      setExecutive({ kind: 'failed', message: failureMessage(outcome.failure, 'consultar el resumen ejecutivo') });
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [signedIn]);
+
   // Ending a session clears everything the private view was describing. The
   // shared zone state is cleared here as well so the view stays honest even when
   // it is mounted without the session binding installed at application start.
@@ -468,6 +515,7 @@ export function OverviewView() {
     setCatalogue(null);
     setRead(null);
     setActiveModel(null);
+    setExecutive(null);
     setSessionClosed(true);
   }, [signedIn]);
 
@@ -496,6 +544,17 @@ export function OverviewView() {
   const zoneLevelLookup = useMemo(
     (): ZoneLevelLookup => ({ levelFor: (code: string) => levels.get(code) ?? '' }),
     [levels],
+  );
+
+  // The catalogue's display names, keyed the way the summary reports zones. The
+  // panel names a critical zone when this catalogue knows it and falls back to
+  // the code the summary sent when it does not.
+  const zoneNames = useMemo(
+    (): ReadonlyMap<string, string> =>
+      catalogue !== null && catalogue.kind === 'ready'
+        ? catalogueZoneLabels(catalogue.collection)
+        : new Map<string, string>(),
+    [catalogue],
   );
 
   const highCount = useMemo(() => {
@@ -597,6 +656,15 @@ export function OverviewView() {
             : 'NO DECLARADO';
   const modelStatusText = activeModel === null ? 'Sin consultar el registro de modelos.' : activeModel.label;
 
+  // PM-01 — the panel's state. A signed-out view is idle (it never shows a number
+  // it did not read); a signed-in view with no settled answer is loading, and
+  // every settled answer is either the summary or a stated failure.
+  const executiveState: ExecutiveSummaryState = !signedIn
+    ? { kind: 'idle' }
+    : executive !== null
+      ? executive
+      : { kind: 'loading' };
+
   return (
     <section className="view" id="overview" data-view="overview" aria-labelledby="overview-title">
       <div className="intro-row">
@@ -609,6 +677,106 @@ export function OverviewView() {
           ENTRADA SINTÉTICA · SIN CALIBRACIÓN
         </span>
       </div>
+
+      {/*
+        PM-01 — the executive panel opens the view: it is the server's
+        territory-wide answer, and its failure owns only this section, so the
+        metrics, the map and the batch card keep working below it.
+      */}
+      <ExecutivePanel state={executiveState} zoneNames={zoneNames} batchIsDemo={batchData?.demo === true} />
+
+      <section className="dashboard-grid" aria-label="Estado del riesgo y ubicación">
+        <MapPanel
+          collection={mapCollection}
+          loadState={mapState}
+          selectedCode={selectedZone}
+          zoneLevels={zoneLevelLookup}
+          onSelect={selectZone}
+          sessionReason={session.reason}
+          jobProgress={jobProgress}
+        />
+
+        <article className="panel risk-panel">
+          <PanelHeading
+            eyebrow="ESTADO DEL RIESGO"
+            title="Último lote publicado"
+            badge={
+              <span className="risk-pill" id="risk-pill">
+                {risk.pill}
+              </span>
+            }
+          />
+          <StatusCopy id="risk-status">{risk.status}</StatusCopy>
+          <div className="risk-state">
+            <span className="risk-symbol" aria-hidden="true">
+              —
+            </span>
+            <div>
+              <strong id="risk-level">{risk.level}</strong>
+              <small>Clasificación informada por el backend</small>
+            </div>
+          </div>
+          <DataList
+            items={[
+              { label: 'Código CUT', value: <span id="zone-code">{orUninformed(selectedFeature?.properties.code)}</span> },
+              { label: 'Comuna', value: <span id="zone-name">{orUninformed(selectedFeature?.properties.name)}</span> },
+              {
+                label: 'Provincia',
+                value: <span id="zone-province">{orUninformed(selectedFeature?.properties.province)}</span>,
+              },
+            ]}
+          />
+          <p id="batch-origin">{originText}</p>
+          <p id="batch-notice">{noticeText}</p>
+          <StatusCopy id="batch-validity">{validityText}</StatusCopy>
+          {/* With no reading and no omission the card has nothing to put under a
+              "Factores" heading, and a heading over an empty list reads as a
+              broken widget. The artboard names no heading here: it states the
+              absence in one muted sentence, which is what the card does. */}
+          {factorRows.length > 0 || showFactorOmission ? (
+            <>
+              <h4>Factores</h4>
+              <p id="factor-rule-note" className="panel-note">
+                <strong>Cómo lo calculó la regla.</strong> La contribución de cada variable es aritmética de la regla
+                sobre el lote publicado: no es una causa del incendio ni un pronóstico.
+              </p>
+              <ul id="risk-factors">
+                {factorRows.map((row) => (
+                  <li key={row.key}>
+                    {row.text}
+                    {row.widthPercent !== null ? (
+                      <div className="factor-track">
+                        <span style={{ width: `${row.widthPercent}%` }} />
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+                {showFactorOmission ? (
+                  <li>Factores ausentes o inválidos; solo se muestran entradas válidas.</li>
+                ) : null}
+              </ul>
+            </>
+          ) : (
+            <p className="panel-note">No hay factores disponibles para este sector.</p>
+          )}
+          <h4>Cómo lo calculó la regla</h4>
+          <p id="risk-rationale">{rationaleText}</p>
+          <h4>Política informada</h4>
+          <p id="risk-policy">{policyText}</p>
+          <DataList
+            items={[
+              { label: 'Estado del dato', value: <span id="data-status">{batchField(batchData?.data_status)}</span> },
+              { label: 'Versión', value: <span id="model-version">{batchField(batchData?.model_version)}</span> },
+              { label: 'Vigencia hasta', value: <span id="valid-until">{batchField(batchData?.valid_until)}</span> },
+              { label: 'Identificador', value: <span id="batch-id">{batchField(batchData?.id)}</span> },
+            ]}
+          />
+          <UnimplementedNote>
+            Cobertura por sector: la API no publica un porcentaje de cobertura por comuna, así que esta ficha no lo
+            muestra.
+          </UnimplementedNote>
+        </article>
+      </section>
 
       <section className="metrics-grid metrics-three" aria-label="Resumen real de la sesión">
         <Metric
@@ -682,83 +850,6 @@ export function OverviewView() {
           sembrada como activa no prueba que el servicio la haya usado.
         </p>
       </article>
-
-      <section className="dashboard-grid" aria-label="Estado del riesgo y ubicación">
-        <MapPanel
-          collection={mapCollection}
-          loadState={mapState}
-          selectedCode={selectedZone}
-          zoneLevels={zoneLevelLookup}
-          onSelect={selectZone}
-          sessionReason={session.reason}
-          jobProgress={jobProgress}
-        />
-
-        <article className="panel risk-panel">
-          <PanelHeading
-            eyebrow="ESTADO DEL RIESGO"
-            title="Último lote publicado"
-            badge={
-              <span className="risk-pill" id="risk-pill">
-                {risk.pill}
-              </span>
-            }
-          />
-          <StatusCopy id="risk-status">{risk.status}</StatusCopy>
-          <div className="risk-state">
-            <span className="risk-symbol" aria-hidden="true">
-              —
-            </span>
-            <div>
-              <strong id="risk-level">{risk.level}</strong>
-              <small>Clasificación informada por el backend</small>
-            </div>
-          </div>
-          <DataList
-            items={[
-              { label: 'Código CUT', value: <span id="zone-code">{orUninformed(selectedFeature?.properties.code)}</span> },
-              { label: 'Comuna', value: <span id="zone-name">{orUninformed(selectedFeature?.properties.name)}</span> },
-              {
-                label: 'Provincia',
-                value: <span id="zone-province">{orUninformed(selectedFeature?.properties.province)}</span>,
-              },
-            ]}
-          />
-          <p id="batch-origin">{originText}</p>
-          <p id="batch-notice">{noticeText}</p>
-          <StatusCopy id="batch-validity">{validityText}</StatusCopy>
-          <h4>Factores</h4>
-          <ul id="risk-factors">
-            {factorRows.map((row) => (
-              <li key={row.key}>
-                {row.text}
-                {row.widthPercent !== null ? (
-                  <div className="factor-track">
-                    <span style={{ width: `${row.widthPercent}%` }} />
-                  </div>
-                ) : null}
-              </li>
-            ))}
-            {showFactorOmission ? <li>Factores ausentes o inválidos; solo se muestran entradas válidas.</li> : null}
-          </ul>
-          <h4>Justificación</h4>
-          <p id="risk-rationale">{rationaleText}</p>
-          <h4>Política informada</h4>
-          <p id="risk-policy">{policyText}</p>
-          <DataList
-            items={[
-              { label: 'Estado del dato', value: <span id="data-status">{batchField(batchData?.data_status)}</span> },
-              { label: 'Versión', value: <span id="model-version">{batchField(batchData?.model_version)}</span> },
-              { label: 'Vigencia hasta', value: <span id="valid-until">{batchField(batchData?.valid_until)}</span> },
-              { label: 'Identificador', value: <span id="batch-id">{batchField(batchData?.id)}</span> },
-            ]}
-          />
-          <UnimplementedNote>
-            Cobertura por sector: la API no publica un porcentaje de cobertura por comuna, así que esta ficha no lo
-            muestra.
-          </UnimplementedNote>
-        </article>
-      </section>
 
       {/*
         PM-18 — the zone card suggests from the written catalogue. The list is

@@ -605,8 +605,8 @@ code {
 }
 .cap-row h4 { margin: 0; font-size: 11px; font-weight: 700; line-height: 1.4; }
 .cap-row p { margin: 2px 0 0; color: var(--text-muted); font-size: 9.5px; line-height: 1.5; }
-.cap-where { margin-top: 4px; color: var(--text); }
-.cap-where strong { font-weight: 800; }
+.cap-where, .cap-canvas { margin-top: 4px; color: var(--text); }
+.cap-where strong, .cap-canvas strong { font-weight: 800; }
 .row-link {
   display: inline-flex;
   align-items: center;
@@ -720,7 +720,7 @@ code {
       <span class="nav-group">Información</span>
       <a class="nav-link" id="nav-fuentes" data-nav="fuentes" href="#fuentes">Fuentes y servicios</a>
       <a class="nav-link" id="nav-procesamiento" data-nav="procesamiento" href="#procesamiento">Procesamiento</a>
-      <a class="nav-link" id="nav-pendiente" data-nav="pendiente" href="#pendiente">Aún no implementado</a>
+      <a class="nav-link" id="nav-pendiente" data-nav="pendiente" href="#pendiente">Prototipos y alcance</a>
       <span class="nav-group">Acceso y coordinación</span>
       <a class="nav-link" id="nav-sesion" data-nav="sesion" href="#sesion">Sesión y permisos</a>
       <a class="nav-link" id="nav-auditoria" data-nav="auditoria" href="#auditoria">Registro de actividad</a>
@@ -1358,13 +1358,13 @@ code {
     <section class="view" id="pendiente" data-view="pendiente" aria-labelledby="title-pendiente" hidden>
       <div class="view-head">
         <div>
-          <p class="eyebrow">INFORMACIÓN · INVENTARIO TRANSITORIO</p>
-          <h2 class="view-title" id="title-pendiente" tabindex="-1">Aún no implementado</h2>
-          <p class="view-lead">Las siete capacidades G6 que el backend actual no respalda. Se diseñan donde vivirán; mostrarlas aquí no las cierra.</p>
+          <p class="eyebrow">INFORMACIÓN · ALCANCE DEL PROTOTIPO</p>
+          <h2 class="view-title" id="title-pendiente" tabindex="-1">Prototipos y alcance</h2>
+          <p class="view-lead">Las siete capacidades G6 que el backend actual no respalda. Cada fila separa lo que se puede recorrer en el lienzo de lo que sigue sin existir en el producto: mostrar el prototipo no cierra la fila.</p>
         </div>
         <div class="chips">
           <span class="chip chip-neutral">7 capacidades</span>
-          <span class="chip chip-gold">Inventario transitorio</span>
+          <span class="chip chip-gold">Alcance del prototipo</span>
         </div>
       </div>
       <div class="layout">
@@ -1372,10 +1372,10 @@ code {
           <article class="panel" aria-labelledby="pending-title">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">DEL MOCKUP RETIRADO AL BACKEND ACTUAL</p>
+                <p class="eyebrow">DEL MOCKUP RETIRADO AL PRODUCTO ACTUAL</p>
                 <h3 id="pending-title">Las siete, una por una</h3>
               </div>
-              <span class="chip chip-neutral">Sin datos simulados</span>
+              <span class="chip chip-neutral">Solo lectura</span>
             </div>
             <div class="panel-body">
               <ol class="cap-list" id="pending-list">
@@ -1385,6 +1385,8 @@ code {
                     <h4>Cobertura y entorno por sector</h4>
                     <p>La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Territorio · tabla de sectores (fuera de este tablero).</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> prototipo de la tabla de sectores y de la ficha del foco, con cobertura de lectura y entorno por sector; los valores son ilustrativos.</p>
+                    <a class="row-link" id="link-cobertura" href="../firewatch-v1-vuelo/04-cobertura-territorial.html">Ver el prototipo de cobertura y entorno</a>
                   </div>
                 </li>
                 <li class="cap-row" id="cap-2">
@@ -1393,6 +1395,8 @@ code {
                     <h4>Contexto y prioridad por sector</h4>
                     <p>El backend clasifica la zona con el lote publicado y no calcula prioridad regional ni contexto por comuna.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Territorio · ficha de detalle (fuera de este tablero).</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> prototipo parcial de la prioridad contextual por sector y foco; el contexto por comuna no está dibujado.</p>
+                    <a class="row-link" id="link-prioridad" href="../firewatch-v1-vuelo/04-cobertura-territorial.html">Ver el prototipo de prioridad contextual</a>
                   </div>
                 </li>
                 <li class="cap-row" id="cap-3">
@@ -1401,6 +1405,8 @@ code {
                     <h4>Estados candidate, in_progress, reviewed y closed</h4>
                     <p>El backend informa el estado del trabajo y el estado del dato; esos cuatro estados no existen en ningún contrato.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Acciones preventivas · chips de estado (fuera de este tablero).</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> vista previa de los cuatro estados en Acciones preventivas, tarea «Estados G6»; es una demostración visual, sin transiciones ni persistencia.</p>
+                    <a class="row-link" id="link-estados" href="../firewatch-v1-vuelo/06-acciones-preventivas.html">Ver la vista previa de los cuatro estados</a>
                   </div>
                 </li>
                 <li class="cap-row" id="cap-4">
@@ -1409,14 +1415,17 @@ code {
                     <h4>Historial de todas las zonas</h4>
                     <p><code>GET /v1/risk/history</code> exige <code>zone_id</code> y no hay endpoint agregado; el historial es siempre el de la zona consultada.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Historial de lotes (fuera de este tablero).</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> prototipo parcial en Historial de lotes: una zona y una vista agregada ilustrativa; el endpoint agregado no existe.</p>
+                    <a class="row-link" id="link-historial" href="../firewatch-v1-vuelo/05-historial-de-lotes.html">Ver el prototipo parcial de historial</a>
                   </div>
                 </li>
                 <li class="cap-row" id="cap-5">
                   <span class="cap-num" aria-hidden="true">05</span>
                   <div>
                     <h4>Revisar e incorporar registros, y hallazgos de calidad</h4>
-                    <p><code>GET /v1/risk/sources</code> publica procedencia e integridad reales; no existe un catálogo de hallazgos de calidad.</p>
+                    <p><code>GET /v1/risk/sources</code> publica procedencia e integridad reales; no existe un catálogo de hallazgos de calidad ni una acción para incorporar registros en la aplicación.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Fuentes y servicios · revisión de registros.</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> revisión de registros, hallazgos de calidad y una incorporación simulada en Fuentes y servicios. No se guarda nada.</p>
                     <a class="row-link" id="link-fuentes" href="#fuentes">Ver el prototipo en Fuentes y servicios</a>
                   </div>
                 </li>
@@ -1426,6 +1435,7 @@ code {
                     <h4>Publicar lote, avance manual y reevaluación</h4>
                     <p>No existe endpoint: el servidor decide y publica por su cuenta; la página solo solicita el trabajo y lee el resultado.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Procesamiento · acciones propuestas.</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> confirmación simulada para publicar, avanzar y reevaluar en Procesamiento. No se ejecuta ninguna de las tres acciones.</p>
                     <a class="row-link" id="link-procesamiento" href="#procesamiento">Ver el prototipo en Procesamiento</a>
                   </div>
                 </li>
@@ -1435,11 +1445,12 @@ code {
                     <h4>Nombre del actor, detalle libre e id de evento</h4>
                     <p><code>GET /v1/audit</code> entrega actor_id, action, job_id, trace_id y occurred_at: identificadores opacos, sin nombre ni detalle.</p>
                     <p class="cap-where"><strong>Dónde iría:</strong> Registro de actividad · detalle del evento.</p>
+                    <p class="cap-canvas"><strong>En el lienzo:</strong> detalle del evento con nombre y detalle ilustrativos en Registro de actividad; el contrato real solo trae identificadores.</p>
                     <a class="row-link" id="link-auditoria" href="#auditoria">Ver el prototipo en Registro de actividad</a>
                   </div>
                 </li>
               </ol>
-              <p class="note" id="pending-note"><strong>Ninguna se cierra por mostrarse aquí:</strong> sacar una entrada de <code>NOT_IMPLEMENTED</code> exige el criterio de su fila en <code>odd/tasks/v1-produccion.md</code>. No hay rutas falsas ni controles deshabilitados que aparenten una función.</p>
+              <p class="note" id="pending-note"><strong>Mostrar un prototipo no cierra ninguna fila:</strong> sacar una entrada de <code>NOT_IMPLEMENTED</code> exige el criterio de su fila en <code>odd/tasks/v1-produccion.md</code>. No hay rutas falsas ni controles deshabilitados que aparenten una función.</p>
             </div>
           </article>
         </div>
@@ -1454,9 +1465,9 @@ code {
             </div>
             <div class="panel-body">
               <ul class="plain-list">
-                <li>Declarar la ausencia es parte de la entrega: ninguna capacidad se simula.</li>
-                <li>El destino enlazado es un panel de esta maqueta, no una ruta del producto.</li>
-                <li>Los destinos fuera del tablero se nombran como texto, sin enlaces falsos.</li>
+                <li>Declarar la ausencia es parte de la entrega: el prototipo ilustra el destino, pero ninguna capacidad opera de verdad.</li>
+                <li>Los enlaces abren tableros y paneles de esta colección de maqueta; no son rutas del producto.</li>
+                <li>Un destino se enlaza solo si su prototipo existe; si no existe, se nombra como texto.</li>
                 <li>Diseñar el destino no cierra la fila: el plan sigue abierto.</li>
                 <li>Este tablero no define contrato, permisos ni validación científica.</li>
               </ul>
@@ -1466,12 +1477,12 @@ code {
             <div class="panel-head">
               <div>
                 <p class="eyebrow">SIETE FILAS</p>
-                <h3 id="pending-map-title">Tres destinos en este tablero</h3>
+                <h3 id="pending-map-title">Tres aquí y cuatro fuera</h3>
               </div>
             </div>
             <div class="panel-body">
-              <p class="copy">Solo tres de las siete viven en este tablero: la revisión de registros, las acciones de publicación y el detalle de auditoría. Las otras cuatro se nombran para que la ausencia no desaparezca.</p>
-              <p class="note">Los paneles enlazados son la vista de diseño de cada capacidad; no son endpoints, contratos ni permisos.</p>
+              <p class="copy">Solo tres de las siete viven en este tablero: la revisión de registros, las acciones de publicación y el detalle de auditoría. Cobertura, prioridad contextual, estados planificados e historial tienen prototipo en otros tableros de esta colección.</p>
+              <p class="note">Los paneles y tableros enlazados son la vista de diseño de cada capacidad; no son endpoints, contratos ni permisos.</p>
             </div>
           </article>
         </aside>
@@ -1502,7 +1513,7 @@ code {
     procesamiento: 'Procesamiento',
     sesion: 'Sesión y permisos',
     auditoria: 'Registro de actividad',
-    pendiente: 'Aún no implementado'
+    pendiente: 'Prototipos y alcance'
   };
   var sections = {};
   VIEWS.forEach(function (id) {

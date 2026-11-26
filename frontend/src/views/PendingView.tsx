@@ -1,4 +1,4 @@
-import { PanelHeading, StatusCopy, UnimplementedBadge } from '../components/ui';
+import { PanelHeading, StatusCopy, TableWrap, UnimplementedBadge } from '../components/ui';
 
 // N8 — the inventory of capabilities the retired mockup offered and the backend
 // cannot back. Declaring them is part of the delivery: naming an absence here is
@@ -73,6 +73,7 @@ export function PendingView() {
           eyebrow="ALCANCE DE ESTA ENTREGA"
           title="Aún no implementado"
           titleId="pending-title"
+          level={2}
           badge={
             <span id="pending-badge">
               <UnimplementedBadge />
@@ -83,7 +84,7 @@ export function PendingView() {
           Estas capacidades del mockup retirado no tienen respaldo en el backend actual. Declararlas es parte de la
           entrega: no se simulan y ningún control de esta página las ofrece.
         </StatusCopy>
-        <div className="table-wrap">
+        <TableWrap label="Capacidades sin respaldo en el backend">
           <table>
             <caption className="sr-only">
               Capacidades sin respaldo en el backend, con su motivo y su ubicación prevista
@@ -105,7 +106,7 @@ export function PendingView() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableWrap>
       </article>
     </section>
   );

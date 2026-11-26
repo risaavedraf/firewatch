@@ -21,6 +21,16 @@ type Repository interface {
 	// ordered by zone_id. A zone with no published batch is absent from the
 	// answer, and an empty result is a valid answer rather than an error.
 	LatestPerZone(ctx context.Context) ([]repository.Batch, error)
+	// ExecutiveBatches reads the newest two published batches of every catalogue
+	// zone, newest first, in one snapshot. D-B criticality and the delta block are
+	// both decided from this single read, so a zone can never be counted in one
+	// block from batches the other block did not see.
+	ExecutiveBatches(ctx context.Context) ([][]repository.Batch, error)
+	// ExecutiveAlertCount counts the stored level-change alerts for the executive
+	// summary. It filters nothing and reports no read or dismissed state: the
+	// summary states how many alert rows exist, and the lifecycle is PM-08's. A
+	// failed count is a storage failure, never a zero.
+	ExecutiveAlertCount(ctx context.Context) (int, error)
 	// ZoneExists reports whether the zone catalogue holds code. Membership is a
 	// property of the data, not of a literal compiled into this service, so the
 	// read path asks the catalogue instead of comparing to a hardcoded zone.
@@ -37,6 +47,17 @@ type Repository interface {
 	// by default, with a stable keyset boundary. An empty page is a valid answer,
 	// not an error.
 	ListAlerts(ctx context.Context, query repository.AlertPageQuery) (repository.AlertPage, error)
+	// HistorySeries reads at most one point per zone and bucket inside a half-open
+	// window of requested_at, in one bucketed query. It exists so the granular
+	// history is answered by one read for the whole territory instead of one read
+	// per zone; an empty result is a valid answer, not an error.
+	HistorySeries(ctx context.Context, query repository.HistorySeriesQuery) ([]repository.HistoryPoint, error)
+	// CompareZones reads one comparison snapshot in a single statement: the newest
+	// batch of each requested zone strictly before the shared cutoff, plus the
+	// PM-04 buckets inside the half-open window. A requested zone with no eligible
+	// batch is simply absent from the assessment half, which the handler serves as
+	// a null assessment; an empty result is a valid answer, not an error.
+	CompareZones(ctx context.Context, query repository.ComparisonQuery) (repository.ComparisonSnapshot, error)
 }
 
 // DescriptorProvider is the read-only description surface of the active publisher provider.
@@ -74,10 +95,34 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 	// mirrors: it is additive, and the pair shares one read (readHistory), one
 	// zone gate and one window, so neither representation can drift from the other.
 	mux.HandleFunc("GET /v1/risk/history.csv", historyCSV(store))
+	// The granular series is a sibling read, not a revision of the window above:
+	// it is registered as its own exact path with its own query vocabulary, so the
+	// 100 row history and its export keep their bodies byte for byte.
+	mux.HandleFunc("GET /v1/risk/history/series", historySeries(store))
+	mux.HandleFunc("HEAD /v1/risk/history/series", func(w http.ResponseWriter, _ *http.Request) {
+		// ServeMux otherwise runs the GET handler for HEAD, outside GET auditing.
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
+	// The comparison is additive and takes a zone LIST, which no other risk route
+	// does; it is its own exact path so the single-zone reads keep their exact
+	// vocabulary and bodies. HEAD is refused explicitly for the same reason the
+	// series refuses it: ServeMux would otherwise run the GET handler, unrecorded.
+	mux.HandleFunc("GET /v1/risk/compare", compareZones(store))
+	mux.HandleFunc("HEAD /v1/risk/compare", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Allow", http.MethodGet)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
 	mux.HandleFunc("GET /v1/risk/batches", latestPerZone(store))
+	mux.HandleFunc("GET /v1/risk/executive-summary", executiveSummary(store))
 	// The alert timeline is a viewer/admin read like its neighbours: it is inside
 	// the Authorize gate and requires no further role check, and it stores nothing.
 	mux.HandleFunc("GET /v1/risk/alerts", listAlerts(store))
+	// The counterfactual simulation is a viewer/admin read like its neighbours: it
+	// is inside the Authorize gate, requires no further role check, recomputes
+	// locally from the rule the batch recorded and writes no row. No gateway change
+	// is needed: /v1/risk/ is already proxied as a subtree.
+	mux.HandleFunc("POST /v1/risk/simulate", simulate(store))
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
 	mux.HandleFunc("GET /v1/risk/infrastructure", listInfrastructure())
