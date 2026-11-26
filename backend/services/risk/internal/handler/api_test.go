@@ -49,6 +49,13 @@ type fakeStore struct {
 	alertPage    repository.AlertPage
 	alertErr     error
 	alertQueries []repository.AlertPageQuery
+	// Granular series state for the PM-04 read route. seriesQueries records the
+	// window, granularity and zone the route asked for, and seriesCalls proves the
+	// whole territory is answered by one bucketed read instead of one per zone.
+	seriesPoints  []repository.HistoryPoint
+	seriesErr     error
+	seriesCalls   int
+	seriesQueries []repository.HistorySeriesQuery
 }
 
 func (s *fakeStore) ExecutiveBatches(context.Context) ([][]repository.Batch, error) {
