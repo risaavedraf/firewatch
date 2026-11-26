@@ -728,6 +728,10 @@ export function OverviewView() {
           <p id="batch-notice">{noticeText}</p>
           <StatusCopy id="batch-validity">{validityText}</StatusCopy>
           <h4>Factores</h4>
+          <p id="factor-rule-note" className="panel-note">
+            <strong>Cómo lo calculó la regla.</strong> La contribución de cada variable es aritmética de la regla
+            sobre el lote publicado: no es una causa del incendio ni un pronóstico.
+          </p>
           <ul id="risk-factors">
             {factorRows.map((row) => (
               <li key={row.key}>
