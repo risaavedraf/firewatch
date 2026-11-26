@@ -58,7 +58,7 @@ El generador no usa dependencias, instalación ni red. `--check` es de solo lect
 
 ## Navegación global del producto
 
-[product-navigation.mjs](product-navigation.mjs) es la única fuente de la barra: define destinos, marcado y CSS, y los escribe en los 21 tableros finales. Los destinos se agrupan por uso —territorio y lectura, decisión y alertas, solicitudes y datos, acceso y control— y no repiten los cuatro atajos que ya están en la barra.
+[product-navigation.mjs](product-navigation.mjs) es la única fuente de la barra: define destinos, marcado y CSS. [build-artboards.mjs](build-artboards.mjs) escribe ese bloque en los 16 tableros generados; los cinco tableros directos (`01`–`03`, `20`, `21`) llevan una copia mantenida a mano del mismo bloque. Los destinos se agrupan por uso —territorio y lectura, decisión y alertas, solicitudes y datos, acceso y control— y no repiten los cuatro atajos que ya están en la barra.
 
 - **Fija en los mapas.** En `01`, `02` y `03` la barra queda arriba y cada tablero desplaza sus paneles con `--fw-nav-h` (48 px), así que no tapa la cabecera, los controles ni la columna de solicitudes. En `01`, bajo 1120 px la estación pasa a flujo normal y la barra se vuelve `sticky`.
 - **`sticky` en el resto.** En `04`–`21` la barra vive en el flujo, se pega arriba al desplazar y ajusta `scroll-padding-top` y la navegación interna `.viewnav` para no solaparse.

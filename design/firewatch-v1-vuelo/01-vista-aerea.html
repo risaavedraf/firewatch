@@ -87,7 +87,7 @@ html { scroll-padding-top: calc(var(--fw-nav-h, 48px) + 56px); }
 body { margin: 0; background: var(--water); color: var(--ink); font: 400 14px/1.45 system-ui, sans-serif; }
 canvas { position: fixed; inset: 0; width: 100vw; height: 100dvh; touch-action: none; cursor: grab; }
 canvas:active { cursor: grabbing; }
-header, .controls, .work-rail, .legend, .info, .result-dock { position: fixed; z-index: 1; }
+header, .controls, .work-rail, .legend, .info, .result-dock, .note { position: fixed; z-index: 1; }
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
 .skip { position: fixed; z-index: 3; top: 8px; left: 8px; padding: 9px 13px; border-radius: 9px; border: 1px solid var(--focus); background: var(--panel); color: var(--ink); font-weight: 700; text-decoration: none; transform: translateY(calc(-100% - 16px)); }
 .skip:focus { transform: translateY(0); }
@@ -170,6 +170,7 @@ input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
 .tag::before { content: '◆'; margin-inline-end: 5px; }
 .result-dock { left: 428px; right: 380px; bottom: 40px; max-width: 560px; margin-inline: auto; display: grid; gap: 8px; padding: 12px 14px; }
 .result-dock .lot-result { max-height: 30dvh; overflow-y: auto; }
+.note { bottom: 0; left: 0; right: 0; padding: 5px 14px; background: var(--panel); color: var(--muted); font-size: 12px; }
 .lot-result { display: grid; gap: 5px; }
 .lot-result h3 { font-size: 16px; }
 .lot-result p { font-size: 13px; }
@@ -190,6 +191,7 @@ input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
   .work-rail { position: static; inset: auto; order: 5; width: auto; max-height: none; overflow: visible; }
   .info { position: static; inset: auto; order: 6; width: auto; max-height: none; overflow: visible; }
   .result-dock { position: static; inset: auto; order: 7; width: auto; max-width: none; margin: 0; }
+  .note { position: static; inset: auto; order: 8; }
 }
 @media (max-width: 560px) {
   .mark { width: 26px; height: 26px; }
@@ -201,6 +203,7 @@ input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
   .info { padding: 11px; }
   .job-note { font-size: 11px; }
   .result-dock { padding: 10px 11px; }
+  .note { font-size: 10px; padding: 4px 8px; }
 }
 </style>
 </head>
@@ -375,6 +378,8 @@ input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
       <p class="hint">Abre una solicitud que esté lista para consultar el resultado del lote.</p>
     </div>
   </section>
+
+  <footer class="note">Prototipo · Relieve, edificios, límites y lecturas son ilustrativos; la cola de solicitudes y sus estados (En proceso, Listo) son una maqueta sin guardado.</footer>
 
 </main>
 <script>
