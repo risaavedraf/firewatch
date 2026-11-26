@@ -27,6 +27,8 @@ La ficha usa ese rótulo y dice, en la misma nota, que la contribución es aritm
 
 - **L1 (2026-11-25) — Se abre la unidad.** PM-02 tiene la ficha de factores fusionada (PR #104) y D-D resuelto; falta aplicar el rótulo y la prueba que lo fija. Esta unidad no cierra PM-02: la aceptación humana sigue pendiente.
 
+- **L2 (2026-11-25) — Verificación T3.** `npm test` 581/581 (49 archivos), `npm run typecheck` limpio, `npm run lint` limpio y `npm run build:local` exit 0 (68 módulos). El verificador independiente re-ejecutó test/typecheck; lint/build no fueron re-ejecutados por él. Sin cambios de fuente adicionales.
+
 ## Allowed edit surfaces
 
 - `frontend/src/views/OverviewView.tsx`
