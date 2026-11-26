@@ -1365,6 +1365,37 @@ test('returning to «Todas las zonas» shows loading instead of the previous win
   expect(count()).toBe('—');
 });
 
+// The stored series belongs to the question that produced it, and the selected
+// zone is part of that question: the branch keeps the answer attributed to the
+// selection it was read for, so a zone change asks the same window again instead
+// of keeping an answer that was read for another selection. The granularity does
+// not change here on purpose — keying the answer by the bucket size alone leaves
+// the previous zone's series painted while the new read is in flight.
+test('changing the zone while «Todas las zonas» is shown loads again and never paints the previous answer (S3)', async () => {
+  const series = await openAllZones();
+  series.answer([zoneSeries('05101', [bucket()])]);
+  await waitFor(() => expect(count()).toBe('1'));
+  expect(seriesList()).toHaveTextContent('Zona 05101');
+
+  selectZone('05103');
+  await flush();
+
+  // A fresh read for the new selection, and no window, count or interval of the
+  // answer read for the previous one while it loads.
+  expect(state()).toHaveTextContent('Consultando la serie de todas las zonas…');
+  expect(seriesList()).toBeNull();
+  expect(document.getElementById('history-series-range')).toBeNull();
+  expect(count()).toBe('—');
+  expect(series.calls).toHaveLength(2);
+  expect(series.calls[1].granularity).toBe('day');
+
+  // The fresh answer is the one painted; the abandoned one never returns.
+  series.answer([zoneSeries('05103', [bucket({ batch_id: 'lote-zona-tres' })])]);
+  await waitFor(() => expect(count()).toBe('1'));
+  expect(seriesList()).toHaveTextContent('Zona 05103');
+  expect(seriesList()).not.toHaveTextContent('Zona 05101');
+});
+
 test('the series client refuses a body the view cannot use (T1)', async () => {
   const { fetchStub } = await connect();
   const request = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });

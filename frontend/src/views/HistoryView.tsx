@@ -266,6 +266,22 @@ interface LoadedSeries {
   status: Extract<SeriesStatus, { kind: 'empty' | 'ready' | 'failure' }>;
 }
 
+// The question a stored series answers. The session state, the scope, the
+// selected zone and the bucket size are its four inputs, and the answer is
+// attributed to all four — never to the bucket size alone.
+//
+// The identity of the question is the key, not a digest of its inputs: a digest
+// repeats when the same inputs come back, so leaving «Todas las zonas» and
+// returning to it would match the answer read for the earlier visit. A question
+// object is minted per combination, so the answer of an abandoned visit can never
+// be attributed to the new one.
+interface SeriesQuestion {
+  readonly signedIn: boolean;
+  readonly scope: HistoryScope;
+  readonly selectedZone: string;
+  readonly granularity: HistoryGranularity;
+}
+
 const EMPTY_SERIES: HistoryZoneSeries[] = [];
 
 // The three bucket sizes the route serves, spelled with the cut the contract
@@ -344,8 +360,15 @@ export function HistoryView() {
   // zone change cannot keep showing another zone's rows: the derived status and
   // the rendered rows both require the stored key to match the current selection.
   const [stored, setStored] = useState<{ key: string; loaded: LoadedHistory } | null>(null);
-  // The series travels with the bucket size it was read for, for the same reason.
-  const [seriesStored, setSeriesStored] = useState<{ key: HistoryGranularity; loaded: LoadedSeries } | null>(null);
+  // The series travels with the question it answers, for the same reason. A new
+  // object is minted whenever any of the four inputs changes — including a return
+  // to a combination seen before — so a stored answer only ever describes the
+  // current question, and nothing has to be cleared before the read starts.
+  const seriesQuestion: SeriesQuestion = useMemo(
+    () => ({ signedIn, scope, selectedZone, granularity }),
+    [signedIn, scope, selectedZone, granularity],
+  );
+  const [seriesStored, setSeriesStored] = useState<{ question: SeriesQuestion; loaded: LoadedSeries } | null>(null);
   // The filters are shared state, not local: the footer's reset control owns them
   // too, and a search term must not survive a sign-out.
   const { query, status: statusFilter } = useHistoryFilters();
@@ -388,12 +411,10 @@ export function HistoryView() {
   // selected granularity and sends no `zone_id`, which is what makes the answer
   // "every zone that published in the window" instead of one zone's history.
   //
-  // The stored answer is invalidated BEFORE the read starts, not replaced when it
-  // arrives: re-entering «Todas las zonas» or changing the bucket size asks a new
-  // question, so while it loads the panel shows loading — never the window, the
-  // count or the intervals of the previous scope, which describe another query.
+  // Nothing is cleared before the read starts, and nothing has to be: the answer
+  // is filed under the question above, so as soon as any of its inputs changes the
+  // render side stops attributing it to the current question and states the load.
   useEffect(() => {
-    setSeriesStored(null);
     if (!signedIn || scope !== 'all') return;
     const controller = new AbortController();
     let active = true;
@@ -402,14 +423,14 @@ export function HistoryView() {
       if (!active) return;
       if (!outcome.ok) {
         setSeriesStored({
-          key: granularity,
+          question: seriesQuestion,
           loaded: { range, series: [], status: { kind: 'failure', failure: outcome.failure } },
         });
         return;
       }
       const series = outcome.data.series;
       setSeriesStored({
-        key: granularity,
+        question: seriesQuestion,
         loaded: {
           range,
           series,
@@ -428,7 +449,7 @@ export function HistoryView() {
       active = false;
       controller.abort();
     };
-  }, [signedIn, scope, granularity]);
+  }, [signedIn, scope, granularity, seriesQuestion]);
 
   const current =
     signedIn && selectedZone !== '' && stored !== null && stored.key === selectedZone ? stored.loaded : null;
@@ -441,8 +462,13 @@ export function HistoryView() {
         : { kind: 'loading' };
   const rows = current !== null ? current.rows : EMPTY_ROWS;
 
+  // The series describes a question, so an answer is rendered only for the exact
+  // question it was read for: a scope, granularity, zone or session change stops
+  // the match immediately, and the previous answer is never painted as this one's.
   const seriesCurrent =
-    signedIn && scope === 'all' && seriesStored !== null && seriesStored.key === granularity ? seriesStored.loaded : null;
+    signedIn && scope === 'all' && seriesStored !== null && seriesStored.question === seriesQuestion
+      ? seriesStored.loaded
+      : null;
   const seriesStatus: SeriesStatus = !signedIn
     ? { kind: 'signed-out' }
     : seriesCurrent !== null
