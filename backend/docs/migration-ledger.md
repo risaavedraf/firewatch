@@ -16,13 +16,14 @@ this one, so its versions cannot collide with the two below.
 | --- | --- | --- |
 | `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17, 18 | [risk embed.go](../services/risk/migrations/embed.go):68-80 |
 | `prevention` | 9, 11, 14, 15, 16 | [prevention embed.go](../services/prevention/migrations/embed.go):40-48 |
-| `jobs` | 1, 2, 3, 4, 5, 6 | own database, not in this ledger |
+| `jobs` | 1, 2, 3, 4, 5, 6, 7 | own database, not in this ledger |
 
-The `jobs` row is complete as of PM-10: `005_audit_event_metadata.sql` added the audit
-metadata and `006_query_audit_writer.sql` the gateway's insert-only query writer.
-Neither takes a number from the shared ledger above, and neither moves "next free
-version": the gateway writes into the jobs database, which has its own
-`schema_migrations` and its own migrator.
+The `jobs` row covers PM-10 and PM-05: `005_audit_event_metadata.sql` added the audit
+metadata, `006_query_audit_writer.sql` the gateway's insert-only query writer, and
+`007_comparison_audit_action.sql` (PM-05) adds the named comparison action by
+replacing that same function forward-only. None takes a number from the shared
+ledger above, and none moves "next free version": the gateway writes into the jobs
+database, which has its own `schema_migrations` and its own migrator.
 
 The gaps in risk's sequence are deliberate: 9, 11, 14, 15 and 16 belong to
 `prevention` — 15 is PM-09's field observations and 16 is PM-10's adoption link — and
@@ -49,7 +50,9 @@ its alert table and 18 for the time-led index of the granular history series, an
 
 The highest version claimed in this tree is **18**, `risk`'s
 `backend/services/risk/migrations/018_risk_history_series_index.sql`, so the next free
-integer across both services is **19**. Prevention's next migration must take version
+integer across both services is **19**. PM-05's jobs migration 7 is independent: it
+lives in the jobs database's own ledger and does not change this determination.
+Prevention's next migration must take version
 19, not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13, 17
 and 18, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
 determination the rule asks for: a migration is numbered against the integrated tree,
@@ -86,6 +89,13 @@ guarantee — a green run in a split tree proves nothing about collisions, and t
 claim only holds where both modules were checked out together.
 
 ## History
+
+Jobs version 7 is not in this ledger: it is PM-05's
+`007_comparison_audit_action.sql`, which replaces the gateway's query-writer function
+in the jobs database so it accepts the named `risk.compare.read` action. It preserves
+the function signature, the `SECURITY DEFINER` controls, the pinned search path, every
+existing action and its sentence, and the single grant; it adds no filter parameter and
+claims no shared-ledger number.
 
 Version 18 is PM-04's time-led index for the granular history series
 (`018_risk_history_series_index.sql`). It was claimed against the integrated tree
