@@ -345,12 +345,18 @@ export function CompareView() {
         ? failureMessage(catalogue.failure, ZONES_ACTION)
         : '';
 
+  // The answer belongs to the question that was asked, and changing the zones
+  // asks a new one: the stored snapshot is dropped in the same update as the
+  // selection, so a re-added zone (which restores a key this view already
+  // answered) enters loading instead of repainting the earlier numbers.
   function addZone(code: string): void {
     if (code === '' || selectionFull || selection.includes(code)) return;
+    setStored(null);
     setSelection([...selection, code]);
   }
 
   function removeZone(code: string): void {
+    setStored(null);
     setSelection(selection.filter(entry => entry !== code));
   }
 

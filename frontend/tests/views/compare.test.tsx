@@ -44,9 +44,19 @@ function prepare(): ReturnType<typeof createStorageStub> & ReturnType<typeof cre
   return { ...fetchStub, ...storageStub };
 }
 
+// The contract declares `batch_id` as `format: uuid`, so the fixtures carry real
+// UUIDs instead of a readable alias: a fixture that the contract would refuse
+// cannot stand for a valid answer.
+function batchId(seed: string): string {
+  let hash = 0;
+  for (const character of seed) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  const hex = hash.toString(16).padStart(8, '0').slice(-8);
+  return `${hex}-aaaa-4${hex.slice(0, 3)}-8${hex.slice(3, 6)}-${hex}${hex.slice(0, 4)}`;
+}
+
 function assessment(code: string, level: string): Record<string, unknown> {
   return {
-    batch_id: `batch-${code}`,
+    batch_id: batchId(code),
     requested_at: '2026-11-02T08:00:00Z',
     published_at: '2026-11-02T08:05:00Z',
     risk_level: level,
@@ -62,7 +72,7 @@ function assessment(code: string, level: string): Record<string, unknown> {
 function point(code: string, bucketStart: string, level: string): Record<string, unknown> {
   return {
     bucket_start: bucketStart,
-    batch_id: `batch-${code}-${bucketStart}`,
+    batch_id: batchId(`${code}-${bucketStart}`),
     requested_at: bucketStart,
     published_at: bucketStart,
     risk_level: level,
@@ -212,6 +222,113 @@ test('an empty or reversed window is refused before anything is read', async () 
   expect(reversed.reason).toBe('invalid_comparison_request');
   expect(unreadable.reason).toBe('invalid_comparison_request');
   expect(fetchStub.calls).toHaveLength(0);
+});
+
+// The request window is `format: date-time` on both ends (SeriesFrom/SeriesTo),
+// which is RFC 3339: an instant names its offset, and a spelling Date.parse
+// happens to tolerate is not an instant the contract declares.
+test('a window instant that is not RFC 3339 is refused before anything is read', async () => {
+  const fetchStub = prepare();
+  const slashedRead = compare({ zoneIds: ['05101', '05201'], granularity: 'day', from: '01/02/2026', to: WINDOW.to });
+  const withoutOffsetRead = compare({
+    zoneIds: ['05101', '05201'],
+    granularity: 'day',
+    from: '2026-11-01T00:00:00',
+    to: WINDOW.to,
+  });
+
+  // The guard answers locally, so a refused window costs no request.
+  await flush();
+  expect(fetchStub.calls).toHaveLength(0);
+
+  for (const failure of [expectFailure(await slashedRead), expectFailure(await withoutOffsetRead)]) {
+    expect(failure.kind).toBe('malformed');
+    expect(failure.reason).toBe('invalid_comparison_request');
+  }
+});
+
+// `batch_id` is `format: uuid` in ComparisonAssessment and HistoryBucket, while
+// `zone_id` is deliberately a plain catalogue code: the guard enforces the first
+// and must not invent the second.
+test('a batch id that is not a UUID is refused, while a zone code stays any catalogue string', async () => {
+  const fetchStub = prepare();
+
+  async function readWith(zoneIds: string[], build: (url: URL) => unknown) {
+    const read = compare({ zoneIds, granularity: 'day', ...WINDOW });
+    await flush();
+    const url = new URL(fetchStub.calls[fetchStub.calls.length - 1].url);
+    fetchStub.answer(url.toString(), build(url));
+    return read;
+  }
+
+  const aliasInAssessment = expectFailure(
+    await readWith(['05101', '05201'], url =>
+      collectionFor(url, [
+        { ...zone('05101'), assessment: { ...assessment('05101', 'alto'), batch_id: 'lote-demo' } },
+        zone('05201'),
+      ]),
+    ),
+  );
+  const aliasInBucket = expectFailure(
+    await readWith(['05101', '05201'], url =>
+      collectionFor(url, [
+        {
+          ...zone('05101'),
+          history: [{ ...point('05101', '2026-11-01T00:00:00Z', 'medio'), batch_id: 'lote-demo' }],
+        },
+        zone('05201'),
+      ]),
+    ),
+  );
+
+  for (const failure of [aliasInAssessment, aliasInBucket]) {
+    expect(failure.kind).toBe('malformed');
+    expect(failure.reason).toBe('invalid_shape');
+  }
+
+  // A slug the catalogue happens to hold is a legal zone_id: no format is
+  // declared for it, so none is imposed.
+  const slug = await readWith(['valparaiso-demo', '05201'], url =>
+    collectionFor(url, [zone('valparaiso-demo'), zone('05201')]),
+  );
+  expect(slug.ok).toBe(true);
+});
+
+test('a body whose instants are not RFC 3339 is refused whole', async () => {
+  const fetchStub = prepare();
+
+  async function readWith(build: (url: URL) => unknown) {
+    const read = compare({ zoneIds: ['05101', '05201'], granularity: 'day', ...WINDOW });
+    await flush();
+    const url = new URL(fetchStub.calls[fetchStub.calls.length - 1].url);
+    fetchStub.answer(url.toString(), build(url));
+    return read;
+  }
+
+  const slashed = expectFailure(
+    await readWith(url =>
+      collectionFor(url, [
+        { ...zone('05101'), assessment: { ...assessment('05101', 'alto'), requested_at: '02/11/2026' } },
+        zone('05201'),
+      ]),
+    ),
+  );
+  const withoutOffset = expectFailure(
+    await readWith(url =>
+      collectionFor(url, [
+        {
+          ...zone('05101'),
+          history: [{ ...point('05101', '2026-11-01T00:00:00Z', 'medio'), bucket_start: '2026-11-01T00:00:00' }],
+        },
+        zone('05201'),
+      ]),
+    ),
+  );
+
+  for (const failure of [slashed, withoutOffset]) {
+    expect(failure.kind).toBe('malformed');
+    expect(failure.reason).toBe('invalid_shape');
+  }
 });
 
 test('a body the contract does not declare is refused whole, never partially rendered', async () => {
@@ -486,6 +603,36 @@ test('three zones are compared in the chosen order and a fourth cannot be added'
   compareDouble.answer((request, codes) => collectionFor(request, codes.map(code => zone(code))));
   await waitFor(() => expect(zoneBodies()).toHaveLength(3));
   expect(zoneBodies().map(node => node.getAttribute('data-zone'))).toEqual(['05301', '05101', '05201']);
+});
+
+test('re-adding the last removed zone reads again instead of reusing the previous answer', async () => {
+  const { compareDouble } = await mountWithCatalogue();
+
+  fireEvent.change(picker(), { target: { value: '05101' } });
+  fireEvent.change(picker(), { target: { value: '05201' } });
+  await waitFor(() => expect(compareDouble.pending()).toBe(1));
+  compareDouble.answer((request, codes) => collectionFor(request, codes.map(code => zone(code))));
+  await waitFor(() => expect(zoneBodies()).toHaveLength(2));
+
+  fireEvent.change(picker(), { target: { value: '05301' } });
+  await waitFor(() => expect(compareDouble.pending()).toBe(1));
+  compareDouble.answer((request, codes) => collectionFor(request, codes.map(code => zone(code))));
+  await waitFor(() => expect(zoneBodies()).toHaveLength(3));
+  expect(stateLine()).toHaveTextContent('Comparación devuelta por la API para 3 zonas.');
+
+  // Removing the third zone poses the two-zone question, and re-adding it poses
+  // the three-zone question again: the previous three-zone answer is not an
+  // answer to the new read, so it cannot be painted while that read is in flight.
+  fireEvent.click(screen.getByRole('button', { name: /quitar quilpué · 05301/i }));
+  await waitFor(() => expect(compareDouble.requests).toHaveLength(3));
+
+  fireEvent.change(picker(), { target: { value: '05301' } });
+  await waitFor(() => expect(compareDouble.requests).toHaveLength(4));
+
+  expect(compareDouble.requests[3].searchParams.get('zone_ids')).toBe('05101,05201,05301');
+  expect(stateLine()).toHaveTextContent('Comparando las zonas seleccionadas…');
+  expect(stateLine()).not.toHaveTextContent('Comparación devuelta');
+  expect(zoneBodies()).toHaveLength(0);
 });
 
 test('a zone without a published assessment says so instead of inventing a level', async () => {

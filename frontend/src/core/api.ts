@@ -635,10 +635,27 @@ function closedRecord(value: unknown, members: readonly string[]): value is Reco
 // An instant as a number, or null when it cannot be read. Comparing instants by
 // value rather than by spelling is deliberate: the same instant has more than one
 // legal RFC 3339 rendering, and a trailing-zero difference is not another window.
+// `format: date-time` is RFC 3339, not "whatever `Date.parse` tolerates": the
+// contract's instant names a date, a time and a MANDATORY offset (`Z` or
+// `±HH:MM`), so `01/02/2026` and a bare `2026-11-01T00:00:00` are not instants
+// the route accepts. The shape is checked before the value, and `Date.parse`
+// still rejects a well-shaped but impossible date such as `2026-02-31`.
+const RFC3339_INSTANT = /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/;
+
 function instant(value: unknown): number | null {
-  if (!nonempty(value)) return null;
+  if (!nonempty(value) || !RFC3339_INSTANT.test(value)) return null;
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? null : parsed;
+}
+
+// `format: uuid` is eight-four-four-four-twelve hex digits; case is not
+// semantic, so both spellings are accepted. It is declared for `batch_id` in
+// `ComparisonAssessment` and `HistoryBucket`, and it is deliberately NOT
+// declared for `zone_id`, which is any catalogue code.
+const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+function uuid(value: unknown): boolean {
+  return nonempty(value) && UUID.test(value);
 }
 
 function isComparisonLevel(value: unknown): value is RiskLevel {
@@ -648,7 +665,7 @@ function isComparisonLevel(value: unknown): value is RiskLevel {
 function isComparisonAssessment(value: unknown): value is ComparisonAssessment {
   if (!closedRecord(value, COMPARISON_ASSESSMENT_MEMBERS)) return false;
   return (
-    nonempty(value.batch_id) &&
+    uuid(value.batch_id) &&
     instant(value.requested_at) !== null &&
     instant(value.published_at) !== null &&
     isComparisonLevel(value.risk_level) &&
@@ -663,7 +680,7 @@ function isComparisonPoint(value: unknown): value is ComparisonPoint {
   if (!closedRecord(value, COMPARISON_POINT_MEMBERS)) return false;
   return (
     instant(value.bucket_start) !== null &&
-    nonempty(value.batch_id) &&
+    uuid(value.batch_id) &&
     instant(value.requested_at) !== null &&
     instant(value.published_at) !== null &&
     isComparisonLevel(value.risk_level) &&
