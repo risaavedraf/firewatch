@@ -583,7 +583,7 @@ test('factor bars use the real contribution and a factor without data draws no b
 // from the payload; neither may become a zero or a bar. The measured inputs keep
 // their real value, contribution, note and proportional bar, and a batch with no
 // usable factor entry still renders no rows at all.
-test('the factor list names the five canonical inputs and states every missing reading without inventing a value (PM-02)', async () => {
+test('the factor list names the five canonical inputs, states every missing reading without inventing a value, and carries the D-D label (PM-02)', async () => {
   await openSignedIn();
   await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
   await serveZone(
@@ -610,6 +610,13 @@ test('the factor list names the five canonical inputs and states every missing r
     'cobertura_vegetal',
     'incendios_historicos',
   ]);
+
+  // D-D: the note names the label and denies causality and forecast in the same
+  // breath, so the copy cannot drift into "por qué se quemaría".
+  const ruleNote = element('factor-rule-note');
+  expect(ruleNote.textContent).toContain('Cómo lo calculó la regla');
+  expect(ruleNote.textContent).toMatch(/no es una causa del incendio ni un pronóstico/);
+  expect(ruleNote.textContent).not.toMatch(/por qué se quemaría|predicción/);
   const rowOf = (name: string): Element => {
     const matches = rows.filter((row) => (row.textContent ?? '').startsWith(`${name}:`));
     expect(matches, `row ${name}`).toHaveLength(1);
