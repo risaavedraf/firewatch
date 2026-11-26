@@ -18,10 +18,12 @@ Base: `origin/dev` = `268c893`. Siete ramas ya publicadas en `origin`, sin PR. E
 - **T3 — PM-04** (S3): guard de instantes y miembros, `zoneId` vacío e invalidación de la ventana al cambiar de alcance. Rama `feat/pm-04-history-panel`. Commit: `bef322e`.
 - **T4 — PM-05** (S4): invalidación al reañadir zona y formatos estrictos. Rama `feat/pm-05-comparison-panel`. Commit: `513b64f`.
 - **T5 — PM-16** (S5): solo 200/503 y `not_configured` restringido a inferencia. Rama `feat/pm-16-status-panel`. Commit: `41e5798`.
-- **T6 — Matriz y documentación** (S6): matriz hallazgo → fix → prueba → commit y estado de reverificación. Rama `docs/v1-reconciliacion`. Commit: pendiente.
+- **T6 — Matriz y documentación** (S6): matriz hallazgo → fix → prueba → commit y estado de reverificación. Rama `docs/v1-reconciliacion`. Commit: `a8586e4`.
 - **T7 — Reverificación read-only** (S1-S6): pasada corta sobre las siete ramas ya publicadas. Sin edición. Commit: no aplica.
 
 ## Log
+
+- **L4 (2026-11-26) — T7 ejecutada: reverificación read-only y cierre del residuo de S4.** La pasada encontró las siete ramas limpias y con tip igual a `origin`; `feat/pm-02-dd-label` sigue en `dc91222` y ningún S# le aplica. Veredictos: **S1 PARTIAL** (prueba PostgreSQL no re-ejecutada; `go vet` y el fixture verificados, corrida aislada previa registrada en el Log de `pm-01`), **S2 PASS** (16/16), **S3 PASS** (45/45 con caché de escritura deshabilitada por la unión de `node_modules` con la raíz), **S5 PASS** (48/48), **S6 PASS** (matriz y conteos 64/62/48/14 intactos) y **S4 PARTIAL**: `instant()` aceptaba `2026-02-31T00:00:00Z` porque `Date.parse` lo desplaza a marzo. Ese residuo se corrigió en `feat/pm-05-comparison-panel` con validación civil (mes, día con año bisiesto, hora/minuto/segundo) y una prueba nueva: 24/24 en el archivo, 606/606 en la suite, `tsc --noEmit` limpio, commit `0d1b0be`. Se retira el riesgo de guard compartido: el endurecimiento es solo del comparador y esa rama no tiene `historySeries`. Sin fusión, PR ni despliegue.
 
 - **L3 (2026-11-26) — T1–T5 corregidas y publicadas en sus mismas ramas; T6 y T7 en curso.** Las cinco unidades se corrigieron test-first, con `tsc --noEmit` limpio y suite completa en verde por rama; los commits se empujaron a `origin` sin fusión, PR ni despliegue.
 
