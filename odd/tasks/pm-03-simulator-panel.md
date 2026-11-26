@@ -56,6 +56,8 @@ La página usa ese rótulo y **nunca** presenta el resultado como pronóstico, p
   - Enfoque previo: `vitest run tests/views/simulator.test.tsx` (14/14), `tests/app/router.test.tsx tests/styles/layout-padding.test.tsx tests/views/session.test.tsx` (24/24).
   Sin omisiones de suites: no se saltó ninguna prueba y no se relajó ninguna aserción. No se tocó backend, contrato, migraciones, `classify`, `batches` ni despliegue, no se hace commit, merge, publish ni deploy. Desviaciones de forma, todas dentro de las superficies permitidas: la ruta de simulación vive en `api.ts` (no en `config.ts`), los estilos en `app.css` (no en una hoja nueva) y las pruebas de transporte en `tests/views/simulator.test.tsx` (no en `tests/core/`). La aceptación humana (R6) sigue fuera de esta unidad.
 
+- **L7 (2026-11-25) — Slices de entrega.** `2a62fee` vista, cliente, estilos y pruebas (1627+/6-); `24f85aa` citas de sesión (11+/11-); `2903deb` este documento. El slice de 1627 líneas es grande: al publicar, revisar en dos unidades —cliente/tipos y vista/estilos/pruebas— o partir las pruebas si el revisor lo pide. El aviso de «88 commits desde main» es la ascendencia de `dev`, no líneas autoradas.
+
 ## Allowed edit surfaces
 
 - `frontend/src/app/routes.ts`
