@@ -59,7 +59,9 @@ No se renombra ni se elimina ningún campo existente. Los códigos `400/401/403/
   ambos archivos entraron en las superficies por decisión del responsable (opción 1), manteniendo la
   interfaz como fuente única. Contrato: `critical_zones` y `active_alerts` son obligatorios y las
   descripciones escriben D-B con sus palabras y el alcance del conteo. Página: `ExecutivePanel` abre
-  `OverviewView`, se alimenta de `GET /v1/risk/executive-summary` una vez por sesión, declara el fallo en
+  `OverviewView`, se alimenta de `GET /v1/risk/executive-summary` en cada montaje de Overview
+  (volver a la vista remonta y relee; solo la lectura agregada de `/batches` corre una vez por
+  sesión), declara el fallo en
   línea sin tumbar el resto de la vista y no deja un spinner permanente (el plazo del transporte lo
   convierte en fallo).
   Desviaciones declaradas: (a) D-B se aplica en `buildExecutiveReport` sobre el snapshot de
@@ -90,6 +92,7 @@ No se renombra ni se elimina ningún campo existente. Los códigos `400/401/403/
 - **L3 (2026-11-25) — Integración PostgreSQL ejecutada por el padre en un proyecto aislado.** El worker no tenía `TEST_DATABASE_URL` y la prueba quedó omitida; el padre levantó `fw-pm01-test` con volumen propio y corrió `risk-test`: 12/12 paquetes ok, incluido `repository`, que ejercitó la regla D-B y la igualdad del conteo contra `risk_alerts`. El proyecto se eliminó con `down -v`. El skip de L2 queda superado; no se re-ejecutó el resto de la suite.
 
 - **L4 (2026-11-25) — Slices de entrega.** `7918f2f` backend/contrato (348+/32-); `9219b6c` página, pruebas y este documento (936+/22-). El segundo slice es UI más sus pruebas; al publicar, revisar como dos unidades o partir las pruebas de la página si el revisor lo pide. El aviso de «87 commits desde main» es la ascendencia de `dev`, no líneas autoradas.
+- **L5 (2026-11-26) — T1: prueba PostgreSQL del empate y corrección del alcance releído (S5).** Hallazgo textual: «falta prueba PostgreSQL del empate `requested_at DESC, id DESC` (el fixture usa timestamps distintos). El Log dice «once per session»; volver a Overview remonta y relee». Cambios: (a) `TestExecutiveBatchesBreakATieOnTheHigherID` publica dos lotes de la misma zona con `requested_at` idéntico, distinguidos por nivel, y exige que el snapshot responda primero el `id` mayor y después el menor, con el centinela de cada uno; el fixture se demuestra empate real comparando ambos candidatos sin `id`/`risk_level` y leyendo `requested_at` del almacenamiento. Sin cambio de producción: `executive.go` ya ordena por `, b.id DESC`. (b) Se corrige la afirmación de L2: el resumen se relee en cada montaje de Overview, no «una vez por sesión»; solo la lectura agregada de `/batches` se reclama una vez por sesión. Evidencia: `docker compose -p fw-pm01-tiebreak --profile test run --build --rm --entrypoint go risk-test test -count=1 ./internal/repository` → ok (0.687 s); `-run TestExecutiveBatchesBreakATieOnTheHigherID -v` → PASS; `gofmt -l` vacío; `go vet ./internal/repository` PASS. Proyecto aislado eliminado con `down -v --remove-orphans`; el proyecto compartido `firewatch` quedó intacto. R6 sigue pendiente y PM-01 no se cierra.
 
 ## Allowed edit surfaces
 

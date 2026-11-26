@@ -1316,7 +1316,9 @@ test('a failed executive summary is stated inline and the rest of the overview k
   expect(textOf('executive-status')).toMatch(/HTTP 503/);
 });
 
-test('the executive summary is read once per session, not once per selection (PM-01)', async () => {
+test('a selection change does not re-read the executive summary (PM-01)', async () => {
+  // A remount of Overview does issue a fresh read; this test pins the selection
+  // path only, so the Log must not claim "once per session".
   await openSignedIn();
   await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
   fetchStub.answer(EXECUTIVE_URL, executiveSummaryBody());

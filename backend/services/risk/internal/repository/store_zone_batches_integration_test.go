@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -286,4 +287,109 @@ func TestLatestPerZoneAnswersTheNewestBatchOfEveryZone(t *testing.T) {
 			t.Fatalf("ExecutiveAlertCount answered %d, storage holds %d", counted, storedAlerts)
 		}
 	})
+}
+
+// TestExecutiveBatchesBreakATieOnTheHigherID pins the second half of the
+// executive snapshot's selection rule: when two batches of one zone share a
+// requested_at, the snapshot answers the greater batch id first.
+//
+// The rule is already in the query - executive.go orders by
+// `requested_at DESC, id DESC` in the LATERAL pick and in the outer order - so
+// there is no RED state for this test to observe and none is claimed: it passes
+// on the code it was written against. What makes the assertion live is the
+// fixture. The two candidates are a true tie (same zone, same requested_at, and
+// every other stored member equal) and they differ in exactly the two members the
+// rule decides: the batch id and the risk level used as a visible sentinel. The
+// answer must therefore name the tie-break winner in the first position and carry
+// that batch's sentinel; a read that selected by insertion order, by level or by
+// an id-ascending order would put the loser first and report the wrong sentinel.
+//
+// The helper mints a random batch id, so which candidate wins is decided by
+// storage, not by this test: the expected winner is computed from the ids the
+// store returned, the same technique TestEqualTimestampsFollowTheNewestPerZoneTieBreak
+// uses for the per-zone read.
+func TestExecutiveBatchesBreakATieOnTheHigherID(t *testing.T) {
+	ctx, db := alertTestPool(t)
+	store := Store{DB: db}
+	// The zone the per-zone tie-break test already publishes for. The instant is
+	// strictly newer than anything that zone holds, so the pair below is the two
+	// newest rows the snapshot can answer, whatever earlier runs left behind.
+	const zone = "valparaiso-demo"
+	instant := instantNewerThanEveryStoredBatch(ctx, t, db, zone)
+
+	// Two publications at the SAME instant. Their levels are the sentinel that
+	// makes the selected row visible without reading the id back from storage.
+	_, firstID := publishTestBatch(ctx, t, store, zone, instant, string(classify.LevelAlto))
+	_, secondID := publishTestBatch(ctx, t, store, zone, instant, string(classify.LevelMedio))
+	if firstID == secondID {
+		t.Fatalf("the two publications produced the same batch id %q", firstID)
+	}
+	sentinel := map[string]string{
+		firstID:  string(classify.LevelAlto),
+		secondID: string(classify.LevelMedio),
+	}
+	winnerID := newestByTieBreak(firstID, secondID)
+	loserID := firstID
+	if winnerID == firstID {
+		loserID = secondID
+	}
+
+	groups, err := store.ExecutiveBatches(ctx)
+	if err != nil {
+		t.Fatalf("ExecutiveBatches: %v", err)
+	}
+	var pair []Batch
+	for _, group := range groups {
+		if len(group) > 0 && group[0].ZoneID == zone {
+			pair = group
+			break
+		}
+	}
+	if len(pair) != 2 {
+		t.Fatalf("zone %q answered %d batches, want the two newest: %+v", zone, len(pair), pair)
+	}
+
+	// The fixture is a real tie: both candidates were stored at the same instant
+	// and differ in nothing but the two members under test. Without this the
+	// sentinel assertion below could be satisfied by an unrelated difference.
+	stripped := func(batch Batch) Batch {
+		batch.ID, batch.RiskLevel = "", ""
+		return batch
+	}
+	if !reflect.DeepEqual(stripped(pair[0]), stripped(pair[1])) {
+		t.Fatalf("the two candidates of zone %q differ in more than their id and sentinel: %+v", zone, pair)
+	}
+	// The snapshot orders by requested_at without serving it, so the tie is proven
+	// at storage: both candidates must carry the shared instant the fixture
+	// published. Without that, the two ids could simply be different batches of
+	// the zone rather than a tie.
+	for _, id := range []string{firstID, secondID} {
+		var stored time.Time
+		if err := db.QueryRow(ctx, `SELECT requested_at FROM batches WHERE id = $1`, id).Scan(&stored); err != nil {
+			t.Fatalf("read the stored requested_at of batch %s: %v", id, err)
+		}
+		if !stored.Equal(instant) {
+			t.Fatalf("batch %s was stored at %s, want the shared instant %s", id, stored, instant)
+		}
+	}
+	if pair[0].RiskLevel == pair[1].RiskLevel {
+		t.Fatalf("the sentinel does not distinguish the tied candidates: %+v", pair)
+	}
+
+	// The rule itself. Both positions are named, so answering the right two rows in
+	// the wrong order fails just as a wrong pair does.
+	if pair[0].ID != winnerID {
+		t.Fatalf("zone %q answered batch %s first, want the higher id %s", zone, pair[0].ID, winnerID)
+	}
+	if pair[0].RiskLevel != sentinel[winnerID] {
+		t.Fatalf("the selected batch %s carries level %q, want its own sentinel %q",
+			pair[0].ID, pair[0].RiskLevel, sentinel[winnerID])
+	}
+	if pair[1].ID != loserID {
+		t.Fatalf("zone %q answered batch %s second, want the lower id %s", zone, pair[1].ID, loserID)
+	}
+	if pair[1].RiskLevel != sentinel[loserID] {
+		t.Fatalf("the trailing batch %s carries level %q, want its own sentinel %q",
+			pair[1].ID, pair[1].RiskLevel, sentinel[loserID])
+	}
 }
