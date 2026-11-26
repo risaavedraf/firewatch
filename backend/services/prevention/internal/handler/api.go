@@ -54,6 +54,14 @@ const (
 
 // New builds the authenticated handler for the contract routes.
 func New(store Repository, verifier Verifier, dir Directory) http.Handler {
+	return NewWithOperationalStatus(store, verifier, dir, nil)
+}
+
+// NewWithOperationalStatus is the additive form of New: it mounts the status read
+// with the evaluator this process wired. Every earlier constructor keeps its
+// routes and its behaviour, and without an evaluator the status route reports
+// unknown instead of claiming ready.
+func NewWithOperationalStatus(store Repository, verifier Verifier, dir Directory, status OperationalStatusCheck) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/prevention/actions", list(store))
 	mux.HandleFunc("POST /v1/prevention/actions", create(store, dir))
@@ -65,6 +73,10 @@ func New(store Repository, verifier Verifier, dir Directory) http.Handler {
 	// unchanged and a store without observation persistence fails closed with 503.
 	registerObservationRoutes(mux, store)
 	mux.HandleFunc("GET /v1/users", listUsers(dir))
+	// PM-16: the status read is additive and sits inside the same Authorize gate
+	// as every sibling route. It reports only this service's own dependency, so a
+	// broker or dead-letter entry is never invented for it.
+	mux.HandleFunc("GET /v1/prevention/status", operationalStatusHandler(status))
 	return Authorize(verifier, mux)
 }
 

@@ -182,7 +182,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    against the border, which clips the right-aligned values of a data list
    (`model-panel`, `cycle-panel` both shipped that way). `tests/styles/
    layout-padding.test.tsx` reads this rule against the shipped markup. */
-.map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel { padding: 18px; }
+.map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel, .simulator-panel, .simulator-result-panel, .status-panel { padding: 18px; }
 .padded { padding: 22px; }
 .status-copy { min-height: 32px; margin: 13px 0 7px; color: var(--muted); font-size: 10px; line-height: 1.6; }
 /* PM-01 — the executive panel. Six labelled blocks, each one a section with its
@@ -340,6 +340,28 @@ td:last-child { overflow-wrap: anywhere; }
 .history-export { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
 .history-export .panel-note { flex: 1 1 380px; min-width: 220px; margin: 0; }
 .history-export .status-copy { flex: 1 1 100%; min-height: 0; margin: 0; }
+/* PM-04 — the scope and granularity controls own their row so the empty-history
+   rule above, which hides `.filter-bar` of a panel with no rows, can never hide
+   the control that asks for the series. */
+.history-scope-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 0 0 14px; }
+/* The series is a list of lists, not a table: every zone keeps its own semantic
+   list so a reader can move zone by zone, and every interval states its own
+   `bucket_start` instead of relying on a shared axis. */
+.history-series-range { margin-bottom: 6px; }
+.history-series-range .data-list dd code { font-size: 9px; }
+.history-series { display: grid; gap: 12px; margin: 12px 0 0; padding: 0; list-style: none; }
+.history-series-zone { padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
+.history-series-zone-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 6px; font-size: 10px; }
+.history-series-count { color: var(--muted); font-size: 9px; white-space: nowrap; }
+.history-buckets { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.history-bucket { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 6px 0; border-top: 1px solid #eef1ee; color: var(--muted); font-size: 9px; }
+.history-bucket:first-child { border-top: 0; }
+.history-bucket-start code { color: var(--ink); font-size: 9px; }
+.history-bucket-level { color: var(--ink); font-weight: 700; }
+.history-bucket-provenance code { color: var(--forest-700); font-size: 9px; }
+/* The synthetic mark is carried by the word as well as the colour: the text is
+   the claim, the colour only repeats it. */
+.history-bucket-demo { color: #9c472f; font-weight: 700; }
 /* While the download is in flight the control stays focusable through
    `aria-disabled`, so the keyboard reader does not lose its place. It states the
    same visual state as the `disabled` buttons beside it. */
@@ -526,7 +548,7 @@ footer .icon { width: 13px; height: 13px; }
   main { padding: 20px 15px 28px; }
   .intro-row { align-items: flex-start; flex-direction: column; gap: 9px; }
   .intro-row h2 { font-size: 21px; }
-  .map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel { padding: 14px; }
+  .map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel, .status-panel { padding: 14px; }
   .executive-grid { grid-template-columns: 1fr; }
   .metrics-three { grid-template-columns: 1fr; }
   .metric { padding: 14px; }
@@ -608,6 +630,201 @@ footer .icon { width: 13px; height: 13px; }
    zone table and the geometry list, while removing the shell chrome and the
    print control itself. The scope is the infrastructure route, so printing any
    other view is unchanged. */
+/* ── Counterfactual simulator (PM-03) ───────────────────────────────────── */
+/* Presentation only: the two columns of the substitution form and the result,
+   the per-variable row and the before/after pair. Every colour is a token, the
+   level is stated in TEXT (the chip only repeats it), and no rule here decides
+   what the service answered. The focused control keeps the page's native focus
+   ring, declared once at the top of this sheet. */
+.simulator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.simulator-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.simulator-form .field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.simulator-form .field label,
+.simulator-variable label,
+.simulator-variables legend {
+  color: var(--forest-700);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.simulator-form .field select {
+  max-width: 100%;
+}
+
+.simulator-form .panel-note,
+.simulator-variables .field-note,
+.simulator-variable .field-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.simulator-variables {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.simulator-variables legend {
+  padding: 0 4px;
+}
+
+.simulator-variables > .field-note {
+  margin-bottom: 10px;
+}
+
+.simulator-variable {
+  display: grid;
+  gap: 4px;
+  padding: 9px 0;
+  border-top: 1px solid #e6eae4;
+}
+
+.simulator-variable:first-of-type {
+  border-top: 0;
+}
+
+.simulator-variable-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The page's global input rule fills its container; a checkbox must not. */
+.simulator-variable-head input[type="checkbox"] {
+  width: auto;
+  min-width: 0;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+}
+
+.simulator-variable-head label {
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.simulator-variable-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.simulator-variable-field input {
+  max-width: 100%;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.simulator-form .form-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.simulator-form .form-actions .panel-note {
+  margin: 0;
+}
+
+.simulator-form #simulator-feedback:empty,
+.simulator-result-panel #simulator-run-status:empty {
+  display: none;
+}
+
+.simulator-outcomes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 10px 0 4px;
+}
+
+.simulator-outcome {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f8faf7;
+}
+
+.simulator-outcome .eyebrow {
+  margin: 0 0 6px;
+  color: var(--forest-700);
+}
+
+.simulator-level {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.simulator-level .chip {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.simulator-result-panel #simulator-factors {
+  min-width: 0;
+  margin-top: 4px;
+}
+
+.simulator-result-panel .data-list dd {
+  max-width: 62%;
+}
+
+#simulator-batch-id,
+#simulator-policy-id,
+#simulator-params-hash,
+#simulator-notice { white-space: normal; overflow-wrap: anywhere; }
+
+#simulator-params-hash { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* AA: the shared neutral tag is 8 px here, so its colour is darkened until it
+   clears 4.5:1 on its own background, exactly as `#observations` and `#actions`
+   already do. */
+#simulator .neutral-tag {
+  color: var(--ink);
+  background: #edf1f2;
+}
+
+@media (max-width: 1000px) {
+  .simulator-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .simulator-outcomes {
+    grid-template-columns: 1fr;
+  }
+
+  .simulator-form .form-actions,
+  .simulator-form .form-actions .primary-button {
+    justify-items: stretch;
+    justify-self: stretch;
+  }
+}
+
 @media print {
   body:has(#infrastructure) .sidebar,
   body:has(#infrastructure) .topbar,
@@ -629,6 +846,51 @@ footer .icon { width: 13px; height: 13px; }
   body:has(#infrastructure) td { border-color: #666; color: #000; }
   body:has(#infrastructure) .metric { border-color: #666; box-shadow: none; }
   body:has(#infrastructure) .neutral-tag { border: 1px solid #000; background: #fff; color: #000; }
+}
+
+/* ── Service status board (PM-16) ──────────────────────────────────────── */
+/* One board, one verdict. The state is always spelled out in a word as well as
+   coloured, every row explains itself, and the composed rows (weather source and
+   active rule) are visually subordinate to the aggregate they accompany. */
+#status .panel-note { margin: 0 0 14px; }
+#status .data-list dd.status-detail { max-width: 64%; color: var(--muted); font-size: 9px; font-weight: 500; line-height: 1.5; }
+#status .status-detail + dd { margin-top: 0; }
+.status-detail { white-space: normal; }
+.status-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.status-table caption { padding: 0 0 8px; color: var(--muted); font-size: 9px; line-height: 1.55; text-align: left; }
+.status-table th, .status-table td { padding: 9px 10px; border-bottom: 1px solid #eef1ee; font-size: 9px; text-align: left; vertical-align: top; }
+.status-table thead th { color: var(--forest-700); font-size: 8px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.status-table tbody th { min-width: 150px; font-weight: 700; }
+.status-table tbody th code { margin-left: 4px; color: var(--muted); font-size: 8px; font-weight: 500; }
+.status-table tbody td:last-child { color: var(--muted); line-height: 1.55; }
+.status-table tbody tr:last-child th, .status-table tbody tr:last-child td { border-bottom: 0; }
+.status-state { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; font-size: 8px; font-weight: 850; letter-spacing: .05em; white-space: nowrap; }
+/* The word is the state; the colour only reinforces it. Each pair keeps a
+   readable contrast on the light card. */
+.status-state-ready { color: #1f4a2a; background: #e7f2e4; border-color: #b8d5b0; }
+.status-state-degraded { color: #6d3410; background: #fdeee2; border-color: #e2b795; }
+.status-state-unknown { color: #4a3b13; background: #fbf4dc; border-color: #ddd0a0; }
+.status-state-unauthorized { color: #1f4055; background: #e6f0f6; border-color: #a9c8da; }
+.status-state-not_configured { color: #4c4c4c; background: #eff1f1; border-color: #cfd5d5; }
+
+/* Print-to-PDF without a library: the board is the kind of page that gets
+   printed for a handover, so the shell chrome goes and the verdict, the table
+   and the composed rows stay in black on white. */
+@media print {
+  body:has(#status) .sidebar,
+  body:has(#status) .topbar,
+  body:has(#status) .update-bar,
+  body:has(#status) footer,
+  body:has(#status) .skip-link { display: none !important; }
+  body:has(#status) .app-shell { display: block; }
+  body:has(#status) main { width: auto; padding: 0; }
+  body:has(#status) .status-panel { padding: 0; border: 0; box-shadow: none; }
+  body:has(#status) .status-table { min-width: 0; }
+  body:has(#status) .table-wrap { overflow: visible; }
+  body:has(#status) th,
+  body:has(#status) td { border-color: #666; color: #000; }
+  body:has(#status) .status-state { border: 1px solid #000; background: #fff; color: #000; }
+  body:has(#status) .neutral-tag { border: 1px solid #000; background: #fff; color: #000; }
 }
 
 @media (prefers-reduced-motion: reduce) {

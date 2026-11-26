@@ -1,6 +1,6 @@
 import type { IconName } from '../components/ui';
 
-// The twelve views of the application. The nine areas of the retired page are all
+// The fourteen views of the application. The nine areas of the retired page are all
 // still here: `#sources` also carries the dependent-services status and
 // `#session` also carries the permissions matrix, which is the grouping the user
 // chose (D1). `#pending` gained the navigation entry it never had (D2): the
@@ -12,7 +12,13 @@ import type { IconName } from '../components/ui';
 // writes, and the page renders its answer. PM-11 adds `#infrastructure` as its
 // own demo view rather than folding it into territorio. `#compare` is PM-05's
 // comparator: its own route because a comparison of two or three zones is a
-// different question from one zone's detail, not a panel of it.
+// different question from one zone's detail, not a panel of it. PM-03 adds
+// `#simulator` as its own destination: the counterfactual recalculation is a page
+// the operator opens, not a control hidden inside the territory panel, and it
+// belongs to Prevención because it explains the rule that produced a zone's
+// level. PM-16 adds `#status` as the single operational board of the gateway
+// aggregate, the weather source and the active rule: it is a destination of its
+// own, and `#sources` keeps the provenance and pipeline detail it already carries.
 export type ViewId =
   | 'overview'
   | 'infrastructure'
@@ -20,6 +26,8 @@ export type ViewId =
   | 'compare'
   | 'actions'
   | 'observations'
+  | 'simulator'
+  | 'status'
   | 'sources'
   | 'jobs'
   | 'pending'
@@ -52,6 +60,15 @@ export const routes: readonly RouteDefinition[] = [
     icon: 'zones',
     title: 'Observaciones de campo',
   },
+  {
+    id: 'simulator',
+    hash: '#simulator',
+    label: 'Simulador',
+    group: 'Prevención',
+    icon: 'refresh',
+    title: 'Simulador contrafactual',
+  },
+  { id: 'status', hash: '#status', label: 'Estado de servicios', group: 'Información', icon: 'pipeline', title: 'Estado de servicios' },
   { id: 'sources', hash: '#sources', label: 'Fuentes y servicios', group: 'Información', icon: 'sources', title: 'Fuentes y servicios' },
   { id: 'jobs', hash: '#jobs', label: 'Procesamiento', group: 'Información', icon: 'jobs', title: 'Procesamiento asíncrono' },
   { id: 'pending', hash: '#pending', label: 'Aún no implementado', group: 'Información', icon: 'pending', title: 'Aún no implementado' },

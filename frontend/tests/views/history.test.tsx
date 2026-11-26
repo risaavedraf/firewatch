@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import { clearZoneState, selectZone } from '../../src/app/store';
 import { gatewayOrigin, issuer, pkceTransactionKey } from '../../src/config';
+import { historySeries, type HistoryGranularity } from '../../src/core/api';
 import { completeLogin, resetSession } from '../../src/core/session';
 import type { RiskBatch } from '../../src/types/api';
 import { HistoryView } from '../../src/views/HistoryView';
@@ -178,14 +179,16 @@ test('the section keeps id=history, data-view=history and the seven legacy ancho
   }
 });
 
-test('the per-zone limit note stays visible inside the view', () => {
+// PM-04 — the capability this note declared is delivered, so the note itself is
+// gone. The label that replaces it is per-mode and asserted with the series
+// below; what stays pinned here is that the panel no longer tells the reader the
+// history of every zone does not exist.
+test('the panel no longer declares the all-zones history as unimplemented', () => {
   prepare();
   render(<HistoryView />);
 
-  const note = document.querySelector('#history .unimplemented-note');
-  expect(note).not.toBeNull();
-  expect(note).toHaveTextContent(/Historial de todas las zonas/);
-  expect(note).toHaveTextContent(/zone_id/);
+  expect(document.querySelector('#history .unimplemented-note')).toBeNull();
+  expect(document.getElementById('history')).not.toHaveTextContent(/NO IMPLEMENTADO/);
 });
 
 test('without a session the panel asks to connect and issues no read', () => {
@@ -897,4 +900,518 @@ test('unmounting while the export is in flight saves nothing', async () => {
 
   expect(download.createObjectURL).not.toHaveBeenCalled();
   expect(download.names).toHaveLength(0);
+});
+
+// ── PM-04 / S3–S5 — the granular series ─────────────────────────────────────
+// «Todas las zonas» reads `/v1/risk/history/series` with no `zone_id`, one
+// granularity and a window capped by the route. The double below answers the
+// JSON body the route serves, echoes the parameters it read (the attribution the
+// contract defines) and records the query, so every assertion is about what the
+// page ASKED instead of about a frozen clock.
+
+interface SeriesCall {
+  url: string;
+  from: string;
+  to: string;
+  granularity: string;
+  zoneId: string | null;
+}
+
+interface SeriesReply {
+  status?: number;
+  body?: unknown;
+  jsonThrows?: boolean;
+}
+
+function seriesBody(call: SeriesCall, series: unknown[]): unknown {
+  return { from: call.from, to: call.to, granularity: call.granularity, series };
+}
+
+function serveSeries(fetchStub: ReturnType<typeof createFetchStub>) {
+  const pending: {
+    call: SeriesCall;
+    resolve: (reply: { status: number; body: unknown; jsonThrows: boolean }) => void;
+  }[] = [];
+  const calls: SeriesCall[] = [];
+  const fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const url = String(input);
+    if (!url.startsWith(`${gatewayOrigin}/v1/risk/history/series`)) return fetchStub.fetch(input, init);
+    const parameters = new URL(url).searchParams;
+    const call: SeriesCall = {
+      url,
+      from: parameters.get('from') ?? '',
+      to: parameters.get('to') ?? '',
+      granularity: parameters.get('granularity') ?? '',
+      zoneId: parameters.get('zone_id'),
+    };
+    calls.push(call);
+    return new Promise<Response>((resolve, reject) => {
+      const entry = {
+        call,
+        resolve: (reply: { status: number; body: unknown; jsonThrows: boolean }): void => {
+          resolve(
+            new Response(reply.jsonThrows ? '{' : JSON.stringify(reply.body), {
+              status: reply.status,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          );
+        },
+      };
+      pending.push(entry);
+      // A superseded read is aborted by the view; the double honours that so the
+      // queue only ever holds the query the page is actually waiting for.
+      const signal = init?.signal ?? null;
+      if (signal === null) return;
+      signal.addEventListener(
+        'abort',
+        () => {
+          const index = pending.indexOf(entry);
+          if (index >= 0) pending.splice(index, 1);
+          reject(new DOMException('Aborted', 'AbortError'));
+        },
+        { once: true },
+      );
+    });
+  };
+  vi.stubGlobal('fetch', fetch);
+  return {
+    calls,
+    pending: (): number => pending.length,
+    answer(series: unknown[] = [], init: SeriesReply = {}): void {
+      const entry = pending.shift();
+      if (!entry) throw new Error('no pending series request');
+      entry.resolve({
+        status: init.status ?? 200,
+        body: init.body ?? seriesBody(entry.call, series),
+        jsonThrows: init.jsonThrows ?? false,
+      });
+    },
+  };
+}
+
+interface BucketOverrides {
+  bucket_start?: string;
+  batch_id?: string;
+  risk_level?: string;
+  model_version?: string;
+  synthetic?: boolean;
+}
+
+function bucket(overrides: BucketOverrides = {}): Record<string, unknown> {
+  return {
+    bucket_start: '2026-11-20T03:00:00Z',
+    batch_id: 'lote-uno',
+    requested_at: '2026-11-20T15:00:00Z',
+    published_at: '2026-11-20T15:00:05Z',
+    risk_level: 'alto',
+    model_version: 'academic-rule-v1',
+    synthetic: true,
+    ...overrides,
+  };
+}
+
+function zoneSeries(zone: string, buckets: Record<string, unknown>[]): Record<string, unknown> {
+  return { zone_id: zone, buckets };
+}
+
+function seriesList(): HTMLElement | null {
+  return document.getElementById('history-series');
+}
+
+function seriesRange(): HTMLElement {
+  return document.getElementById('history-series-range') as HTMLElement;
+}
+
+async function openAllZones(): Promise<ReturnType<typeof serveSeries>> {
+  const { fetchStub } = await connect();
+  const series = serveSeries(fetchStub);
+  render(<HistoryView />);
+  await flush();
+  fireEvent.change(screen.getByLabelText('Elegir el alcance del historial'), { target: { value: 'all' } });
+  await flush();
+  return series;
+}
+
+test('«Todas las zonas» asks for the series without a zone and renders every interval it was served (S3)', async () => {
+  const series = await openAllZones();
+
+  expect(series.calls).toHaveLength(1);
+  const [call] = series.calls;
+  expect(call.granularity).toBe('day');
+  // Omitting `zone_id` is exactly what asks for every zone.
+  expect(call.zoneId).toBeNull();
+  // The window is the documented day cap, half-open by construction.
+  expect(Date.parse(call.to) - Date.parse(call.from)).toBe(31 * 86_400_000);
+  expect(state()).toHaveTextContent('Consultando la serie de todas las zonas…');
+
+  series.answer([
+    zoneSeries('05101', [
+      bucket({ bucket_start: '2026-11-20T03:00:00Z', risk_level: 'alto' }),
+      bucket({ bucket_start: '2026-11-21T03:00:00Z', risk_level: 'desconocido', batch_id: 'lote-dos' }),
+    ]),
+    zoneSeries('05102', [
+      bucket({
+        batch_id: 'lote-tres',
+        risk_level: 'medio',
+        model_version: 'academic-rule-v2',
+        synthetic: false,
+      }),
+    ]),
+  ]);
+  await waitFor(() => expect(count()).toBe('2'));
+
+  expect(state()).toHaveTextContent('2 zonas con al menos un intervalo publicado en la ventana.');
+  const list = seriesList();
+  expect(list).not.toBeNull();
+  expect(list).toHaveTextContent('Zona 05101');
+  expect(list).toHaveTextContent('2 intervalos');
+  expect(list).toHaveTextContent('Zona 05102');
+  expect(list).toHaveTextContent('1 intervalo');
+  // Every interval declares its own start, the batch that produced it, its model
+  // and its synthetic mark, and the level is text — never colour alone.
+  expect(list).toHaveTextContent('2026-11-20T03:00:00Z');
+  expect(list).toHaveTextContent('ALTO');
+  expect(list).toHaveTextContent('INFORMACIÓN INSUFICIENTE');
+  expect(list).toHaveTextContent('lote lote-dos');
+  expect(list).toHaveTextContent('modelo academic-rule-v1');
+  expect(list).toHaveTextContent('modelo academic-rule-v2');
+  expect(list).toHaveTextContent('Dato sintético');
+  expect(list).toHaveTextContent('Sin marca sintética');
+  // The window is declared as text, with the cap of the selected granularity.
+  expect(seriesRange()).toHaveTextContent(call.from);
+  expect(seriesRange()).toHaveTextContent(call.to);
+  expect(seriesRange()).toHaveTextContent('Días (día civil de America/Santiago)');
+  expect(seriesRange()).toHaveTextContent('31 días');
+  // The two honesty labels the panel owes the reader.
+  expect(document.getElementById('history')).toHaveTextContent(/último lote publicado por intervalo/i);
+  expect(document.getElementById('history')).toHaveTextContent(/sin relleno de huecos/i);
+  // The zone table, its filters and the CSV export belong to «Por zona».
+  expect(document.getElementById('history-rows')).toBeNull();
+  expect(document.getElementById('history-csv-download')).toBeNull();
+  expect(document.getElementById('history-granularity')).not.toBeNull();
+});
+
+test('the three granularities each ask for their own capped window and no zone filter (S3)', async () => {
+  const series = await openAllZones();
+
+  const granularity = screen.getByLabelText('Elegir la granularidad de la serie');
+  expect(granularity).toHaveValue('day');
+  expect(series.calls[0].granularity).toBe('day');
+
+  fireEvent.change(granularity, { target: { value: 'hour' } });
+  await flush();
+  expect(series.calls).toHaveLength(2);
+  expect(series.calls[1].granularity).toBe('hour');
+  expect(Date.parse(series.calls[1].to) - Date.parse(series.calls[1].from)).toBe(48 * 3_600_000);
+
+  fireEvent.change(granularity, { target: { value: 'week' } });
+  await flush();
+  expect(series.calls).toHaveLength(3);
+  expect(series.calls[2].granularity).toBe('week');
+  expect(Date.parse(series.calls[2].to) - Date.parse(series.calls[2].from)).toBe(31 * 86_400_000);
+
+  // No granularity narrows the read to a zone.
+  for (const call of series.calls) expect(call.zoneId).toBeNull();
+
+  // The answer for the active granularity states its own civil cut.
+  series.answer([zoneSeries('05101', [bucket()])]);
+  await waitFor(() => expect(count()).toBe('1'));
+  expect(seriesRange()).toHaveTextContent('Semanas (semana civil, lunes)');
+});
+
+test('an empty series is stated as empty and invents no interval (S3)', async () => {
+  const series = await openAllZones();
+
+  series.answer([]);
+  await waitFor(() =>
+    expect(state()).toHaveTextContent(
+      'La API devolvió una serie vacía: ninguna zona publicó lotes en la ventana consultada.',
+    ),
+  );
+
+  expect(seriesList()).toBeNull();
+  // An empty answer is a count of zero zones, not an unknown count.
+  expect(count()).toBe('0');
+  // The empty answer is still attributable: the window it asked about stays stated.
+  expect(seriesRange()).not.toBeNull();
+});
+
+test('a series failure is stated with its status and never rendered as an interval (S3)', async () => {
+  const series = await openAllZones();
+
+  series.answer([], { status: 503 });
+  await waitFor(() =>
+    expect(state()).toHaveTextContent('No se pudo consultar la serie de todas las zonas (HTTP 503).'),
+  );
+
+  expect(state()).toHaveClass('risk-error');
+  expect(seriesList()).toBeNull();
+  expect(count()).toBe('—');
+});
+
+test('a series answer that echoes another window is discarded, not rendered (S2/S3)', async () => {
+  const series = await openAllZones();
+
+  series.answer([], {
+    body: { from: '2026-01-01T00:00:00Z', to: '2026-02-01T00:00:00Z', granularity: 'day', series: [] },
+  });
+  await waitFor(() => expect(state()).toHaveTextContent(/otra ventana o granularidad/i));
+
+  expect(seriesList()).toBeNull();
+  expect(count()).toBe('—');
+});
+
+test('a series body the guard cannot use is rejected as unreadable (S3)', async () => {
+  const series = await openAllZones();
+
+  // A bucket without its `model_version` is not a point the page can attribute.
+  series.answer([{ zone_id: '05101', buckets: [{ ...bucket(), model_version: undefined }] }]);
+  await waitFor(() => expect(state()).toHaveTextContent(/ilegible/i));
+
+  expect(seriesList()).toBeNull();
+});
+
+test('without a session the series asks to connect and issues no read (S3)', async () => {
+  const { fetchStub } = prepare();
+  const series = serveSeries(fetchStub);
+  render(<HistoryView />);
+
+  fireEvent.change(screen.getByLabelText('Elegir el alcance del historial'), { target: { value: 'all' } });
+  await flush();
+
+  expect(series.calls).toHaveLength(0);
+  expect(state()).toHaveTextContent('Conecta un token autorizado para consultar la serie de todas las zonas.');
+  expect(seriesList()).toBeNull();
+});
+
+test('a failed series leaves the per-zone history and its export intact (S3)', async () => {
+  const { fetchStub } = await connect();
+  const series = serveSeries(fetchStub);
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, [batch('lote-uno')]);
+  await waitFor(() => expect(count()).toBe('1'));
+
+  fireEvent.change(screen.getByLabelText('Elegir el alcance del historial'), { target: { value: 'all' } });
+  await flush();
+  series.answer([], { status: 503 });
+  await waitFor(() => expect(state()).toHaveTextContent(/No se pudo consultar la serie/i));
+  // The export belongs to the per-zone panel it was written for.
+  expect(document.getElementById('history-csv-download')).toBeNull();
+
+  // Back to «Por zona»: the panel reads its own zone again and the export is
+  // available for exactly the selection it belongs to.
+  fireEvent.change(screen.getByLabelText('Elegir el alcance del historial'), { target: { value: 'zone' } });
+  await flush();
+  expect(fetchStub.callsFor(HISTORY_URL)).toHaveLength(2);
+  fetchStub.answer(HISTORY_URL, [batch('lote-uno')]);
+  await waitFor(() => expect(count()).toBe('1'));
+  expect(downloadButton()).toBeEnabled();
+  expect(csvStatus()).toHaveTextContent(`Listo para descargar el historial de la zona ${ZONE}.`);
+  expect(seriesList()).toBeNull();
+});
+
+// ── PM-04 / T1 — the series client ──────────────────────────────────────────
+// The transport is exercised directly for the properties the view cannot show:
+// `zone_id` travels only when it was asked for, an answer that echoes another
+// window is refused, and a body the view cannot use is never handed back.
+
+const SERIES_FROM = '2026-11-01T00:00:00Z';
+const SERIES_TO = '2026-11-02T00:00:00Z';
+
+function seriesUrl(parameters: Record<string, string>): string {
+  return `${gatewayOrigin}/v1/risk/history/series?${new URLSearchParams(parameters).toString()}`;
+}
+
+test('the series client omits zone_id when every zone was asked for (T1)', async () => {
+  const { fetchStub } = await connect();
+  const request = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });
+  await flush();
+
+  const url = seriesUrl({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });
+  expect(fetchStub.callsFor(url)).toHaveLength(1);
+  fetchStub.answer(url, { from: SERIES_FROM, to: SERIES_TO, granularity: 'day', series: [] });
+
+  const outcome = await request;
+  expect(outcome.ok).toBe(true);
+  if (!outcome.ok) throw new Error('expected the series read to succeed');
+  expect(outcome.data.series).toEqual([]);
+});
+
+test('the series client sends zone_id only when it was given one (T1)', async () => {
+  const { fetchStub } = await connect();
+  const request = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'week', zoneId: ZONE });
+  await flush();
+
+  const url = seriesUrl({ from: SERIES_FROM, to: SERIES_TO, granularity: 'week', zone_id: ZONE });
+  expect(fetchStub.callsFor(url)).toHaveLength(1);
+  fetchStub.answer(url, {
+    from: SERIES_FROM,
+    to: SERIES_TO,
+    granularity: 'week',
+    series: [zoneSeries(ZONE, [bucket()])],
+  });
+
+  const outcome = await request;
+  expect(outcome.ok).toBe(true);
+});
+
+test('the series client refuses an answer that echoes another window (T1)', async () => {
+  const { fetchStub } = await connect();
+  const request = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });
+  await flush();
+
+  fetchStub.answer(seriesUrl({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' }), {
+    from: '2026-10-01T00:00:00Z',
+    to: '2026-11-01T00:00:00Z',
+    granularity: 'day',
+    series: [],
+  });
+
+  const outcome = await request;
+  expect(outcome.ok).toBe(false);
+  if (outcome.ok) throw new Error('expected the mismatched window to be refused');
+  expect(outcome.failure.kind).toBe('malformed');
+  expect(outcome.failure.reason).toBe('window_mismatch');
+});
+
+test('the series client refuses an unknown granularity before issuing a read (T1)', async () => {
+  const { fetchStub } = await connect();
+
+  const outcome = await historySeries({
+    from: SERIES_FROM,
+    to: SERIES_TO,
+    granularity: 'month' as unknown as HistoryGranularity,
+  });
+
+  expect(outcome.ok).toBe(false);
+  if (outcome.ok) throw new Error('expected the unknown granularity to be refused');
+  expect(outcome.failure.kind).toBe('malformed');
+  expect(outcome.failure.reason).toBe('invalid_granularity');
+  expect(fetchStub.calls.filter((call) => call.url.includes('/v1/risk/history/series'))).toHaveLength(0);
+});
+
+test('the series client refuses an empty zone id instead of widening to every zone (S3)', async () => {
+  const { fetchStub } = await connect();
+  const pending = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day', zoneId: '' });
+  await flush();
+  expect(fetchStub.calls.filter((call) => call.url.includes('/v1/risk/history/series'))).toHaveLength(0);
+
+  const outcome = await pending;
+  expect(outcome.ok).toBe(false);
+  if (outcome.ok) throw new Error('expected the empty zone id to be refused');
+  expect(outcome.failure.kind).toBe('malformed');
+  expect(outcome.failure.reason).toBe('invalid_shape');
+});
+
+test('the series client refuses invalid instants and undeclared bucket members (S3)', async () => {
+  const { fetchStub } = await connect();
+
+  const pendingWindow = historySeries({ from: '01/02/2026', to: SERIES_TO, granularity: 'day' });
+  await flush();
+  expect(fetchStub.calls.filter((call) => call.url.includes('/v1/risk/history/series'))).toHaveLength(0);
+  const badWindow = await pendingWindow;
+  expect(badWindow.ok).toBe(false);
+  if (badWindow.ok) throw new Error('expected the invalid window to be refused');
+  expect(badWindow.failure.reason).toBe('invalid_shape');
+
+  const badEcho = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });
+  await flush();
+  fetchStub.answer(seriesUrl({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' }), {
+    from: '2026-11-01',
+    to: SERIES_TO,
+    granularity: 'day',
+    series: [],
+  });
+  const bareDate = await badEcho;
+  expect(bareDate.ok).toBe(false);
+  if (bareDate.ok) throw new Error('expected the bare date to be refused');
+  expect(bareDate.failure.reason).toBe('invalid_shape');
+
+  const extra = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });
+  await flush();
+  const withExtra = bucket();
+  withExtra['undeclared'] = 'x';
+  fetchStub.answer(seriesUrl({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' }), {
+    from: SERIES_FROM,
+    to: SERIES_TO,
+    granularity: 'day',
+    series: [zoneSeries(ZONE, [withExtra])],
+  });
+  const undeclared = await extra;
+  expect(undeclared.ok).toBe(false);
+  if (undeclared.ok) throw new Error('expected the undeclared bucket member to be refused');
+  expect(undeclared.failure.reason).toBe('invalid_shape');
+});
+
+test('returning to «Todas las zonas» shows loading instead of the previous window (S3)', async () => {
+  const series = await openAllZones();
+  series.answer([zoneSeries('05101', [bucket()])]);
+  await waitFor(() => expect(count()).toBe('1'));
+  expect(seriesList()).not.toBeNull();
+
+  fireEvent.change(screen.getByLabelText('Elegir el alcance del historial'), { target: { value: 'zone' } });
+  await flush();
+  fireEvent.change(screen.getByLabelText('Elegir el alcance del historial'), { target: { value: 'all' } });
+  await flush();
+
+  // Re-entering the scope issues a fresh read; until it answers, the window and
+  // the series of the previous visit must not be painted.
+  expect(series.calls).toHaveLength(2);
+  expect(state()).toHaveTextContent('Consultando la serie de todas las zonas…');
+  expect(seriesList()).toBeNull();
+  expect(count()).toBe('—');
+});
+
+// The stored series belongs to the question that produced it, and the selected
+// zone is part of that question: the branch keeps the answer attributed to the
+// selection it was read for, so a zone change asks the same window again instead
+// of keeping an answer that was read for another selection. The granularity does
+// not change here on purpose — keying the answer by the bucket size alone leaves
+// the previous zone's series painted while the new read is in flight.
+test('changing the zone while «Todas las zonas» is shown loads again and never paints the previous answer (S3)', async () => {
+  const series = await openAllZones();
+  series.answer([zoneSeries('05101', [bucket()])]);
+  await waitFor(() => expect(count()).toBe('1'));
+  expect(seriesList()).toHaveTextContent('Zona 05101');
+
+  selectZone('05103');
+  await flush();
+
+  // A fresh read for the new selection, and no window, count or interval of the
+  // answer read for the previous one while it loads.
+  expect(state()).toHaveTextContent('Consultando la serie de todas las zonas…');
+  expect(seriesList()).toBeNull();
+  expect(document.getElementById('history-series-range')).toBeNull();
+  expect(count()).toBe('—');
+  expect(series.calls).toHaveLength(2);
+  expect(series.calls[1].granularity).toBe('day');
+
+  // The fresh answer is the one painted; the abandoned one never returns.
+  series.answer([zoneSeries('05103', [bucket({ batch_id: 'lote-zona-tres' })])]);
+  await waitFor(() => expect(count()).toBe('1'));
+  expect(seriesList()).toHaveTextContent('Zona 05103');
+  expect(seriesList()).not.toHaveTextContent('Zona 05101');
+});
+
+test('the series client refuses a body the view cannot use (T1)', async () => {
+  const { fetchStub } = await connect();
+  const request = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });
+  await flush();
+
+  // A zone with no bucket is a series the contract says cannot exist.
+  fetchStub.answer(seriesUrl({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' }), {
+    from: SERIES_FROM,
+    to: SERIES_TO,
+    granularity: 'day',
+    series: [{ zone_id: ZONE, buckets: [] }],
+  });
+
+  const outcome = await request;
+  expect(outcome.ok).toBe(false);
+  if (outcome.ok) throw new Error('expected the unusable body to be refused');
+  expect(outcome.failure.kind).toBe('malformed');
+  expect(outcome.failure.reason).toBe('invalid_shape');
 });

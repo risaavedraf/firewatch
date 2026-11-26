@@ -26,6 +26,70 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /v1/risk/inference/status:
+    get:
+      operationId: getInferenceStatus
+      description: >-
+        Viewer/admin. Evidence about the inference service this deployment is
+        configured to call, gathered by risk itself: the only service that
+        already holds the configured internal address and the internal CA. The
+        public surface never reaches inference directly, and this read never
+        carries the caller's credential onward: risk asks the configured
+        inference health path with no Authorization header, follows no redirect
+        and reads a bounded body.
+
+        Evidence, not pipeline delivery: ready means the configured inference
+        service answered its own health document at this instant, not that a
+        prediction was produced end to end.
+
+        An unconfigured inference address is not a failure: it means this
+        deployment runs rule classifiers only, so the state is not_configured
+        and the answer is 200. A configured service that cannot be reached,
+        answers another status, or sends a body that is not its ready health
+        document is degraded, answered 503. The address is read from
+        configuration only: no request parameter chooses a target, so a caller
+        can neither point this route at another host nor widen it into a scan.
+
+        The document that counts as ready is the one the inference contract
+        declares (contracts/openapi/inference-v1.yaml, schema Health): status
+        ready, format firewatch-model/v1, a model version and data hash, a kind
+        of logistic or forest, a parsable training instant, a feature count and
+        both thresholds inside the unit interval. A body that merely says
+        "ready" is not that document and is degraded evidence.
+
+        This probe requires HTTPS outside the literal development environment. A
+        plaintext http address is refused before anything is dialled, and a
+        configured internal CA does not change that, so a refused address is
+        never contacted. The body is read under one short deadline and one bound;
+        a document larger than the bound is degraded rather than truncated into a
+        prefix that happens to parse.
+      responses:
+        '200':
+          description: >-
+            Evidence that is not a failure: ready, or not_configured when no
+            inference address is configured.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InferenceStatusEvidence'}
+        '503':
+          description: >-
+            The configured inference service is degraded or its evidence could
+            not be established: unreachable, refused by the outbound TLS policy,
+            another status, an oversized body, or a body that is not the
+            contracted health document.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InferenceStatusEvidence'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/jobs/status:
     get:
       operationId: getJobsStatus
@@ -44,6 +108,82 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /v1/status:
+    get:
+      operationId: getServiceStatus
+      description: >-
+        Viewer/admin. One bounded, parallel read of the four declared status
+        surfaces: risk, jobs, prevention and the inference evidence risk
+        publishes. It is answered by the gateway itself, so the gateway entry
+        stays ready even when an upstream is not: the aggregate summarises what
+        each dependency reported, it is not a global readiness verdict and not
+        an end-to-end delivery test. There is deliberately no overall boolean;
+        the answer is the per-service list, always the same four entries in the
+        same order.
+
+        Each entry holds exactly one state. ready means the service answered its
+        own documented status body as ready. degraded means it answered 503 with
+        a not-ready body. unknown means the gateway could not obtain usable
+        evidence: unreachable, too slow, another status, a body that is not the
+        contracted one, or a status and body that contradict each other.
+        unauthorized means this caller's token is not permitted to check that
+        service (403) or was refused there (401); that is a fact about the
+        caller's permission, not about the service, so it is never reported as
+        degraded. not_configured is used only by the inference entry, when the
+        deployment configures no inference address at all.
+
+        The code and the body must agree for an entry to carry a documented
+        state: 200 with a ready body (or not_configured for inference only), or
+        503 with an unready body. Any other pair, including a 503 that claims an
+        unset configuration, is reported unknown
+        instead of being turned into a state the service did not report, so an
+        inconsistent answer can never become a success.
+
+        This route is declared for viewer and admin, and it enforces that itself
+        from the realm roles of the verified token, before it contacts any
+        service: a token holding neither role is answered 403 and no status
+        target is reached. A caller-supplied role header grants nothing.
+
+        The fan-out is fixed and bounded: four targets taken from configuration,
+        one short deadline covering the requests and their bodies, no redirect
+        followed, and a bounded read of each body. Only the caller's own
+        Authorization and the correlation id this gateway minted reach those
+        targets; no other inbound header, and no path or query of this request,
+        chooses a target. No upstream body is relayed here, only the state
+        derived from it.
+
+        The bound is a length check, not a truncation: a body larger than the read
+        bound is unknown, so a valid prefix followed by padding cannot pass as the
+        contracted document. The read also stops with the caller: a cancelled
+        request ends the fan-out, and the entries it did not obtain are unknown.
+
+        200 means no service is degraded or unknown. 503 means at least one is,
+        and the body still carries all four states. Weather is not integrated and
+        therefore has no entry.
+      responses:
+        '200':
+          description: >-
+            Summary of the four status surfaces in fixed order; none of them
+            degraded or unknown.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MultiserviceStatus'}
+        '503':
+          description: >-
+            At least one status surface is degraded or unknown. The body carries
+            every entry, so a caller can tell which one.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MultiserviceStatus'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
   /v1/jobs:
     post:
       operationId: createDemoJob
@@ -874,6 +1014,112 @@ paths:
                   request_id: {type: string, format: uuid}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/alerts/{id}/state:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string, format: uuid}
+        description: >-
+          Identifier of the stored alert. Only the canonical lower-case dashed
+          spelling addresses a row: any other spelling is 404 alert_not_found,
+          decided before storage is asked.
+    get:
+      operationId: getRiskAlertState
+      description: >-
+        Viewer/admin. The caller's own explicit notification mark on one stored
+        PM-07 alert. The actor is exclusively the verified bearer subject: the
+        route accepts no actor parameter and the write body cannot name one. A
+        viewer and an admin both read, and each reads only their own state. An
+        alert this subject never marked is `unread` with `marked_at: null`, and
+        reading creates no row. An alert that is not stored is 404, never a
+        fabricated unread answer. This route records no delivery and is not a
+        notification transport.
+      responses:
+        '200':
+          description: >-
+            The caller's own effective mark on the alert. `unread` carries a
+            null instant; `read` and `dismissed` carry the instant of the
+            stored mark.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AlertState'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/AlertNotFound'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+    put:
+      operationId: markRiskAlertState
+      description: >-
+        Admin only, for the caller itself. Appends one explicit personal mark to
+        one stored alert. The state is a closed vocabulary of `read` and
+        `dismissed`; `unread` is not a mark and is refused. The marks are
+        monotonic - read, then dismissed - and dismissed dominates a read
+        regardless of the order the requests arrived in. The write is
+        idempotent: replaying the effective mark, or sending a read after a
+        dismissal, appends nothing and answers the state that is actually
+        stored with its original instant, so 200 covers both "applied" and
+        "already there" and 409 is deliberately not used. The actor is the
+        verified bearer subject and only that subject: there is no actor member,
+        and an unknown member is refused. No delivery, receipt or transport is
+        recorded; the appended row is the trace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AlertStateMarkRequest'}
+      responses:
+        '200':
+          description: >-
+            The state actually stored after the request: the newly appended mark
+            with its assigned instant, or the dominating existing mark unchanged.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AlertState'}
+        '400':
+          description: >-
+            Malformed mark document; nothing was written. The body must be
+            exactly one JSON document with exactly one member, `state`, whose
+            value is `read` or `dismissed`. An empty body, a missing or unknown
+            member (including an attempt to name an actor), a second document,
+            a body over 512 bytes, or any other value is refused 400
+            invalid_alert_state before storage.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                additionalProperties: false
+                properties:
+                  code: {type: string, enum: [invalid_alert_state]}
+                  request_id: {type: string, format: uuid}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/AlertNotFound'}
+        '415':
+          description: >-
+            The request does not declare an application/json body. code is
+            json_required and nothing is written.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                additionalProperties: false
+                properties:
+                  code: {type: string, enum: [json_required]}
+                  request_id: {type: string, format: uuid}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -2201,6 +2447,46 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamOrDirectoryFailed'}
         '503': {$ref: '#/components/responses/DirectoryUnavailable'}
+  /v1/prevention/status:
+    get:
+      operationId: getPreventionStatus
+      description: >-
+        Viewer/admin. The prevention service's own operational status, read from
+        the dependency it actually has: one bounded ping of its database. It does
+        not report a broker or a dead-letter queue, because this service talks to
+        neither and reporting them would be a fabricated dependency. It is not a
+        delivery or end-to-end test.
+
+        200 means the database answered. 503 means it did not, and the body names
+        database_unavailable. The body carries no other dependency.
+
+        A process that wired no evaluator at all fails closed instead of
+        claiming ready: it answers 503 with reason status_unavailable and the
+        database state unknown, and this document declares that answer.
+      responses:
+        '200':
+          description: The prevention database answered the bounded ping.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PreventionStatus'}
+        '503':
+          description: >-
+            The prevention database did not answer the bounded ping
+            (database_unavailable), or this process wired no evaluator at all
+            (status_unavailable, database unknown). Neither case claims ready.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PreventionStatus'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
 components:
   securitySchemes:
     bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
@@ -2379,6 +2665,24 @@ components:
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
+    AlertNotFound:
+      description: >-
+        The path names no stored alert, so there is no personal state to read or
+        mark. The same 404 answers a path that is not the canonical uuid
+        spelling of an identifier. Nothing is fabricated and nothing is
+        written; code is alert_not_found.
+      headers:
+        X-Request-ID: {$ref: '#/components/headers/RequestID'}
+        Cache-Control: {schema: {type: string, enum: [no-store]}}
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, request_id]
+            additionalProperties: false
+            properties:
+              code: {type: string, enum: [alert_not_found]}
+              request_id: {type: string, format: uuid}
     DirectoryUnavailable:
       description: >-
         The user directory is not configured: the identity provider's admin URL
@@ -3481,6 +3785,43 @@ components:
             a client resets its cursor history when the order changes. Opaque means
             unstructured, not secret or signed: echo it verbatim and do not
             interpret it.
+    AlertState:
+      type: object
+      description: >-
+        The caller's own explicit mark on one stored alert. It has no actor
+        member: the subject is the verified bearer token the request was already
+        scoped by, and repeating it would expose an identity the caller did not
+        ask for. marked_at is null exactly when state is unread, because an
+        unread alert has no mark and therefore no instant.
+      required: [alert_id, state, marked_at]
+      additionalProperties: false
+      properties:
+        alert_id: {type: string, format: uuid}
+        state: {type: string, enum: [unread, read, dismissed]}
+        marked_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Instant the stored mark was appended, canonicalised to UTC. It is
+            never rewritten: a replay returns the original instant, and a
+            dismissal keeps its own instant even if a later read is requested.
+    AlertStateMarkRequest:
+      type: object
+      description: >-
+        The one accepted write document. It deliberately has no actor member:
+        the actor is the verified token subject, so a caller cannot mark anyone
+        else's state. Unknown members are refused, not ignored.
+      required: [state]
+      additionalProperties: false
+      properties:
+        state:
+          type: string
+          enum: [read, dismissed]
+          description: >-
+            The mark to append. unread is the absence of a mark and is refused;
+            a mark below the current rank is accepted as a no-op that answers
+            the dominating state.
     Geometry:
       type: object
       description: >-
@@ -3970,3 +4311,84 @@ components:
             Province the catalogue records, or null when it records none. The
             empty string is not substituted, because "no province recorded" and
             "a province with an empty name" are different facts.
+    MultiserviceStatus:
+      type: object
+      description: >-
+        Summary of the declared status surfaces. It is a list, never a single
+        global readiness boolean.
+      required: [checked_at, gateway, services]
+      properties:
+        checked_at:
+          type: string
+          format: date-time
+          description: UTC completion of the bounded fan-out
+        gateway:
+          type: object
+          description: >-
+            The gateway process that answered this read. It is ready whenever a
+            body exists, which is what keeps the reachability of the gateway
+            itself separate from the state of its dependencies.
+          required: [state]
+          properties:
+            state: {type: string, enum: [ready]}
+        services:
+          type: array
+          description: >-
+            Fixed order: risk, jobs, prevention, inference. Always these four
+            entries, even when one of them is unknown.
+          minItems: 4
+          maxItems: 4
+          items: {$ref: '#/components/schemas/MultiserviceStatusEntry'}
+    MultiserviceStatusEntry:
+      type: object
+      required: [service, state]
+      properties:
+        service: {type: string, enum: [risk, jobs, prevention, inference]}
+        state:
+          type: string
+          enum: [ready, degraded, unknown, unauthorized, not_configured]
+          description: >-
+            ready and not_configured are not failures; unauthorized reports the
+            caller's permission, not the service; degraded and unknown are the
+            only states that make the aggregate answer 503.
+    InferenceStatusEvidence:
+      type: object
+      required: [checked_at, state, reason]
+      properties:
+        checked_at:
+          type: string
+          format: date-time
+          description: UTC evaluation completion
+        state: {type: string, enum: [ready, degraded, unknown, not_configured]}
+        reason:
+          type: string
+          enum: ['', not_configured, inference_unavailable, status_unavailable]
+          description: >-
+            Empty when ready; not_configured when no inference address is
+            configured; inference_unavailable when the configured service could
+            not supply a ready health document; status_unavailable when no
+            evaluator is wired at all.
+    PreventionStatus:
+      type: object
+      required: [checked_at, ready, reason, dependencies]
+      properties:
+        checked_at:
+          type: string
+          format: date-time
+          description: UTC evaluation completion
+        ready: {type: boolean}
+        reason:
+          type: string
+          enum: ['', database_unavailable, status_unavailable]
+          description: >-
+            Empty on success; database_unavailable when the bounded ping failed;
+            status_unavailable when no evaluator is wired at all.
+        dependencies:
+          type: object
+          required: [database]
+          properties:
+            database:
+              type: object
+              required: [state]
+              properties:
+                state: {type: string, enum: [ready, degraded, unknown]}

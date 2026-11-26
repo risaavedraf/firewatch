@@ -100,6 +100,12 @@ const JOBS_ROUTE = '/v1/jobs';
 // site.
 const COMPARE_ROUTE = '/v1/risk/compare';
 
+// PM-16 — the gateway's own bounded multi-service aggregate. It is named here for
+// the same reason as the job creation path: `config.routes` is the shared map of
+// the routes this page reads and it is not extended by this unit, so the path
+// lives beside the one function that uses it instead of being a bare literal.
+const AGGREGATE_STATUS_ROUTE = '/v1/status';
+
 // A single bounded deadline for one transport read. The retired page bounded its
 // own status cycle at 10 s and fenced a hung fetch on the job path; the port
 // applies the same bound to every read so no route can hang the view.
@@ -110,12 +116,14 @@ type RequestKind =
   | 'zones'
   | 'latest'
   | 'history'
+  | 'historySeries'
   | 'batches'
   | 'executiveSummary'
   | 'compare'
   | 'sources'
   | 'riskStatus'
   | 'jobsStatus'
+  | 'aggregateStatus'
   | 'scenarios'
   | 'audit'
   | 'createJob'
@@ -132,6 +140,7 @@ type RequestKind =
   | 'createObservation'
   | 'adoptObservation'
   | 'models'
+  | 'simulate'
   | 'users';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
@@ -308,10 +317,14 @@ function httpFailure(result: { status: number; body: unknown; requestId: string 
   return failureSpec(kind, reason, result.status, result.requestId);
 }
 
+function failureOf(result: TransportResult): Failure {
+  if (result.state === 'failed') return result.failure;
+  if (result.state === 'httpError') return httpFailure(result);
+  return failureSpec('malformed', 'invalid_shape', result.status, result.requestId);
+}
+
 function resultFailure<T>(result: TransportResult): Outcome<T> {
-  if (result.state === 'failed') return failureOutcome<T>(result.failure);
-  if (result.state === 'httpError') return failureOutcome<T>(httpFailure(result));
-  return failureOutcome<T>(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  return failureOutcome<T>(failureOf(result));
 }
 
 function guardOutcome<T>(result: TransportResult, guard: (body: unknown) => body is T): Outcome<T> {
@@ -513,6 +526,245 @@ export async function history(zoneId: string, signal?: AbortSignal): Promise<Out
     batches.push(entry);
   }
   return { ok: true, data: batches };
+}
+
+// --- Granular history series ------------------------------------------------
+//
+// `GET /v1/risk/history/series` is the ADDITIVE sibling of the per-zone read
+// above: `/v1/risk/history` keeps its fixed 100 row window and its CSV export,
+// and this route answers a bounded window of every zone at one bucket size. The
+// path is declared here rather than in `config.routes` for the same reason the
+// job creation path is: the transport owns the query it builds for it.
+const HISTORY_SERIES_ROUTE = '/v1/risk/history/series';
+
+// The closed vocabulary of bucket sizes the route accepts. It is a runtime value
+// because the guard and the request builder compare against it: a granularity
+// outside it is refused here instead of being sent and answered with a 400 the
+// view would render as a broken control.
+export type HistoryGranularity = 'hour' | 'day' | 'week';
+
+export const HISTORY_GRANULARITIES: readonly HistoryGranularity[] = ['hour', 'day', 'week'];
+
+// One point of one series. It is deliberately narrower than `RiskBatch`: a
+// historical point carries no freshness (`data_status`, `notice`, `valid_until`
+// describe the CURRENT state of a batch and are recomputed at read time), so the
+// page renders the level, the batch identity and the provenance it was served.
+export interface HistoryBucket {
+  bucket_start: string;
+  batch_id: string;
+  requested_at: string;
+  published_at: string;
+  risk_level: RiskLevel;
+  model_version: string;
+  synthetic: boolean;
+}
+
+// One zone's series. A zone is present only when it has at least one point in the
+// window, so `buckets` is never empty and a gap between two points is a bucket
+// with no publication rather than an interpolated value.
+export interface HistoryZoneSeries {
+  zone_id: string;
+  buckets: HistoryBucket[];
+}
+
+// The route echoes the accepted window and granularity, so an answer is
+// attributable to the question that produced it.
+export interface HistorySeriesCollection {
+  from: string;
+  to: string;
+  granularity: HistoryGranularity;
+  series: HistoryZoneSeries[];
+}
+
+// The documented caps of the window, both inclusive: 48 h for hour buckets and
+// 31 days for day and week buckets. The page asks for exactly the cap, so the
+// answer is the largest window the route accepts and never a refused one.
+const SERIES_WINDOW_MS: Record<HistoryGranularity, number> = {
+  hour: 48 * 3_600_000,
+  day: 31 * 86_400_000,
+  week: 31 * 86_400_000,
+};
+
+export interface HistorySeriesWindow {
+  readonly from: string;
+  readonly to: string;
+}
+
+// The window the page asks for: the whole cap of the selected granularity,
+// ending now. Both instants are RFC 3339 in UTC, which is what the route compares
+// `requested_at` against. Nothing about the buckets is decided here: the service
+// cuts them and the page renders the `bucket_start` it was served.
+export function historySeriesWindow(
+  granularity: HistoryGranularity,
+  now: Date = new Date(),
+): HistorySeriesWindow {
+  const to = now.getTime();
+  return {
+    from: new Date(to - SERIES_WINDOW_MS[granularity]).toISOString(),
+    to: new Date(to).toISOString(),
+  };
+}
+
+export interface HistorySeriesQuery extends HistorySeriesWindow {
+  readonly granularity: HistoryGranularity;
+  // Omitted asks for every zone that has a point; present narrows the read to one
+  // catalogue zone. The parameter travels only when it was asked for, so the
+  // answer is always attributable to the query.
+  readonly zoneId?: string;
+}
+
+// Every instant this route takes or serves is declared `format: date-time`, so
+// the spelling is checked instead of being handed to `Date.parse`: that parser
+// also accepts a bare date and US-style slashes as instants, and it silently
+// rolls an impossible civil day (February 30) into the next month. Only a full
+// RFC 3339 `date-time` with its mandatory offset passes here.
+const RFC3339_INSTANT = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|([+-])(\d{2}):(\d{2}))$/;
+
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+function isInstant(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const match = RFC3339_INSTANT.exec(value);
+  if (match === null) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12) return false;
+  const lastDay = month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month - 1];
+  if (day < 1 || day > lastDay) return false;
+  if (Number(match[4]) > 23 || Number(match[5]) > 59 || Number(match[6]) > 59) return false;
+  // The offset is only checked to be a real clock offset; any offset is accepted
+  // and the instant it names is what the window compares.
+  if (match[7] !== undefined && (Number(match[8]) > 23 || Number(match[9]) > 59)) return false;
+  return Number.isFinite(Date.parse(value));
+}
+
+// The three series objects are `additionalProperties: false` in the contract, so
+// a member the schema does not name is a body the page must not render: it would
+// mean the route changed shape under a client that cannot read the change.
+const HISTORY_BUCKET_MEMBERS: readonly string[] = [
+  'bucket_start',
+  'batch_id',
+  'requested_at',
+  'published_at',
+  'risk_level',
+  'model_version',
+  'synthetic',
+];
+const HISTORY_ZONE_SERIES_MEMBERS: readonly string[] = ['zone_id', 'buckets'];
+const HISTORY_SERIES_MEMBERS: readonly string[] = ['from', 'to', 'granularity', 'series'];
+
+function onlyMembers(value: Record<string, unknown>, declared: readonly string[]): boolean {
+  return Object.keys(value).every((key) => declared.includes(key));
+}
+
+// The bucket vocabulary of the contract is closed (`bajo`, `medio`, `alto`,
+// `desconocido`), so a point outside it is refused instead of being rendered as
+// unclassified history the service never recorded.
+function isHistoryBucket(value: unknown): value is HistoryBucket {
+  return (
+    record(value) &&
+    onlyMembers(value, HISTORY_BUCKET_MEMBERS) &&
+    isInstant(value.bucket_start) &&
+    nonempty(value.batch_id) &&
+    isInstant(value.requested_at) &&
+    isInstant(value.published_at) &&
+    typeof value.risk_level === 'string' &&
+    (RISK_LEVELS as readonly string[]).includes(value.risk_level) &&
+    nonempty(value.model_version) &&
+    typeof value.synthetic === 'boolean'
+  );
+}
+
+// A zone is present only when it has a point, so an empty `buckets` array is a
+// series the contract says cannot exist: it is refused instead of being rendered
+// as a zone with no data.
+function isHistoryZoneSeries(value: unknown): value is HistoryZoneSeries {
+  return (
+    record(value) &&
+    onlyMembers(value, HISTORY_ZONE_SERIES_MEMBERS) &&
+    nonempty(value.zone_id) &&
+    Array.isArray(value.buckets) &&
+    value.buckets.length > 0 &&
+    value.buckets.every(isHistoryBucket)
+  );
+}
+
+function isHistorySeriesCollection(value: unknown): value is HistorySeriesCollection {
+  return (
+    record(value) &&
+    onlyMembers(value, HISTORY_SERIES_MEMBERS) &&
+    isInstant(value.from) &&
+    isInstant(value.to) &&
+    typeof value.granularity === 'string' &&
+    (HISTORY_GRANULARITIES as readonly string[]).includes(value.granularity) &&
+    Array.isArray(value.series) &&
+    value.series.every(isHistoryZoneSeries)
+  );
+}
+
+// Instants are compared as instants, not as spellings: the route canonicalises
+// both to UTC, which can re-spell the offset and the fractional seconds the page
+// sent without changing the window it accepted.
+function sameInstant(left: string, right: string): boolean {
+  const leftMs = Date.parse(left);
+  const rightMs = Date.parse(right);
+  return Number.isFinite(leftMs) && leftMs === rightMs;
+}
+
+// The series read. It fails closed before any request: a granularity outside the
+// closed vocabulary is `invalid_granularity`, a window that is not two RFC 3339
+// instants is `invalid_shape`, and an explicitly empty `zone_id` is `invalid_shape`
+// rather than an omitted parameter — omitting it asks for EVERY zone, so folding
+// an empty zone into the absence of a filter would widen the read behind the
+// caller's back. A body the guard cannot use is `malformed`, and an answer that
+// echoes ANOTHER window, granularity or zone is refused as a mismatch instead of
+// being rendered as this query's series.
+export async function historySeries(
+  query: HistorySeriesQuery,
+  signal?: AbortSignal,
+): Promise<Outcome<HistorySeriesCollection>> {
+  if (!(HISTORY_GRANULARITIES as readonly string[]).includes(query.granularity)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_granularity'));
+  }
+  if (!isInstant(query.from) || !isInstant(query.to)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape'));
+  }
+  // The field is optional, but when it is present it must name a zone.
+  if (query.zoneId !== undefined && !nonempty(query.zoneId)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape'));
+  }
+  const parameters = new URLSearchParams({
+    from: query.from,
+    to: query.to,
+    granularity: query.granularity,
+  });
+  if (query.zoneId !== undefined) parameters.set('zone_id', query.zoneId);
+  const result = await requestJson(
+    'historySeries',
+    `${gatewayOrigin}${HISTORY_SERIES_ROUTE}?${parameters.toString()}`,
+    { authenticated: true },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<HistorySeriesCollection>(result);
+  if (!isHistorySeriesCollection(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (
+    result.body.granularity !== query.granularity ||
+    !sameInstant(result.body.from, query.from) ||
+    !sameInstant(result.body.to, query.to)
+  ) {
+    return failureOutcome(failureSpec('malformed', 'window_mismatch', result.status, result.requestId));
+  }
+  if (query.zoneId !== undefined && result.body.series.some((entry) => entry.zone_id !== query.zoneId)) {
+    return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
 }
 
 // The aggregate body is an envelope, not the bare array `/history` serves: a bare
@@ -830,9 +1082,10 @@ function closedRecord(value: unknown, members: readonly string[]): value is Reco
 // as `2026-02-31` by rolling it into March, so this guard rejects a month outside
 // 1-12, a day outside the month (leap February included) and an hour, minute or
 // second outside 00-23, 00-59 and 00-59.
-const RFC3339_INSTANT = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$/;
-
-const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+// The instant grammar and the month table are declared once, beside `isInstant`
+// above: that guard, this one and the history-series window all read the same
+// RFC 3339 shape, and a second copy would be a second answer to one question.
+// The reading below uses only the civil fields, which both spellings capture.
 
 // The leap rule the calendar uses, not the one `year % 4` suggests: 1900 is not
 // a leap year and 2000 is.
@@ -1019,6 +1272,115 @@ export async function riskStatus(signal?: AbortSignal): Promise<Outcome<ServiceS
 export async function jobsStatus(signal?: AbortSignal): Promise<Outcome<ServiceSnapshot>> {
   const result = await requestJson('jobsStatus', `${gatewayOrigin}${routes.jobsStatus}`, { authenticated: true }, signal);
   return guardOutcome(result, isServiceSnapshot);
+}
+
+// --- Aggregate service status (PM-16 / S2) ---------------------------------
+//
+// `GET /v1/status` is answered by the gateway itself over four fixed status
+// surfaces. The body's order is part of the contract (risk, jobs, prevention,
+// inference) and so is the closed state vocabulary, so the guard compares the
+// served spelling against both instead of trusting the declaration: an unknown
+// service, a reordered list, an unknown state or a gateway entry that is not
+// `ready` rejects the WHOLE answer, and `ready` is never invented for an entry.
+//
+// A 503 is not a transport failure here. The contract states that a not-ready
+// service makes the aggregate answer 503 WITH THE SAME BODY, and that body is the
+// only place that says which service is not ready; so the read preserves it and
+// reports the code it arrived with. 200 and 503 are the only two codes the
+// contract documents, so any other accepted code (a 201, a 202, ...) is refused
+// rather than rewritten into a 200 the service did not send. Only an unreadable
+// body, an undocumented code, an incoherent code/body pair or a real transport
+// failure is a failure.
+export const SERVICE_ORDER = ['risk', 'jobs', 'prevention', 'inference'] as const;
+export type ServiceName = (typeof SERVICE_ORDER)[number];
+
+export const SERVICE_STATES = ['ready', 'degraded', 'unknown', 'unauthorized', 'not_configured'] as const;
+export type ServiceState = (typeof SERVICE_STATES)[number];
+
+export interface MultiserviceStatusEntry {
+  service: ServiceName;
+  state: ServiceState;
+}
+
+export interface MultiserviceStatus {
+  checked_at: string;
+  gateway: { state: 'ready' };
+  services: MultiserviceStatusEntry[];
+}
+
+// 200 only when no entry is degraded or unknown; 503 when at least one is. The
+// two states that make the aggregate answer 503 are named once so the guard, the
+// view and its tests cannot disagree about which ones they are.
+export function isUnreadyState(state: ServiceState): boolean {
+  return state === 'degraded' || state === 'unknown';
+}
+
+function isServiceState(value: unknown): value is ServiceState {
+  return typeof value === 'string' && SERVICE_STATES.includes(value as ServiceState);
+}
+
+// One state of the closed catalogue is positional: `not_configured` reports an
+// unset inference address, which only risk's inference evidence can state. The
+// gateway's operational parser (risk, jobs, prevention) has no way to emit it, so
+// accepting it there would render a state no service is able to report.
+function isServiceStateOf(service: ServiceName, value: unknown): value is ServiceState {
+  if (!isServiceState(value)) return false;
+  return value !== 'not_configured' || service === 'inference';
+}
+
+function isMultiserviceStatus(value: unknown): value is MultiserviceStatus {
+  if (!record(value)) return false;
+  if (!nonempty(value.checked_at)) return false;
+  if (!record(value.gateway) || value.gateway.state !== 'ready') return false;
+  if (!Array.isArray(value.services) || value.services.length !== SERVICE_ORDER.length) return false;
+  for (const [index, entry] of value.services.entries()) {
+    if (!record(entry)) return false;
+    const service = SERVICE_ORDER[index];
+    // The position is the contract: entry i must name service i, so a shuffled
+    // list can never be rendered under the order the server did not send. Once
+    // the name matches, the state is validated against that same service.
+    if (entry.service !== service) return false;
+    if (!isServiceStateOf(service, entry.state)) return false;
+  }
+  return true;
+}
+
+export type AggregateStatusOutcome =
+  | { ok: true; status: 200 | 503; data: MultiserviceStatus }
+  | { ok: false; failure: Failure };
+
+// `Outcome<T>`'s success branch carries no transport status, so the aggregate's
+// failure branch is built here with the very same shape every other read reports.
+function statusFailure(failure: Failure): AggregateStatusOutcome {
+  return { ok: false, failure };
+}
+
+export async function aggregateStatus(signal?: AbortSignal): Promise<AggregateStatusOutcome> {
+  const result = await requestJson(
+    'aggregateStatus',
+    `${gatewayOrigin}${AGGREGATE_STATUS_ROUTE}`,
+    { authenticated: true },
+    signal,
+  );
+  // The second arm is the documented not-ready answer, not an error: its body is
+  // the verdict and it is read exactly like the 200 one. The codes are named one
+  // by one on purpose: `response.ok` covers every 2xx, so testing the transport's
+  // own success flag here would accept a 201/202 and normalize it to 200.
+  const documented =
+    (result.state === 'ok' && result.status === 200) || (result.state === 'httpError' && result.status === 503);
+  if (!documented) return statusFailure(failureOf(result));
+  const status: 200 | 503 = result.status === 503 ? 503 : 200;
+  if (!isMultiserviceStatus(result.body)) {
+    return statusFailure(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  // The code and the body must agree: a 200 carrying a not-ready entry, or a 503
+  // carrying none, is an incoherent echo. It is refused rather than rendered as a
+  // verdict the service did not state.
+  const notReady = result.body.services.some(entry => isUnreadyState(entry.state));
+  if (notReady !== (status === 503)) {
+    return statusFailure(failureSpec('malformed', 'status_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, status, data: result.body };
 }
 
 // Fail-closed catalogue validation: only entries that state a non-empty `id`
@@ -1621,4 +1983,150 @@ export async function modelRegistry(signal?: AbortSignal): Promise<Outcome<Model
     return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
   }
   return { ok: true, data: { models: result.body.models, effective: result.body.effective } };
+}
+
+// --- PM-03: counterfactual simulation (`POST /v1/risk/simulate`) ------------
+//
+// The route re-applies the rule the stored batch recorded to substituted values
+// and writes nothing: no batch, no outbox event, no alert and no audit row. Three
+// properties travel with this code:
+//   1. the body names ONE zone and ONLY the canonical variables that were
+//      substituted — a request with no substitution is refused here, before the
+//      fetch, because the contract's `minProperties: 1` would answer 400 for it;
+//   2. the answer is refused when it echoes another zone or another stored batch,
+//      so a slow answer for a batch the operator never prefilled from can never be
+//      painted as that batch's counterfactual;
+//   3. `freshness` must still say `not_evaluated`: this route takes no staleness
+//      decision, and a value that claimed one would be a statement nobody made.
+//
+// The result is the stored rule applied to hypothetical values. It is not a
+// forecast, a probability or an official index, and the view says so.
+
+export const SIMULATION_VARIABLES = [
+  'temperatura',
+  'humedad_relativa',
+  'viento',
+  'cobertura_vegetal',
+  'incendios_historicos',
+] as const;
+
+export type SimulationVariable = (typeof SIMULATION_VARIABLES)[number];
+
+export interface SimulationFactor {
+  name: string;
+  known: boolean;
+  // Omitted when the variable is absent: a missing observation is never served
+  // as zero, and the page must not draw it as a measurement.
+  value?: number;
+  contribution?: number;
+}
+
+export interface SimulationAssessment {
+  level: string;
+  factors: SimulationFactor[];
+}
+
+export interface SimulationPolicy {
+  policy_id: string;
+  params_hash: string;
+}
+
+export interface SimulationResult {
+  batch_id: string;
+  zone_id: string;
+  model_version: string;
+  stored_level: string;
+  policy: SimulationPolicy;
+  computation_instant: string;
+  freshness: 'not_evaluated';
+  before: SimulationAssessment;
+  after: SimulationAssessment;
+  notice: string;
+}
+
+export interface SimulationInput {
+  readonly zoneId: string;
+  // The stored batch the page prefilled from. It is verified against the answer's
+  // echo and never travels in the body: the route always simulates the newest one.
+  readonly batchId: string;
+  readonly variables: Partial<Record<SimulationVariable, number | null>>;
+}
+
+const SIMULATION_ROUTE = '/v1/risk/simulate';
+
+// The five risk levels are a closed vocabulary: a level outside it is a contract
+// change, not a label to pass through to the page.
+function isRiskLevel(value: unknown): boolean {
+  return typeof value === 'string' && (RISK_LEVELS as readonly string[]).includes(value);
+}
+
+function isSimulationFactor(value: unknown): boolean {
+  if (!record(value) || !nonempty(value.name) || typeof value.known !== 'boolean') return false;
+  if (value.known) return Number.isFinite(value.value) && Number.isFinite(value.contribution);
+  return value.value === undefined && value.contribution === undefined;
+}
+
+// One assessment states a level and exactly one entry per canonical variable, in
+// canonical order: the five rows the page renders are the five variables the rule
+// actually used, and a missing or extra one is a contract change, not a gap to
+// fill in from elsewhere.
+function isSimulationAssessment(value: unknown): value is SimulationAssessment {
+  if (!record(value) || !isRiskLevel(value.level)) return false;
+  if (!Array.isArray(value.factors) || value.factors.length !== SIMULATION_VARIABLES.length) return false;
+  if (!value.factors.every(isSimulationFactor)) return false;
+  return value.factors.every((factor, index) => record(factor) && factor.name === SIMULATION_VARIABLES[index]);
+}
+
+function isSimulationResult(value: unknown): value is SimulationResult {
+  if (!record(value)) return false;
+  if (!nonempty(value.batch_id) || !nonempty(value.zone_id) || !nonempty(value.model_version)) return false;
+  if (!isRiskLevel(value.stored_level) || !nonempty(value.computation_instant) || !nonempty(value.notice)) return false;
+  if (value.freshness !== 'not_evaluated') return false;
+  if (!record(value.policy) || !nonempty(value.policy.policy_id) || !nonempty(value.policy.params_hash)) return false;
+  return isSimulationAssessment(value.before) && isSimulationAssessment(value.after);
+}
+
+// The substitution document. An absent variable is OMITTED rather than sent as
+// its stored value, so the request states exactly the counterfactual the operator
+// asked for and the service keeps the rest of the stored batch.
+export async function simulateRisk(input: SimulationInput, signal?: AbortSignal): Promise<Outcome<SimulationResult>> {
+  const zoneId = input.zoneId.trim();
+  const batchId = input.batchId.trim();
+  if (zoneId === '' || batchId === '') return failureOutcome(failureSpec('malformed', 'invalid_simulation'));
+  const variables: Partial<Record<SimulationVariable, number | null>> = {};
+  for (const name of SIMULATION_VARIABLES) {
+    const candidate = input.variables[name];
+    if (candidate === undefined) continue;
+    // `null` is the contract's own "force the variable to be absent"; anything
+    // that is neither null nor a finite number is refused instead of coerced.
+    if (candidate !== null && !Number.isFinite(candidate)) {
+      return failureOutcome(failureSpec('malformed', 'invalid_simulation'));
+    }
+    variables[name] = candidate;
+  }
+  if (Object.keys(variables).length === 0) {
+    return failureOutcome(failureSpec('malformed', 'invalid_simulation'));
+  }
+  const result = await requestJson(
+    'simulate',
+    `${gatewayOrigin}${SIMULATION_ROUTE}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ zone_id: zoneId, variables }),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<SimulationResult>(result);
+  if (!isSimulationResult(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (result.body.zone_id !== zoneId) {
+    return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
+  }
+  if (result.body.batch_id !== batchId) {
+    return failureOutcome(failureSpec('malformed', 'batch_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
 }

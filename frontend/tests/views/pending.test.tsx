@@ -53,16 +53,19 @@ test('every capability in the exported list renders as a row with its three colu
 
 // PM-10 / V1-P-07 — `GET /v1/audit` now returns the actor name, a free-text
 // detail and a per-row event identifier, and the audit view renders them, so the
-// entry that declared the opposite has left this inventory. Retiring a capability
-// is a one-row operation: the test pins both halves of it, the absence of the
-// retired entry and the untouched order of the rows that survive around it.
+// entry that declared the opposite has left this inventory. PM-04 removed a
+// second row for the same reason: `GET /v1/risk/history/series` answers every
+// zone that published in a bounded window, so «Historial de todas las zonas» is
+// no longer an absence. Retiring a capability is a one-row operation: the test
+// pins both halves of it, the absence of each retired entry and the untouched
+// order of the rows that survive around it.
 const RETIRED_AUDIT_CAPABILITY = 'Nombre del actor, detalle libre e id de evento';
+const RETIRED_ALL_ZONES_CAPABILITY = 'Historial de todas las zonas';
 
 const EXPECTED_CAPABILITIES = [
   'Cobertura y entorno por sector',
   'Contexto y prioridad por sector',
   'Estados candidate, in_progress, reviewed y closed',
-  'Historial de todas las zonas',
   'Revisar e incorporar registros, y hallazgos de calidad',
   'Publicar lote, avance manual y reevaluación',
 ];
@@ -81,8 +84,8 @@ test('the retired audit entry is gone and its neighbouring rows are untouched (P
   expect(capabilities).not.toContain(RETIRED_AUDIT_CAPABILITY);
   expect(document.getElementById('pending-rows')).not.toHaveTextContent(/nombre del actor/i);
 
-  // Nothing else moved: same six capabilities, same order. A retirement that also
-  // dropped, reordered or rewrote a neighbour is the regression this catches.
+  // Nothing else moved: same five capabilities, same order. A retirement that
+  // also dropped, reordered or rewrote a neighbour is the regression this catches.
   expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
   expect(NOT_IMPLEMENTED).toHaveLength(EXPECTED_CAPABILITIES.length);
 
@@ -99,6 +102,30 @@ test('the retired audit entry is gone and its neighbouring rows are untouched (P
     'La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.',
     'Tabla de sectores',
   ]);
+});
+
+// PM-04 / V1-P-04 — the series read answers every zone that published in the
+// bounded window, so the row that declared «Historial de todas las zonas» an
+// absence leaves the inventory. As with the audit retirement above, both halves
+// are pinned: the entry is gone from the exported list and from the rendering,
+// and the row count is the real one, not a stale copy of the old total.
+test('the retired all-zones history entry is gone and the count is the real one (PM-04 / V1-P-04)', () => {
+  render(<PendingView />);
+
+  const tbody = document.getElementById('pending-rows') as HTMLElement | null;
+  expect(tbody).not.toBeNull();
+  const rows = [...(tbody as HTMLElement).querySelectorAll('tr')];
+  const capabilities = rows.map(row => row.querySelector('td')?.textContent?.trim() ?? '');
+
+  expect(NOT_IMPLEMENTED.map(entry => entry.capability)).not.toContain(RETIRED_ALL_ZONES_CAPABILITY);
+  expect(capabilities).not.toContain(RETIRED_ALL_ZONES_CAPABILITY);
+  expect(document.getElementById('pending-rows')).not.toHaveTextContent(/historial de todas las zonas/i);
+
+  // Five rows: the row count the exported list and the rendering agree on.
+  expect(EXPECTED_CAPABILITIES).toHaveLength(5);
+  expect(NOT_IMPLEMENTED).toHaveLength(5);
+  expect(rows).toHaveLength(5);
+  expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
 });
 
 test('the view offers no button, link or interactive control for any listed capability', () => {
