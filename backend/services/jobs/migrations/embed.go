@@ -37,3 +37,12 @@ var AuditEventMetadata string
 //
 //go:embed 006_query_audit_writer.sql
 var QueryAuditWriter string
+
+// ComparisonAuditAction adds PM-05's named comparison action to the same narrow
+// writer. It is forward-only: it replaces the function body established by 006
+// with one extra WHEN branch, preserving the signature, the owner, the SECURITY
+// DEFINER attribute, the pinned search path, every existing action and the
+// existing grant. No filter parameter is added.
+//
+//go:embed 007_comparison_audit_action.sql
+var ComparisonAuditAction string

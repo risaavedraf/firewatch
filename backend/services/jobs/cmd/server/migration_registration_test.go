@@ -60,7 +60,7 @@ func TestMigrateRegistersAllForwardMigrations(t *testing.T) {
 		}
 		return true
 	})
-	expected := map[int]string{1: "Initial", 2: "Zones", 3: "SyntheticScenario", 4: "JobFailureState", 5: "AuditEventMetadata", 6: "QueryAuditWriter"}
+	expected := map[int]string{1: "Initial", 2: "Zones", 3: "SyntheticScenario", 4: "JobFailureState", 5: "AuditEventMetadata", 6: "QueryAuditWriter", 7: "ComparisonAuditAction"}
 	if len(registered) != len(expected) {
 		t.Fatalf("registered migrations = %v, want %v", registered, expected)
 	}
@@ -69,7 +69,7 @@ func TestMigrateRegistersAllForwardMigrations(t *testing.T) {
 			t.Fatalf("version %d SQL = %q, want %q", version, registered[version], name)
 		}
 	}
-	if migrations.Initial == "" || migrations.Zones == "" || migrations.SyntheticScenario == "" || migrations.JobFailureState == "" || migrations.AuditEventMetadata == "" || migrations.QueryAuditWriter == "" {
+	if migrations.Initial == "" || migrations.Zones == "" || migrations.SyntheticScenario == "" || migrations.JobFailureState == "" || migrations.AuditEventMetadata == "" || migrations.QueryAuditWriter == "" || migrations.ComparisonAuditAction == "" {
 		t.Fatal("registered SQL is empty")
 	}
 }

@@ -125,6 +125,7 @@ type RequestKind =
   | 'createObservation'
   | 'adoptObservation'
   | 'models'
+  | 'simulate'
   | 'users';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
@@ -1553,4 +1554,150 @@ export async function modelRegistry(signal?: AbortSignal): Promise<Outcome<Model
     return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
   }
   return { ok: true, data: { models: result.body.models, effective: result.body.effective } };
+}
+
+// --- PM-03: counterfactual simulation (`POST /v1/risk/simulate`) ------------
+//
+// The route re-applies the rule the stored batch recorded to substituted values
+// and writes nothing: no batch, no outbox event, no alert and no audit row. Three
+// properties travel with this code:
+//   1. the body names ONE zone and ONLY the canonical variables that were
+//      substituted — a request with no substitution is refused here, before the
+//      fetch, because the contract's `minProperties: 1` would answer 400 for it;
+//   2. the answer is refused when it echoes another zone or another stored batch,
+//      so a slow answer for a batch the operator never prefilled from can never be
+//      painted as that batch's counterfactual;
+//   3. `freshness` must still say `not_evaluated`: this route takes no staleness
+//      decision, and a value that claimed one would be a statement nobody made.
+//
+// The result is the stored rule applied to hypothetical values. It is not a
+// forecast, a probability or an official index, and the view says so.
+
+export const SIMULATION_VARIABLES = [
+  'temperatura',
+  'humedad_relativa',
+  'viento',
+  'cobertura_vegetal',
+  'incendios_historicos',
+] as const;
+
+export type SimulationVariable = (typeof SIMULATION_VARIABLES)[number];
+
+export interface SimulationFactor {
+  name: string;
+  known: boolean;
+  // Omitted when the variable is absent: a missing observation is never served
+  // as zero, and the page must not draw it as a measurement.
+  value?: number;
+  contribution?: number;
+}
+
+export interface SimulationAssessment {
+  level: string;
+  factors: SimulationFactor[];
+}
+
+export interface SimulationPolicy {
+  policy_id: string;
+  params_hash: string;
+}
+
+export interface SimulationResult {
+  batch_id: string;
+  zone_id: string;
+  model_version: string;
+  stored_level: string;
+  policy: SimulationPolicy;
+  computation_instant: string;
+  freshness: 'not_evaluated';
+  before: SimulationAssessment;
+  after: SimulationAssessment;
+  notice: string;
+}
+
+export interface SimulationInput {
+  readonly zoneId: string;
+  // The stored batch the page prefilled from. It is verified against the answer's
+  // echo and never travels in the body: the route always simulates the newest one.
+  readonly batchId: string;
+  readonly variables: Partial<Record<SimulationVariable, number | null>>;
+}
+
+const SIMULATION_ROUTE = '/v1/risk/simulate';
+
+// The five risk levels are a closed vocabulary: a level outside it is a contract
+// change, not a label to pass through to the page.
+function isRiskLevel(value: unknown): boolean {
+  return typeof value === 'string' && (RISK_LEVELS as readonly string[]).includes(value);
+}
+
+function isSimulationFactor(value: unknown): boolean {
+  if (!record(value) || !nonempty(value.name) || typeof value.known !== 'boolean') return false;
+  if (value.known) return Number.isFinite(value.value) && Number.isFinite(value.contribution);
+  return value.value === undefined && value.contribution === undefined;
+}
+
+// One assessment states a level and exactly one entry per canonical variable, in
+// canonical order: the five rows the page renders are the five variables the rule
+// actually used, and a missing or extra one is a contract change, not a gap to
+// fill in from elsewhere.
+function isSimulationAssessment(value: unknown): value is SimulationAssessment {
+  if (!record(value) || !isRiskLevel(value.level)) return false;
+  if (!Array.isArray(value.factors) || value.factors.length !== SIMULATION_VARIABLES.length) return false;
+  if (!value.factors.every(isSimulationFactor)) return false;
+  return value.factors.every((factor, index) => record(factor) && factor.name === SIMULATION_VARIABLES[index]);
+}
+
+function isSimulationResult(value: unknown): value is SimulationResult {
+  if (!record(value)) return false;
+  if (!nonempty(value.batch_id) || !nonempty(value.zone_id) || !nonempty(value.model_version)) return false;
+  if (!isRiskLevel(value.stored_level) || !nonempty(value.computation_instant) || !nonempty(value.notice)) return false;
+  if (value.freshness !== 'not_evaluated') return false;
+  if (!record(value.policy) || !nonempty(value.policy.policy_id) || !nonempty(value.policy.params_hash)) return false;
+  return isSimulationAssessment(value.before) && isSimulationAssessment(value.after);
+}
+
+// The substitution document. An absent variable is OMITTED rather than sent as
+// its stored value, so the request states exactly the counterfactual the operator
+// asked for and the service keeps the rest of the stored batch.
+export async function simulateRisk(input: SimulationInput, signal?: AbortSignal): Promise<Outcome<SimulationResult>> {
+  const zoneId = input.zoneId.trim();
+  const batchId = input.batchId.trim();
+  if (zoneId === '' || batchId === '') return failureOutcome(failureSpec('malformed', 'invalid_simulation'));
+  const variables: Partial<Record<SimulationVariable, number | null>> = {};
+  for (const name of SIMULATION_VARIABLES) {
+    const candidate = input.variables[name];
+    if (candidate === undefined) continue;
+    // `null` is the contract's own "force the variable to be absent"; anything
+    // that is neither null nor a finite number is refused instead of coerced.
+    if (candidate !== null && !Number.isFinite(candidate)) {
+      return failureOutcome(failureSpec('malformed', 'invalid_simulation'));
+    }
+    variables[name] = candidate;
+  }
+  if (Object.keys(variables).length === 0) {
+    return failureOutcome(failureSpec('malformed', 'invalid_simulation'));
+  }
+  const result = await requestJson(
+    'simulate',
+    `${gatewayOrigin}${SIMULATION_ROUTE}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ zone_id: zoneId, variables }),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<SimulationResult>(result);
+  if (!isSimulationResult(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (result.body.zone_id !== zoneId) {
+    return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
+  }
+  if (result.body.batch_id !== batchId) {
+    return failureOutcome(failureSpec('malformed', 'batch_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
 }

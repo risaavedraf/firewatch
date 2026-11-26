@@ -461,6 +461,79 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/compare:
+    get:
+      operationId: compareZoneRisk
+      description: >-
+        Viewer/admin. Two or three catalogue zones compared in one request: each
+        zone's stored assessment at a shared cutoff, plus PM-04's history
+        semantics inside a required window. It is additive - the single-zone
+        reads, their bodies and their vocabulary are unchanged - and it is the
+        first risk read that accepts a zone list.
+
+        zone_ids is one required comma-separated parameter naming two or three
+        distinct catalogue zones. The answer echoes them in the caller's order,
+        including a zone with no eligible batch, so position is the comparison
+        axis. A repeated or unknown parameter, a missing or empty parameter, an
+        unreadable encoding, a list of any other size, an empty entry, a
+        granularity outside the closed vocabulary, and an unparseable, empty,
+        reversed or over-long window are rejected with invalid_comparison_query
+        before storage is read. A duplicate entry or an entry naming no catalogue
+        zone is rejected with invalid_zone; membership costs one catalogue lookup
+        per requested zone. No rejected query reads a batch.
+
+        Each zone's assessment is the newest by requested_at (then by descending
+        batch ID) among batches requested and published strictly before to, the
+        cutoff shared by all requested zones. It may be older than from, and a zone
+        without a publication in the window can show its previous assessment with
+        its own requested_at and published_at. A zone with no batch at all before
+        to answers assessment null - no evaluation was ever stored - while a
+        recorded level of desconocido is an assessment like any other and is
+        distinguished from null: the inputs were insufficient, and a batch said
+        so. factors, model_version and synthetic are read from that stored batch.
+        No freshness is derived: data_status, notice and valid_until are absent,
+        exactly as on a history bucket.
+
+        history carries only the [from,to) window, through the same bucket
+        expressions, half-open interval and newest-batch rule as
+        GET /v1/risk/history/series. History uses requested_at independently of
+        publication time, and is empty when the zone has no request in the window. There is deliberately no priority member: a comparison
+        shows the axes that exist today, and a fourth one would be fabricated data.
+      parameters:
+        - $ref: '#/components/parameters/ComparisonZoneIDs'
+        - $ref: '#/components/parameters/SeriesFrom'
+        - $ref: '#/components/parameters/SeriesTo'
+        - $ref: '#/components/parameters/SeriesGranularity'
+      responses:
+        '200':
+          description: >-
+            One element per requested zone, in the requested order, each with its
+            shared-cutoff assessment (null when the zone has no eligible batch)
+            and its chronological buckets inside the window (an empty array when
+            it published nothing there). The echoed from, to and granularity are
+            the accepted ones, with both instants in UTC.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ComparisonCollection'}
+        '400':
+          description: >-
+            Rejected before any batch read. The response code is
+            invalid_comparison_query for a missing, repeated, empty or unknown
+            parameter, a zone list outside two or three entries or with an empty
+            entry, a granularity outside the closed vocabulary, or an unparseable,
+            empty, reversed or over-long window, and invalid_zone for a duplicate
+            entry or an entry absent from the catalogue.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
   /v1/risk/batches:
     get:
       operationId: listLatestBatchesPerZone
@@ -483,6 +556,111 @@ paths:
               schema: {$ref: '#/components/schemas/BatchCollection'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/simulate:
+    post:
+      operationId: simulateRiskBatch
+      description: >-
+        Viewer/admin. Counterfactual recalculation of the newest stored batch of
+        one zone: the same rule that produced the stored level is applied again
+        to the stored variables (before) and to the caller's substituted variables
+        (after), and both results are returned. Nothing is published: the route
+        writes no batch, no outbox event, no alert and no audit row, and it
+        performs no inference call. The recomputation is local arithmetic over a
+        built-in rule, so it stays answerable without the inference service.
+
+        Only a built-in rule this service can rebuild is simulated. The version
+        recorded on the batch selects the rule, and the policy reference recorded
+        with the batch must match it exactly: the same policy_id, the fingerprint
+        of the reconstructed parameter set, and a parameter map that hashes to
+        that fingerprint. When any of those cannot be reproduced - a row written
+        before policy persistence, a different identifier or fingerprint, a
+        fixture executed by the inference service, a trained artifact or a
+        placeholder - the answer is 422 unsupported_original_rule. This service
+        never falls back to the currently active or default model, because the
+        result would then describe a policy that did not produce the stored level.
+
+        Both evaluations pin the observation and evaluation instant to the batch's
+        recorded request instant. That is what makes before and after comparable
+        and the answer reproducible, and it is why freshness is reported as
+        `not_evaluated`: this route takes no staleness decision and claims nothing
+        about whether the stored data is current. The result is the stored rule
+        applied to hypothetical values. It is not a forecast, not a probability,
+        not an official index and not a new publication forecast.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SimulationRequest'}
+      responses:
+        '200':
+          description: >-
+            The stored batch's identity, its stored level, the recorded policy
+            identity, both recomputed assessments and the explicit freshness
+            status. No row was written.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SimulationResult'}
+        '400':
+          description: >-
+            The body is not one JSON object of at most 4096 bytes with zone_id
+            and a non-empty subset of the five canonical variables
+            (invalid_simulation): an unknown member, a duplicate member, trailing
+            input, a missing or empty member, a variable outside the canonical
+            vocabulary, a value that is neither a number nor null, and a
+            non-finite number are all refused before storage is read. A zone
+            absent from the catalogue is invalid_zone, exactly as the per-zone
+            reads answer it.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404':
+          description: >-
+            The zone has no published batch, so there is no stored rule to
+            simulate. This is the same empty-state answer /v1/risk/latest
+            serves: code and data_status, and no request_id.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, data_status]
+                properties:
+                  code: {type: string, enum: [no_published_batch]}
+                  data_status: {type: string, enum: [insufficient]}
+        '415':
+          description: JSON content type required (json_required).
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '422':
+          description: >-
+            The stored batch's rule cannot be reproduced locally
+            (unsupported_original_rule): no recorded policy reference, a different
+            policy identifier or fingerprint, a reference that does not carry the
+            parameters it fingerprints, a model version that is not a built-in
+            rule, unreadable stored factors, or no recorded request instant. No
+            fallback policy is used and no level is returned.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1032,10 +1210,12 @@ paths:
         synthesized name. The application role can only select and insert audit
         rows; it cannot update or delete them. The gateway records successful
         GETs for latest risk, historical risk, its CSV export and the granular
-        history series, aggregate published batches, observations, and the
-        preventive-action collection and detail. It does not record this endpoint,
-        catalogues, geometry requests, or failed upstream reads. If recording a
-        selected successful result fails, that read returns 503
+        history series, the multi-zone comparison, aggregate published batches,
+        observations, and the preventive-action collection and detail. The
+        comparison is recorded under its own named action, risk.compare.read, so
+        the trail distinguishes it from the history reads. It does not record this
+        endpoint, catalogues, geometry requests, or failed upstream reads. If
+        recording a selected successful result fails, that read returns 503
         storage_unavailable instead of the upstream success.
       responses:
         '200':
@@ -1074,14 +1254,18 @@ paths:
                         (GET /v1/risk/latest), risk.history.read (GET /v1/risk/history,
                         its CSV export at GET /v1/risk/history.csv, or the granular
                         series at GET /v1/risk/history/series), risk.batches.read
-                        (GET /v1/risk/batches), prevention.observations.read
+                        (GET /v1/risk/batches), risk.compare.read
+                        (GET /v1/risk/compare), prevention.observations.read
                         (GET /v1/prevention/observations), and
                         prevention.actions.read (GET /v1/prevention/actions or its
                         action detail). The series is the same historical risk
                         collection read at another granularity, so it shares the
-                        action instead of widening the vocabulary. Request query
-                        parameters, tokens and resource IDs are not copied into the
-                        record.
+                        action instead of widening the vocabulary. The comparison
+                        takes its own action because it is a different question -
+                        several zones at one shared cutoff, against the historical
+                        risk collection of a single zone - and the trail has to
+                        tell them apart. Request query parameters, tokens and
+                        resource IDs are not copied into the record.
                     event_kind:
                       type: string
                       enum: [mutation, query]
@@ -2045,6 +2229,21 @@ components:
           series. A value that names no catalogue zone is rejected with
           invalid_zone, and a repeated or empty value is rejected the same way,
           exactly as the required single-zone reads do it.
+    ComparisonZoneIDs:
+      in: query
+      name: zone_ids
+      required: true
+      schema:
+        type: string
+        example: '05101,05201,05301'
+        description: >-
+          Two or three distinct catalogue zone codes, comma-separated, in one
+          parameter. The answer echoes them in this order, so position is the
+          comparison axis. No whitespace is trimmed and no code is normalised: an
+          entry is a catalogue code as written, or the catalogue refuses it. Two
+          is the minimum that makes a comparison and three is the maximum the
+          view has axes for; any other size is rejected rather than truncated or
+          padded.
     SeriesFrom:
       in: query
       name: from
@@ -2842,6 +3041,141 @@ components:
             One element per zone with at least one published batch, ordered by
             zone_id ascending. A zone with no published batch is absent.
           items: {$ref: '#/components/schemas/ZoneBatch'}
+    SimulationRequest:
+      type: object
+      description: >-
+        The counterfactual document: one catalogue zone and the variables to
+        substitute. It is a closed object of at most 4096 bytes; an unknown member,
+        a duplicate member or trailing input is refused with invalid_simulation.
+      additionalProperties: false
+      required: [zone_id, variables]
+      properties:
+        zone_id:
+          type: string
+          minLength: 1
+          example: '05101'
+          description: >-
+            Catalogue zone code whose newest stored batch is simulated. The accepted
+            set is the zone catalogue, served by the zones endpoint, so it is
+            deliberately not an enum: an enum would drift from the table.
+        variables:
+          type: object
+          description: >-
+            Non-empty subset of the five canonical variables. A number replaces the
+            observation stored with the batch; null forces the variable to be
+            absent, which is not the same as zero and makes the rule answer
+            desconocido.
+          additionalProperties: false
+          minProperties: 1
+          properties:
+            temperatura: {$ref: '#/components/schemas/SimulationVariableValue'}
+            humedad_relativa: {$ref: '#/components/schemas/SimulationVariableValue'}
+            viento: {$ref: '#/components/schemas/SimulationVariableValue'}
+            cobertura_vegetal: {$ref: '#/components/schemas/SimulationVariableValue'}
+            incendios_historicos: {$ref: '#/components/schemas/SimulationVariableValue'}
+    SimulationVariableValue:
+      type: number
+      nullable: true
+      description: >-
+        A substituted observation, or null to force the variable to be absent. The
+        value is scored by the stored rule exactly as a stored factor is; this route
+        does not validate it against a plausible range, so the caller is responsible
+        for the counterfactual it asks for.
+    SimulationResult:
+      type: object
+      description: >-
+        One counterfactual recalculation. It is a read: the stored batch, its level
+        and every published row are untouched. The answer states the stored rule
+        identity, the stored level, both recomputations and the explicit freshness
+        status; it carries no forecast, probability or horizon, and its notice says
+        so.
+      additionalProperties: false
+      required:
+        - batch_id
+        - zone_id
+        - model_version
+        - stored_level
+        - policy
+        - computation_instant
+        - freshness
+        - before
+        - after
+        - notice
+      properties:
+        batch_id: {type: string, format: uuid}
+        zone_id: {type: string}
+        model_version:
+          type: string
+          description: >-
+            The rule version recorded on the stored batch and rebuilt for this
+            answer. It is never the currently active model: a batch whose version
+            cannot be rebuilt is refused instead.
+        stored_level:
+          type: string
+          enum: [bajo, medio, alto, desconocido]
+          description: >-
+            The level persisted with the batch, quoted unchanged so the caller can
+            compare it with the recomputed before without a second read.
+        policy: {$ref: '#/components/schemas/SimulationPolicy'}
+        computation_instant:
+          type: string
+          format: date-time
+          description: >-
+            The single instant used as both the observation and the evaluation
+            instant of both recomputations: the batch's recorded request instant.
+        freshness:
+          type: string
+          enum: [not_evaluated]
+          description: >-
+            Always not_evaluated. Both instants are pinned to the batch's recorded
+            instant, so no staleness comparison is taken here and the answer says
+            nothing about whether the stored data is current.
+        before: {$ref: '#/components/schemas/SimulationAssessment'}
+        after: {$ref: '#/components/schemas/SimulationAssessment'}
+        notice:
+          type: string
+          description: >-
+            The declaration that this is a counterfactual application of the stored
+            rule, not a forecast or an official index, and that no published row
+            changed.
+    SimulationPolicy:
+      type: object
+      description: >-
+        The policy identity recorded with the stored batch, after it was verified
+        against the rule rebuilt here: the identifier and the fingerprint of the
+        parameter set. The parameter map itself is not repeated because the batch
+        read already serves it.
+      additionalProperties: false
+      required: [policy_id, params_hash]
+      properties:
+        policy_id: {type: string}
+        params_hash: {type: string}
+    SimulationAssessment:
+      type: object
+      description: One recomputation of the stored rule.
+      additionalProperties: false
+      required: [level, factors]
+      properties:
+        level: {type: string, enum: [bajo, medio, alto, desconocido]}
+        factors:
+          type: array
+          description: >-
+            One entry per canonical variable, in canonical order. An absent variable
+            carries known=false and neither value nor contribution.
+          items: {$ref: '#/components/schemas/SimulationFactor'}
+    SimulationFactor:
+      type: object
+      description: >-
+        One canonical variable of a recomputation. value and contribution are
+        omitted when the variable is absent: a missing observation is never served
+        as zero.
+      additionalProperties: false
+      required: [name, known]
+      properties:
+        name: {type: string}
+        known: {type: boolean}
+        value: {type: number}
+        contribution: {type: number}
     HistoryBucket:
       type: object
       description: >-
@@ -2956,6 +3290,111 @@ components:
             One element per zone with at least one batch in the window, ordered
             by zone_id ascending.
           items: {$ref: '#/components/schemas/HistoryZoneSeries'}
+    ComparisonAssessment:
+      type: object
+      nullable: true
+      description: >-
+        One zone's stored assessment at the shared cutoff, or null when there is
+        no eligible batch. It is deliberately
+        narrower than Batch: it carries the recorded risk, its factors and its
+        provenance, and no freshness, because data_status, notice and valid_until
+        describe the current state of a batch and would make an old assessment
+        look fresh when it is read today.
+      required: [batch_id, requested_at, published_at, risk_level, factors, model_version, synthetic]
+      additionalProperties: false
+      properties:
+        batch_id:
+          type: string
+          format: uuid
+          description: >-
+            Identity of the batch the assessment reports. It can be fetched from
+            the per-zone reads, so the comparison is attributable to stored rows.
+        requested_at:
+          type: string
+          format: date-time
+          description: >-
+            Request instant of that batch. It is the assessment's own date: a zone
+            compared at the shared cutoff may report an assessment older than
+            from, and this member says when it was requested.
+        published_at:
+          type: string
+          format: date-time
+          description: >-
+            Publication instant of that batch. It is provenance, not freshness.
+        risk_level:
+          type: string
+          enum: [bajo, medio, alto, desconocido]
+          description: >-
+            The recorded level, including desconocido. A null assessment means no
+            batch was ever stored before the cutoff; desconocido means a stored
+            batch recorded that its inputs were insufficient. The two are never
+            collapsed.
+        factors:
+          type: array
+          description: >-
+            The stored factors document, read verbatim and never recomputed from
+            the current inputs.
+          items: {type: object}
+        model_version:
+          type: string
+          example: academic-rule-v1
+          description: >-
+            Classifier version that produced the batch, read from the stored row.
+        synthetic:
+          type: boolean
+          description: >-
+            The batch's own demo flag, read and never inferred: true means the
+            assessment came from a synthetic or demonstrative input.
+    ComparisonZone:
+      type: object
+      description: >-
+        One comparison axis. The zone appears because the caller named it, not
+        because it has data, so assessment and history can both be empty.
+      required: [zone_id, assessment, history]
+      additionalProperties: false
+      properties:
+        zone_id:
+          type: string
+          example: '05101'
+          description: >-
+            Catalogue zone code, echoed in the requested order. The accepted set
+            is whatever the catalogue holds, so it is deliberately not an enum.
+        assessment: {$ref: '#/components/schemas/ComparisonAssessment'}
+        history:
+          type: array
+          description: >-
+            The zone's PM-04 buckets inside [from,to) only, in chronological
+            order, with an empty array when there is no publication in the window.
+          items: {$ref: '#/components/schemas/HistoryBucket'}
+    ComparisonCollection:
+      type: object
+      description: >-
+        The comparison read's body. zones is never null and follows the requested
+        order; there is no priority member, because a measure the domain does not
+        have would be fabricated data.
+      required: [from, to, granularity, zones]
+      additionalProperties: false
+      properties:
+        from:
+          type: string
+          format: date-time
+          description: The accepted window opening instant, in UTC.
+        to:
+          type: string
+          format: date-time
+          description: The accepted window closing instant, in UTC.
+        granularity:
+          type: string
+          enum: [hour, day, week]
+          description: >-
+            The accepted bucket size, echoed so a cached answer is attributable.
+        zones:
+          type: array
+          description: >-
+            One element per requested zone, in the requested order, including a
+            zone with no eligible batch and a zone with no publication inside the
+            window.
+          items: {$ref: '#/components/schemas/ComparisonZone'}
     AlertLevel:
       type: string
       description: >-
