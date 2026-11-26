@@ -38,7 +38,7 @@ export type PermissionRow = {
 //   backend/services/risk/internal/handler/security.go:58-59 accepts a token
 //     whose realm_access.roles contains "viewer" OR "admin"; line 64 answers any
 //     other role with 403 (an unverifiable token is 401 instead).
-//   backend/services/risk/internal/handler/api.go:86 wraps the whole risk mux.
+//   backend/services/risk/internal/handler/api.go:115 wraps the whole risk mux.
 //   backend/services/jobs/internal/handler/security.go:43-44 accepts ONLY "admin";
 //     line 49 answers a verified viewer with 403.
 //   backend/services/jobs/internal/handler/api.go:236 wraps the whole jobs mux:
@@ -69,9 +69,9 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:62',
+      'backend/services/risk/internal/handler/api.go:73',
       'backend/services/risk/internal/handler/security.go:59',
-      'backend/services/risk/internal/handler/api.go:86',
+      'backend/services/risk/internal/handler/api.go:115',
     ],
   },
   {
@@ -79,7 +79,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:63',
+      'backend/services/risk/internal/handler/api.go:74',
       'backend/services/risk/internal/handler/security.go:59',
     ],
   },
@@ -89,7 +89,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:69',
+      'backend/services/risk/internal/handler/api.go:98',
       'backend/services/risk/internal/handler/security.go:59',
     ],
   },
@@ -98,7 +98,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:64',
+      'backend/services/risk/internal/handler/api.go:75',
       'backend/services/risk/internal/handler/security.go:59',
     ],
   },
@@ -107,7 +107,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:73',
+      'backend/services/risk/internal/handler/api.go:102',
       'backend/services/risk/internal/handler/security.go:59',
     ],
   },
@@ -116,7 +116,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:74',
+      'backend/services/risk/internal/handler/api.go:103',
       'backend/services/risk/internal/handler/security.go:59',
     ],
   },
@@ -125,7 +125,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     viewer: 'Sí',
     admin: 'Sí',
     guards: [
-      'backend/services/risk/internal/handler/api.go:85',
+      'backend/services/risk/internal/handler/api.go:114',
       'backend/services/risk/internal/handler/security.go:59',
     ],
   },
@@ -320,7 +320,7 @@ export function SessionView() {
             fila cita la guarda por <code>ruta:línea</code>:{' '}
             <code>backend/services/risk/internal/handler/security.go:59</code> acepta <code>viewer</code> o{' '}
             <code>admin</code> y <code>backend/services/jobs/internal/handler/security.go:44</code> acepta solo{' '}
-            <code>admin</code>, con <code>backend/services/risk/internal/handler/api.go:86</code> y{' '}
+            <code>admin</code>, con <code>backend/services/risk/internal/handler/api.go:115</code> y{' '}
             <code>backend/services/jobs/internal/handler/api.go:236</code> envolviendo sus mux completos. Un
             token verificado sin ninguno de esos roles recibe 403; un token que no se puede verificar recibe 401.
           </p>
