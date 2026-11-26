@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"sort"
 	"time"
 )
 
@@ -48,4 +49,57 @@ func (s Store) ExecutiveBatches(ctx context.Context) ([][]Batch, error) {
 		}
 	}
 	return groups, rows.Err()
+}
+
+// ExecutiveAlertCount counts every row the alert writer has stored, for the
+// executive summary. It applies no filter at all: the count answers "how many
+// level-change alerts exist", so it deliberately invents neither a read flag nor
+// a dismissed flag - the alert lifecycle belongs to PM-08, and a count that
+// silently excluded some rows would state a number the table does not hold.
+//
+// It is a separate read rather than part of ExecutiveBatches because the two
+// answer unrelated questions over unrelated tables; folding them into one
+// snapshot would tie the catalogue read to the alert table's availability.
+func (s Store) ExecutiveAlertCount(ctx context.Context) (int, error) {
+	var count int
+	err := s.DB.QueryRow(ctx, `SELECT count(*) FROM risk_alerts`).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// criticalLevel is the level D-B ("Alto sostenido dos lotes") requires in both of
+// a zone's two newest published batches. It is a named constant so the rule reads
+// as the definition and cannot drift from the label the panel shows.
+const criticalLevel = "alto"
+
+// CriticalZones applies D-B to the snapshot ExecutiveBatches returned: a zone is
+// critical exactly when its two newest published batches both carry level "alto".
+//
+// The definition is the responsible's own text, so this function adds nothing to
+// it: a zone with a single batch never enters, and neither does a zone whose
+// newest two batches are "alto" then any other level. Freshness is not part of
+// the rule - an old "alto" pair still counts, because the summary's coverage block
+// already states how many zones are stale - and neither is comparability: D-B
+// asks about the levels of the two stored batches, not about whether they came
+// from the same model version, demo flag or scenario, which is what the delta
+// block compares.
+//
+// The answer is ordered by zone code and never nil, so an empty catalogue
+// serialises as [] rather than null and two calls over the same snapshot return
+// the same list in the same order.
+func CriticalZones(groups [][]Batch) []string {
+	zones := []string{}
+	for _, batches := range groups {
+		if len(batches) < 2 {
+			continue
+		}
+		if batches[0].RiskLevel != criticalLevel || batches[1].RiskLevel != criticalLevel {
+			continue
+		}
+		zones = append(zones, batches[0].ZoneID)
+	}
+	sort.Strings(zones)
+	return zones
 }
