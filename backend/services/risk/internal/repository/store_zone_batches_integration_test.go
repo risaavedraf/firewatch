@@ -74,13 +74,14 @@ func TestLatestPerZoneAnswersTheNewestBatchOfEveryZone(t *testing.T) {
 	if err := db.QueryRow(ctx, `SELECT max(requested_at) FROM batches WHERE zone_id = $1`, batched).Scan(&storedNewest); err != nil {
 		t.Fatalf("read the newest stored requested_at of zone %q: %v", batched, err)
 	}
-	if storedNewest != nil && !storedNewest.Before(newestRequestedAt) {
-		newestRequestedAt = storedNewest.Add(time.Minute).UTC()
+	if storedNewest != nil && !storedNewest.Before(newestRequestedAt.Add(-time.Minute)) {
+		newestRequestedAt = storedNewest.Add(2 * time.Minute).UTC()
 	}
 
 	assessment := Assessment{
 		ModelVersion: "academic-rule-v1",
 		RiskLevel:    "alto",
+		Demo:         true,
 		Factors: []classify.Factor{{
 			Name:         "temperatura",
 			Known:        true,
@@ -94,6 +95,7 @@ func TestLatestPerZoneAnswersTheNewestBatchOfEveryZone(t *testing.T) {
 	// the newest requested_at is written in the middle, so "the newest batch" and
 	// "the last row this test wrote" cannot be conflated.
 	newestJobID := uuid.NewString()
+	previousJobID := uuid.NewString()
 	for _, requestedAt := range []time.Time{
 		newestRequestedAt.Add(-time.Minute),
 		newestRequestedAt,
@@ -111,6 +113,8 @@ func TestLatestPerZoneAnswersTheNewestBatchOfEveryZone(t *testing.T) {
 		}
 		if requestedAt.Equal(newestRequestedAt) {
 			newestJobID = event.JobID
+		} else if requestedAt.Equal(newestRequestedAt.Add(-time.Minute)) {
+			previousJobID = event.JobID
 		}
 		if err := s.Publish(ctx, event, assessment); err != nil {
 			t.Fatalf("publish a batch requested at %s: %v", requestedAt, err)
@@ -189,4 +193,33 @@ func TestLatestPerZoneAnswersTheNewestBatchOfEveryZone(t *testing.T) {
 	if element.DataStatus != "current" && element.DataStatus != "stale" {
 		t.Fatalf("the aggregate element carries data_status %q", element.DataStatus)
 	}
+
+	t.Run("executive summary snapshot", func(t *testing.T) {
+		groups, err := s.ExecutiveBatches(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var catalogueCount int
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM zones`).Scan(&catalogueCount); err != nil {
+			t.Fatal(err)
+		}
+		if len(groups) != catalogueCount {
+			t.Fatalf("got %d groups for %d catalogue zones", len(groups), catalogueCount)
+		}
+		var previousID string
+		if err := db.QueryRow(ctx, `SELECT id::text FROM batches WHERE job_id=$1`, previousJobID).Scan(&previousID); err != nil {
+			t.Fatal(err)
+		}
+		for _, pair := range groups {
+			if len(pair) == 0 || pair[0].ZoneID != batched {
+				continue
+			}
+			if len(pair) != 2 || pair[0].ID != element.ID || pair[1].ID != previousID ||
+				pair[0].RiskLevel != "alto" || !pair[0].Demo || len(pair[0].Factors) == 0 {
+				t.Fatalf("wrong newest pair: %+v", pair)
+			}
+			return
+		}
+		t.Fatalf("snapshot omitted seeded zone %q", batched)
+	})
 }
