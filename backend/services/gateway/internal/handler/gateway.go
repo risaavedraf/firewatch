@@ -212,7 +212,15 @@ func newGateway(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin st
 		// A preflight is answered before the rate limiter and before the bearer
 		// check, so it consumes no tokens and needs no Authorization header.
 		if crossOrigin && r.Method == http.MethodOptions {
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			// The personal alert-state mark is the only PUT this origin serves in
+			// this slice. It is advertised only when this preflight asks for that
+			// exact method and path; every sibling, other verb, malformed path and
+			// off-origin request keeps the previous list byte for byte.
+			methods := legacyPreflightMethods
+			if alertStatePreflight(r) {
+				methods = personalStatePreflightMethods
+			}
+			w.Header().Set("Access-Control-Allow-Methods", methods)
 			// An explicit allow-list, not a wildcard: the page sends
 			// Idempotency-Key on the job POST and the jobs service rejects the
 			// request without it, so the browser must be allowed to send it.

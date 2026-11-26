@@ -55,6 +55,16 @@ type fakeStore struct {
 	alertPage    repository.AlertPage
 	alertErr     error
 	alertQueries []repository.AlertPageQuery
+	// Personal notification state for the PM-08 state routes. stateReads and
+	// markWrites record the (alert, subject key) pair the route asked about, so a
+	// test can prove the actor came from the verified token and never from the
+	// request; alertStates mirrors the append-only monotonic rule closely enough to
+	// exercise the no-op answer without a database.
+	alertStates   map[string]repository.AlertState
+	missingAlerts map[string]bool
+	alertStateErr error
+	stateReads    []alertStateKey
+	markWrites    []alertMarkWrite
 	// Granular series state for the PM-04 read route. seriesQueries records the
 	// window, granularity and zone the route asked for, and seriesCalls proves the
 	// whole territory is answered by one bucketed read instead of one per zone.
@@ -132,6 +142,64 @@ func (s *fakeStore) ListAlerts(_ context.Context, query repository.AlertPageQuer
 		return repository.AlertPage{}, s.alertErr
 	}
 	return s.alertPage, nil
+}
+
+// alertStateKey is one (alert, subject key) pair the fake was asked about. The
+// subject arrives already derived, so a test can assert the raw token subject was
+// never handed to storage.
+type alertStateKey struct{ AlertID, SubjectKey string }
+
+// alertMarkWrite is one append attempt the fake observed.
+type alertMarkWrite struct {
+	AlertID    string
+	SubjectKey string
+	Mark       repository.AlertMark
+}
+
+// alertStateMapKey names one personal state in the fake's map.
+func alertStateMapKey(alertID, subjectKey string) string { return alertID + "|" + subjectKey }
+
+// ReadAlertState stands in for the personal read: an alert that is not missing
+// and carries no mark of this subject is unread with no instant.
+func (s *fakeStore) ReadAlertState(_ context.Context, alertID, subjectKey string) (repository.AlertState, error) {
+	s.stateReads = append(s.stateReads, alertStateKey{AlertID: alertID, SubjectKey: subjectKey})
+	if s.alertStateErr != nil {
+		return repository.AlertState{}, s.alertStateErr
+	}
+	if state, present := s.alertStates[alertStateMapKey(alertID, subjectKey)]; present {
+		return state, nil
+	}
+	if s.missingAlerts[alertID] {
+		return repository.AlertState{}, repository.ErrAlertNotFound
+	}
+	return repository.AlertState{AlertID: alertID, State: repository.AlertStateUnread}, nil
+}
+
+// MarkAlertState stands in for the append-only write with the same monotonic rule
+// the real store enforces: a mark at or below the current rank appends nothing and
+// answers the current state, so a replay never rewrites the instant.
+func (s *fakeStore) MarkAlertState(_ context.Context, alertID, subjectKey string, mark repository.AlertMark) (repository.AlertState, error) {
+	s.markWrites = append(s.markWrites, alertMarkWrite{AlertID: alertID, SubjectKey: subjectKey, Mark: mark})
+	if s.alertStateErr != nil {
+		return repository.AlertState{}, s.alertStateErr
+	}
+	if s.missingAlerts[alertID] {
+		return repository.AlertState{}, repository.ErrAlertNotFound
+	}
+	current, present := s.alertStates[alertStateMapKey(alertID, subjectKey)]
+	if !present {
+		current = repository.AlertState{AlertID: alertID, State: repository.AlertStateUnread}
+	}
+	if current.State != repository.AlertStateUnread && repository.AlertMark(current.State).Rank() >= mark.Rank() {
+		return current, nil
+	}
+	if s.alertStates == nil {
+		s.alertStates = map[string]repository.AlertState{}
+	}
+	instant := time.Now().UTC()
+	marked := repository.AlertState{AlertID: alertID, State: string(mark), MarkedAt: &instant}
+	s.alertStates[alertStateMapKey(alertID, subjectKey)] = marked
+	return marked, nil
 }
 
 // ZoneExists stands in for the zones catalogue so the handler path that decides
@@ -291,8 +359,24 @@ func authorizedServer(t *testing.T, role string, store Repository, providers ...
 
 // authorizedServerWith is the full harness: it also wires the cycle runner, so
 // the freshness route and the manual trigger are exercised through the same
-// authorization as production.
+// authorization as production. Its verified subject is the fixed "subject" the
+// existing tests assume; a personal-state test uses authorizedServerWithSubject.
 func authorizedServerWith(t *testing.T, role string, store Repository, runner CycleRunner, providers ...DescriptorProvider) (http.Handler, string) {
+	t.Helper()
+	return authorizedServerSubjectWith(t, role, "subject", store, runner, providers...)
+}
+
+// authorizedServerWithSubject is authorizedServerWith with a verified token
+// subject chosen by the test, so the personal state routes can prove that two
+// callers see different marks without either naming an actor in the request.
+func authorizedServerWithSubject(t *testing.T, role, subject string, store Repository, providers ...DescriptorProvider) (http.Handler, string) {
+	t.Helper()
+	return authorizedServerSubjectWith(t, role, subject, store, nil, providers...)
+}
+
+// authorizedServerSubjectWith signs one token with the given verified subject and
+// role and wraps the real handler in the production authorization gate.
+func authorizedServerSubjectWith(t *testing.T, role, subject string, store Repository, runner CycleRunner, providers ...DescriptorProvider) (http.Handler, string) {
 	t.Helper()
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -303,7 +387,7 @@ func authorizedServerWith(t *testing.T, role string, store Repository, runner Cy
 		t.Fatal(err)
 	}
 	verifier := oidc.NewVerifier("https://issuer.test", &oidc.StaticKeySet{PublicKeys: []crypto.PublicKey{&key.PublicKey}}, &oidc.Config{ClientID: "firewatch-api"})
-	payload, _ := json.Marshal(map[string]any{"iss": "https://issuer.test", "aud": "firewatch-api", "sub": "subject", "exp": time.Now().Add(time.Minute).Unix(), "typ": "Bearer", "realm_access": map[string]any{"roles": []string{role}}})
+	payload, _ := json.Marshal(map[string]any{"iss": "https://issuer.test", "aud": "firewatch-api", "sub": subject, "exp": time.Now().Add(time.Minute).Unix(), "typ": "Bearer", "realm_access": map[string]any{"roles": []string{role}}})
 	signed, err := signer.Sign(payload)
 	if err != nil {
 		t.Fatal(err)

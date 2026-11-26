@@ -19,11 +19,26 @@ type Verifier interface {
 // second time.
 type rolesContextKey struct{}
 
+// subjectContextKey carries the verified token subject from Authorize to a route
+// that scopes its answer to the caller. It is unexported so only this package can
+// attach it: a subject a client could name is not an identity, and the personal
+// state routes read it from here rather than from a header, a query or a body.
+type subjectContextKey struct{}
+
 // rolesFrom returns the verified roles placed on the request context by
 // Authorize. An unauthenticated request carries none.
 func rolesFrom(ctx context.Context) []string {
 	roles, _ := ctx.Value(rolesContextKey{}).([]string)
 	return roles
+}
+
+// subjectFrom returns the verified token subject Authorize placed on the request
+// context. The boolean is false when the request was not authenticated; a route
+// that scopes storage by the subject must refuse rather than fall back to an empty
+// key, which would be a shared state every caller could read.
+func subjectFrom(ctx context.Context) (string, bool) {
+	subject, ok := ctx.Value(subjectContextKey{}).(string)
+	return subject, ok && subject != ""
 }
 
 // Authorize authenticates the bearer token and admits the viewer and admin roles,
@@ -57,7 +72,12 @@ func Authorize(verifier Verifier, next http.Handler) http.Handler {
 		}
 		for _, role := range claims.Realm.Roles {
 			if role == "viewer" || role == "admin" {
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), rolesContextKey{}, claims.Realm.Roles)))
+				ctx := context.WithValue(r.Context(), rolesContextKey{}, claims.Realm.Roles)
+				// The verified subject travels with the same request context as the
+				// roles, so a personal route scopes storage to an identity this gate
+				// already proved instead of asking the client who it is.
+				ctx = context.WithValue(ctx, subjectContextKey{}, token.Subject)
+				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 		}
