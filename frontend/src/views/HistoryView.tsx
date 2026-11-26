@@ -386,7 +386,13 @@ export function HistoryView() {
   // The series read. It asks for the whole window the route accepts for the
   // selected granularity and sends no `zone_id`, which is what makes the answer
   // "every zone that published in the window" instead of one zone's history.
+  //
+  // The stored answer is invalidated BEFORE the read starts, not replaced when it
+  // arrives: re-entering «Todas las zonas» or changing the bucket size asks a new
+  // question, so while it loads the panel shows loading — never the window, the
+  // count or the intervals of the previous scope, which describe another query.
   useEffect(() => {
+    setSeriesStored(null);
     if (!signedIn || scope !== 'all') return;
     const controller = new AbortController();
     let active = true;

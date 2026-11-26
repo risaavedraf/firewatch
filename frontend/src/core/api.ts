@@ -544,16 +544,66 @@ export interface HistorySeriesQuery extends HistorySeriesWindow {
   readonly zoneId?: string;
 }
 
+// Every instant this route takes or serves is declared `format: date-time`, so
+// the spelling is checked instead of being handed to `Date.parse`: that parser
+// also accepts a bare date and US-style slashes as instants, and it silently
+// rolls an impossible civil day (February 30) into the next month. Only a full
+// RFC 3339 `date-time` with its mandatory offset passes here.
+const RFC3339_INSTANT = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|([+-])(\d{2}):(\d{2}))$/;
+
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+function isInstant(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const match = RFC3339_INSTANT.exec(value);
+  if (match === null) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12) return false;
+  const lastDay = month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month - 1];
+  if (day < 1 || day > lastDay) return false;
+  if (Number(match[4]) > 23 || Number(match[5]) > 59 || Number(match[6]) > 59) return false;
+  // The offset is only checked to be a real clock offset; any offset is accepted
+  // and the instant it names is what the window compares.
+  if (match[7] !== undefined && (Number(match[8]) > 23 || Number(match[9]) > 59)) return false;
+  return Number.isFinite(Date.parse(value));
+}
+
+// The three series objects are `additionalProperties: false` in the contract, so
+// a member the schema does not name is a body the page must not render: it would
+// mean the route changed shape under a client that cannot read the change.
+const HISTORY_BUCKET_MEMBERS: readonly string[] = [
+  'bucket_start',
+  'batch_id',
+  'requested_at',
+  'published_at',
+  'risk_level',
+  'model_version',
+  'synthetic',
+];
+const HISTORY_ZONE_SERIES_MEMBERS: readonly string[] = ['zone_id', 'buckets'];
+const HISTORY_SERIES_MEMBERS: readonly string[] = ['from', 'to', 'granularity', 'series'];
+
+function onlyMembers(value: Record<string, unknown>, declared: readonly string[]): boolean {
+  return Object.keys(value).every((key) => declared.includes(key));
+}
+
 // The bucket vocabulary of the contract is closed (`bajo`, `medio`, `alto`,
 // `desconocido`), so a point outside it is refused instead of being rendered as
 // unclassified history the service never recorded.
 function isHistoryBucket(value: unknown): value is HistoryBucket {
   return (
     record(value) &&
-    nonempty(value.bucket_start) &&
+    onlyMembers(value, HISTORY_BUCKET_MEMBERS) &&
+    isInstant(value.bucket_start) &&
     nonempty(value.batch_id) &&
-    nonempty(value.requested_at) &&
-    nonempty(value.published_at) &&
+    isInstant(value.requested_at) &&
+    isInstant(value.published_at) &&
     typeof value.risk_level === 'string' &&
     (RISK_LEVELS as readonly string[]).includes(value.risk_level) &&
     nonempty(value.model_version) &&
@@ -567,6 +617,7 @@ function isHistoryBucket(value: unknown): value is HistoryBucket {
 function isHistoryZoneSeries(value: unknown): value is HistoryZoneSeries {
   return (
     record(value) &&
+    onlyMembers(value, HISTORY_ZONE_SERIES_MEMBERS) &&
     nonempty(value.zone_id) &&
     Array.isArray(value.buckets) &&
     value.buckets.length > 0 &&
@@ -577,8 +628,9 @@ function isHistoryZoneSeries(value: unknown): value is HistoryZoneSeries {
 function isHistorySeriesCollection(value: unknown): value is HistorySeriesCollection {
   return (
     record(value) &&
-    nonempty(value.from) &&
-    nonempty(value.to) &&
+    onlyMembers(value, HISTORY_SERIES_MEMBERS) &&
+    isInstant(value.from) &&
+    isInstant(value.to) &&
     typeof value.granularity === 'string' &&
     (HISTORY_GRANULARITIES as readonly string[]).includes(value.granularity) &&
     Array.isArray(value.series) &&
@@ -595,10 +647,14 @@ function sameInstant(left: string, right: string): boolean {
   return Number.isFinite(leftMs) && leftMs === rightMs;
 }
 
-// The series read. It fails closed in three ways: a granularity outside the
-// closed vocabulary is refused before any request, a body the guard cannot use is
-// `malformed`, and an answer that echoes ANOTHER window, granularity or zone is
-// refused as a mismatch instead of being rendered as this query's series.
+// The series read. It fails closed before any request: a granularity outside the
+// closed vocabulary is `invalid_granularity`, a window that is not two RFC 3339
+// instants is `invalid_shape`, and an explicitly empty `zone_id` is `invalid_shape`
+// rather than an omitted parameter — omitting it asks for EVERY zone, so folding
+// an empty zone into the absence of a filter would widen the read behind the
+// caller's back. A body the guard cannot use is `malformed`, and an answer that
+// echoes ANOTHER window, granularity or zone is refused as a mismatch instead of
+// being rendered as this query's series.
 export async function historySeries(
   query: HistorySeriesQuery,
   signal?: AbortSignal,
@@ -606,12 +662,19 @@ export async function historySeries(
   if (!(HISTORY_GRANULARITIES as readonly string[]).includes(query.granularity)) {
     return failureOutcome(failureSpec('malformed', 'invalid_granularity'));
   }
+  if (!isInstant(query.from) || !isInstant(query.to)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape'));
+  }
+  // The field is optional, but when it is present it must name a zone.
+  if (query.zoneId !== undefined && !nonempty(query.zoneId)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape'));
+  }
   const parameters = new URLSearchParams({
     from: query.from,
     to: query.to,
     granularity: query.granularity,
   });
-  if (nonempty(query.zoneId)) parameters.set('zone_id', query.zoneId);
+  if (query.zoneId !== undefined) parameters.set('zone_id', query.zoneId);
   const result = await requestJson(
     'historySeries',
     `${gatewayOrigin}${HISTORY_SERIES_ROUTE}?${parameters.toString()}`,
@@ -629,7 +692,7 @@ export async function historySeries(
   ) {
     return failureOutcome(failureSpec('malformed', 'window_mismatch', result.status, result.requestId));
   }
-  if (nonempty(query.zoneId) && result.body.series.some((entry) => entry.zone_id !== query.zoneId)) {
+  if (query.zoneId !== undefined && result.body.series.some((entry) => entry.zone_id !== query.zoneId)) {
     return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
   }
   return { ok: true, data: result.body };

@@ -1206,6 +1206,78 @@ test('the series client refuses an unknown granularity before issuing a read (T1
   expect(fetchStub.calls.filter((call) => call.url.includes('/v1/risk/history/series'))).toHaveLength(0);
 });
 
+test('the series client refuses an empty zone id instead of widening to every zone (S3)', async () => {
+  const { fetchStub } = await connect();
+  const pending = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day', zoneId: '' });
+  await flush();
+  expect(fetchStub.calls.filter((call) => call.url.includes('/v1/risk/history/series'))).toHaveLength(0);
+
+  const outcome = await pending;
+  expect(outcome.ok).toBe(false);
+  if (outcome.ok) throw new Error('expected the empty zone id to be refused');
+  expect(outcome.failure.kind).toBe('malformed');
+  expect(outcome.failure.reason).toBe('invalid_shape');
+});
+
+test('the series client refuses invalid instants and undeclared bucket members (S3)', async () => {
+  const { fetchStub } = await connect();
+
+  const pendingWindow = historySeries({ from: '01/02/2026', to: SERIES_TO, granularity: 'day' });
+  await flush();
+  expect(fetchStub.calls.filter((call) => call.url.includes('/v1/risk/history/series'))).toHaveLength(0);
+  const badWindow = await pendingWindow;
+  expect(badWindow.ok).toBe(false);
+  if (badWindow.ok) throw new Error('expected the invalid window to be refused');
+  expect(badWindow.failure.reason).toBe('invalid_shape');
+
+  const badEcho = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });
+  await flush();
+  fetchStub.answer(seriesUrl({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' }), {
+    from: '2026-11-01',
+    to: SERIES_TO,
+    granularity: 'day',
+    series: [],
+  });
+  const bareDate = await badEcho;
+  expect(bareDate.ok).toBe(false);
+  if (bareDate.ok) throw new Error('expected the bare date to be refused');
+  expect(bareDate.failure.reason).toBe('invalid_shape');
+
+  const extra = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });
+  await flush();
+  const withExtra = bucket();
+  withExtra['undeclared'] = 'x';
+  fetchStub.answer(seriesUrl({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' }), {
+    from: SERIES_FROM,
+    to: SERIES_TO,
+    granularity: 'day',
+    series: [zoneSeries(ZONE, [withExtra])],
+  });
+  const undeclared = await extra;
+  expect(undeclared.ok).toBe(false);
+  if (undeclared.ok) throw new Error('expected the undeclared bucket member to be refused');
+  expect(undeclared.failure.reason).toBe('invalid_shape');
+});
+
+test('returning to «Todas las zonas» shows loading instead of the previous window (S3)', async () => {
+  const series = await openAllZones();
+  series.answer([zoneSeries('05101', [bucket()])]);
+  await waitFor(() => expect(count()).toBe('1'));
+  expect(seriesList()).not.toBeNull();
+
+  fireEvent.change(screen.getByLabelText('Elegir el alcance del historial'), { target: { value: 'zone' } });
+  await flush();
+  fireEvent.change(screen.getByLabelText('Elegir el alcance del historial'), { target: { value: 'all' } });
+  await flush();
+
+  // Re-entering the scope issues a fresh read; until it answers, the window and
+  // the series of the previous visit must not be painted.
+  expect(series.calls).toHaveLength(2);
+  expect(state()).toHaveTextContent('Consultando la serie de todas las zonas…');
+  expect(seriesList()).toBeNull();
+  expect(count()).toBe('—');
+});
+
 test('the series client refuses a body the view cannot use (T1)', async () => {
   const { fetchStub } = await connect();
   const request = historySeries({ from: SERIES_FROM, to: SERIES_TO, granularity: 'day' });
