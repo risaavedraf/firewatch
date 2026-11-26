@@ -3,6 +3,68 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<style id="fw-product-nav">
+/* FireWatch · navegación global del producto (componente compartido).
+   Fuente del bloque: product-navigation.mjs. */
+.fw-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 5px 12px;
+  border-block-end: 1px solid var(--fw-edge);
+  background: var(--fw-surface);
+  color: var(--fw-ink);
+  font: 600 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.fw-nav--map { --fw-surface: var(--panel, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--border, #647b8a); --fw-accent: var(--focus, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--aerial { --fw-surface: var(--aerial-panel, #17222b); --fw-ink: var(--aerial-ink, #f4f1eb); --fw-muted: var(--aerial-muted, #b8c8d2); --fw-edge: var(--aerial-border, #647b8a); --fw-accent: var(--aerial-focus, #94dfda); --fw-raised: var(--aerial-raised, #243341); }
+.fw-nav--panel { --fw-surface: var(--surface, #17222b); --fw-ink: var(--text, #f4f1eb); --fw-muted: var(--text-muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--surface-raised, #243341); }
+.fw-nav--plain { --fw-surface: var(--surface, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--sticky { position: sticky; top: 0; z-index: 30; min-height: 48px; }
+.fw-nav--fixed { position: fixed; inset: 0 0 auto; z-index: 2; flex-wrap: nowrap; height: var(--fw-nav-h, 48px); padding-block: 3px; }
+html { scroll-padding-top: calc(var(--fw-nav-h, 48px) + 56px); }
+.fw-nav--sticky + .app .viewnav { top: var(--fw-nav-h, 48px); }
+.fw-nav__primary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.fw-nav--fixed .fw-nav__primary { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding-block: 1px; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.fw-nav__link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 9px; color: var(--fw-ink); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.fw-nav__link:hover { background: var(--fw-raised); }
+.fw-nav__link[aria-current="page"] { border-color: var(--fw-edge); background: var(--fw-raised); color: var(--fw-accent); text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav a:focus-visible, .fw-nav summary:focus-visible { outline: 3px solid var(--fw-accent); outline-offset: 2px; }
+.fw-nav--fixed .fw-nav__primary .fw-nav__link:focus-visible { outline-offset: -2px; }
+.fw-nav__more { display: flex; min-width: 0; }
+.fw-nav__summary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 11px; border: 1px solid var(--fw-edge); border-radius: 9px; color: var(--fw-ink); font-weight: 700; white-space: nowrap; cursor: pointer; list-style: none; }
+.fw-nav__summary::-webkit-details-marker { display: none; }
+.fw-nav__summary::after { content: "▾"; font-size: 10px; line-height: 1; }
+.fw-nav__summary:hover { background: var(--fw-raised); }
+.fw-nav__more[open] > .fw-nav__summary { border-color: var(--fw-accent); background: var(--fw-raised); color: var(--fw-accent); }
+.fw-nav__panel { position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 10px; z-index: 40; width: min(720px, calc(100vw - 20px)); max-height: min(70dvh, 520px); overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px 14px; border: 1px solid var(--fw-edge); border-radius: 12px; background: var(--fw-surface); color: var(--fw-ink); box-shadow: 0 16px 32px rgb(0 0 0 / 32%); }
+.fw-nav__panel-title { margin: 0 0 9px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.fw-nav__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 18px; }
+.fw-nav__group-title { margin: 0 0 3px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__list { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.fw-nav__item { display: flex; align-items: center; min-height: 32px; padding: 2px 6px; border-radius: 6px; color: var(--fw-ink); font-size: 12.5px; font-weight: 600; line-height: 1.35; text-decoration: none; }
+.fw-nav__item:hover { background: var(--fw-raised); }
+.fw-nav__item[aria-current="page"] { color: var(--fw-accent); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav__note { margin: 10px 0 0; padding-top: 8px; border-block-start: 1px solid var(--fw-edge); color: var(--fw-muted); font-size: 11.5px; }
+.fw-nav__where { margin: 0 0 0 auto; min-width: 0; color: var(--fw-muted); font-size: 12px; }
+.fw-nav__where-label { font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__where strong { color: var(--fw-ink); font-weight: 750; }
+.fw-nav--fixed .fw-nav__where { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) {
+  .fw-nav--fixed .fw-nav__where { display: none; }
+  .fw-nav--fixed .fw-nav__link, .fw-nav--fixed .fw-nav__summary { font-size: 12px; padding-inline: 7px; }
+}
+@media (max-width: 420px) {
+  .fw-nav { padding-inline: 8px; }
+  .fw-nav__link, .fw-nav__summary { padding-inline: 8px; }
+  .fw-nav--fixed .fw-nav__summary-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fw-nav, .fw-nav * { transition: none !important; animation: none !important; }
+}
+</style>
 <title>FireWatch · Vista aérea regional de Valparaíso</title>
 <style>
 :root {
@@ -11,6 +73,8 @@
   --muted: #b8c8d2; --border: #647b8a; --focus: #94dfda; --terrain-low: #46575a;
   --terrain-high: #738077; --roof: #aeb7b8; --wall: #3f4b52; --coast: #829a9d;
   --high: #d97962; --medium: #d7b16a; --low: #72b1a1; --label: #121c22; --unknown: #c4cbd1;
+  /* Alto de la barra global del producto: los paneles fijos se desplazan por debajo. */
+  --fw-nav-h: 48px;
 }
 [data-theme="day"] {
   color-scheme: light;
@@ -25,7 +89,7 @@ canvas { position: fixed; inset: 0; width: 100vw; height: 100dvh; touch-action: 
 canvas:active { cursor: grabbing; }
 header, .controls, .info, .legend, .note, .insets { position: fixed; z-index: 1; }
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
-header { inset: 14px 14px auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
+header { inset: calc(14px + var(--fw-nav-h)) 14px auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
 .brand { display: flex; gap: 10px; align-items: center; min-width: 0; }
 .mark { width: 34px; height: 34px; flex: none; color: var(--focus); }
 small, .muted { color: var(--muted); }
@@ -36,7 +100,7 @@ h2 { font-size: 19px; line-height: 1.24; }
 button { border: 1px solid var(--border); border-radius: 8px; background: var(--raised); color: var(--ink); font: inherit; font-weight: 650; min-height: 36px; min-width: 36px; padding: 6px 10px; cursor: pointer; }
 button:hover, button[aria-pressed="true"] { border-color: var(--focus); color: var(--focus); }
 button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.controls { top: 88px; right: 14px; display: grid; gap: 8px; padding: 8px; }
+.controls { top: calc(88px + var(--fw-nav-h)); right: 14px; display: grid; gap: 8px; padding: 8px; }
 .controls [role="group"] { display: flex; justify-content: space-between; gap: 6px; }
 .info { inset: auto auto 37px 14px; width: min(375px, calc(100vw - 28px)); padding: 14px; display: grid; gap: 11px; }
 .cutrow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 9px; }
@@ -52,20 +116,20 @@ input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 .high { background: var(--high); } .medium { background: var(--medium); } .low { background: var(--low); }
 .unknown { border: 1px dashed var(--unknown); }
-.insets { left: 14px; top: 88px; display: grid; grid-template-columns: repeat(2,auto); gap: 3px 8px; padding: 8px 10px; }
+.insets { left: 14px; top: calc(88px + var(--fw-nav-h)); display: grid; grid-template-columns: repeat(2,auto); gap: 3px 8px; padding: 8px 10px; }
 .insets-caption { grid-column: 1 / -1; text-align: center; font-size: 10px; }
 .inset { display: grid; justify-items: center; min-width: 100px; font-size: 11px; color: var(--muted); }
 .inset svg { width: 88px; height: 50px; color: var(--coast); }
 .note { bottom: 0; left: 0; right: 0; padding: 5px 14px; background: var(--panel); color: var(--muted); font-size: 12px; }
 [hidden] { display: none !important; }
 @media (max-width: 600px) {
-  header { inset: 7px 7px auto; padding: 6px 9px; }
+  header { inset: calc(7px + var(--fw-nav-h)) 7px auto; padding: 6px 9px; }
   .mark { width: 27px; height: 27px; }
-  .insets { left: 7px; top: 68px; grid-template-columns: auto; gap: 4px; padding: 4px 6px; }
+  .insets { left: 7px; top: calc(68px + var(--fw-nav-h)); grid-template-columns: auto; gap: 4px; padding: 4px 6px; }
   .insets-caption { font-size: 8px; }
   .inset { min-width: 74px; font-size: 9px; }
   .inset svg { width: 55px; height: 24px; }
-  .controls { top: 67px; right: 7px; gap: 5px; padding: 5px; }
+  .controls { top: calc(67px + var(--fw-nav-h)); right: 7px; gap: 5px; padding: 5px; }
   .controls button { font-size: 12px; min-height: 36px; }
   .info { inset: auto 7px 49px; width: auto; padding: 10px; gap: 6px; max-height: 44dvh; overflow-y: auto; }
   .legend { inset: auto 7px calc(49px + min(44dvh, 287px) + 6px); font-size: 11px; padding: 4px 8px; width: fit-content; max-width: calc(100vw - 14px); }
@@ -74,6 +138,61 @@ input[type=range] { width: 100%; accent-color: var(--focus); margin: 4px 0 0; }
 </style>
 </head>
 <body>
+<!-- fw-product-nav:start · navegación global compartida · la escribe design/firewatch-v1-vuelo/product-navigation.mjs; no editar a mano -->
+<nav class="fw-nav fw-nav--fixed fw-nav--map" aria-label="Navegación del producto FireWatch">
+  <ul class="fw-nav__primary">
+    <li><a class="fw-nav__link" href="01-vista-aerea.html" aria-label="Mapa · Territorio">Mapa</a></li>
+    <li><a class="fw-nav__link" href="07-panel-ejecutivo.html" aria-label="Panel ejecutivo">Panel</a></li>
+    <li><a class="fw-nav__link" href="05-historial-de-lotes.html" aria-label="Historial de lotes">Historial</a></li>
+    <li><a class="fw-nav__link" href="06-acciones-preventivas.html" aria-label="Acciones preventivas">Acciones</a></li>
+  </ul>
+  <details class="fw-nav__more">
+    <summary class="fw-nav__summary"><span class="fw-nav__summary-text">Más destinos</span></summary>
+    <div class="fw-nav__panel">
+      <p class="fw-nav__panel-title">Otras pantallas del producto</p>
+      <div class="fw-nav__groups">
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-territorio">Territorio y lectura</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-territorio">
+            <li><a class="fw-nav__item" href="02-vista-regional.html" aria-current="page">Vista regional</a></li>
+            <li><a class="fw-nav__item" href="03-acciones-en-el-mapa.html">Acciones rápidas en el mapa</a></li>
+            <li><a class="fw-nav__item" href="04-cobertura-territorial.html">Cobertura y contexto territorial</a></li>
+            <li><a class="fw-nav__item" href="21-lecturas-por-sector.html">Lecturas por sector</a></li>
+            <li><a class="fw-nav__item" href="08-comparar-sectores.html">Comparar sectores</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-decision">Decisión y alertas</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-decision">
+            <li><a class="fw-nav__item" href="09-notificaciones.html">Notificaciones</a></li>
+            <li><a class="fw-nav__item" href="10-simulacion-contrafactual.html">Simulación contrafactual</a></li>
+            <li><a class="fw-nav__item" href="11-observaciones-de-campo.html">Observaciones de campo</a></li>
+            <li><a class="fw-nav__item" href="13-ficha-de-zona.html">Ficha de zona · Vista previa PDF</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-datos">Solicitudes y datos</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-datos">
+            <li><a class="fw-nav__item" href="12-exportacion-csv.html">Exportación CSV</a></li>
+            <li><a class="fw-nav__item" href="20-datos-del-modelo.html">Datos del modelo</a></li>
+            <li><a class="fw-nav__item" href="15-fuentes-y-servicios.html">Fuentes y servicios</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-acceso">Acceso y control</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-acceso">
+            <li><a class="fw-nav__item" href="14-acceso.html">Acceso · Iniciar sesión</a></li>
+            <li><a class="fw-nav__item" href="17-sesion-y-permisos.html">Sesión y permisos</a></li>
+            <li><a class="fw-nav__item" href="18-registro-de-actividad.html">Registro de actividad</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="fw-nav__note">Mapa, Panel, Historial y Acciones están siempre en esta barra.</p>
+    </div>
+  </details>
+  <p class="fw-nav__where"><span class="fw-nav__where-label">Estás en</span> <strong>Vista regional</strong></p>
+</nav>
+<!-- fw-product-nav:end -->
 <main aria-label="Explorador territorial aéreo">
   <canvas id="terrain" role="img" aria-label="Mapa regional inclinado de Valparaíso, con islas en recuadros. Relieve, huella urbana y niveles de riesgo son ilustrativos. Los controles y la lista permiten explorar el mismo territorio sin usar el mapa."></canvas>
   <header class="panel">

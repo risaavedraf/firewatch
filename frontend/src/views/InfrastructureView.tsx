@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { idleCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
 import { InfrastructureMap } from '../components/map/InfrastructureMap';
-import { Metric, PanelHeading, StatusCopy } from '../components/ui';
+import { Metric, PanelHeading, StatusCopy, TableWrap } from '../components/ui';
 import type { Failure } from '../core/api';
 import {
   INFRASTRUCTURE_TYPES,
@@ -212,7 +212,7 @@ export function InfrastructureView() {
           <>
             <InfrastructureMap catalogue={catalogue} />
 
-            <div className="table-wrap">
+            <TableWrap label="Desglose por zona de infraestructura">
               <table id="infrastructure-zones" className="infrastructure-table">
                 <caption>
                   Desglose por zona del fixture sintético. Cada elemento aporta un punto; el total es la suma de los
@@ -245,7 +245,7 @@ export function InfrastructureView() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableWrap>
 
             <section className="infrastructure-breakdown" id="infrastructure-breakdown" aria-labelledby="infrastructure-breakdown-title">
               <h3 id="infrastructure-breakdown-title">Desglose y geometrías por zona</h3>

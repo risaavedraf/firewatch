@@ -6,6 +6,7 @@ import {
   completeLogin,
   decodeRoles,
   getAccessToken,
+  getSessionGeneration,
   getSessionSnapshot,
   hasPendingCallback,
   resetInterruptedLogin,
@@ -15,6 +16,7 @@ import {
   startLogin,
   startRegistration,
   subscribeSession,
+  subscribeSessionGeneration,
 } from '../../src/core/session';
 
 import {
@@ -396,6 +398,55 @@ test('a reason-only change with the same status notifies subscribers (S3)', () =
   resetSession();
   expect(listener).toHaveBeenCalledTimes(2);
   unsubscribe();
+});
+
+// ── The session instance, and why it is not the roles snapshot ────────────
+//
+// Directory data is authenticated data of ONE session. `SessionState` cannot
+// describe a replacement that keeps the same status and the same declared roles,
+// so a consumer that keys session-scoped state on it keeps the previous bearer's
+// data. The generation is that missing fact, and it is a number: reading it never
+// exposes the token.
+
+test('the generation separates a same-role replacement the public snapshot cannot describe', async () => {
+  setup();
+  await connect(jwt({ realm_access: { roles: ['admin'] } }));
+  const snapshotBefore = getSessionSnapshot();
+  const generationBefore = getSessionGeneration();
+  expect(typeof generationBefore).toBe('number');
+
+  const generationListener = vi.fn();
+  const unsubscribe = subscribeSessionGeneration(generationListener);
+  await connect(jwt({ realm_access: { roles: ['admin'] } }));
+  unsubscribe();
+
+  // A different bearer, the same declared roles: `SessionState` is indistinguishable.
+  expect(getSessionSnapshot()).toEqual(snapshotBefore);
+  expect(getSessionSnapshot().roles).toEqual(['admin']);
+  // The instance changed, and that is what a consumer has to observe.
+  expect(getSessionGeneration()).toBeGreaterThan(generationBefore);
+  expect(generationListener).toHaveBeenCalled();
+});
+
+test('the generation moves only when the memory instance does, and never leaks the bearer', async () => {
+  setup();
+  const before = getSessionGeneration();
+
+  const token = jwt({ realm_access: { roles: ['viewer'] } });
+  await connect(token);
+  const adopted = getSessionGeneration();
+  expect(adopted).toBeGreaterThan(before);
+  // It is a count, not a credential.
+  expect(adopted).not.toBe(token);
+  expect(String(adopted)).not.toContain(token);
+
+  resetSession();
+  expect(getSessionGeneration()).toBeGreaterThan(adopted);
+
+  // Nothing to discard and no state to change: not a new instance.
+  const settled = getSessionGeneration();
+  resetSession();
+  expect(getSessionGeneration()).toBe(settled);
 });
 
 // Registration is the same Authorization Code + PKCE round trip as a sign-in: only
