@@ -92,6 +92,12 @@ export type Outcome<T> = { ok: true; data: T } | { ok: false; failure: Failure }
 // creation path, so it is named here rather than duplicated as a bare literal.
 const JOBS_ROUTE = '/v1/jobs';
 
+// PM-16 — the gateway's own bounded multi-service aggregate. It is named here for
+// the same reason as the job creation path: `config.routes` is the shared map of
+// the routes this page reads and it is not extended by this unit, so the path
+// lives beside the one function that uses it instead of being a bare literal.
+const AGGREGATE_STATUS_ROUTE = '/v1/status';
+
 // A single bounded deadline for one transport read. The retired page bounded its
 // own status cycle at 10 s and fenced a hung fetch on the job path; the port
 // applies the same bound to every read so no route can hang the view.
@@ -107,6 +113,7 @@ type RequestKind =
   | 'sources'
   | 'riskStatus'
   | 'jobsStatus'
+  | 'aggregateStatus'
   | 'scenarios'
   | 'audit'
   | 'createJob'
@@ -300,10 +307,14 @@ function httpFailure(result: { status: number; body: unknown; requestId: string 
   return failureSpec(kind, reason, result.status, result.requestId);
 }
 
+function failureOf(result: TransportResult): Failure {
+  if (result.state === 'failed') return result.failure;
+  if (result.state === 'httpError') return httpFailure(result);
+  return failureSpec('malformed', 'invalid_shape', result.status, result.requestId);
+}
+
 function resultFailure<T>(result: TransportResult): Outcome<T> {
-  if (result.state === 'failed') return failureOutcome<T>(result.failure);
-  if (result.state === 'httpError') return failureOutcome<T>(httpFailure(result));
-  return failureOutcome<T>(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  return failureOutcome<T>(failureOf(result));
 }
 
 function guardOutcome<T>(result: TransportResult, guard: (body: unknown) => body is T): Outcome<T> {
@@ -711,6 +722,115 @@ export async function riskStatus(signal?: AbortSignal): Promise<Outcome<ServiceS
 export async function jobsStatus(signal?: AbortSignal): Promise<Outcome<ServiceSnapshot>> {
   const result = await requestJson('jobsStatus', `${gatewayOrigin}${routes.jobsStatus}`, { authenticated: true }, signal);
   return guardOutcome(result, isServiceSnapshot);
+}
+
+// --- Aggregate service status (PM-16 / S2) ---------------------------------
+//
+// `GET /v1/status` is answered by the gateway itself over four fixed status
+// surfaces. The body's order is part of the contract (risk, jobs, prevention,
+// inference) and so is the closed state vocabulary, so the guard compares the
+// served spelling against both instead of trusting the declaration: an unknown
+// service, a reordered list, an unknown state or a gateway entry that is not
+// `ready` rejects the WHOLE answer, and `ready` is never invented for an entry.
+//
+// A 503 is not a transport failure here. The contract states that a not-ready
+// service makes the aggregate answer 503 WITH THE SAME BODY, and that body is the
+// only place that says which service is not ready; so the read preserves it and
+// reports the code it arrived with. 200 and 503 are the only two codes the
+// contract documents, so any other accepted code (a 201, a 202, ...) is refused
+// rather than rewritten into a 200 the service did not send. Only an unreadable
+// body, an undocumented code, an incoherent code/body pair or a real transport
+// failure is a failure.
+export const SERVICE_ORDER = ['risk', 'jobs', 'prevention', 'inference'] as const;
+export type ServiceName = (typeof SERVICE_ORDER)[number];
+
+export const SERVICE_STATES = ['ready', 'degraded', 'unknown', 'unauthorized', 'not_configured'] as const;
+export type ServiceState = (typeof SERVICE_STATES)[number];
+
+export interface MultiserviceStatusEntry {
+  service: ServiceName;
+  state: ServiceState;
+}
+
+export interface MultiserviceStatus {
+  checked_at: string;
+  gateway: { state: 'ready' };
+  services: MultiserviceStatusEntry[];
+}
+
+// 200 only when no entry is degraded or unknown; 503 when at least one is. The
+// two states that make the aggregate answer 503 are named once so the guard, the
+// view and its tests cannot disagree about which ones they are.
+export function isUnreadyState(state: ServiceState): boolean {
+  return state === 'degraded' || state === 'unknown';
+}
+
+function isServiceState(value: unknown): value is ServiceState {
+  return typeof value === 'string' && SERVICE_STATES.includes(value as ServiceState);
+}
+
+// One state of the closed catalogue is positional: `not_configured` reports an
+// unset inference address, which only risk's inference evidence can state. The
+// gateway's operational parser (risk, jobs, prevention) has no way to emit it, so
+// accepting it there would render a state no service is able to report.
+function isServiceStateOf(service: ServiceName, value: unknown): value is ServiceState {
+  if (!isServiceState(value)) return false;
+  return value !== 'not_configured' || service === 'inference';
+}
+
+function isMultiserviceStatus(value: unknown): value is MultiserviceStatus {
+  if (!record(value)) return false;
+  if (!nonempty(value.checked_at)) return false;
+  if (!record(value.gateway) || value.gateway.state !== 'ready') return false;
+  if (!Array.isArray(value.services) || value.services.length !== SERVICE_ORDER.length) return false;
+  for (const [index, entry] of value.services.entries()) {
+    if (!record(entry)) return false;
+    const service = SERVICE_ORDER[index];
+    // The position is the contract: entry i must name service i, so a shuffled
+    // list can never be rendered under the order the server did not send. Once
+    // the name matches, the state is validated against that same service.
+    if (entry.service !== service) return false;
+    if (!isServiceStateOf(service, entry.state)) return false;
+  }
+  return true;
+}
+
+export type AggregateStatusOutcome =
+  | { ok: true; status: 200 | 503; data: MultiserviceStatus }
+  | { ok: false; failure: Failure };
+
+// `Outcome<T>`'s success branch carries no transport status, so the aggregate's
+// failure branch is built here with the very same shape every other read reports.
+function statusFailure(failure: Failure): AggregateStatusOutcome {
+  return { ok: false, failure };
+}
+
+export async function aggregateStatus(signal?: AbortSignal): Promise<AggregateStatusOutcome> {
+  const result = await requestJson(
+    'aggregateStatus',
+    `${gatewayOrigin}${AGGREGATE_STATUS_ROUTE}`,
+    { authenticated: true },
+    signal,
+  );
+  // The second arm is the documented not-ready answer, not an error: its body is
+  // the verdict and it is read exactly like the 200 one. The codes are named one
+  // by one on purpose: `response.ok` covers every 2xx, so testing the transport's
+  // own success flag here would accept a 201/202 and normalize it to 200.
+  const documented =
+    (result.state === 'ok' && result.status === 200) || (result.state === 'httpError' && result.status === 503);
+  if (!documented) return statusFailure(failureOf(result));
+  const status: 200 | 503 = result.status === 503 ? 503 : 200;
+  if (!isMultiserviceStatus(result.body)) {
+    return statusFailure(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  // The code and the body must agree: a 200 carrying a not-ready entry, or a 503
+  // carrying none, is an incoherent echo. It is refused rather than rendered as a
+  // verdict the service did not state.
+  const notReady = result.body.services.some(entry => isUnreadyState(entry.state));
+  if (notReady !== (status === 503)) {
+    return statusFailure(failureSpec('malformed', 'status_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, status, data: result.body };
 }
 
 // Fail-closed catalogue validation: only entries that state a non-empty `id`

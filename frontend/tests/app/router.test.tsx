@@ -46,7 +46,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the twelve views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
+test('the thirteen views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
@@ -55,7 +55,10 @@ test('the twelve views are declared once, with the two merged pairs, the infrast
   // the dedicated synthetic-infrastructure demo in the same group; `#observations`
   // follows as the PM-09 field-observation page, `#simulator` is the PM-03
   // counterfactual page that explains the rule behind one zone's stored level,
-  // and `#notifications` joins Coordinación beside the activity register (PM-08).
+  // `#status` is the PM-16 operational board of the gateway aggregate, first in
+  // Información so the verdict precedes the provenance detail `#sources` already
+  // carries, and `#notifications` joins Coordinación beside the activity register
+  // (PM-08).
   expect(ids).toEqual([
     'overview',
     'infrastructure',
@@ -63,6 +66,7 @@ test('the twelve views are declared once, with the two merged pairs, the infrast
     'actions',
     'observations',
     'simulator',
+    'status',
     'sources',
     'jobs',
     'pending',
@@ -193,5 +197,21 @@ test('the counterfactual simulator has a dedicated #simulator route and navigati
   // The D-D label is the view's own statement that the result is the rule, not a
   // forecast: it must be reachable by hash and present without a simulation.
   expect(document.getElementById('simulator-how-title')?.textContent).toBe('Cómo lo calculó la regla');
+  expect(link).toHaveAttribute('aria-current', 'true');
+});
+
+// PM-16 — the operational verdict is its own destination: one hash, one
+// navigation entry in Información, and the board renders its verdict region
+// instead of being folded into `#sources`.
+test('the operational status board has a dedicated #status route and navigation entry', () => {
+  render(<App />);
+
+  const link = screen.getByRole('link', { name: /estado de servicios/i });
+  expect(link).toHaveAttribute('href', '#status');
+
+  navigate('#status');
+  expect(renderedViews()).toEqual(['status']);
+  expect(document.getElementById('status-title')?.textContent).toBe('Estado de servicios');
+  expect(document.getElementById('status-verdict-title')?.textContent).toBe('Veredicto operativo');
   expect(link).toHaveAttribute('aria-current', 'true');
 });

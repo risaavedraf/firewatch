@@ -182,7 +182,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    against the border, which clips the right-aligned values of a data list
    (`model-panel`, `cycle-panel` both shipped that way). `tests/styles/
    layout-padding.test.tsx` reads this rule against the shipped markup. */
-.map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel, .simulator-panel, .simulator-result-panel { padding: 18px; }
+.map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel, .simulator-panel, .simulator-result-panel, .status-panel { padding: 18px; }
 .padded { padding: 22px; }
 .status-copy { min-height: 32px; margin: 13px 0 7px; color: var(--muted); font-size: 10px; line-height: 1.6; }
 /* PM-01 — the executive panel. Six labelled blocks, each one a section with its
@@ -496,7 +496,7 @@ footer .icon { width: 13px; height: 13px; }
   main { padding: 20px 15px 28px; }
   .intro-row { align-items: flex-start; flex-direction: column; gap: 9px; }
   .intro-row h2 { font-size: 21px; }
-  .map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel { padding: 14px; }
+  .map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel, .status-panel { padding: 14px; }
   .executive-grid { grid-template-columns: 1fr; }
   .metrics-three { grid-template-columns: 1fr; }
   .metric { padding: 14px; }
@@ -788,6 +788,51 @@ footer .icon { width: 13px; height: 13px; }
   body:has(#infrastructure) td { border-color: #666; color: #000; }
   body:has(#infrastructure) .metric { border-color: #666; box-shadow: none; }
   body:has(#infrastructure) .neutral-tag { border: 1px solid #000; background: #fff; color: #000; }
+}
+
+/* ── Service status board (PM-16) ──────────────────────────────────────── */
+/* One board, one verdict. The state is always spelled out in a word as well as
+   coloured, every row explains itself, and the composed rows (weather source and
+   active rule) are visually subordinate to the aggregate they accompany. */
+#status .panel-note { margin: 0 0 14px; }
+#status .data-list dd.status-detail { max-width: 64%; color: var(--muted); font-size: 9px; font-weight: 500; line-height: 1.5; }
+#status .status-detail + dd { margin-top: 0; }
+.status-detail { white-space: normal; }
+.status-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+.status-table caption { padding: 0 0 8px; color: var(--muted); font-size: 9px; line-height: 1.55; text-align: left; }
+.status-table th, .status-table td { padding: 9px 10px; border-bottom: 1px solid #eef1ee; font-size: 9px; text-align: left; vertical-align: top; }
+.status-table thead th { color: var(--forest-700); font-size: 8px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.status-table tbody th { min-width: 150px; font-weight: 700; }
+.status-table tbody th code { margin-left: 4px; color: var(--muted); font-size: 8px; font-weight: 500; }
+.status-table tbody td:last-child { color: var(--muted); line-height: 1.55; }
+.status-table tbody tr:last-child th, .status-table tbody tr:last-child td { border-bottom: 0; }
+.status-state { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; font-size: 8px; font-weight: 850; letter-spacing: .05em; white-space: nowrap; }
+/* The word is the state; the colour only reinforces it. Each pair keeps a
+   readable contrast on the light card. */
+.status-state-ready { color: #1f4a2a; background: #e7f2e4; border-color: #b8d5b0; }
+.status-state-degraded { color: #6d3410; background: #fdeee2; border-color: #e2b795; }
+.status-state-unknown { color: #4a3b13; background: #fbf4dc; border-color: #ddd0a0; }
+.status-state-unauthorized { color: #1f4055; background: #e6f0f6; border-color: #a9c8da; }
+.status-state-not_configured { color: #4c4c4c; background: #eff1f1; border-color: #cfd5d5; }
+
+/* Print-to-PDF without a library: the board is the kind of page that gets
+   printed for a handover, so the shell chrome goes and the verdict, the table
+   and the composed rows stay in black on white. */
+@media print {
+  body:has(#status) .sidebar,
+  body:has(#status) .topbar,
+  body:has(#status) .update-bar,
+  body:has(#status) footer,
+  body:has(#status) .skip-link { display: none !important; }
+  body:has(#status) .app-shell { display: block; }
+  body:has(#status) main { width: auto; padding: 0; }
+  body:has(#status) .status-panel { padding: 0; border: 0; box-shadow: none; }
+  body:has(#status) .status-table { min-width: 0; }
+  body:has(#status) .table-wrap { overflow: visible; }
+  body:has(#status) th,
+  body:has(#status) td { border-color: #666; color: #000; }
+  body:has(#status) .status-state { border: 1px solid #000; background: #fff; color: #000; }
+  body:has(#status) .neutral-tag { border: 1px solid #000; background: #fff; color: #000; }
 }
 
 @media (prefers-reduced-motion: reduce) {
