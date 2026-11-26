@@ -51,6 +51,42 @@ export interface Failure {
   requestId?: string;
 }
 
+// The refusal codes the create contract states carry "nothing was written", each
+// PAIRED with the status the OpenAPI document and the handler define it under:
+// 415 `json_required` (the content type is refused before any effect), 422
+// `invalid_action_request` / `assignee_not_found` ("nothing is written"), 502
+// `directory_upstream_failed` and 503 `directory_unavailable` (the directory is
+// refused "instead of being stored unverified", before the store is reached) and
+// 503 `storage_unavailable` ("the operation has no effect and stored state is
+// unchanged"). A code on any other status is a pair the contract never defines, so
+// it proves nothing about what the layer did.
+const CONFIRMED_WRITE_REFUSALS: ReadonlyMap<number, ReadonlySet<string>> = new Map([
+  [415, new Set(['json_required'])],
+  [422, new Set(['invalid_action_request', 'assignee_not_found'])],
+  [502, new Set(['directory_upstream_failed'])],
+  [503, new Set(['directory_unavailable', 'storage_unavailable'])],
+]);
+
+// Whether a failed WRITE is a refusal the contract proves stored nothing.
+//
+// This is deliberately narrower than "the response was an error". A transport
+// fault, a deadline, an aborted or superseded request, an unusable 2xx body, a
+// gateway 502 `upstream_unavailable` ("no upstream response was observed"), a
+// status without one of the documented codes, and a documented code on an
+// undocumented status all leave the write UNDETERMINED: the service may have
+// stored it. A caller must not turn that into "nothing was created", and must not
+// invite a retry that could duplicate the write.
+//
+// 401/403 and 429 are refusals by construction (the token, the role and the quota
+// are checked before the route runs and before any effect), and the pairs above
+// are the rest of the proof.
+export function isConfirmedWriteRefusal(failure: Failure): boolean {
+  if (failure.kind === 'unauthorized' || failure.kind === 'forbidden') return true;
+  if (failure.status === 429) return true;
+  if (failure.status === undefined) return false;
+  return CONFIRMED_WRITE_REFUSALS.get(failure.status)?.has(failure.reason) === true;
+}
+
 export type Outcome<T> = { ok: true; data: T } | { ok: false; failure: Failure };
 
 // `config.routes` carries every GET route and the job read, but not the job
@@ -75,6 +111,7 @@ type RequestKind =
   | 'latest'
   | 'history'
   | 'batches'
+  | 'executiveSummary'
   | 'compare'
   | 'sources'
   | 'riskStatus'
@@ -94,7 +131,8 @@ type RequestKind =
   | 'observationZones'
   | 'createObservation'
   | 'adoptObservation'
-  | 'models';
+  | 'models'
+  | 'users';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
 // together for one selection, so a shared counter would make each treat the
@@ -342,6 +380,17 @@ function nullableString(value: unknown): boolean {
   return value === undefined || value === null || typeof value === 'string';
 }
 
+// The contract types an action's `assignee_id` as `format: uuid` and nullable, and
+// the service serializes the column without `omitempty`, so the reference is
+// either null or the canonical dashed form. An absent field stays tolerated: a
+// payload that predates the reference is still a valid action. Anything else is a
+// contract change, not a name to render, so the read fails closed instead.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function nullableUuid(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === 'string' && UUID_PATTERN.test(value));
+}
+
 function isRiskBatch(value: unknown): value is RiskBatch {
   if (!record(value)) return false;
   if (!nonempty(value.zone_id) || !nonempty(value.id) || !nonempty(value.job_id)) return false;
@@ -494,6 +543,144 @@ export async function batches(signal?: AbortSignal): Promise<Outcome<RiskBatch[]
     collection.push(entry);
   }
   return { ok: true, data: collection };
+}
+
+// --- Executive summary ------------------------------------------------------
+//
+// PM-01's aggregate read. The server computes every count in this body; the
+// panel that renders it performs no arithmetic of its own, so the types here are
+// the contract's own members and nothing derived.
+
+export interface ExecutiveCoverage {
+  catalogue_zones: number;
+  zones_without_batch: number;
+  stale_zones: number;
+  demo_zones: number;
+}
+
+// The four levels the contract fixes. `desconocido` is a level the rule can
+// state, not an absence of data: a batch without a determined level counts here.
+export interface ExecutiveLevelCounts {
+  alto: number;
+  medio: number;
+  bajo: number;
+  desconocido: number;
+}
+
+export interface ExecutiveTransition {
+  from: string;
+  to: string;
+  zones: number;
+}
+
+export interface ExecutiveDelta {
+  zones_compared: number;
+  zones_changed: number;
+  zones_without_previous: number;
+  zones_incomparable: number;
+  transitions: ExecutiveTransition[];
+}
+
+export interface ExecutiveVariable {
+  name: string;
+  zones: number;
+}
+
+// D-B "Alto sostenido dos lotes": the zones whose two newest published batches
+// are both `alto`, ordered by zone id on the server, with `count` as its length.
+export interface ExecutiveCriticalZones {
+  count: number;
+  zone_ids: string[];
+}
+
+export interface ExecutiveSummary {
+  coverage: ExecutiveCoverage;
+  levels: ExecutiveLevelCounts;
+  delta: ExecutiveDelta;
+  predominant_variables: ExecutiveVariable[];
+  critical_zones: ExecutiveCriticalZones;
+  // Rows stored in `risk_alerts`, unfiltered. Not an unread count: no read or
+  // dismissed state exists yet, and the panel must not imply one.
+  active_alerts: { count: number };
+}
+
+const EXECUTIVE_LEVELS = ['alto', 'medio', 'bajo', 'desconocido'] as const;
+
+function isSummaryCount(value: unknown): value is number {
+  // A negative, fractional or non-numeric count is not a count: the panel would
+  // print it as if the service had measured it.
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function isExecutiveLevel(value: unknown): value is string {
+  return EXECUTIVE_LEVELS.some((level) => level === value);
+}
+
+// Fail-closed boundary guard. The panel shows six blocks side by side, so an
+// answer missing one of them - or carrying a count it contradicts - is rejected
+// whole rather than rendered partially. `critical_zones.count` must equal the
+// list it summarises, because the contract states that invariant and a body that
+// disagrees with itself cannot be shown honestly either way.
+function isExecutiveSummary(value: unknown): value is ExecutiveSummary {
+  if (!record(value)) return false;
+
+  if (!record(value.coverage)) return false;
+  const coverage = value.coverage;
+  if (
+    !isSummaryCount(coverage.catalogue_zones) ||
+    !isSummaryCount(coverage.zones_without_batch) ||
+    !isSummaryCount(coverage.stale_zones) ||
+    !isSummaryCount(coverage.demo_zones)
+  ) {
+    return false;
+  }
+
+  if (!record(value.levels)) return false;
+  const levels = value.levels;
+  for (const level of EXECUTIVE_LEVELS) if (!isSummaryCount(levels[level])) return false;
+
+  if (!record(value.delta)) return false;
+  const delta = value.delta;
+  for (const key of ['zones_compared', 'zones_changed', 'zones_without_previous', 'zones_incomparable'] as const) {
+    if (!isSummaryCount(delta[key])) return false;
+  }
+  if (!Array.isArray(delta.transitions)) return false;
+  for (const entry of delta.transitions) {
+    if (!record(entry) || !isExecutiveLevel(entry.from) || !isExecutiveLevel(entry.to)) return false;
+    if (!isSummaryCount(entry.zones) || entry.zones < 1) return false;
+  }
+
+  if (!Array.isArray(value.predominant_variables)) return false;
+  for (const entry of value.predominant_variables) {
+    if (!record(entry) || !nonempty(entry.name) || !isSummaryCount(entry.zones) || entry.zones < 1) return false;
+  }
+
+  if (!record(value.critical_zones)) return false;
+  const critical = value.critical_zones;
+  if (!isSummaryCount(critical.count) || !Array.isArray(critical.zone_ids)) return false;
+  for (const zone of critical.zone_ids) if (!nonempty(zone)) return false;
+  if (critical.count !== critical.zone_ids.length) return false;
+
+  if (!record(value.active_alerts)) return false;
+  return isSummaryCount(value.active_alerts.count);
+}
+
+// `config.routes` is the shared route table this unit does not own, so the route
+// is named here the way the transport names the job creation path. The page
+// reads through the gateway, like every other `/v1/*` read.
+const EXECUTIVE_SUMMARY_ROUTE = '/v1/risk/executive-summary';
+
+// One read answers the executive summary: coverage, levels, the recent variation
+// and the two PM-01 members. A failure is an outcome, never a partial summary:
+// the panel states it inline and the rest of the view keeps working.
+export async function executiveSummary(signal?: AbortSignal): Promise<Outcome<ExecutiveSummary>> {
+  const result = await requestJson(
+    'executiveSummary',
+    `${gatewayOrigin}${EXECUTIVE_SUMMARY_ROUTE}`,
+    { authenticated: true },
+    signal,
+  );
+  return guardOutcome(result, isExecutiveSummary);
 }
 
 // --- Multi-zone comparison (PM-05) -----------------------------------------
@@ -930,6 +1117,7 @@ function isPreventiveAction(value: unknown): value is PreventiveAction {
   if (!optionalString(value.description) || !optionalString(value.priority) || !nullableString(value.assignee)) {
     return false;
   }
+  if (!nullableUuid(value.assignee_id)) return false;
   if (!nullableString(value.due_date) || !optionalString(value.created_by)) return false;
   if (!optionalString(value.created_at) || !optionalString(value.updated_at)) return false;
   return true;
@@ -1056,7 +1244,13 @@ export interface PreventiveActionInput {
   readonly title: string;
   readonly description?: string;
   readonly priority?: string;
-  readonly assignee?: string;
+  // The reference a NEW assignment uses: a directory user identifier, resolved
+  // by the server against the realm's directory before anything is stored. An
+  // identifier the directory does not know is refused 422 and nothing is
+  // created. Omitting it creates a valid unassigned action. The legacy free-text
+  // `assignee` column is display compatibility for rows that predate this
+  // reference; a new assignment never travels through it.
+  readonly assigneeId?: string;
   readonly dueDate?: string;
 }
 
@@ -1070,7 +1264,7 @@ export async function createPreventiveAction(
   const body: Record<string, string> = { community_code: input.communityCode, title: input.title };
   if (nonempty(input.description)) body.description = input.description;
   if (nonempty(input.priority)) body.priority = input.priority;
-  if (nonempty(input.assignee)) body.assignee = input.assignee;
+  if (nonempty(input.assigneeId)) body.assignee_id = input.assigneeId.trim();
   if (nonempty(input.dueDate)) body.due_date = input.dueDate;
   const result = await requestJson(
     'createPreventiveAction',
@@ -1206,6 +1400,38 @@ export async function linkPreventiveReassessment(
     return failureOutcome(failureSpec('malformed', 'action_mismatch', result.status, result.requestId));
   }
   return { ok: true, data: result.body };
+}
+
+// --- User directory (V1-U-04) --------------------------------------------
+//
+// `GET /v1/users` is admin-only and read-only. It fails closed on the server
+// side (503 `directory_unavailable` when it is not configured, 502
+// `directory_upstream_failed` when the identity provider errors), so this
+// transport must not flatten either into an empty list: `200 []` means the realm
+// really has no users, and a refusal keeps its status, its `code` and its
+// `request_id`. Entries are validated one by one; a malformed entry rejects the
+// whole answer instead of yielding a partial picker.
+
+// One directory entry, exactly as the contract declares it: the identifier the
+// identity provider assigns and a display name that is never empty. The name is
+// resolved by the service (first and last name, else the username, else the
+// identifier), so the page never composes one.
+export interface DirectoryUser {
+  readonly id: string;
+  readonly display_name: string;
+}
+
+function isDirectoryUser(value: unknown): value is DirectoryUser {
+  return record(value) && nonempty(value.id) && nonempty(value.display_name);
+}
+
+function isDirectoryUsers(value: unknown): value is DirectoryUser[] {
+  return Array.isArray(value) && value.every(isDirectoryUser);
+}
+
+export async function users(signal?: AbortSignal): Promise<Outcome<DirectoryUser[]>> {
+  const result = await requestJson('users', `${gatewayOrigin}${routes.users}`, { authenticated: true }, signal);
+  return guardOutcome(result, isDirectoryUsers);
 }
 
 // --- Field observations (PM-09) --------------------------------------------

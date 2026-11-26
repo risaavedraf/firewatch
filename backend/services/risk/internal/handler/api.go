@@ -21,6 +21,16 @@ type Repository interface {
 	// ordered by zone_id. A zone with no published batch is absent from the
 	// answer, and an empty result is a valid answer rather than an error.
 	LatestPerZone(ctx context.Context) ([]repository.Batch, error)
+	// ExecutiveBatches reads the newest two published batches of every catalogue
+	// zone, newest first, in one snapshot. D-B criticality and the delta block are
+	// both decided from this single read, so a zone can never be counted in one
+	// block from batches the other block did not see.
+	ExecutiveBatches(ctx context.Context) ([][]repository.Batch, error)
+	// ExecutiveAlertCount counts the stored level-change alerts for the executive
+	// summary. It filters nothing and reports no read or dismissed state: the
+	// summary states how many alert rows exist, and the lifecycle is PM-08's. A
+	// failed count is a storage failure, never a zero.
+	ExecutiveAlertCount(ctx context.Context) (int, error)
 	// ZoneExists reports whether the zone catalogue holds code. Membership is a
 	// property of the data, not of a literal compiled into this service, so the
 	// read path asks the catalogue instead of comparing to a hardcoded zone.
@@ -96,9 +106,15 @@ func NewWithCycle(store Repository, verifier Verifier, check StatusCheck, runner
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	})
 	mux.HandleFunc("GET /v1/risk/batches", latestPerZone(store))
+	mux.HandleFunc("GET /v1/risk/executive-summary", executiveSummary(store))
 	// The alert timeline is a viewer/admin read like its neighbours: it is inside
 	// the Authorize gate and requires no further role check, and it stores nothing.
 	mux.HandleFunc("GET /v1/risk/alerts", listAlerts(store))
+	// The counterfactual simulation is a viewer/admin read like its neighbours: it
+	// is inside the Authorize gate, requires no further role check, recomputes
+	// locally from the rule the batch recorded and writes no row. No gateway change
+	// is needed: /v1/risk/ is already proxied as a subtree.
+	mux.HandleFunc("POST /v1/risk/simulate", simulate(store))
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
 	mux.HandleFunc("GET /v1/risk/infrastructure", listInfrastructure())

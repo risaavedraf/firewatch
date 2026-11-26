@@ -124,22 +124,32 @@ export function Metric({
   );
 }
 
+// `level` is opt-in and defaults to the level this primitive has always
+// rendered. A view that states its own title states it at `level={2}` under the
+// shell's only `h1`; a panel nested inside a titled section keeps the default.
+// The class is what holds the shipped title weight: the global `h2` rule is
+// lighter than `h3`, so the level must not be able to repaint the title.
 export function PanelHeading({
   eyebrow,
   title,
   titleId,
   badge,
+  level = 3,
 }: {
   eyebrow: string;
   title: string;
   titleId?: string;
   badge?: ReactNode;
+  level?: 2 | 3;
 }) {
+  const Heading = level === 2 ? 'h2' : 'h3';
   return (
     <div className="panel-heading">
       <div>
         <p className="eyebrow">{eyebrow}</p>
-        <h3 id={titleId}>{title}</h3>
+        <Heading className="panel-heading-title" id={titleId}>
+          {title}
+        </Heading>
       </div>
       {badge}
     </div>
@@ -191,4 +201,31 @@ export function UnimplementedNote({ children }: { children: ReactNode }) {
 
 export function UnimplementedBadge() {
   return <span className="unimplemented">NO IMPLEMENTADO</span>;
+}
+
+// A table wider than its panel scrolls inside `.table-wrap`, so the wrapper — not
+// the table — is the scroll container a keyboard user has to reach. Chromium makes
+// a scroll container focusable on its own; no other engine owes the page that, and
+// axe-core reports `scrollable-region-focusable` while the DOM leaves it implicit.
+// The primitive states it: a Tab stop exposed as a region whose name says what the
+// table holds, so a screen reader announces the area rather than an anonymous box.
+// The class stays `table-wrap`, so the shipped `overflow: auto`, the existing
+// `:focus-visible` ring and the `has-rows` hiding rule keep applying unchanged;
+// `id` and `hidden` are passed through so no consumer loses its state.
+export function TableWrap({
+  label,
+  id,
+  hidden,
+  children,
+}: {
+  label: string;
+  id?: string;
+  hidden?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div id={id} className="table-wrap" hidden={hidden} tabIndex={0} role="region" aria-label={label}>
+      {children}
+    </div>
+  );
 }

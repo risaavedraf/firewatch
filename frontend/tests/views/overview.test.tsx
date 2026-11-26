@@ -24,6 +24,10 @@ const MODELS_URL = `${gatewayOrigin}${routes.models}`;
 // here the way the transport names it, so this suite pins the exact route the
 // page consumes.
 const BATCHES_URL = `${gatewayOrigin}/v1/risk/batches`;
+// PM-01 — the executive summary route. `config.routes` does not carry it, so the
+// suite names the URL the transport names, exactly as it does for the aggregate
+// read above.
+const EXECUTIVE_URL = `${gatewayOrigin}/v1/risk/executive-summary`;
 
 // Two stubs are shared by the whole file and rebuilt before every test, so no
 // test can inherit a pending request or a previous session from another.
@@ -97,6 +101,27 @@ function batch(zone = '05101', id = 'batch-1', job = 'job-1', overrides: Partial
   };
 }
 
+// The executive summary body the server serves (PM-01). It is spelled as the
+// contract's wire body, not as the panel's props: these tests prove the view
+// consumes the route and hands the served numbers on unchanged.
+function executiveSummaryBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    coverage: { catalogue_zones: 3, zones_without_batch: 1, stale_zones: 0, demo_zones: 0 },
+    levels: { alto: 1, medio: 1, bajo: 0, desconocido: 0 },
+    delta: {
+      zones_compared: 1,
+      zones_changed: 0,
+      zones_without_previous: 1,
+      zones_incomparable: 0,
+      transitions: [],
+    },
+    predominant_variables: [{ name: 'viento', zones: 1 }],
+    critical_zones: { count: 1, zone_ids: ['05101'] },
+    active_alerts: { count: 2 },
+    ...overrides,
+  };
+}
+
 // --- Driving the view ------------------------------------------------------
 
 function element(id: string): HTMLElement {
@@ -138,6 +163,20 @@ async function openSignedOut(): Promise<void> {
   render(<OverviewView />);
   await settle();
 }
+
+test('shows the territorial map and its zone selector before the session summary and model details', async () => {
+  await openSignedIn();
+
+  const mapHeading = screen.getByRole('heading', { name: 'Vista territorial de las comunas' });
+  const zoneSelector = screen.getByRole('combobox', { name: 'Zona a consultar' });
+  const summary = screen.getByRole('region', { name: 'Resumen real de la sesión' });
+  const modelHeading = screen.getByRole('heading', { name: 'Versión de modelo activa' });
+  for (const item of [mapHeading, zoneSelector]) {
+    for (const secondary of [summary, modelHeading]) {
+      expect(item.compareDocumentPosition(secondary) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    }
+  }
+});
 
 async function serveCatalogue(collection: ZoneCollection): Promise<void> {
   fetchStub.answer(ZONES_URL, collection);
@@ -212,7 +251,6 @@ test('the view keeps the overview identity, every contracted identifier and the 
     'batch-origin',
     'batch-notice',
     'batch-validity',
-    'risk-factors',
     'risk-rationale',
     'risk-policy',
     'data-status',
@@ -320,7 +358,23 @@ test('selection reads latest and history; a 404 is absence, never low risk', asy
   expect(textOf('risk-level')).toBe('Sin lote publicado');
   expect(textOf('risk-level')).not.toBe('BAJO');
   expect(textOf('metric-batches')).toBe('0');
-  expect(element('risk-factors').children).toHaveLength(0);
+  expect(document.getElementById('risk-factors')).toBeNull();
+});
+
+// A heading over an empty list reads as a broken widget, and the artboard names
+// no factors in a card that has no lot. The block appears only when the card has
+// a reading to show or an omission to declare.
+test('a card without a published lot renders no Factores heading and no empty list', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', null, 404, []);
+
+  expect(textOf('risk-pill')).toBe('SIN LOTE');
+  expect(textOf('risk-level')).toBe('Sin lote publicado');
+  expect(screen.queryByRole('heading', { name: 'Factores' })).toBeNull();
+  expect(document.getElementById('risk-factors')).toBeNull();
+  // The artboard states the absence in one muted sentence instead of a heading.
+  expect(screen.getByText('No hay factores disponibles para este sector.')).toBeInTheDocument();
 });
 
 test('wrong-zone and superseded latest responses cannot render; catalogue geometry stays unchanged', async () => {
@@ -377,13 +431,13 @@ test('unknown level, false demo discrepancy, loading and logout clear prior deta
 
   // A new selection clears the previous batch's details while the read is in flight.
   await choose('05101');
-  expect(element('risk-factors').children).toHaveLength(0);
+  expect(document.getElementById('risk-factors')).toBeNull();
   expect(textOf('risk-policy')).toBe('Sin consultar');
   expect(textOf('risk-rationale')).toBe('Sin consultar');
 
   await logOut();
   expect(textOf('zone-code')).toBe('No informado');
-  expect(element('risk-factors').children).toHaveLength(0);
+  expect(document.getElementById('risk-factors')).toBeNull();
   expect(textOf('risk-policy')).toBe('Sin consultar');
   expect(textOf('risk-pill')).toBe('SIN CONSULTAR');
 });
@@ -485,6 +539,10 @@ test('synthetic warning independent of notice; unknown factor never displays zer
   expect(textOf('batch-origin')).toMatch(/Sintético/);
   expect(textOf('batch-notice')).toMatch(/no riesgo real observado/);
   expect(textOf('batch-notice')).toMatch(/ausente o inválido/);
+  // The approved label describes the rule's calculation, not a cause or forecast (PM-02).
+  expect(screen.getByRole('heading', { name: 'Cómo lo calculó la regla' }).nextElementSibling).toBe(
+    element('risk-rationale'),
+  );
   // The rationale is reproduced as text, never interpreted as markup.
   expect(textOf('risk-rationale')).toBe('<img onerror=evil>');
   // The unknown entry is found by name, not by position: the row list names the
@@ -550,7 +608,7 @@ test('factor bars use the real contribution and a factor without data draws no b
 // from the payload; neither may become a zero or a bar. The measured inputs keep
 // their real value, contribution, note and proportional bar, and a batch with no
 // usable factor entry still renders no rows at all.
-test('the factor list names the five canonical inputs and states every missing reading without inventing a value (PM-02)', async () => {
+test('the factor list names the five canonical inputs, states every missing reading without inventing a value, and carries the D-D label (PM-02)', async () => {
   await openSignedIn();
   await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
   await serveZone(
@@ -577,6 +635,13 @@ test('the factor list names the five canonical inputs and states every missing r
     'cobertura_vegetal',
     'incendios_historicos',
   ]);
+
+  // D-D: the note names the label and denies causality and forecast in the same
+  // breath, so the copy cannot drift into "por qué se quemaría".
+  const ruleNote = element('factor-rule-note');
+  expect(ruleNote.textContent).toContain('Cómo lo calculó la regla');
+  expect(ruleNote.textContent).toMatch(/no es una causa del incendio ni un pronóstico/);
+  expect(ruleNote.textContent).not.toMatch(/por qué se quemaría|predicción/);
   const rowOf = (name: string): Element => {
     const matches = rows.filter((row) => (row.textContent ?? '').startsWith(`${name}:`));
     expect(matches, `row ${name}`).toHaveLength(1);
@@ -1236,4 +1301,99 @@ test('suggesting creates nothing: no mutating request and no prevention read (PM
   for (const call of fetchStub.calls) {
     expect((call.init.method ?? 'GET').toUpperCase()).toMatch(/^(GET|HEAD)$/);
   }
+});
+
+// --- PM-01: the executive panel --------------------------------------------
+//
+// The panel is the server's own summary, so these tests pin the seam, not the
+// arithmetic: the view must read the route, show what it answered, state a
+// failure inline, and leave every other block of the overview working.
+
+test('the executive panel opens the overview with the numbers the server answered (PM-01)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca'), feature('05103', 'Quilpué')]));
+  fetchStub.answer(EXECUTIVE_URL, executiveSummaryBody());
+  await settle();
+
+  const panel = element('executive-panel');
+  // The section opens the view: it sits directly after the intro row and ahead of
+  // the metrics, because it answers for the whole territory rather than for the
+  // selected zone.
+  expect(Array.from(element('overview').children).indexOf(panel)).toBe(1);
+  expect(textOf('executive-rule-tag')).toBe('Regla activa, no modelo');
+  expect(textOf('executive-coverage-catalogue')).toBe('3');
+  expect(textOf('executive-level-alto')).toBe('1');
+  expect(textOf('executive-critical-count')).toBe('1');
+  expect(textOf('executive-critical-rule')).toBe('Alto en los dos últimos lotes');
+  // The catalogue this session read names the critical zone the way the selector
+  // names it, and the code is still visible inside that label.
+  expect(textOf('executive-critical-list')).toBe('Valparaíso (05101)');
+  expect(textOf('executive-alerts-count')).toBe('2');
+  expect(element('executive-alert-link').getAttribute('href')).toBe('#notifications');
+
+  // The rest of the view keeps reading the same catalogue: the panel did not
+  // replace the metrics it precedes.
+  expect(textOf('zone-count')).toBe('3');
+  expect(mapIsHidden()).toBe(false);
+});
+
+test('a failed executive summary is stated inline and the rest of the overview keeps working (PM-01)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  fetchStub.answer(EXECUTIVE_URL, { code: 'storage_unavailable' }, 503);
+  await settle();
+
+  expect(textOf('executive-status')).toMatch(/No se pudo consultar el resumen ejecutivo \(HTTP 503\)/);
+  // No member is invented from the failed read: the counts are absent, never 0.
+  expect(document.getElementById('executive-coverage-catalogue')).toBeNull();
+  expect(document.getElementById('executive-critical-count')).toBeNull();
+  expect(document.getElementById('executive-alerts-count')).toBeNull();
+
+  // The zone chain below the panel still answers and still renders its batch.
+  await serveZone('05101', batch('05101'), 200, [batch('05101')]);
+  expect(textOf('zone-count')).toBe('1');
+  expect(textOf('risk-level')).toBe('ALTO');
+  expect(textOf('executive-status')).toMatch(/HTTP 503/);
+});
+
+test('a selection change does not re-read the executive summary (PM-01)', async () => {
+  // A remount of Overview does issue a fresh read; this test pins the selection
+  // path only, so the Log must not claim "once per session".
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+  fetchStub.answer(EXECUTIVE_URL, executiveSummaryBody());
+  await settle();
+  expect(fetchStub.callsFor(EXECUTIVE_URL)).toHaveLength(1);
+
+  await choose('05102');
+  await serveZone('05102', batch('05102', 'b2', 'j2'), 200, [batch('05102')]);
+  // A selection belongs to the zone chain; it never re-issues the territory-wide
+  // summary.
+  expect(fetchStub.callsFor(EXECUTIVE_URL)).toHaveLength(1);
+});
+
+test('without a session the panel states it has not read the summary and shows no count (PM-01)', async () => {
+  await openSignedOut();
+
+  expect(textOf('executive-status')).toMatch(/Sin consultar/);
+  expect(document.getElementById('executive-coverage-catalogue')).toBeNull();
+  expect(fetchStub.callsFor(EXECUTIVE_URL)).toHaveLength(0);
+});
+
+test('a pending summary read becomes a stated failure at the transport deadline (PM-01)', async () => {
+  vi.useFakeTimers();
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  // The read is never answered: the panel must state that it is consulting...
+  expect(textOf('executive-status')).toMatch(/Consultando el resumen ejecutivo/);
+
+  // ... and the transport's own bound must turn that pending state into a
+  // failure, so the section can never advertise a read that will not settle.
+  await act(async () => {
+    vi.advanceTimersByTime(10_000);
+  });
+  await settle();
+  expect(textOf('executive-status')).toMatch(/No se pudo consultar el resumen ejecutivo/);
+  expect(textOf('executive-status')).not.toMatch(/Consultando/);
+  expect(document.getElementById('executive-critical-count')).toBeNull();
 });

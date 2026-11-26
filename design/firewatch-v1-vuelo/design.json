@@ -1,12 +1,12 @@
 {
   "title": "FireWatch v1 · Vista aérea y todas las pantallas",
-  "brief": "Colección completa del diseño v1: la vista aérea de Valparaíso como Territorio, las dieciséis pantallas de G1 y G6 expuestas una por artboard y los dos complementos del mapa. Los datos, las operaciones y las exportaciones son de maqueta: no guardan, envían ni descargan nada.",
+  "brief": "Colección completa del diseño v1: la vista aérea de Valparaíso convertida en estación de trabajo con solicitudes de lote por comuna, las dieciséis pantallas de G1 y G6 expuestas una por artboard y los dos complementos del mapa. Muestra el flujo completo que necesitamos, esté implementado o no; los datos, lotes, lecturas y exportaciones son de maqueta y nada llama a la red, guarda ni descarga.",
   "feature": "odd/tasks/v1-gentle-design.md",
   "artboards": [
     {
       "file": "01-vista-aerea.html",
       "title": "Territorio · Vista aérea",
-      "tradeoff": "El mapa ocupa todo el encuadre. La vista aérea muestra altura y construcciones; la cenital ayuda a comparar el riesgo sin la distorsión de la inclinación. El relieve y los datos son ilustrativos.",
+      "tradeoff": "El mapa sigue siendo el lienzo y la estación de trabajo se ancla a su izquierda: se marcan varias comunas y cada una abre un lote con respuesta independiente, sin esperar a las demás. El mapa muestra las lecturas de riesgo por sector desde la entrada, con corte temporal y estado sin evaluación si no hay lote. Los resultados se abren sin salir del mapa. Los paneles tapan parte del terreno y todo es de maqueta, sin red ni persistencia.",
       "width": 1440,
       "height": 900
     },
@@ -111,7 +111,7 @@
     {
       "file": "16-procesamiento.html",
       "title": "Procesamiento",
-      "tradeoff": "Solicita un lote sintético, sigue el trabajo con lecturas acotadas y lo correlaciona con el lote publicado. Muestra el ciclo completo de lectura; solicitud, sondeo y publicación son simulados y no llaman a servicios.",
+      "tradeoff": "Ciclo anterior de un solo lote: solicita un trabajo sintético, sigue su estado y lo correlaciona con el lote publicado. Se conserva como referencia detallada del proceso; la portada 01 ya resuelve la solicitud por comuna y la respuesta independiente. Solicitud, sondeo y publicación son simulados y no llaman a servicios.",
       "width": 1440,
       "height": 900
     },
@@ -131,8 +131,8 @@
     },
     {
       "file": "19-aun-no-implementado.html",
-      "title": "Aún no implementado",
-      "tradeoff": "Inventaría las siete capacidades que el backend aún no sostiene y por qué. Deja el estado transitorio a la vista sin simular producto; no hay acciones operativas y estas pantallas todavía no existen.",
+      "title": "Prototipos y alcance",
+      "tradeoff": "Separa, fila por fila, lo que se puede recorrer en el lienzo de lo que el producto todavía no sostiene: enlaza solo prototipos reales, marca los parciales y nombra como texto los destinos sin prototipo. Deja las siete capacidades abiertas y sin acciones operativas.",
       "width": 1440,
       "height": 900
     },
