@@ -251,19 +251,19 @@ test('logout returns the role panel to the explicit unavailable state', async ()
 // `the permissions matrix documents the real server guards and marks what it cannot verify`.
 const GUARD_LINES: Record<string, RegExp> = {
   'backend/services/gateway/internal/handler/gateway.go:126': /mux\.Handle\("\/v1\/audit"/,
-  'backend/services/gateway/internal/handler/gateway.go:216': /health\/ready/,
-  'backend/services/gateway/internal/handler/gateway.go:240': /auth := strings\.Fields/,
-  'backend/services/gateway/internal/handler/gateway.go:246': /verifier\.Verify\(ctx, auth\[1\]\)/,
+  'backend/services/gateway/internal/handler/gateway.go:224': /health\/ready/,
+  'backend/services/gateway/internal/handler/gateway.go:248': /auth := strings\.Fields/,
+  'backend/services/gateway/internal/handler/gateway.go:254': /verifier\.Verify\(ctx, auth\[1\]\)/,
   'backend/services/risk/internal/handler/security.go:59': /role == "viewer" \|\| role == "admin"/,
   'backend/services/risk/internal/handler/security.go:64': /fail\(w, 403, "forbidden"\)/,
-  'backend/services/risk/internal/handler/api.go:62': /"GET \/v1\/risk\/status"/,
-  'backend/services/risk/internal/handler/api.go:63': /"GET \/v1\/risk\/latest"/,
-  'backend/services/risk/internal/handler/api.go:64': /"GET \/v1\/risk\/history"/,
-  'backend/services/risk/internal/handler/api.go:69': /"GET \/v1\/risk\/batches"/,
-  'backend/services/risk/internal/handler/api.go:73': /"GET \/v1\/risk\/zones"/,
-  'backend/services/risk/internal/handler/api.go:74': /"GET \/v1\/risk\/synthetic-scenarios"/,
-  'backend/services/risk/internal/handler/api.go:85': /"GET \/v1\/risk\/sources"/,
-  'backend/services/risk/internal/handler/api.go:86': /return Authorize\(verifier, mux\)/,
+  'backend/services/risk/internal/handler/api.go:70': /"GET \/v1\/risk\/status"/,
+  'backend/services/risk/internal/handler/api.go:71': /"GET \/v1\/risk\/latest"/,
+  'backend/services/risk/internal/handler/api.go:72': /"GET \/v1\/risk\/history"/,
+  'backend/services/risk/internal/handler/api.go:77': /"GET \/v1\/risk\/batches"/,
+  'backend/services/risk/internal/handler/api.go:81': /"GET \/v1\/risk\/zones"/,
+  'backend/services/risk/internal/handler/api.go:82': /"GET \/v1\/risk\/synthetic-scenarios"/,
+  'backend/services/risk/internal/handler/api.go:98': /"GET \/v1\/risk\/sources"/,
+  'backend/services/risk/internal/handler/api.go:99': /authorized := Authorize\(verifier, mux\)/,
   'backend/services/jobs/internal/handler/security.go:44': /role == "admin"/,
   'backend/services/jobs/internal/handler/security.go:49': /fail\(w, 403, "forbidden"\)/,
   'backend/services/jobs/internal/handler/api.go:86': /"GET \/v1\/jobs\/status"/,
@@ -347,7 +347,7 @@ test('no role selector, switcher or picker is ported anywhere in the view', () =
   // The note also cites the two `Authorize` wraps. Both are the same full guard
   // refs the matrix renders, so the matrix test above proves their disk content;
   // a short `api.go:N` form here would drift unverified, as it did once.
-  expect(matrixNote).toContain('backend/services/risk/internal/handler/api.go:86');
+  expect(matrixNote).toContain('backend/services/risk/internal/handler/api.go:99');
   expect(matrixNote).toContain('backend/services/jobs/internal/handler/api.go:236');
 });
 
