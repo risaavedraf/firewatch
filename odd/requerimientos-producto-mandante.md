@@ -53,6 +53,8 @@ Ninguna de las dos cierra a la otra. Un panel ejecutivo perfecto no aporta evide
 
 ## 3. Corte verificado de las 20
 
+**Vigencia.** Esta tabla es el corte del 2026-11-18 sobre `d4afba7` y **se conserva sin reescribir**: describe el árbol de esa fecha, no el de hoy. El estado contra `origin/dev` = `268c893` —qué filas tienen código fusionado, qué falta y con qué evidencia `archivo:línea`— vive en [`plan-produccion/16-producto-mandante.md`](plan-produccion/16-producto-mandante.md) L7 y en [`tasks/v1-produccion.md`](tasks/v1-produccion.md) L21. Leer esta tabla como historia del corte, no como estado vigente.
+
 Estados: **Ausente** = no existe artefacto; **Parcial** = existe algo ejecutable que hace parte o la mayoría, y falta lo que la columna dice; **Implementado** = el usuario puede ejercitarla hoy por la API y por la página.
 
 | # | Funcionalidad | Estado | Ancla | Qué existe y qué falta |
@@ -113,7 +115,7 @@ El orden no lo decide el atractivo, lo decide la dependencia.
 |---|---|---|
 | **A — Cálculo sobre lo que ya hay** | 3, 1, 7, 8, 4 | Cero migraciones, cero datos nuevos. Todo sale de `batches.factors`, `readings` y la regla pura. Es la capa con mejor retorno y la única que se puede probar con valores dorados |
 | **B — Persistencia nueva** | 9, 6, 17, 18, 10 | Exige migraciones. Sin entidad de alerta no hay centro de notificaciones (`#18` depende de `#6`), y sin observación de campo no hay vínculo observación→acción (`#17` depende de `#10`) |
-| **C — Datos externos** | 12, 13, 2 | **Bloqueada por el mandante.** Catálogo de infraestructura crítica y fuente NDVI. Sin eso, la priorización del ítem 2 se calcula sobre datos inventados |
+| **C — Datos externos** | 12, 13, 2 | **D-A resuelta (2026-11-25):** se aceptan fixtures sintéticos declarados; el insumo del mandante ya no bloquea. Faltan el catálogo/NDVI y la aceptación de la priorización. |
 | **D — Entrega** | 14, 15 | Depende de A para las causas y de C para el mapa y el entorno |
 | **E — Transversal** | 16, 19 | `analista` es una decisión de política de acceso; el tablero de servicios ya tiene casi todas sus fuentes |
 | **Última** | 20 | Depende de 3, 4 y 7 juntos, y exige cerrar antes `GRD-I1`/`GRD-I2` |
@@ -122,14 +124,14 @@ El orden no lo decide el atractivo, lo decide la dependencia.
 
 ## 7. Decisiones que no son de ingeniería
 
-Cuatro, y ninguna se resuelve con código:
+Cuatro. Tres quedaron resueltas el 2026-11-25 por decisión del mandante —D-A, D-B y D-D— y **D-C sigue abierta**; las citas textuales, el registro y la evidencia están en [`plan-produccion/16-producto-mandante.md`](plan-produccion/16-producto-mandante.md) L7 y [`tasks/v1-produccion.md`](tasks/v1-produccion.md) L21.
 
-| # | Decisión | Quién | Qué desbloquea |
-|--:|---|---|---|
-| D-A | ¿Los datos de infraestructura crítica los entrega el mandante o se aceptan fixtures **declarados como sintéticos** en la interfaz y en el PDF? | Mandante | Ítems 12, 2, 14 |
-| D-B | ¿«Zona crítica» significa un nivel Alto sostenido N ciclos, o riesgo Alto **y** exposición? | Mandante + equipo | Ítem 1; es la definición que hoy falta |
-| D-C | ¿Se agrega el rol `analista` al realm y con qué permisos frente a `viewer` y `admin`? | Responsable del proyecto | Ítem 16, y con él la matriz de acceso del ítem 17 |
-| D-D | ¿La explicación se rotula «por qué se quemaría» o «cómo lo calculó la regla»? | Mandante | Ítems 3, 4 y 20. Es una decisión de honestidad, no de redacción: con una regla no calibrada y datos sintéticos, lo primero es una afirmación que el sistema no puede sostener |
+| # | Decisión | Quién | Qué desbloquea | Estado y resolución |
+|--:|---|---|---|---|
+| D-A | ¿Los datos de infraestructura crítica los entrega el mandante o se aceptan fixtures **declarados como sintéticos** en la interfaz y en el PDF? | Mandante | Ítems 12, 2, 14 | **Resuelta** — S2, textual: «tenemos permiso para usar datos sinteticos». Se aceptan fixtures sintéticos **declarados como sintéticos** en la interfaz y en el PDF; la obligación de rotular el dato no se relaja |
+| D-B | ¿«Zona crítica» significa un nivel Alto sostenido N ciclos, o riesgo Alto **y** exposición? | Mandante + equipo | Ítem 1; es la definición que hoy falta | **Resuelta** — S3, textual: «Alto sostenido dos lotes». Una zona es crítica cuando sus **dos últimos lotes publicados** tienen nivel `alto` |
+| D-C | ¿Se agrega el rol `analista` al realm y con qué permisos frente a `viewer` y `admin`? | Responsable del proyecto | Ítem 16, y con él la matriz de acceso del ítem 17 | **Abierta** — sin decisión; el ítem 16 y la matriz del 17 siguen esperándola |
+| D-D | ¿La explicación se rotula «por qué se quemaría» o «cómo lo calculó la regla»? | Mandante | Ítems 3, 4 y 20. Es una decisión de honestidad, no de redacción: con una regla no calibrada y datos sintéticos, lo primero es una afirmación que el sistema no puede sostener | **Resuelta** — S4, textual: «Cómo lo calculó la regla». La explicación es aritmética de la regla, no causalidad ni pronóstico |
 
 ---
 
