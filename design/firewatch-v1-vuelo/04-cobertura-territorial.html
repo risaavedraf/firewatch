@@ -5,6 +5,68 @@
 <meta charset="utf-8" />
 <meta name="generator" content="design/firewatch-v1-vuelo/build-artboards.mjs" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<style id="fw-product-nav">
+/* FireWatch · navegación global del producto (componente compartido).
+   Fuente del bloque: product-navigation.mjs. */
+.fw-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 5px 12px;
+  border-block-end: 1px solid var(--fw-edge);
+  background: var(--fw-surface);
+  color: var(--fw-ink);
+  font: 600 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.fw-nav--map { --fw-surface: var(--panel, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--border, #647b8a); --fw-accent: var(--focus, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--aerial { --fw-surface: var(--aerial-panel, #17222b); --fw-ink: var(--aerial-ink, #f4f1eb); --fw-muted: var(--aerial-muted, #b8c8d2); --fw-edge: var(--aerial-border, #647b8a); --fw-accent: var(--aerial-focus, #94dfda); --fw-raised: var(--aerial-raised, #243341); }
+.fw-nav--panel { --fw-surface: var(--surface, #17222b); --fw-ink: var(--text, #f4f1eb); --fw-muted: var(--text-muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--surface-raised, #243341); }
+.fw-nav--plain { --fw-surface: var(--surface, #17222b); --fw-ink: var(--ink, #f4f1eb); --fw-muted: var(--muted, #b8c8d2); --fw-edge: var(--edge, #647b8a); --fw-accent: var(--accent, #94dfda); --fw-raised: var(--raised, #243341); }
+.fw-nav--sticky { position: sticky; top: 0; z-index: 30; min-height: 48px; }
+.fw-nav--fixed { position: fixed; inset: 0 0 auto; z-index: 2; flex-wrap: nowrap; height: var(--fw-nav-h, 48px); padding-block: 3px; }
+html { scroll-padding-top: calc(var(--fw-nav-h, 48px) + 56px); }
+.fw-nav--sticky + .app .viewnav { top: var(--fw-nav-h, 48px); }
+.fw-nav__primary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.fw-nav--fixed .fw-nav__primary { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding-block: 1px; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.fw-nav__link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 9px; color: var(--fw-ink); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.fw-nav__link:hover { background: var(--fw-raised); }
+.fw-nav__link[aria-current="page"] { border-color: var(--fw-edge); background: var(--fw-raised); color: var(--fw-accent); text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav a:focus-visible, .fw-nav summary:focus-visible { outline: 3px solid var(--fw-accent); outline-offset: 2px; }
+.fw-nav--fixed .fw-nav__primary .fw-nav__link:focus-visible { outline-offset: -2px; }
+.fw-nav__more { display: flex; min-width: 0; }
+.fw-nav__summary { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 11px; border: 1px solid var(--fw-edge); border-radius: 9px; color: var(--fw-ink); font-weight: 700; white-space: nowrap; cursor: pointer; list-style: none; }
+.fw-nav__summary::-webkit-details-marker { display: none; }
+.fw-nav__summary::after { content: "▾"; font-size: 10px; line-height: 1; }
+.fw-nav__summary:hover { background: var(--fw-raised); }
+.fw-nav__more[open] > .fw-nav__summary { border-color: var(--fw-accent); background: var(--fw-raised); color: var(--fw-accent); }
+.fw-nav__panel { position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 10px; z-index: 40; width: min(720px, calc(100vw - 20px)); max-height: min(70dvh, 520px); overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px 14px; border: 1px solid var(--fw-edge); border-radius: 12px; background: var(--fw-surface); color: var(--fw-ink); box-shadow: 0 16px 32px rgb(0 0 0 / 32%); }
+.fw-nav__panel-title { margin: 0 0 9px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.fw-nav__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 18px; }
+.fw-nav__group-title { margin: 0 0 3px; color: var(--fw-muted); font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__list { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.fw-nav__item { display: flex; align-items: center; min-height: 32px; padding: 2px 6px; border-radius: 6px; color: var(--fw-ink); font-size: 12.5px; font-weight: 600; line-height: 1.35; text-decoration: none; }
+.fw-nav__item:hover { background: var(--fw-raised); }
+.fw-nav__item[aria-current="page"] { color: var(--fw-accent); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.fw-nav__note { margin: 10px 0 0; padding-top: 8px; border-block-start: 1px solid var(--fw-edge); color: var(--fw-muted); font-size: 11.5px; }
+.fw-nav__where { margin: 0 0 0 auto; min-width: 0; color: var(--fw-muted); font-size: 12px; }
+.fw-nav__where-label { font-size: 9.5px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.fw-nav__where strong { color: var(--fw-ink); font-weight: 750; }
+.fw-nav--fixed .fw-nav__where { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) {
+  .fw-nav--fixed .fw-nav__where { display: none; }
+  .fw-nav--fixed .fw-nav__link, .fw-nav--fixed .fw-nav__summary { font-size: 12px; padding-inline: 7px; }
+}
+@media (max-width: 420px) {
+  .fw-nav { padding-inline: 8px; }
+  .fw-nav__link, .fw-nav__summary { padding-inline: 8px; }
+  .fw-nav--fixed .fw-nav__summary-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fw-nav, .fw-nav * { transition: none !important; animation: none !important; }
+}
+</style>
 <title>FireWatch · Prevención territorial · Prototipo G6 (maqueta)</title>
 <style>
 :root {
@@ -737,10 +799,230 @@ tbody tr:hover { background: var(--aerial-raised); }
 @media (max-width: 900px) {
   .theme-control { margin-left: 0; }
 }
+
+/* T1 · Acciones preventivas: una tarea a la vez. Everything here is scoped to #acciones
+   except the shared steps/details patterns, which reuse the same aerial roles. */
+#acciones .actions-head { margin-bottom: 10px; }
+#acciones .actions-head .view-lede { max-width: 70ch; }
+
+.ops-context {
+  display: grid;
+  grid-template-columns: minmax(230px, .95fr) minmax(0, 1.75fr) minmax(230px, 1fr);
+  gap: 10px 20px;
+  align-items: center;
+  padding: 10px 16px;
+  border: 1px solid var(--aerial-border);
+  border-radius: var(--radius);
+  background: var(--aerial-panel);
+  box-shadow: var(--shadow);
+}
+.ops-context-id h3 { margin: 2px 0; color: var(--aerial-ink); font-size: 22px; font-weight: 650; letter-spacing: -.6px; line-height: 1.15; }
+.ops-context-id h3:focus-visible { outline-offset: 5px; }
+.ops-context-sub { margin: 0; color: var(--aerial-muted); font-size: 11px; line-height: 1.45; }
+.ops-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 12px; margin: 0; }
+.ops-fact { min-width: 0; padding-left: 11px; border-left: 1px solid var(--aerial-border); }
+.ops-fact:first-child { padding-left: 0; border-left: 0; }
+.ops-fact dt { margin: 0; color: var(--aerial-muted); font-size: 9px; font-weight: 800; letter-spacing: .05em; line-height: 1.35; text-transform: uppercase; }
+.ops-fact dd { margin: 4px 0 0; color: var(--aerial-ink); font-size: 13px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.ops-fact.is-level dd { margin-top: 3px; }
+.ops-fact .level { padding: 4px 8px; font-size: 10px; }
+.ops-context-evidence { min-width: 0; padding-left: 14px; border-left: 1px solid var(--aerial-border); }
+.ops-evidence-label { margin: 0 0 2px; color: var(--aerial-focus); font-size: 9px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.ops-evidence-text { margin: 0; color: var(--aerial-ink); font-size: 11.5px; font-weight: 600; line-height: 1.45; }
+.ops-evidence-scope { margin: 4px 0 0; color: var(--aerial-muted); font-size: 9.5px; line-height: 1.4; }
+
+/* Secondary sector data: a native disclosure on narrow screens, so the sector
+   identity and the three task choices come before the expanded facts. From
+   901px up the disclosure unfolds in place and keeps the compact strip. */
+.ops-more { min-width: 0; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-panel); }
+.ops-more > summary { min-height: 44px; padding: 10px 12px; color: var(--aerial-focus); font-size: 11px; font-weight: 750; line-height: 1.4; cursor: pointer; }
+.ops-more > summary:hover { background: var(--aerial-raised); border-radius: 8px; }
+.ops-more[open] > summary { border-bottom: 1px solid var(--aerial-border); border-radius: 8px 8px 0 0; }
+.ops-more > summary::marker { color: var(--aerial-focus); }
+
+.task-switch { margin-top: 10px; }
+.task-switch-label { margin: 0 0 6px; color: var(--aerial-muted); font-size: 9px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.task-switch-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.task-choice {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 88px;
+  padding: 11px 14px;
+  border: 1px solid var(--aerial-border);
+  border-radius: 10px;
+  background: var(--aerial-panel);
+  color: var(--aerial-ink);
+  text-align: left;
+}
+.task-choice:hover { border-color: var(--aerial-focus); background: var(--aerial-raised); }
+.task-choice[aria-pressed="true"] { border-color: var(--aerial-focus); background: var(--aerial-raised); box-shadow: inset 4px 0 0 var(--aerial-focus); }
+.task-choice-index { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--aerial-border); border-radius: 50%; color: var(--aerial-focus); font-size: 13px; font-weight: 800; }
+.task-choice[aria-pressed="true"] .task-choice-index { border-color: var(--aerial-focus); background: var(--aerial-focus); color: var(--aerial-label); }
+.task-choice-title { display: block; color: var(--aerial-ink); font-size: 17px; font-weight: 650; letter-spacing: -.3px; line-height: 1.22; }
+.task-choice-meta { display: block; margin-top: 3px; color: var(--aerial-muted); font-size: 11px; line-height: 1.4; }
+.task-choice[aria-pressed="true"] .task-choice-meta { color: var(--aerial-ink); }
+
+.ops-task { margin-top: 12px; }
+.task-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 16px; margin-bottom: 8px; }
+.task-bar .eyebrow { margin-bottom: 3px; }
+.task-bar h3 { margin: 0; color: var(--aerial-ink); font-size: 20px; font-weight: 650; letter-spacing: -.45px; line-height: 1.2; }
+.task-bar h3:focus-visible { outline-offset: 5px; }
+.task-back { min-height: 44px; padding: 8px 13px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-panel); color: var(--aerial-ink); font-size: 11px; font-weight: 750; line-height: 1.3; }
+.task-back:hover { border-color: var(--aerial-focus); color: var(--aerial-focus); }
+.task-foot { display: flex; margin-top: 10px; }
+
+#acciones .task-lede { max-width: 92ch; margin: 0 0 10px; color: var(--aerial-ink); font-size: 12px; line-height: 1.55; }
+#acciones .task-lede strong { color: var(--aerial-focus); }
+#acciones .create-panel, #acciones .g6-panel, #acciones .review-panel { margin-top: 0; }
+#acciones .review-panel .panel-body { padding-top: 12px; }
+#acciones .panel-head h4 { margin: 0; color: var(--aerial-ink); font-size: 17px; font-weight: 650; letter-spacing: -.35px; line-height: 1.25; }
+#acciones .panel-head .eyebrow { margin-bottom: 3px; }
+#acciones .action-title { font-size: 12.5px; }
+#acciones .action-meta { font-size: 10px; }
+#acciones .detail-head { padding: 12px 14px; }
+#acciones .detail-head h4 { margin: 0 0 4px; color: var(--aerial-ink); font-size: 18px; font-weight: 650; letter-spacing: -.4px; line-height: 1.25; }
+#acciones .detail-head .status-line { min-height: 0; margin: 0; }
+
+.detail-status-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 10px; }
+.detail-code { color: var(--aerial-ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 650; }
+.detail-due { color: var(--aerial-muted); font-size: 10.5px; }
+.detail-due strong { color: var(--aerial-ink); font-weight: 700; }
+#acciones .detail-grid { gap: 9px 12px; }
+#acciones .detail-grid dd { font-size: 11.5px; }
+.detail-evidence { margin: 10px 0; padding: 9px 11px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-raised); }
+.detail-evidence .label { color: var(--aerial-focus); }
+.detail-evidence p { margin: 0; color: var(--aerial-ink); font-size: 11px; line-height: 1.55; }
+
+.review-filters { margin: 0 0 8px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-panel); }
+.review-filters > summary { min-height: 44px; padding: 9px 12px; color: var(--aerial-focus); font-size: 11px; font-weight: 750; cursor: pointer; }
+.review-filters > summary:hover { background: var(--aerial-raised); border-radius: 8px; }
+.review-filters[open] > summary { border-bottom: 1px solid var(--aerial-border); border-radius: 8px 8px 0 0; }
+.review-filters .filters { margin: 0; padding: 10px 12px 12px; }
+
+.on-demand { margin-top: 10px; border: 1px solid var(--aerial-border); border-radius: 8px; background: var(--aerial-panel); }
+.on-demand > summary { min-height: 44px; padding: 11px 12px; color: var(--aerial-focus); font-size: 11px; font-weight: 750; line-height: 1.4; cursor: pointer; }
+.on-demand > summary:hover { background: var(--aerial-raised); border-radius: 8px; }
+.on-demand[open] > summary { border-bottom: 1px solid var(--aerial-border); border-radius: 8px 8px 0 0; }
+.on-demand > p { margin: 0; padding: 10px 12px 0; color: var(--aerial-muted); font-size: 10.5px; line-height: 1.55; }
+.on-demand > p:last-child { padding-bottom: 11px; }
+
+.wizard-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; }
+.wizard-steps li { padding: 5px 10px; border: 1px solid var(--aerial-border); border-radius: 999px; color: var(--aerial-muted); font-size: 10px; font-weight: 800; letter-spacing: .04em; line-height: 1.3; text-transform: uppercase; }
+.wizard-steps li[aria-current="step"] { border-color: var(--aerial-focus); background: var(--aerial-raised); color: var(--aerial-focus); }
+.wizard-step { min-width: 0; margin: 0; padding: 0; border: 0; }
+.wizard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.wizard-main { min-height: 48px; padding: 11px 16px; font-size: 13px; }
+#acciones .micro { margin: 0; color: var(--aerial-muted); font-size: 10px; line-height: 1.5; }
+#create-form .feedback { margin: 0 0 12px; font-size: 11.5px; }
+#create-form .feedback strong { font-size: 12.5px; }
+#create-form .assignee-hint { margin-top: 6px; }
+#create-form .case-switch { margin-bottom: 10px; }
+#create-form .case-btn { min-height: 44px; }
+#create-form .directory-failure { margin-top: 10px; }
+#acciones .ops-scope { margin-top: 12px; }
+
+@media (max-width: 1100px) {
+  .ops-context { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
+  .ops-context-evidence { grid-column: 1 / -1; padding: 9px 0 0; border-left: 0; border-top: 1px solid var(--aerial-border); }
+}
+@media (max-width: 900px) {
+  .ops-context { grid-template-columns: 1fr; gap: 10px; padding: 12px 14px; }
+  .ops-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; padding: 10px 12px 0; }
+  .ops-fact { padding-left: 0; border-left: 0; }
+  .ops-more .ops-context-evidence { padding: 9px 12px 11px; border-left: 0; }
+  .ops-more > summary { font-size: 12px; }
+  .task-switch-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  #acciones .view-badges { display: none; }
+  #acciones .view-lede { font-size: 11.5px; }
+  .ops-context-id h3 { font-size: 20px; }
+  .task-choice { min-height: 84px; padding: 10px 12px; }
+  .task-choice-title { font-size: 16px; }
+  .task-bar { align-items: flex-start; }
+  .task-bar h3 { font-size: 18px; }
+  .task-back { width: 100%; }
+  .wizard-actions .wizard-main, .wizard-actions .secondary-button { width: 100%; }
+  .detail-status-line { gap: 6px 10px; }
+}
+
+@media (min-width: 901px) {
+  .ops-more { display: contents; }
+  .ops-more > summary { display: none; }
+  .ops-more::details-content { display: contents; }
+}
+
+/* The workspace repeats sector evidence and the prototype disclaimer in context. */
+.app:has(#acciones:not([hidden])) .topbar :is(.stamp, .sub, .title-block .eyebrow, .nav-index),
+.app:has(#acciones:not([hidden])) > .demo-strip { display: none; }
+.app:has(#acciones:not([hidden])) .topbar { grid-template-columns: auto minmax(0, 1fr); }
+@media (max-width: 900px) {
+  .app:has(#acciones:not([hidden])) .topbar :is(.brand-copy small, .nav-label) { display: none; }
+  .app:has(#acciones:not([hidden])) .topbar-tools { margin-top: 0; gap: 4px 8px; padding-block: 4px; }
+  .app:has(#acciones:not([hidden])) .local-nav { flex: 1 1 240px; gap: 4px; }
+  #acciones .actions-head .view-badges { display: none; }
+}
 </style>
 </head>
 <body>
 <a class="skip-link" href="#main">Saltar al contenido principal</a>
+<!-- fw-product-nav:start · navegación global compartida · la escribe design/firewatch-v1-vuelo/product-navigation.mjs; no editar a mano -->
+<nav class="fw-nav fw-nav--sticky fw-nav--aerial" aria-label="Navegación del producto FireWatch">
+  <ul class="fw-nav__primary">
+    <li><a class="fw-nav__link" href="01-vista-aerea.html" aria-label="Mapa · Territorio">Mapa</a></li>
+    <li><a class="fw-nav__link" href="07-panel-ejecutivo.html" aria-label="Panel ejecutivo">Panel</a></li>
+    <li><a class="fw-nav__link" href="05-historial-de-lotes.html" aria-label="Historial de lotes">Historial</a></li>
+    <li><a class="fw-nav__link" href="06-acciones-preventivas.html" aria-label="Acciones preventivas">Acciones</a></li>
+  </ul>
+  <details class="fw-nav__more">
+    <summary class="fw-nav__summary"><span class="fw-nav__summary-text">Más destinos</span></summary>
+    <div class="fw-nav__panel">
+      <p class="fw-nav__panel-title">Otras pantallas del producto</p>
+      <div class="fw-nav__groups">
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-territorio">Territorio y lectura</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-territorio">
+            <li><a class="fw-nav__item" href="02-vista-regional.html">Vista regional</a></li>
+            <li><a class="fw-nav__item" href="03-acciones-en-el-mapa.html">Acciones rápidas en el mapa</a></li>
+            <li><a class="fw-nav__item" href="04-cobertura-territorial.html" aria-current="page">Cobertura y contexto territorial</a></li>
+            <li><a class="fw-nav__item" href="21-lecturas-por-sector.html">Lecturas por sector</a></li>
+            <li><a class="fw-nav__item" href="08-comparar-sectores.html">Comparar sectores</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-decision">Decisión y alertas</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-decision">
+            <li><a class="fw-nav__item" href="09-notificaciones.html">Notificaciones</a></li>
+            <li><a class="fw-nav__item" href="10-simulacion-contrafactual.html">Simulación contrafactual</a></li>
+            <li><a class="fw-nav__item" href="11-observaciones-de-campo.html">Observaciones de campo</a></li>
+            <li><a class="fw-nav__item" href="13-ficha-de-zona.html">Ficha de zona · Vista previa PDF</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-datos">Solicitudes y datos</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-datos">
+            <li><a class="fw-nav__item" href="12-exportacion-csv.html">Exportación CSV</a></li>
+            <li><a class="fw-nav__item" href="20-datos-del-modelo.html">Datos del modelo</a></li>
+            <li><a class="fw-nav__item" href="15-fuentes-y-servicios.html">Fuentes y servicios</a></li>
+          </ul>
+        </div>
+        <div class="fw-nav__group">
+          <p class="fw-nav__group-title" id="fw-nav-group-acceso">Acceso y control</p>
+          <ul class="fw-nav__list" aria-labelledby="fw-nav-group-acceso">
+            <li><a class="fw-nav__item" href="14-acceso.html">Acceso · Iniciar sesión</a></li>
+            <li><a class="fw-nav__item" href="17-sesion-y-permisos.html">Sesión y permisos</a></li>
+            <li><a class="fw-nav__item" href="18-registro-de-actividad.html">Registro de actividad</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="fw-nav__note">Mapa, Panel, Historial y Acciones están siempre en esta barra.</p>
+    </div>
+  </details>
+  <p class="fw-nav__where"><span class="fw-nav__where-label">Estás en</span> <strong>Cobertura y contexto territorial</strong></p>
+</nav>
+<!-- fw-product-nav:end -->
 <div class="app">
   <header class="topbar">
     <div class="brand">
@@ -1149,11 +1431,11 @@ tbody tr:hover { background: var(--aerial-raised); }
     </section>
 
     <section class="view" id="acciones" data-view="acciones" hidden aria-labelledby="acciones-title">
-      <div class="view-head">
+      <div class="view-head actions-head">
         <div>
-          <p class="eyebrow">03 · OPERACIÓN · RESPONSABLE Y ESTADOS</p>
+          <p class="eyebrow">03 · OPERACIÓN · UNA TAREA A LA VEZ</p>
           <h2 id="acciones-title" tabindex="-1">Acciones preventivas</h2>
-          <p class="view-lede">Lista y ficha del flujo que el servicio ya expone. La selección de responsable es V1-U-04; los cuatro estados planificados se muestran aparte como prototipo G6.</p>
+          <p class="view-lede">Elige una tarea y trabaja sobre un sector. Todo es una maqueta: nada se envía, se guarda ni se ejecuta.</p>
         </div>
         <div class="view-badges">
           <span class="g6-badge">V1-U-04 · Prototipo G6 V1-P-03</span>
@@ -1161,35 +1443,96 @@ tbody tr:hover { background: var(--aerial-raised); }
         </div>
       </div>
 
-      <div class="actions-layout">
-        <article class="panel" aria-labelledby="actions-list-title">
+      <section class="ops-context" aria-labelledby="ops-sector-name">
+        <div class="ops-context-id">
+          <p class="eyebrow" id="ops-context-eyebrow">SECTOR DE LA ACCIÓN SELECCIONADA · MAQUETA</p>
+          <h3 id="ops-sector-name" tabindex="-1">Foco Quebrada del Este</h3>
+          <p class="ops-context-sub" id="ops-sector-meta">Valparaíso · Viña del Mar · Quilpué</p>
+        </div>
+        <details class="ops-more" id="ops-context-more" open>
+          <summary>Datos del sector y evidencia</summary>
+          <dl class="ops-facts">
+            <div class="ops-fact is-level"><dt>Nivel al corte</dt><dd><span class="level level-alto" id="ops-level">ALTO</span></dd></div>
+            <div class="ops-fact"><dt>Lote ≤ corte</dt><dd id="ops-lot">18 nov 2026 · 14:20</dd></div>
+            <div class="ops-fact"><dt>Cobertura de lectura</dt><dd id="ops-coverage">100 %</dd></div>
+            <div class="ops-fact"><dt>Prioridad contextual</dt><dd id="ops-priority">ALTA</dd></div>
+          </dl>
+          <div class="ops-context-evidence">
+            <p class="ops-evidence-label">Evidencia de la acción</p>
+            <p class="ops-evidence-text" id="ops-evidence">2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.</p>
+            <p class="ops-evidence-scope" id="ops-context-note">Datos ilustrativos · corte 18 nov 2026 · 18:00</p>
+          </div>
+        </details>
+      </section>
+
+      <div class="task-switch" role="group" aria-labelledby="task-switch-label">
+        <p class="task-switch-label" id="task-switch-label">Elige una tarea</p>
+        <div class="task-switch-grid">
+          <button type="button" class="task-choice" id="task-revisar" data-task="revisar" aria-pressed="true" aria-controls="taskpanel-revisar">
+            <span class="task-choice-index" aria-hidden="true">1</span>
+            <span class="task-choice-body">
+              <span class="task-choice-title">Revisar una acción</span>
+              <span class="task-choice-meta">Ficha, evidencia y siguiente paso del sector</span>
+            </span>
+          </button>
+          <button type="button" class="task-choice" id="task-preparar" data-task="preparar" aria-pressed="false" aria-controls="taskpanel-preparar">
+            <span class="task-choice-index" aria-hidden="true">2</span>
+            <span class="task-choice-body">
+              <span class="task-choice-title">Preparar una acción nueva</span>
+              <span class="task-choice-meta">Datos, responsable y alta simulada en dos pasos</span>
+            </span>
+          </button>
+          <button type="button" class="task-choice" id="task-g6" data-task="g6" aria-pressed="false" aria-controls="taskpanel-g6">
+            <span class="task-choice-index" aria-hidden="true">3</span>
+            <span class="task-choice-body">
+              <span class="task-choice-title">Estados planificados</span>
+              <span class="task-choice-meta">Demostración G6 · no cambia ni guarda nada</span>
+            </span>
+          </button>
+        </div>
+      </div>
+      <p class="sr-only" role="status" aria-live="polite" id="task-status"></p>
+
+      <section class="ops-task" id="taskpanel-revisar" data-taskpanel="revisar" aria-labelledby="revisar-title">
+        <div class="task-bar">
+          <div>
+            <p class="eyebrow">TAREA 1 · REVISAR</p>
+            <h3 id="revisar-title" tabindex="-1">Acción y evidencia</h3>
+          </div>
+          <button type="button" class="task-back" data-task-back>Cambiar tarea</button>
+        </div>
+        <div class="actions-layout">
+        <article class="panel review-panel" aria-labelledby="actions-list-title">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">COLA DE TRABAJO · MAQUETA</p>
-              <h3 id="actions-list-title">Acciones del escenario</h3>
+              <p class="eyebrow">COLA DEL ESCENARIO · MAQUETA</p>
+              <h4 id="actions-list-title">Cuatro acciones de ejemplo</h4>
             </div>
             <span class="count-pill" id="actions-count">4 de 4</span>
           </div>
           <div class="panel-body">
-            <div class="filters">
-              <label class="field" for="action-status-filter">Estado actual
-                <select id="action-status-filter">
-                  <option value="">Todos los estados</option>
-                  <option value="propuesta">Propuesta</option>
-                  <option value="asignada">Asignada</option>
-                  <option value="en_curso">En curso</option>
-                  <option value="bloqueada">Bloqueada</option>
-                </select>
-              </label>
-              <label class="field" for="action-focus-filter">Foco
-                <select id="action-focus-filter">
-                  <option value="">Todos los focos</option>
-                  <option value="foco-quebrada-este">Foco Quebrada del Este</option>
-                  <option value="borde-costero-norte">Borde costero de Viña del Mar</option>
-                  <option value="interior-sin-lectura">Interior de Quilpué</option>
-                </select>
-              </label>
-            </div>
+            <details class="review-filters">
+              <summary>Filtrar la cola (estado y foco)</summary>
+              <div class="filters">
+                <label class="field" for="action-status-filter">Estado actual
+                  <select id="action-status-filter">
+                    <option value="">Todos los estados</option>
+                    <option value="propuesta">Propuesta</option>
+                    <option value="asignada">Asignada</option>
+                    <option value="en_curso">En curso</option>
+                    <option value="bloqueada">Bloqueada</option>
+                  </select>
+                </label>
+                <label class="field" for="action-focus-filter">Foco
+                  <select id="action-focus-filter">
+                    <option value="">Todos los focos</option>
+                    <option value="foco-quebrada-este">Foco Quebrada del Este</option>
+                    <option value="borde-costero-norte">Borde costero de Viña del Mar</option>
+                    <option value="interior-sin-lectura">Interior de Quilpué</option>
+                  </select>
+                </label>
+              </div>
+            </details>
             <p class="status-line" id="action-filter-status" role="status" aria-live="polite"></p>
             <ul class="action-list" id="action-list" aria-label="Acciones preventivas del escenario">
               <li>
@@ -1232,41 +1575,60 @@ tbody tr:hover { background: var(--aerial-raised); }
         <article class="panel action-detail" id="action-detail" aria-labelledby="detail-title">
           <div class="detail-head">
             <p class="eyebrow">ACCIÓN SELECCIONADA · MAQUETA</p>
-            <h3 id="detail-title">Despeje de vegetación seca en el borde del foco Quebrada del Este</h3>
+            <h4 id="detail-title">Despeje de vegetación seca en el borde del foco Quebrada del Este</h4>
             <p class="status-line" id="detail-live" role="status" aria-live="polite"></p>
           </div>
           <div class="detail-body">
+            <p class="detail-status-line">
+              <span class="status-chip chip-asignada" id="detail-status">Asignada</span>
+              <span class="detail-code" id="detail-code">ACC-1042</span>
+              <span class="detail-due">Vence <strong id="detail-due">27 nov 2026</strong></span>
+            </p>
             <dl class="detail-grid">
-              <div><dt>Código</dt><dd id="detail-code">ACC-1042</dd></div>
-              <div><dt>Estado actual</dt><dd><span class="status-chip chip-asignada" id="detail-status">Asignada</span></dd></div>
               <div><dt>Foco</dt><dd id="detail-focus">Foco Quebrada del Este</dd></div>
               <div><dt>Municipios del foco</dt><dd id="detail-municipalities">Valparaíso · Viña del Mar · Quilpué</dd></div>
-              <div><dt>Vence</dt><dd id="detail-due">27 nov 2026</dd></div>
               <div><dt>Prioridad (texto libre)</dt><dd id="detail-priority">Alta</dd></div>
             </dl>
-            <p class="g6-inline" id="detail-context">Prioridad contextual ALTA · Prototipo G6 · V1-P-02. Sin puntaje; no es el nivel de riesgo.</p>
             <div class="assignee-box" id="detail-assignee-box">
               <span class="label">Responsable</span>
               <p class="assignee-name" id="detail-assignee-name">Camila Rojas Fuentes</p>
               <p class="assignee-role" id="detail-assignee-role">Dirección de Aseo y Ornato · identificador u-8f3a</p>
             </div>
-            <span class="label">Evidencia y suficiencia</span>
-            <p class="copy-small" id="detail-evidence">2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.</p>
+            <div class="detail-evidence">
+              <span class="label">Evidencia y suficiencia</span>
+              <p id="detail-evidence">2 referencias · acta DR-2026-114. Revisión de suficiencia: pendiente en este escenario.</p>
+            </div>
+            <details class="on-demand">
+              <summary>Notas de prioridad, corte y alcance</summary>
+              <p id="detail-context">Prioridad contextual ALTA · Prototipo G6 · V1-P-02. Sin puntaje; no es el nivel de riesgo.</p>
+              <p>La maqueta no inicia sesión ni elige rol; ninguna acción se envía, se ejecuta ni se guarda.</p>
+            </details>
             <div class="task-links">
+              <button type="button" class="primary-button" id="detail-to-create">Preparar acción para Foco Quebrada del Este</button>
               <button type="button" class="secondary-button" id="view-action-focus">Ver este foco en el territorio</button>
             </div>
           </div>
         </article>
       </div>
+      <div class="task-foot"><button type="button" class="task-back" data-task-back>← Cambiar tarea</button></div>
+    </section>
 
-      <article class="panel g6-panel" id="g6-panel" aria-labelledby="g6-title">
-        <div class="panel-head">
+      <section class="ops-task" id="taskpanel-g6" data-taskpanel="g6" hidden aria-labelledby="g6-title">
+        <div class="task-bar">
           <div>
-            <p class="eyebrow">DEMOSTRACIÓN VISUAL · NO ES UN FLUJO ACTIVO</p>
-            <h3 id="g6-title">Cuatro estados planificados</h3>
+            <p class="eyebrow">TAREA 3 · DEMOSTRACIÓN</p>
+            <h3 id="g6-title" tabindex="-1">Cuatro estados planificados</h3>
           </div>
-          <span class="g6-badge">Prototipo G6 · V1-P-03</span>
+          <button type="button" class="task-back" data-task-back>Cambiar tarea</button>
         </div>
+        <article class="panel g6-panel" id="g6-panel" aria-labelledby="g6-title">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">DEMOSTRACIÓN VISUAL · NO ES UN FLUJO ACTIVO</p>
+              <h4>Vista previa de estados</h4>
+            </div>
+            <span class="g6-badge">Prototipo G6 · V1-P-03</span>
+          </div>
         <div class="panel-body">
           <p class="status-line" id="g6-summary">candidate, in_progress, reviewed y closed no existen todavía en el contrato ni en la persistencia. La fuente de verdad es la fila V1-P-03 de odd/tasks/v1-produccion.md; esta maqueta no define transiciones ni política de rol.</p>
           <div class="g6-states" role="group" aria-label="Vista previa de estados planificados">
@@ -1281,86 +1643,112 @@ tbody tr:hover { background: var(--aerial-raised); }
             <p class="panel-note" id="g6-note">Demostración visual. No cambia el estado de ACC-1042 ni guarda nada.</p>
           </div>
           <p class="panel-note">No hay mapeo aprobado entre el flujo actual (Propuesta, Asignada, En curso, Bloqueada) y estos cuatro estados. La maqueta no inventa esa correspondencia; el servicio actual sigue siendo el único que acepta o rechaza una transición.</p>
-        </div>
-      </article>
-
-      <article class="panel create-panel" aria-labelledby="create-heading">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">V1-U-04 · RESPONSABLE EN LA MAQUETA</p>
-            <h3 id="create-heading">Nueva acción preventiva</h3>
           </div>
-          <span class="g6-badge">Prototipo · sin escritura</span>
-        </div>
-        <div class="panel-body">
-          <p class="panel-note">La maqueta no inicia sesión, no elige rol y no simula autorización. En el producto real, el servidor verifica el rol y las reglas del contrato antes de guardar. Aquí no se llama a ningún servicio.</p>
-          <form id="create-form" class="form-grid" novalidate>
-            <div class="form-row">
-              <label class="field" for="create-community">Comunidad (CUT)
-                <input id="create-community" name="community" type="text" value="05101 · Valparaíso" readonly />
-              </label>
-              <label class="field" for="create-focus">Foco
-                <select id="create-focus" name="focus">
-                  <option value="foco-quebrada-este">Foco Quebrada del Este</option>
-                  <option value="borde-costero-norte">Borde costero de Viña del Mar</option>
-                  <option value="interior-sin-lectura">Interior de Quilpué</option>
-                </select>
-              </label>
-            </div>
-            <label class="field" for="create-title">Título
-              <input id="create-title" name="title" type="text" placeholder="Ej.: Despeje de vegetación seca en el foco" />
-            </label>
-            <label class="field" for="create-description">Descripción
-              <textarea id="create-description" name="description" placeholder="Describe el trabajo, el foco y la referencia de evidencia."></textarea>
-            </label>
-            <div class="form-row">
-              <label class="field" for="create-priority">Prioridad (texto libre)
-                <input id="create-priority" name="priority" type="text" value="Alta" />
-              </label>
-              <label class="field" for="create-due">Fecha límite
-                <input id="create-due" name="due" type="date" value="2026-11-27" />
-              </label>
-            </div>
+        </article>
+        <div class="task-foot"><button type="button" class="task-back" data-task-back>← Cambiar tarea</button></div>
+      </section>
 
-            <div class="case-switch">
-              <span class="toolbar-label" id="case-label">Casos del selector de responsable · maqueta</span>
-              <div class="case-buttons" role="group" aria-labelledby="case-label">
-                <button type="button" class="case-btn" id="case-assigned" data-case="assigned" aria-pressed="true">Con directorio</button>
-                <button type="button" class="case-btn" id="case-unassigned" data-case="unassigned" aria-pressed="false">Sin asignar</button>
-                <button type="button" class="case-btn" id="case-unavailable" data-case="unavailable" aria-pressed="false">Directorio no disponible</button>
+      <section class="ops-task" id="taskpanel-preparar" data-taskpanel="preparar" hidden aria-labelledby="create-heading">
+        <div class="task-bar">
+          <div>
+            <p class="eyebrow">TAREA 2 · PREPARAR</p>
+            <h3 id="create-heading" tabindex="-1">Nueva acción preventiva</h3>
+          </div>
+          <button type="button" class="task-back" data-task-back>Cambiar tarea</button>
+        </div>
+        <p class="task-lede">Sector de esta acción: <strong id="preparar-sector">Foco Quebrada del Este</strong>. Se simula el alta: no se inicia sesión, no se elige rol y no se guarda nada.</p>
+        <div class="panel create-panel">
+          <div class="panel-body">
+            <form id="create-form" novalidate>
+              <ol class="wizard-steps" aria-label="Pasos del alta simulada">
+                <li data-form-step-indicator="datos" aria-current="step">1 · Qué y dónde</li>
+                <li data-form-step-indicator="responsable">2 · Quién responde</li>
+              </ol>
+              <div class="feedback" id="form-feedback" role="status" aria-live="polite" tabindex="-1" hidden>
+                <strong id="feedback-title"></strong>
+                <span id="feedback-body"></span>
               </div>
-            </div>
+              <fieldset class="wizard-step" id="create-step-datos" data-form-step="datos">
+                <legend class="sr-only">Paso 1: sector y datos de la acción</legend>
+                <div class="form-grid">
+                  <div class="form-row">
+                    <label class="field" for="create-community">Comunidad (CUT)
+                      <input id="create-community" name="community" type="text" value="05101 · Valparaíso" readonly />
+                    </label>
+                    <label class="field" for="create-focus">Sector (foco)
+                      <select id="create-focus" name="focus">
+                        <option value="foco-quebrada-este">Foco Quebrada del Este</option>
+                        <option value="borde-costero-norte">Borde costero de Viña del Mar</option>
+                        <option value="interior-sin-lectura">Interior de Quilpué</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label class="field" for="create-title">Título
+                    <input id="create-title" name="title" type="text" placeholder="Ej.: Despeje de vegetación seca en el foco" />
+                  </label>
+                  <label class="field" for="create-description">Descripción
+                    <textarea id="create-description" name="description" placeholder="Describe el trabajo, el foco y la referencia de evidencia."></textarea>
+                  </label>
+                  <div class="form-row">
+                    <label class="field" for="create-priority">Prioridad (texto libre)
+                      <input id="create-priority" name="priority" type="text" value="Alta" />
+                    </label>
+                    <label class="field" for="create-due">Fecha límite
+                      <input id="create-due" name="due" type="date" value="2026-11-27" />
+                    </label>
+                  </div>
+                </div>
+                <div class="wizard-actions">
+                  <button type="button" class="primary-button wizard-main" id="create-next">Continuar al responsable →</button>
+                  <p class="micro">Paso 1 de 2 · la maqueta no guarda nada.</p>
+                </div>
+              </fieldset>
+              <fieldset class="wizard-step" id="create-step-responsable" data-form-step="responsable" hidden>
+                <legend class="sr-only">Paso 2: responsable y revisión del alta</legend>
+                <div class="case-switch">
+                  <span class="toolbar-label" id="case-label">Casos del selector de responsable · maqueta</span>
+                  <div class="case-buttons" role="group" aria-labelledby="case-label">
+                    <button type="button" class="case-btn" id="case-assigned" data-case="assigned" aria-pressed="true">Con directorio</button>
+                    <button type="button" class="case-btn" id="case-unassigned" data-case="unassigned" aria-pressed="false">Sin asignar</button>
+                    <button type="button" class="case-btn" id="case-unavailable" data-case="unavailable" aria-pressed="false">Directorio no disponible</button>
+                  </div>
+                </div>
 
-            <label class="field" for="assignee-select">Responsable
-              <select id="assignee-select" name="assignee">
-                <option value="">Sin asignar (se crea sin responsable)</option>
-                <option value="u-8f3a" selected>Camila Rojas Fuentes · Dirección de Aseo y Ornato</option>
-                <option value="u-2c91">Jorge Muñoz Salinas · Dirección de Gestión de Riesgo</option>
-                <option value="u-6d47">Valentina Díaz Paredes · Oficina de Emergencia</option>
-                <option value="u-9b02">Rodrigo Salinas Vega · Dirección de Obras Municipales</option>
-                <option value="u-4e18">Paula Herrera León · DIDECO · enlace vecinal</option>
-              </select>
-            </label>
-            <p class="assignee-hint" id="assignee-hint">Se asignaría a Camila Rojas Fuentes (u-8f3a). La lista es ficticia y no se consulta ningún directorio real.</p>
+                <label class="field" for="assignee-select">Responsable
+                  <select id="assignee-select" name="assignee">
+                    <option value="">Sin asignar (se crea sin responsable)</option>
+                    <option value="u-8f3a" selected>Camila Rojas Fuentes · Dirección de Aseo y Ornato</option>
+                    <option value="u-2c91">Jorge Muñoz Salinas · Dirección de Gestión de Riesgo</option>
+                    <option value="u-6d47">Valentina Díaz Paredes · Oficina de Emergencia</option>
+                    <option value="u-9b02">Rodrigo Salinas Vega · Dirección de Obras Municipales</option>
+                    <option value="u-4e18">Paula Herrera León · DIDECO · enlace vecinal</option>
+                  </select>
+                </label>
+                <p class="assignee-hint" id="assignee-hint">Se asignaría a Camila Rojas Fuentes (u-8f3a). La lista es ficticia y no se consulta ningún directorio real.</p>
 
-            <div class="directory-failure" id="directory-failure" role="status" aria-live="polite" hidden>
-              <strong>No se pudo leer el directorio.</strong>
-              Respuesta simulada: 503 directory_unavailable. No se inventó una lista de personas. Puedes crear la acción sin responsable o reintentar la lectura.
-              <div><button type="button" class="secondary-button" id="directory-retry">Reintentar lectura (maqueta)</button></div>
-            </div>
+                <div class="directory-failure" id="directory-failure" role="status" aria-live="polite" hidden>
+                  <strong>No se pudo leer el directorio.</strong>
+                  Respuesta simulada: 503 directory_unavailable. No se inventó una lista de personas. Puedes crear la acción sin responsable o reintentar la lectura.
+                  <div><button type="button" class="secondary-button" id="directory-retry">Reintentar lectura (maqueta)</button></div>
+                </div>
 
-            <div class="form-actions">
-              <button type="submit" class="primary-button" id="create-submit">Crear acción (simulacro)</button>
-              <p class="micro">No guarda nada: es una maqueta interactiva sin red ni persistencia.</p>
-            </div>
-            <div class="feedback" id="form-feedback" role="status" aria-live="polite" tabindex="-1" hidden>
-              <strong id="feedback-title"></strong>
-              <span id="feedback-body"></span>
-            </div>
-            <p class="sr-only" id="prefill-status" role="status" aria-live="polite"></p>
-          </form>
+                <div class="wizard-actions">
+                  <button type="button" class="secondary-button" id="create-back">← Atrás</button>
+                  <button type="submit" class="primary-button wizard-main" id="create-submit">Simular alta con responsable</button>
+                </div>
+                <p class="micro" id="submit-note">No se guarda nada ni se llama a ningún servicio.</p>
+              </fieldset>
+              <p class="sr-only" id="prefill-status" role="status" aria-live="polite"></p>
+            </form>
+            <details class="on-demand" id="ops-scope-details">
+              <summary>Alcance de la maqueta, del directorio y de la evidencia</summary>
+              <p id="scope-note">La maqueta no inicia sesión, no elige rol y no simula autorización. En el producto real, el servidor verifica el rol y las reglas del contrato antes de guardar. Aquí no se llama a ningún servicio.</p>
+              <p>La lista de responsables es ficticia y no se consulta ningún directorio real. Una acción nueva todavía no tiene evidencia registrada: se adjunta después, fuera de esta maqueta.</p>
+            </details>
+          </div>
         </div>
-      </article>
+        <div class="task-foot"><button type="button" class="task-back" data-task-back>← Cambiar tarea</button></div>
+      </section>
     </section>
   </main>
 
@@ -1489,6 +1877,7 @@ tbody tr:hover { background: var(--aerial-raised); }
     closed: { label: 'Cerrada', machine: 'closed', chipClass: 'chip-cerrada', desc: 'Cierre registrado; la acción queda como histórico.' }
   };
 
+  var TASKS = { revisar: 'Revisar una acción', preparar: 'Preparar una acción nueva', g6: 'Estados planificados (demostración)' };
   var VIEWS = ['territorio', 'historial', 'acciones'];
   var VIEW_TITLES = { territorio: 'Territorio', historial: 'Historial de lotes', acciones: 'Acciones preventivas' };
   var state = {
@@ -1499,7 +1888,9 @@ tbody tr:hover { background: var(--aerial-raised); }
     historyZone: 'foco-quebrada-este',
     historyRange: 'all',
     action: 'acc-1042',
-    g6: 'candidate'
+    g6: 'candidate',
+    task: 'revisar',
+    formStep: 'datos'
   };
 
   var focusButtons = Array.prototype.slice.call(document.querySelectorAll('[data-focus]'));
@@ -1529,6 +1920,18 @@ tbody tr:hover { background: var(--aerial-raised); }
   var g6Buttons = Array.prototype.slice.call(document.querySelectorAll('[data-g6-state]'));
   var themeToggle = document.getElementById('theme-toggle');
   var themeStatus = document.getElementById('theme-status');
+  var taskButtons = Array.prototype.slice.call(document.querySelectorAll('[data-task]'));
+  var taskPanels = Array.prototype.slice.call(document.querySelectorAll('[data-taskpanel]'));
+  var taskBackButtons = Array.prototype.slice.call(document.querySelectorAll('[data-task-back]'));
+  var taskStatus = document.getElementById('task-status');
+  var stepIndicators = Array.prototype.slice.call(document.querySelectorAll('[data-form-step-indicator]'));
+  var createNext = document.getElementById('create-next');
+  var createBack = document.getElementById('create-back');
+  var submitNote = document.getElementById('submit-note');
+  var opsLevel = document.getElementById('ops-level');
+  var opsEvidence = document.getElementById('ops-evidence');
+  var prepareSector = document.getElementById('preparar-sector');
+  var detailToCreate = document.getElementById('detail-to-create');
   var lastGoodAssignee = assigneeSelect.value || 'u-8f3a';
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -1843,7 +2246,10 @@ tbody tr:hover { background: var(--aerial-raised); }
     document.getElementById('detail-assignee-role').textContent = data.assigneeRole;
     document.getElementById('detail-evidence').textContent = data.evidence;
     document.getElementById('detail-assignee-box').classList.toggle('is-unassigned', data.assigneeName === 'Sin asignar');
-    document.getElementById('detail-live').textContent = 'Ficha de ' + data.code + ' actualizada.';
+    document.getElementById('detail-live').textContent = 'Ficha de ' + data.code + ' actualizada. Sector ' + area.name + ', ' + (lot ? 'nivel ' + lot.level.toLowerCase() : 'sin evaluación al corte') + '.';
+    detailToCreate.textContent = 'Preparar acción para ' + area.name;
+    updateG6Note();
+    renderOpsContext();
   }
 
   function renderActionsList() {
@@ -1865,6 +2271,7 @@ tbody tr:hover { background: var(--aerial-raised); }
   }
 
   function applyAssigneeCase(kind) {
+    clearFeedback();
     caseButtons.forEach(function (button) {
       button.setAttribute('aria-pressed', String(button.getAttribute('data-case') === kind));
     });
@@ -1873,12 +2280,14 @@ tbody tr:hover { background: var(--aerial-raised); }
       assigneeSelect.value = '';
       directoryFailure.hidden = false;
       assigneeHint.textContent = 'Directorio no disponible: el alta seguiría sin responsable. No se inventó una lista.';
+      updateSubmitCopy();
       return;
     }
     assigneeSelect.disabled = false;
     directoryFailure.hidden = true;
     assigneeSelect.value = kind === 'unassigned' ? '' : (lastGoodAssignee || 'u-8f3a');
     updateAssigneeHint();
+    updateSubmitCopy();
   }
 
   function updateAssigneeHint() {
@@ -1902,6 +2311,10 @@ tbody tr:hover { background: var(--aerial-raised); }
     chip.textContent = stateData.label;
     document.getElementById('g6-machine').textContent = stateData.machine;
     document.getElementById('g6-desc').textContent = stateData.desc;
+    updateG6Note();
+  }
+
+  function updateG6Note() {
     document.getElementById('g6-note').textContent = 'Demostración visual. No cambia el estado de ' + ACTIONS[state.action].code + ' ni guarda nada.';
   }
 
@@ -1912,16 +2325,90 @@ tbody tr:hover { background: var(--aerial-raised); }
     feedback.focus();
   }
 
+  function clearFeedback() {
+    if (feedback.hidden) return;
+    feedback.hidden = true;
+    feedbackTitle.textContent = '';
+    feedbackBody.textContent = '';
+  }
+
+  function setTask(name, focusPanel) {
+    if (!TASKS[name]) name = 'revisar';
+    state.task = name;
+    taskButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', String(button.getAttribute('data-task') === name));
+    });
+    taskPanels.forEach(function (panel) {
+      panel.hidden = panel.getAttribute('data-taskpanel') !== name;
+    });
+    renderOpsContext();
+    if (!focusPanel) return;
+    var headingIds = { preparar: 'create-heading', g6: 'g6-title', revisar: 'revisar-title' };
+    var heading = document.getElementById(headingIds[name]);
+    if (heading) heading.focus();
+    taskStatus.textContent = 'Tarea: ' + TASKS[name] + '.';
+  }
+
+  function setFormStep(step, moveFocus) {
+    state.formStep = step === 'responsable' ? 'responsable' : 'datos';
+    document.getElementById('create-step-datos').hidden = state.formStep !== 'datos';
+    document.getElementById('create-step-responsable').hidden = state.formStep !== 'responsable';
+    stepIndicators.forEach(function (item) {
+      if (item.getAttribute('data-form-step-indicator') === state.formStep) item.setAttribute('aria-current', 'step');
+      else item.removeAttribute('aria-current');
+    });
+    if (!moveFocus) return;
+    var target = state.formStep === 'datos' ? titleInput : document.getElementById('case-assigned');
+    if (target) target.focus();
+  }
+
+  function renderOpsContext() {
+    var preparing = state.task === 'preparar';
+    var focusId = preparing ? (createFocus.value || state.focus) : ACTIONS[state.action].focus;
+    var area = areaOf(focusId);
+    var lot = lotFor(area);
+    var level = lot ? lot.level : 'SIN EVALUACIÓN';
+    document.getElementById('ops-context-eyebrow').textContent = preparing
+      ? 'SECTOR DE LA NUEVA ACCIÓN · MAQUETA'
+      : 'SECTOR DE LA ACCIÓN SELECCIONADA · MAQUETA';
+    document.getElementById('ops-sector-name').textContent = area.name;
+    document.getElementById('ops-sector-meta').textContent = area.municipalities;
+    setLevel(opsLevel, level);
+    document.getElementById('ops-lot').textContent = lot ? lot.dateLabel : 'Sin lote ≤ corte';
+    document.getElementById('ops-coverage').textContent = (lot ? area.coveragePct : 0) + ' %';
+    document.getElementById('ops-priority').textContent = area.priority;
+    opsEvidence.textContent = preparing
+      ? 'Sin evidencia registrada: la acción nueva todavía no existe en este escenario.'
+      : ACTIONS[state.action].evidence;
+    document.getElementById('ops-context-note').textContent = 'Datos ilustrativos · corte ' + snapshot().label + ' · prototipo G6';
+    prepareSector.textContent = areaOf(createFocus.value || state.focus).name;
+  }
+
+  function updateSubmitCopy() {
+    if (assigneeSelect.disabled || assigneeSelect.value === '') {
+      document.getElementById('create-submit').textContent = 'Simular alta sin responsable';
+      submitNote.textContent = 'No se guarda nada ni se llama a ningún servicio. El alta simulada quedaría sin responsable.';
+      return;
+    }
+    document.getElementById('create-submit').textContent = 'Simular alta con responsable';
+    submitNote.textContent = 'No se guarda nada ni se llama a ningún servicio. Se simularía con ' + DIRECTORY[assigneeSelect.value] + '.';
+  }
+
   function prepareActionFor(focusId) {
     var area = areaOf(focusId);
     var lot = lotFor(area);
     state.focus = focusId;
     if (state.historyScope === 'one') state.historyZone = focusId;
-    renderAll();
     createFocus.value = focusId;
     titleInput.value = 'Acción preventiva · ' + area.name;
     descriptionInput.value = 'Preparada desde el foco ' + area.name + '. Nivel al corte: ' + (lot ? lot.level : 'SIN EVALUACIÓN') + '. Corte: ' + snapshot().label + '.';
+    titleInput.removeAttribute('aria-invalid');
     feedback.hidden = true;
+    feedbackTitle.textContent = '';
+    feedbackBody.textContent = '';
+    setTask('preparar', false);
+    setFormStep('datos', false);
+    renderAll();
     setView('acciones', false);
     titleInput.scrollIntoView({ block: 'center', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
     titleInput.focus({ preventScroll: true });
@@ -1990,6 +2477,32 @@ tbody tr:hover { background: var(--aerial-raised); }
     button.addEventListener('click', function () {
       renderAction(button.getAttribute('data-action'));
     });
+  });
+  taskButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      setTask(button.getAttribute('data-task'), true);
+    });
+  });
+  taskBackButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var target = document.getElementById('task-' + state.task);
+      if (!target) return;
+      target.focus();
+      target.scrollIntoView({ block: 'center', behavior: 'auto' });
+    });
+  });
+  detailToCreate.addEventListener('click', function () {
+    prepareActionFor(ACTIONS[state.action].focus);
+  });
+  createNext.addEventListener('click', function () {
+    setFormStep('responsable', true);
+  });
+  createBack.addEventListener('click', function () {
+    setFormStep('datos', true);
+  });
+  createFocus.addEventListener('change', renderOpsContext);
+  titleInput.addEventListener('input', function () {
+    if (titleInput.value.trim() !== '') titleInput.removeAttribute('aria-invalid');
   });
   statusFilter.addEventListener('change', renderActionsList);
   actionFocusFilter.addEventListener('change', renderActionsList);
@@ -2079,14 +2592,22 @@ tbody tr:hover { background: var(--aerial-raised); }
     assigneeSelect.focus();
   });
   assigneeSelect.addEventListener('change', function () {
+    clearFeedback();
     if (!assigneeSelect.disabled && assigneeSelect.value) lastGoodAssignee = assigneeSelect.value;
     updateAssigneeHint();
+    updateSubmitCopy();
   });
+  createForm.addEventListener('input', clearFeedback);
 
   createForm.addEventListener('submit', function (event) {
     event.preventDefault();
+    if (state.formStep === 'datos') {
+      setFormStep('responsable', true);
+      return;
+    }
     var title = titleInput.value.trim();
     if (title === '') {
+      setFormStep('datos', false);
       titleInput.setAttribute('aria-invalid', 'true');
       showFeedback('Falta el título.', 'Escribe un título para continuar. La maqueta no guardó nada y no envió ninguna solicitud.');
       titleInput.focus();
@@ -2124,9 +2645,22 @@ tbody tr:hover { background: var(--aerial-raised); }
     if (VIEWS.indexOf(name) !== -1) setView(name, true);
   });
 
+  /* Narrow screens keep the sector facts behind a native disclosure, after the
+     identity and before the task choices; wide screens unfold them in place. */
+  var opsMore = document.getElementById('ops-context-more');
+  if (opsMore && typeof window.matchMedia === 'function') {
+    var wideOps = window.matchMedia('(min-width: 901px)');
+    var syncOpsMore = function () { opsMore.open = wideOps.matches; };
+    syncOpsMore();
+    if (wideOps.addEventListener) wideOps.addEventListener('change', syncOpsMore);
+    else if (wideOps.addListener) wideOps.addListener(syncOpsMore);
+  }
+
   setTheme(document.documentElement.dataset.theme === 'day' ? 'day' : 'night', false);
   updateAssigneeHint();
-  renderAction('acc-1042');
+  updateSubmitCopy();
+  setTask('revisar', false);
+  setFormStep('datos', false);
   applyG6('candidate');
   renderAll();
   var initialHash = window.location.hash.replace('#', '');
