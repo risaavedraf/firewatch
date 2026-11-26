@@ -182,9 +182,23 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    against the border, which clips the right-aligned values of a data list
    (`model-panel`, `cycle-panel` both shipped that way). `tests/styles/
    layout-padding.test.tsx` reads this rule against the shipped markup. */
-.map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel { padding: 18px; }
+.map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel { padding: 18px; }
 .padded { padding: 22px; }
 .status-copy { min-height: 32px; margin: 13px 0 7px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+/* PM-01 — the executive panel. Six labelled blocks, each one a section with its
+   own heading, so the structure is carried by text and list semantics rather
+   than by column order; the grid only decides how they sit side by side. */
+.executive-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 22px; margin-top: 4px; }
+.executive-block { min-width: 0; }
+.executive-block h4 { margin-bottom: 2px; }
+.executive-block h5 { margin: 12px 0 2px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.executive-block ul { margin: 6px 0 0; padding-left: 16px; font-size: 10px; line-height: 1.6; }
+.executive-block li { margin-bottom: 3px; }
+.executive-block p { margin: 4px 0 0; font-size: 10px; }
+.executive-block a { color: var(--forest-700); font-size: 10px; font-weight: 700; text-decoration: underline; }
+.executive-block a:focus-visible { outline: 3px solid #cf7d4f; outline-offset: 2px; }
+.executive-block .data-list { margin-top: 4px; }
+.executive-panel #executive-rule-tag { white-space: normal; text-align: right; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .8fr); gap: 16px; }
 .lower-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(320px, .8fr); gap: 16px; margin-top: 16px; }
 .two-columns, .three-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
@@ -454,6 +468,7 @@ footer .icon { width: 13px; height: 13px; }
 
 @media (max-width: 1000px) {
   .dashboard-grid, .lower-grid, .two-columns, .three-columns { grid-template-columns: 1fr; }
+  .executive-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .metrics-grid, .metrics-three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .map-stage { grid-template-columns: 1fr; }
   .map-insets { flex-direction: row; flex-wrap: wrap; }
@@ -481,7 +496,8 @@ footer .icon { width: 13px; height: 13px; }
   main { padding: 20px 15px 28px; }
   .intro-row { align-items: flex-start; flex-direction: column; gap: 9px; }
   .intro-row h2 { font-size: 21px; }
-  .map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel { padding: 14px; }
+  .map-panel, .risk-panel, .history-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel { padding: 14px; }
+  .executive-grid { grid-template-columns: 1fr; }
   .metrics-three { grid-template-columns: 1fr; }
   .metric { padding: 14px; }
   .map-viewport, .map-svg { min-height: 220px; }

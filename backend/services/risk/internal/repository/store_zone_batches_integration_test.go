@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -210,16 +211,185 @@ func TestLatestPerZoneAnswersTheNewestBatchOfEveryZone(t *testing.T) {
 		if err := db.QueryRow(ctx, `SELECT id::text FROM batches WHERE job_id=$1`, previousJobID).Scan(&previousID); err != nil {
 			t.Fatal(err)
 		}
+		seeded := false
 		for _, pair := range groups {
 			if len(pair) == 0 || pair[0].ZoneID != batched {
 				continue
 			}
+			seeded = true
 			if len(pair) != 2 || pair[0].ID != element.ID || pair[1].ID != previousID ||
 				pair[0].RiskLevel != "alto" || !pair[0].Demo || len(pair[0].Factors) == 0 {
 				t.Fatalf("wrong newest pair: %+v", pair)
 			}
-			return
 		}
-		t.Fatalf("snapshot omitted seeded zone %q", batched)
+		if !seeded {
+			t.Fatalf("snapshot omitted seeded zone %q", batched)
+		}
+
+		// D-B against storage. The zone this test has just published two high
+		// batches for must be listed, and every zone the rule names must really
+		// hold two high levels in the two newest rows the database itself
+		// reports: the rule is a property of the SQL selection plus the levels,
+		// so a fake that restated its own input could not prove it.
+		newestTwo := func(zone string) []string {
+			rows, err := db.Query(ctx, `SELECT risk_level FROM batches WHERE zone_id=$1 ORDER BY requested_at DESC, id DESC LIMIT 2`, zone)
+			if err != nil {
+				t.Fatalf("read the two newest stored levels of zone %q: %v", zone, err)
+			}
+			defer rows.Close()
+			levels := make([]string, 0, 2)
+			for rows.Next() {
+				var level string
+				if err := rows.Scan(&level); err != nil {
+					t.Fatalf("scan the newest stored level of zone %q: %v", zone, err)
+				}
+				levels = append(levels, level)
+			}
+			if err := rows.Err(); err != nil {
+				t.Fatalf("read the two newest stored levels of zone %q: %v", zone, err)
+			}
+			return levels
+		}
+		critical := CriticalZones(groups)
+		listed := make(map[string]bool, len(critical))
+		namedSeeded := false
+		for index, zone := range critical {
+			if listed[zone] {
+				t.Fatalf("zone %q is listed twice in %v", zone, critical)
+			}
+			listed[zone] = true
+			if index > 0 && critical[index-1] >= zone {
+				t.Fatalf("critical zones are not ordered by zone id: %q before %q", critical[index-1], zone)
+			}
+			if levels := newestTwo(zone); len(levels) != 2 || levels[0] != "alto" || levels[1] != "alto" {
+				t.Fatalf("zone %q is listed critical but storage reports its two newest levels as %v", zone, levels)
+			}
+			if zone == batched {
+				namedSeeded = true
+			}
+		}
+		if !namedSeeded {
+			t.Fatalf("zone %q published two consecutive high batches but D-B did not list it: %v", batched, critical)
+		}
+
+		// The alert tally is the table's own count: it filters nothing, so it
+		// must agree with what storage reports instead of a number the read
+		// invented.
+		counted, err := s.ExecutiveAlertCount(ctx)
+		if err != nil {
+			t.Fatalf("ExecutiveAlertCount: %v", err)
+		}
+		var storedAlerts int
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM risk_alerts`).Scan(&storedAlerts); err != nil {
+			t.Fatalf("count the stored alerts: %v", err)
+		}
+		if counted != storedAlerts {
+			t.Fatalf("ExecutiveAlertCount answered %d, storage holds %d", counted, storedAlerts)
+		}
 	})
+}
+
+// TestExecutiveBatchesBreakATieOnTheHigherID pins the second half of the
+// executive snapshot's selection rule: when two batches of one zone share a
+// requested_at, the snapshot answers the greater batch id first.
+//
+// The rule is already in the query - executive.go orders by
+// `requested_at DESC, id DESC` in the LATERAL pick and in the outer order - so
+// there is no RED state for this test to observe and none is claimed: it passes
+// on the code it was written against. What makes the assertion live is the
+// fixture. The two candidates are a true tie (same zone, same requested_at, and
+// every other stored member equal) and they differ in exactly the two members the
+// rule decides: the batch id and the risk level used as a visible sentinel. The
+// answer must therefore name the tie-break winner in the first position and carry
+// that batch's sentinel; a read that selected by insertion order, by level or by
+// an id-ascending order would put the loser first and report the wrong sentinel.
+//
+// The helper mints a random batch id, so which candidate wins is decided by
+// storage, not by this test: the expected winner is computed from the ids the
+// store returned, the same technique TestEqualTimestampsFollowTheNewestPerZoneTieBreak
+// uses for the per-zone read.
+func TestExecutiveBatchesBreakATieOnTheHigherID(t *testing.T) {
+	ctx, db := alertTestPool(t)
+	store := Store{DB: db}
+	// The zone the per-zone tie-break test already publishes for. The instant is
+	// strictly newer than anything that zone holds, so the pair below is the two
+	// newest rows the snapshot can answer, whatever earlier runs left behind.
+	const zone = "valparaiso-demo"
+	instant := instantNewerThanEveryStoredBatch(ctx, t, db, zone)
+
+	// Two publications at the SAME instant. Their levels are the sentinel that
+	// makes the selected row visible without reading the id back from storage.
+	_, firstID := publishTestBatch(ctx, t, store, zone, instant, string(classify.LevelAlto))
+	_, secondID := publishTestBatch(ctx, t, store, zone, instant, string(classify.LevelMedio))
+	if firstID == secondID {
+		t.Fatalf("the two publications produced the same batch id %q", firstID)
+	}
+	sentinel := map[string]string{
+		firstID:  string(classify.LevelAlto),
+		secondID: string(classify.LevelMedio),
+	}
+	winnerID := newestByTieBreak(firstID, secondID)
+	loserID := firstID
+	if winnerID == firstID {
+		loserID = secondID
+	}
+
+	groups, err := store.ExecutiveBatches(ctx)
+	if err != nil {
+		t.Fatalf("ExecutiveBatches: %v", err)
+	}
+	var pair []Batch
+	for _, group := range groups {
+		if len(group) > 0 && group[0].ZoneID == zone {
+			pair = group
+			break
+		}
+	}
+	if len(pair) != 2 {
+		t.Fatalf("zone %q answered %d batches, want the two newest: %+v", zone, len(pair), pair)
+	}
+
+	// The fixture is a real tie: both candidates were stored at the same instant
+	// and differ in nothing but the two members under test. Without this the
+	// sentinel assertion below could be satisfied by an unrelated difference.
+	stripped := func(batch Batch) Batch {
+		batch.ID, batch.RiskLevel = "", ""
+		return batch
+	}
+	if !reflect.DeepEqual(stripped(pair[0]), stripped(pair[1])) {
+		t.Fatalf("the two candidates of zone %q differ in more than their id and sentinel: %+v", zone, pair)
+	}
+	// The snapshot orders by requested_at without serving it, so the tie is proven
+	// at storage: both candidates must carry the shared instant the fixture
+	// published. Without that, the two ids could simply be different batches of
+	// the zone rather than a tie.
+	for _, id := range []string{firstID, secondID} {
+		var stored time.Time
+		if err := db.QueryRow(ctx, `SELECT requested_at FROM batches WHERE id = $1`, id).Scan(&stored); err != nil {
+			t.Fatalf("read the stored requested_at of batch %s: %v", id, err)
+		}
+		if !stored.Equal(instant) {
+			t.Fatalf("batch %s was stored at %s, want the shared instant %s", id, stored, instant)
+		}
+	}
+	if pair[0].RiskLevel == pair[1].RiskLevel {
+		t.Fatalf("the sentinel does not distinguish the tied candidates: %+v", pair)
+	}
+
+	// The rule itself. Both positions are named, so answering the right two rows in
+	// the wrong order fails just as a wrong pair does.
+	if pair[0].ID != winnerID {
+		t.Fatalf("zone %q answered batch %s first, want the higher id %s", zone, pair[0].ID, winnerID)
+	}
+	if pair[0].RiskLevel != sentinel[winnerID] {
+		t.Fatalf("the selected batch %s carries level %q, want its own sentinel %q",
+			pair[0].ID, pair[0].RiskLevel, sentinel[winnerID])
+	}
+	if pair[1].ID != loserID {
+		t.Fatalf("zone %q answered batch %s second, want the lower id %s", zone, pair[1].ID, loserID)
+	}
+	if pair[1].RiskLevel != sentinel[loserID] {
+		t.Fatalf("the trailing batch %s carries level %q, want its own sentinel %q",
+			pair[1].ID, pair[1].RiskLevel, sentinel[loserID])
+	}
 }

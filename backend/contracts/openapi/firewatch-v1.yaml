@@ -498,8 +498,20 @@ paths:
         demo flag and scenario ID match; never searches further back for a match.
         Counts the strongest known positive contribution from each newest batch
         (ties by variable name). This is a frequency of recorded model factors,
-        not a ranking of observed causes. No critical-zone definition or alert
-        lifecycle is implied by this summary.
+        not a ranking of observed causes.
+
+        critical_zones applies D-B, the responsible's definition written as "Alto
+        sostenido dos lotes": a zone is critical when BOTH of its two newest
+        published batches have level alto. The rule reads those two levels only. A
+        stale pair still counts, because freshness is what coverage.stale_zones
+        reports, and a pair whose model version, demo flag or scenario ID differs
+        still counts, because comparability is what delta reports. A zone with a
+        single batch, and a zone whose newest batch is not alto, is never critical.
+
+        active_alerts counts the rows stored in risk_alerts. It applies no filter
+        and reports no read or dismissed state: that lifecycle does not exist yet,
+        and the count states only how many level-change alerts the service has
+        recorded.
       responses:
         '200':
           description: Summary from a single catalogue and batch snapshot.
@@ -508,7 +520,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [coverage, levels, delta, predominant_variables]
+                required: [coverage, levels, delta, predominant_variables, critical_zones, active_alerts]
                 properties:
                   coverage:
                     type: object
@@ -567,6 +579,30 @@ paths:
                       properties:
                         name: {type: string, minLength: 1}
                         zones: {type: integer, minimum: 1}
+                  critical_zones:
+                    description: >-
+                      D-B "Alto sostenido dos lotes": the zone_ids whose two newest
+                      published batches both have level alto, ordered lexically by
+                      zone_id. count is always the length of zone_ids, and an
+                      answer with no critical zone is an empty array, never null.
+                    type: object
+                    additionalProperties: false
+                    required: [count, zone_ids]
+                    properties:
+                      count: {type: integer, minimum: 0}
+                      zone_ids:
+                        type: array
+                        items: {type: string, minLength: 1}
+                  active_alerts:
+                    description: >-
+                      Rows stored in risk_alerts, unfiltered. Not an unread or
+                      undismissed count: no read or dismissed state exists yet, so
+                      the member reports only how many alerts were recorded.
+                    type: object
+                    additionalProperties: false
+                    required: [count]
+                    properties:
+                      count: {type: integer, minimum: 0}
         '400':
           description: Query parameters are not supported (invalid_executive_summary_query).
           content:

@@ -21,7 +21,16 @@ type Repository interface {
 	// ordered by zone_id. A zone with no published batch is absent from the
 	// answer, and an empty result is a valid answer rather than an error.
 	LatestPerZone(ctx context.Context) ([]repository.Batch, error)
+	// ExecutiveBatches reads the newest two published batches of every catalogue
+	// zone, newest first, in one snapshot. D-B criticality and the delta block are
+	// both decided from this single read, so a zone can never be counted in one
+	// block from batches the other block did not see.
 	ExecutiveBatches(ctx context.Context) ([][]repository.Batch, error)
+	// ExecutiveAlertCount counts the stored level-change alerts for the executive
+	// summary. It filters nothing and reports no read or dismissed state: the
+	// summary states how many alert rows exist, and the lifecycle is PM-08's. A
+	// failed count is a storage failure, never a zero.
+	ExecutiveAlertCount(ctx context.Context) (int, error)
 	// ZoneExists reports whether the zone catalogue holds code. Membership is a
 	// property of the data, not of a literal compiled into this service, so the
 	// read path asks the catalogue instead of comparing to a hardcoded zone.

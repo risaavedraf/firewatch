@@ -36,11 +36,28 @@ type summaryVariable struct {
 	Zones int    `json:"zones"`
 }
 
+// summaryCriticalZones is D-B ("Alto sostenido dos lotes") on the wire: the zone
+// ids whose two newest published batches are both "alto", ordered by zone id, and
+// the count of that same list. Count is derived from ZoneIDs, never tallied
+// separately, so the two members cannot disagree.
+type summaryCriticalZones struct {
+	Count   int      `json:"count"`
+	ZoneIDs []string `json:"zone_ids"`
+}
+
+// summaryAlerts is the registered-alert tally. It states how many rows the alert
+// writer stored and nothing else: no read mark, no dismissal, no unread badge.
+type summaryAlerts struct {
+	Count int `json:"count"`
+}
+
 type executiveReport struct {
-	Coverage             summaryCoverage   `json:"coverage"`
-	Levels               map[string]int    `json:"levels"`
-	Delta                summaryDelta      `json:"delta"`
-	PredominantVariables []summaryVariable `json:"predominant_variables"`
+	Coverage             summaryCoverage      `json:"coverage"`
+	Levels               map[string]int       `json:"levels"`
+	Delta                summaryDelta         `json:"delta"`
+	PredominantVariables []summaryVariable    `json:"predominant_variables"`
+	CriticalZones        summaryCriticalZones `json:"critical_zones"`
+	ActiveAlerts         summaryAlerts        `json:"active_alerts"`
 }
 
 func executiveSummary(store Repository) http.HandlerFunc {
@@ -54,7 +71,16 @@ func executiveSummary(store Repository) http.HandlerFunc {
 			fail(w, http.StatusServiceUnavailable, "storage_unavailable")
 			return
 		}
-		report, err := buildExecutiveReport(groups, time.Now())
+		// The alert tally is read in the same request. A failed count is a storage
+		// failure like any other: the summary never reports 0 alerts it did not
+		// observe, because "no alerts" and "the table was unreadable" are different
+		// answers and only one of them is true.
+		alerts, err := store.ExecutiveAlertCount(r.Context())
+		if err != nil {
+			fail(w, http.StatusServiceUnavailable, "storage_unavailable")
+			return
+		}
+		report, err := buildExecutiveReport(groups, alerts, time.Now())
 		if err != nil {
 			fail(w, http.StatusServiceUnavailable, "storage_unavailable")
 			return
@@ -64,12 +90,22 @@ func executiveSummary(store Repository) http.HandlerFunc {
 	}
 }
 
-func buildExecutiveReport(groups [][]repository.Batch, now time.Time) (executiveReport, error) {
+// buildExecutiveReport composes the whole summary from one batch snapshot and one
+// alert tally. Both arrive already read: this function issues no query and holds
+// no state, so every member it returns is derived from what storage answered in
+// this one request.
+func buildExecutiveReport(groups [][]repository.Batch, alerts int, now time.Time) (executiveReport, error) {
+	// D-B is applied to the snapshot's newest two batches per zone, exactly as
+	// ExecutiveBatches serves them. The list is the report's own source for count,
+	// so the two members cannot drift.
+	critical := repository.CriticalZones(groups)
 	report := executiveReport{
 		Coverage:             summaryCoverage{CatalogueZones: len(groups)},
 		Levels:               make(map[string]int),
 		Delta:                summaryDelta{Transitions: []summaryTransition{}},
 		PredominantVariables: []summaryVariable{},
+		CriticalZones:        summaryCriticalZones{Count: len(critical), ZoneIDs: critical},
+		ActiveAlerts:         summaryAlerts{Count: alerts},
 	}
 	for _, level := range classify.Levels() {
 		report.Levels[string(level)] = 0
