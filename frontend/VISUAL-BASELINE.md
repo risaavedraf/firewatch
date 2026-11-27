@@ -2,7 +2,7 @@
 
 Use this document to audit the real frontend before changing styles. The committed prototype in `docs/pitch-g1-design` (`d651459`) is a reference for layout and hierarchy, not a reason to port fixtures or replace working product behavior.
 
-Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), [sign-in styles](src/styles/auth.css) and the [aerial workspace styles](src/styles/aerial-workspace.css) at the local baseline `742e760`, plus the T1 navigation change and the T2 aerial workspace on 2026-11-26. The inventory adapts the active-source sections of `design/system.md` from the prototype branch; it does not adopt its experimental aerial palette.
+Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), [sign-in styles](src/styles/auth.css), the [aerial workspace styles](src/styles/aerial-workspace.css) and the [territorial coverage styles](src/styles/territorial-coverage.css) at the local baseline `742e760`, plus the T1 navigation change, the T2 aerial workspace and the T3 coverage board on 2026-11-26. The inventory adapts the active-source sections of `design/system.md` from the prototype branch; it does not adopt its experimental aerial palette.
 
 ## Palette
 
@@ -229,6 +229,35 @@ The panel is opaque instead of translucent: it overlays the light workspace, so 
 **Breakpoints.** `1100px` turns the two columns into one — `canvas`, `rail`, `result`, in that document order — and releases the sticky rail. `720px` tightens the gap, drops the canvas to `260px` and gives the rail links a `40px` target. The four widths measured in Chromium (1440, 1280, 1024, 390) are recorded in the [visual audit](VISUAL-AUDIT.md#t2--aerial-workspace-2026-11-26).
 
 **Copy rule.** The rail states only facts the views already published: the session's one inflight batch (`jobProgress`), the selected zone's label from the catalogue, the kind of answer the last read settled on, and how many comunas actually carry a read level. It never repeats the level (the card owns it), never infers progress, and links only to routes `src/app/routes.ts` declares. The prototype's per-comuna queue, camera poses, cut-off slider, mock sectors and coordinates have no served data and are not simulated.
+
+## Territorial coverage board (T3)
+
+[`src/styles/territorial-coverage.css`](src/styles/territorial-coverage.css) composes `#infrastructure` as the coverage board of the approved territorial artboards ([`04-cobertura-territorial.html`](../design/firewatch-v1-vuelo/04-cobertura-territorial.html) and [`21-lecturas-por-sector.html`](../design/firewatch-v1-vuelo/21-lecturas-por-sector.html)): the real catalogue map is the canvas, [`CoverageRail`](src/components/territory/CoverageRail.tsx) lists the comunas beside it, the per-type table keeps its shipped columns and the breakdown is unchanged, and two reading panels close the board. Every selector is scoped to `#infrastructure`, so no other route inherits the composition. `InfrastructureMap`, `TableWrap`, the `ui` primitives, the store, the routes and the API are untouched.
+
+**No new palette.** The file declares no colour tokens: it uses `--paper`, `--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--forest-900`, `--radius` and the shipped focus ring literal `#cf7d4f`. The board's aerial palette (`design/system.md`, “Aerial prototype palette — experimental, not shipped”) is deliberately not adopted, and the map keeps its `#eef2e8` surface.
+
+| Selector | Role | Declared values |
+| --- | --- | --- |
+| `#infrastructure .coverage-stage` | Stage grid | `grid-template-columns: minmax(0, 1fr) minmax(230px, 258px)`; `gap: 16px`; `align-items: start` |
+| `#infrastructure .coverage-stage-head h3` | Stage title | `15px/650`, tracking `-.3px` — the shipped panel-title weight, not the lighter global `h3` |
+| `#infrastructure .coverage-stage-note` | Granularity note | `max-width: 78ch`, `10px/1.6`, `--muted` |
+| `#infrastructure .coverage-rail` | Commune rail | `display: grid`, `gap: 10px`, `padding-left: 16px`, `border-left: 1px solid --line`; no nested card surface |
+| `#infrastructure .coverage-rail-head h3` | Rail title | `13px/700`, tracking `-.2px`; the count uses the shipped `.count-badge` |
+| `#infrastructure .coverage-entry` | Commune button | `display: grid`, `gap: 5px`, `width: 100%`, `min-height: 44px`, `padding: 8px 9px`, radius `7px`, `font: inherit`, `text-align: left`; hover `--soft`; `aria-pressed="true"` adds `--soft` plus `inset 3px 0 0 --forest-700`; focus `outline: 3px solid #cf7d4f`, offset `2px` |
+| `#infrastructure .coverage-dots` | Coverage marks | `grid-template-columns: repeat(5, 1fr)`, `gap: 3px`; each dot `4px` high, radius `2px`; on `--forest-700`, off `--line`; decorative (`aria-hidden`) |
+| `#infrastructure .coverage-figure` | Coverage figure | `9px/800`, `--forest-700`, `white-space: nowrap` |
+| `#infrastructure .coverage-entry-types` | Declared types | `9px/1.45`, `--muted`, `overflow-wrap: anywhere` |
+| `#infrastructure .infrastructure-zone-coverage` | Per-commune coverage line | `10px/1.55`, `600`, `--forest-700` |
+| `#infrastructure .infrastructure-zone` | Drill-through target | `scroll-margin-top: calc(var(--product-nav-h, 48px) + 14px)`; `[data-active="true"]` paints `--soft`; focus ring as above |
+| `#infrastructure .coverage-detail` | Reading row | `grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr)`, `gap: 18px`, `padding-top: 16px`, `border-top: 1px solid --line` |
+| `#infrastructure .coverage-reading` | Distinction list | `dl` rows `132px minmax(0, 1fr)`; terms `10px/800 --ink`; descriptions `10px/1.55 --muted` |
+| `#infrastructure .coverage-routes a` | Reading link | `11px/700`, `--forest-700`, underline offset `2px`, `min-height: 36px` (`44px` at `≤720px`); focus `outline: 3px solid #cf7d4f`, offset `2px` |
+
+**Breakpoints.** `1180px` folds the stage into one column — canvas first, rail below, in DOM order — because below that width the two columns would shrink the map; the rail's side border becomes a top border. `900px` makes the reading row one column. `720px` tightens the stage gap and gives rail buttons a `10px 8px` padding and the reading links a `44px` target. The four widths measured in Chromium (1440, 1280, 1024, 390) are recorded in the [visual audit](VISUAL-AUDIT.md#t3--territorial-coverage-board-2026-11-26).
+
+**Print.** The board's print rules live in the same file: the rail and the reading-links column are hidden because in-page navigation does not print, the granularity panel stays in black on white, and the shipped `app.css` print block keeps owning the synthetic label, the formula, the table and the breakdown.
+
+**Copy rule.** The rail states only facts the payload carries: each zone is a comuna by CUT code, and "cobertura" is the count of the five declared element types that comuna declares — never a percentage of territory, never a sector reading, never a risk level. A count of zero is described as the fixture declaring no element of that type, not as missing data. The board's sector rows, cut-off slider, environment descriptions and contextual priority are not simulated. Each rail control is a `button type="button"` with `aria-pressed` that moves focus to the commune's breakdown: the rail does not use `#` anchors because the hash is the router's state.
 
 ## What still needs a browser
 

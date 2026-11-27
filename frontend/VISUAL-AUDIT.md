@@ -356,3 +356,71 @@ Tab order from `#content` at 1280×900, after: `#zone-select` → three map shap
 ### Not measured for T2
 
 No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for this change; the earlier passes in this document predate it. The screenshots are viewport captures at 1440, 1280, 1024 and 390 of the populated state, plus the desktop empty/error/loading/inflight states — not of every route. The 390 px first screen is still dominated by the shell the T1/T2 scope leaves in place (stacked sidebar, update bar), so the aerial workspace starts at `y=552` there. Whether the sticky rail should remain sticky while the reading card scrolls under it on a tall desktop was not tested with long real catalogues. Evidence files: `tmp/t2-aerial/{before,after}/` (ignored scratch), probe `tmp/t2-aerial-workspace-probe.mjs`.
+
+## T3 — territorial coverage board (2026-11-26)
+
+`#infrastructure` now opens as the coverage board of the approved territorial artboards ([`04-cobertura-territorial.html`](../design/firewatch-v1-vuelo/04-cobertura-territorial.html) and [`21-lecturas-por-sector.html`](../design/firewatch-v1-vuelo/21-lecturas-por-sector.html)): the real catalogue map is the canvas of a stage, a rail beside it lists every zone with the type coverage the payload actually declares, and two reading panels close the board under the unchanged per-type table and breakdown. Only the composition, the rail, the reading panels and the scoping stylesheet are new — [`src/styles/territorial-coverage.css`](src/styles/territorial-coverage.css), every selector under `#infrastructure` — plus [`CoverageRail`](src/components/territory/CoverageRail.tsx) and its pure [`zone-coverage`](src/components/territory/zone-coverage.ts) helper. `InfrastructureMap`, `TableWrap`, the `ui` primitives, the store, the routes, the API, auth and the twelve other views are untouched.
+
+**The real granularity, not the board's.** The catalogue serves one zone per comuna, identified by its CUT code. The board's "sector readings", its cut-off slider, its per-sector environment and its contextual priority have no served data and are not simulated: the view states the comuna granularity in three places (header badge, stage note, reading panel) and presents the only coverage the payload supports — how many of the five declared types each comuna declares. `/v1/risk/infrastructure` is still the only read this view issues.
+
+**Environment.** Chromium **148.0.7778.96**, headless, against two locally built trees on loopback: the working tree on `127.0.0.1:4176` and a baseline rebuilt from `HEAD` (`9021164`) with `git archive` into ignored scratch on `127.0.0.1:4175`. The signed-in run used an isolated fixture: a locally generated unsigned token plus every gateway answer intercepted in the browser session. No real credential, realm, gateway or listener was reused, nothing was installed, and the fixture state lives only in that browser context.
+
+### Composition, before and after
+
+Document-relative top (`y`) and the rendered box of the measured elements. `map` is the catalogue figure, `svg` the map drawing, `rail` the new commune rail, `detail` the two reading panels.
+
+| Viewport | Map figure before | Map figure after | Rail after | Detail after | Document height before → after |
+| --- | --- | --- | --- | --- | --- |
+| 1440×900 | `y=765`, `1100×601.1` | `y=886`, `826×471.3` | beside the canvas, `258×406.7`, `y=765` | `y=2364.4`, `1100×250.9` | `2389` → `2753` |
+| 1280×900 | `y=780.5`, `940×525.3` | `y=937.5`, `666×409` | beside the canvas, `258×406.7`, `y=816.5` | `y=2353.6`, `940×250.9` | `2329` → `2742` |
+| 1024×768 | `y=823.6`, `730×425.9` | `y=944.6`, `730×425.9` | stacked below the canvas, `730×342.2` | `y=2749.6`, `730×265.3` | `2273` → `3153` |
+| 390×844 | `y=1422.1`, `330×361.5` | `y=1613.1`, `330×361.5` | stacked below the canvas, `330×404.7` | `y=3618.7`, `330×583.8` | `2991` → `4349` |
+
+At 1440 and 1280 the 258 px rail takes its column from the map, which is the board's own proportion (a wide canvas and a narrow reading rail): the drawing falls from `1078×510.6` to `804×380.8` at 1440 and from `918×434.8` to `644×305` at 1280. At 1024 and 390 the map keeps its exact previous width and only moves down. The per-type table keeps its `1100/940/730/330` width and its `218.9` height above 720 px. Below 1180 px the stage becomes one column so the map never shrinks to make room for the rail.
+
+**Overflow.** The only descendants that exceed the viewport at 390 are the pre-existing table cells inside `.table-wrap` (`#infrastructure-zones` keeps its shipped `min-width: 620px` and its own scroll region); the list is identical before and after. At 1024, 1280 and 1440 no descendant of `#infrastructure` exceeded the viewport in either build.
+
+### PRESERVE — differential against the baseline
+
+The same probe ran against both builds and compared the data-bearing keys of five states — loaded catalogue, read held pending, 403, and the `#overview` loaded state — across **47 comparisons: 0 differences**. The keys were: `#infrastructure-zone-count`, `#infrastructure-element-count`, `#infrastructure-point-total`, `#infrastructure-status`, `#infrastructure-empty`, the print button's disabled state, every table row (`data-zone`, five `data-count` cells, `data-total`), the breakdown title, every breakdown article (heading, counts line, element ids, geometry text), the `.table-wrap` count, and for `#overview`: selected zone, zone chip, map hidden flag, shape count, painted level classes, `#risk-pill`, `#risk-status`, `#risk-level`, `#zone-count`, `#metric-batches`, `#metric-high`, `#map-job-progress`, the four `#aerial-*` readings and `#executive-status`.
+
+Two strings changed on purpose, and only in `#overview`: the empty-factor sentence now says `No hay factores disponibles para esta comuna.` (the card reads one comuna by CUT code) and the coverage limitation now reads `Cobertura por sector: la API no publica lecturas ni un porcentaje de cobertura por sector. Su unidad es la comuna (código CUT), así que esta ficha no muestra un porcentaje de cobertura.` Both are pinned by `tests/views/overview.test.tsx`.
+
+### States
+
+| State | Coverage stage | Rail | Status / empty copy |
+| --- | --- | --- | --- |
+| Catalogue loaded (4 zones) | present | 4 entries, `5`, `3`, `2`, `2` de 5 tipos, `aria-pressed="false"` | `Catálogo sintético recibido: 4 zonas y 12 elementos…`, print enabled |
+| Read held pending | absent | absent | `Consultando el catálogo sintético de infraestructura…`, `Sin catálogo cargado todavía: no se muestran filas, conteos ni geometrías.`, print disabled |
+| 403 | absent | absent | `La API denegó el permiso para consultar la infraestructura (403)…`, `Sin catálogo disponible: no se muestran filas, conteos ni geometrías.`, print disabled |
+
+The stage is never rendered without a catalogue: a failed or pending read owns its own sentence instead of an empty rail.
+
+### Keyboard
+
+Tab order from `#content` at 1440×900. **Before:** `#infrastructure-print` → table scroll region → `#reset-filters` → body → skip link → `#nav-overview` → `#nav-history` → `#nav-actions`. **After:** `#infrastructure-print` → `#coverage-entry-05101` → `#coverage-entry-05109` → `#coverage-entry-05801` → `#coverage-entry-05401` → the table scroll region → `#infrastructure-history-link` → `#infrastructure-compare-link` → `#infrastructure-sources-link` → `#reset-filters` → body → skip link → the product navigation. The pre-existing controls keep their relative order; the new rail and the reading links sit between the print control and the table.
+
+Enter on `#coverage-entry-05801` (focused with Tab, `outline: 3px solid rgb(207, 125, 79)`, `outline-offset: 2px`) opened the commune's breakdown: the hash stayed `#infrastructure`, focus landed on `ARTICLE#infrastructure-zone-05801`, `aria-pressed` became `true`, the target painted `rgb(238, 241, 233)`, showed `outline: 3px solid rgb(207, 125, 79)` with offset `2px`, and was inside the viewport. The three reading links stayed native `a[href]` to declared routes.
+
+**A finding from this pass.** The rail first shipped as in-page `#infrastructure-zone-…` anchors, which is the board's pattern. The product's hash router owns the address bar: a hash that is not a declared route falls back to `#overview`, so Enter on a commune link left the view entirely (measured: `hash="#overview"`, focus `BODY`). The rail now uses `button type="button"` with `aria-pressed` and moves focus itself; a public DOM test pins that the router hash is untouched.
+
+### Contrast (measured in Chromium, rendered computed styles)
+
+| Pair | Ratio | Read |
+| --- | --- | --- |
+| Rail coverage figure `--forest-700` on `--paper`, 9 px/800 | 7.36:1 | meets 4.5:1 |
+| Rail type names `--muted` on `--paper`, 9 px/400 | 5.49:1 | meets 4.5:1 |
+| Zone coverage line `--forest-700` on `--paper`, 10 px/600 | 7.36:1 | meets 4.5:1 |
+| Reading description `--muted` on `--paper`, 10 px/400 | 5.49:1 | meets 4.5:1 |
+| Reading link `--forest-700` on `--paper`, 11 px/700 | 7.36:1 | meets 4.5:1 |
+| Granularity badge `--muted` on `#edf1f2`, 8 px/850 | 4.87:1 | meets 4.5:1 (shipped neutral-tag pair) |
+
+The five coverage marks are `aria-hidden` decoration; the sentence beside them carries the meaning, so nothing depends on the `--forest-700` / `--line` bar colours. On the selected entry the same pairs sit on `--soft`, whose declared values are recorded in [`design/system.md`](../design/system.md) (`--forest-700` 6.57:1, `--muted` 4.86:1); the rendered hover and selected surfaces were not re-measured in this pass.
+
+### Automated
+
+`npm run verify` passed on the final tree: lint, typecheck, 56 test files / 749 tests, the source gate over 69 shipped files, the local build and the HTTP smoke. The focused command from the task — `tests/views/infrastructure.test.tsx tests/views/overview.test.tsx tests/map/map-panel.test.tsx tests/a11y/heading-hierarchy.test.tsx` — went from `4 files / 89 tests` on the baseline to `4 files / 96 tests` after T3. The RED run of the new public-DOM tests was `8 failed | 58 passed (66)` across the two view suites before the implementation. The drill-through test (`T3 opens the chosen commune breakdown…`) was written after the browser pass exposed the router finding above, so it passed on its first run instead of starting from a RED.
+
+### Not measured for T3
+
+No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for this change; the earlier passes in this document predate it. The screenshots are viewport and full-page captures at 1440, 1280, 1024 and 390 of the populated state plus the desktop pending and 403 states — not of every route, and not of the print preview: the print rules added here were not rendered to paper, and the existing print contract (`#infrastructure-zones`, `.infrastructure-synthetic` and `.infrastructure-formula` kept; `.infrastructure-print-action` hidden) is still asserted against `app.css` by the DOM suite. The 390 px first screen is still dominated by the shell the T1/T2 scope leaves in place, so the coverage stage begins at `y=1456` there. The fixture carries four comunas; a long real catalogue was not rendered. Evidence files: `tmp/t3-coverage/{before,after}/` (ignored scratch, `report.json` plus screenshots), probe `tmp/t3-coverage/probe.mjs`, comparison `tmp/t3-coverage/compare.mjs`.

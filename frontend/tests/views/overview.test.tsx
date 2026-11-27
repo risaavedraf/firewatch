@@ -263,8 +263,13 @@ test('the view keeps the overview identity, every contracted identifier and the 
     expect(document.getElementById(id), `missing DOM ${id}`).not.toBeNull();
   }
 
-  // The "Cobertura por sector" limitation stays inside this view.
-  expect(screen.getByText(/Cobertura por sector/)).toBeInTheDocument();
+  // The "Cobertura por sector" limitation stays inside this view, and its copy
+  // names the granularity the service really publishes (T3): this card reads one
+  // comuna by its CUT code, so it must not present that result as a sector
+  // reading.
+  const coverageLimit = screen.getByText(/Cobertura por sector/);
+  expect(coverageLimit).toHaveTextContent(/comuna \(c[oó]digo CUT\)/i);
+  expect(coverageLimit).toHaveTextContent(/no publica .*por sector/i);
 });
 
 test('without a session the metrics stay unknown and the map states the connection requirement', async () => {
@@ -375,7 +380,9 @@ test('a card without a published lot renders no Factores heading and no empty li
   expect(screen.queryByRole('heading', { name: 'Factores' })).toBeNull();
   expect(document.getElementById('risk-factors')).toBeNull();
   // The artboard states the absence in one muted sentence instead of a heading.
-  expect(screen.getByText('No hay factores disponibles para este sector.')).toBeInTheDocument();
+  // The reading is one comuna, so the sentence names a comuna (T3).
+  expect(screen.getByText('No hay factores disponibles para esta comuna.')).toBeInTheDocument();
+  expect(screen.queryByText('No hay factores disponibles para este sector.')).toBeNull();
 });
 
 test('wrong-zone and superseded latest responses cannot render; catalogue geometry stays unchanged', async () => {

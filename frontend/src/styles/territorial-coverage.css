@@ -1,0 +1,304 @@
+/* T3 — cobertura territorial del catálogo sintético de infraestructura.
+ *
+ * Todo va bajo `#infrastructure`: la etapa de cobertura, la barra por comuna y
+ * los paneles de lectura son la composición de esta ruta y de ninguna otra. El
+ * archivo no declara colores nuevos: usa los tokens activos (`--paper`,
+ * `--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--radius`) y el anillo
+ * de foco ya enviado (`#cf7d4f`). La paleta experimental del tablero aéreo
+ * (`design/system.md`, «no enviada») no entra aquí.
+ *
+ * La composición es la del tablero de cobertura (`04-cobertura-territorial.html`)
+ * en lo que el producto real sostiene: el mapa ocupa el lienzo, una barra lista
+ * las comunas con la cobertura que el catálogo declara y dos paneles cierran la
+ * lectura. El tablero pide cortes compartidos, focos por sector y prioridad
+ * contextual; ninguno tiene datos servidos detrás y ninguno se simula.
+ */
+
+#infrastructure .coverage-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 258px);
+  align-items: start;
+  gap: 16px;
+  margin: 0 0 18px;
+}
+
+#infrastructure .coverage-canvas { min-width: 0; }
+
+#infrastructure .coverage-stage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#infrastructure .coverage-stage-head .eyebrow { margin-bottom: 3px; }
+
+/* El título de la etapa usa el peso del título de panel que ya existe (15 px),
+   no el `h3` global: la etapa es el encabezado de una región, no una nota. */
+#infrastructure .coverage-stage-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -.3px;
+}
+
+#infrastructure .coverage-stage-note {
+  max-width: 78ch;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+/* La figura real del catálogo conserva su superficie y su borde ya medidos
+   (`#eef2e8`); aquí solo se le quita el aire de bloque suelto. */
+#infrastructure .coverage-canvas .infrastructure-map { margin: 12px 0 0; }
+
+/* La barra no es una tarjeta dentro del panel: es una columna separada por una
+   línea, que es la jerarquía que el sistema ya usa para lo secundario. */
+#infrastructure .coverage-rail {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+#infrastructure .coverage-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#infrastructure .coverage-rail-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -.2px;
+}
+
+#infrastructure .coverage-rail-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+#infrastructure .coverage-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada comuna es un botón nativo de 44 px de alto: el objetivo táctil que el
+   producto ya usa, con el anillo de foco del producto. El botón no navega; abre
+   el desglose de esa comuna en esta misma página (el hash es del router). */
+#infrastructure .coverage-entry {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+#infrastructure .coverage-entry:hover { background: var(--soft); }
+#infrastructure .coverage-entry:focus-visible { outline: 3px solid #cf7d4f; outline-offset: 2px; }
+
+/* La comuna abierta se marca con el acento interior que el producto ya usa para
+   la fila seleccionada, y no solo con color: el botón conserva `aria-pressed`. */
+#infrastructure .coverage-entry[aria-pressed="true"] {
+  background: var(--soft);
+  box-shadow: inset 3px 0 0 var(--forest-700);
+}
+
+#infrastructure .coverage-entry-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#infrastructure .coverage-zone {
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+#infrastructure .coverage-figure {
+  color: var(--forest-700);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+/* Cinco marcas decorativas: la frase «n de 5 tipos» es la que lleva el
+   significado, así que la figura se declara `aria-hidden` en el componente. */
+#infrastructure .coverage-dots {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+}
+
+#infrastructure .coverage-dot {
+  height: 4px;
+  border-radius: 2px;
+}
+
+#infrastructure .coverage-dot.is-on { background: var(--forest-700); }
+#infrastructure .coverage-dot.is-off { background: var(--line); }
+
+#infrastructure .coverage-entry-types {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* La cobertura por comuna, en el destino del enlace de la barra. */
+#infrastructure .infrastructure-zone-coverage {
+  margin: 0 0 6px;
+  color: var(--forest-700);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+/* El desglose es el destino del botón de la barra: al abrir una comuna el foco
+   cae en la zona y la línea de la barra de producto no la tapa. */
+#infrastructure .infrastructure-zone { scroll-margin-top: calc(var(--product-nav-h, 48px) + 14px); }
+#infrastructure .infrastructure-zone[data-active="true"] { background: var(--soft); }
+/* El desglose recibe el foco por programa, no por puntero: el anillo se muestra
+   siempre, no solo en :focus-visible, para que el destino sea visible. */
+#infrastructure .infrastructure-zone:focus { outline: 3px solid #cf7d4f; outline-offset: 2px; }
+
+#infrastructure .coverage-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+#infrastructure .coverage-note { min-width: 0; }
+#infrastructure .coverage-note .eyebrow { margin-bottom: 3px; }
+
+#infrastructure .coverage-note h3 {
+  margin: 0 0 9px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -.2px;
+}
+
+#infrastructure .coverage-reading {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+#infrastructure .coverage-reading > div {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 10px;
+}
+
+#infrastructure .coverage-reading dt {
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+#infrastructure .coverage-reading dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+#infrastructure .coverage-routes {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+#infrastructure .coverage-routes a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  color: var(--forest-700);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+#infrastructure .coverage-routes a:hover { color: var(--forest-900); }
+#infrastructure .coverage-routes a:focus-visible { outline: 3px solid #cf7d4f; outline-offset: 2px; border-radius: 4px; }
+
+#infrastructure .coverage-route-note {
+  display: block;
+  margin-top: -2px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+/* Una columna: el mapa primero y la barra debajo, sin línea lateral que ya no
+   separa nada. El orden del documento es el del diseño. Bajo 1180 px el lienzo
+   deja de tener ancho para dos columnas sin encoger el mapa. */
+@media (max-width: 1180px) {
+  #infrastructure .coverage-stage { grid-template-columns: minmax(0, 1fr); }
+  #infrastructure .coverage-rail {
+    padding-top: 12px;
+    padding-left: 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  #infrastructure .coverage-detail { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 720px) {
+  #infrastructure .coverage-stage { gap: 12px; }
+  #infrastructure .coverage-entry { padding: 10px 8px; }
+  #infrastructure .coverage-reading > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  #infrastructure .coverage-routes a { min-height: 44px; }
+}
+
+/* La impresión conserva la etiqueta sintética, la regla, la tabla y el desglose
+   que el contrato de impresión ya protege. La barra y las rutas son navegación
+   de pantalla: en papel no llevan a ninguna parte, así que no se imprimen. El
+   panel de granularidad sí, porque es el que explica la unidad real. */
+@media print {
+  body:has(#infrastructure) .coverage-stage { grid-template-columns: minmax(0, 1fr); }
+  body:has(#infrastructure) .coverage-rail,
+  body:has(#infrastructure) .coverage-note-routes { display: none !important; }
+  body:has(#infrastructure) .coverage-detail {
+    grid-template-columns: minmax(0, 1fr);
+    border-color: #666;
+  }
+  body:has(#infrastructure) .coverage-note h3,
+  body:has(#infrastructure) .coverage-reading dt,
+  body:has(#infrastructure) .infrastructure-zone-coverage { color: #000; }
+  body:has(#infrastructure) .coverage-stage-note,
+  body:has(#infrastructure) .coverage-reading dd { color: #000; }
+  body:has(#infrastructure) .coverage-dot.is-on { background: #000; }
+  body:has(#infrastructure) .coverage-dot.is-off { background: #fff; }
+  body:has(#infrastructure) .infrastructure-zone[data-active="true"] { background: transparent; }
+}

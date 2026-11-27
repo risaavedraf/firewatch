@@ -826,7 +826,7 @@ export function OverviewView() {
               </ul>
             </>
           ) : (
-            <p className="panel-note">No hay factores disponibles para este sector.</p>
+            <p className="panel-note">No hay factores disponibles para esta comuna.</p>
           )}
           <h4>Cómo lo calculó la regla</h4>
           <p id="risk-rationale">{rationaleText}</p>
@@ -841,8 +841,8 @@ export function OverviewView() {
             ]}
           />
           <UnimplementedNote>
-            Cobertura por sector: la API no publica un porcentaje de cobertura por comuna, así que esta ficha no lo
-            muestra.
+            Cobertura por sector: la API no publica lecturas ni un porcentaje de cobertura por sector. Su unidad es la
+            comuna (código CUT), así que esta ficha no muestra un porcentaje de cobertura.
           </UnimplementedNote>
         </article>
       </div>
