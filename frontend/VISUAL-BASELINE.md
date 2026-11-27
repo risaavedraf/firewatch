@@ -2,7 +2,7 @@
 
 Use this document to audit the real frontend before changing styles. The committed prototype in `docs/pitch-g1-design` (`d651459`) is a reference for layout and hierarchy, not a reason to port fixtures or replace working product behavior.
 
-Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), [sign-in styles](src/styles/auth.css), the [aerial workspace styles](src/styles/aerial-workspace.css), the [territorial coverage styles](src/styles/territorial-coverage.css) and the [decision workspace styles](src/styles/decision-workspace.css) at the local baseline `742e760`, plus the T1 navigation change, the T2 aerial workspace, the T3 coverage board and the T4 decision workspace on 2026-11-26. The inventory adapts the active-source sections of `design/system.md` from the prototype branch; it does not adopt its experimental aerial palette.
+Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), [sign-in styles](src/styles/auth.css), the [aerial workspace styles](src/styles/aerial-workspace.css), the [territorial coverage styles](src/styles/territorial-coverage.css) and the [decision workspace styles](src/styles/decision-workspace.css) at the local baseline `742e760`, plus the T1 navigation change, the T2 aerial workspace, the T3 coverage board and the T4 decision workspace on 2026-11-26, and the T2 aerial console reappraisal (S3) on 2026-11-27. The inventory adapts the active-source sections of `design/system.md` from the prototype branch. The aerial palette is adopted, but only as a route-scoped role set under `#overview` (S3); it is never a global token.
 
 ## Palette
 
@@ -219,23 +219,48 @@ markup — the sidebar renders no `<nav>` — and the rule's absence. Measuremen
 
 [`src/styles/aerial-workspace.css`](src/styles/aerial-workspace.css) composes `#overview` as the aerial workspace of the approved board ([`design/firewatch-v1-vuelo/01-vista-aerea.html`](../design/firewatch-v1-vuelo/01-vista-aerea.html)): the map is the canvas, [`AerialWorkstation`](src/components/territory/AerialWorkstation.tsx) is the work rail beside it, and the real published-batch card (`article.panel.risk-panel`, unchanged) is the reading below. Every selector is scoped to `#overview`, so no other route inherits the composition. `MapPanel`, the `ui` primitives, the store, the routes and the API are untouched; the map keeps its owned behaviour and only receives more surface.
 
-**No new palette.** The file declares no colour tokens: it uses `--paper`, `--line`, `--muted`, `--ink`, `--forest-700`, `--forest-900`, `--canvas`, `--radius`, `--shadow` and the shipped focus ring literal `#cf7d4f`. The design board's aerial palette (`design/system.md`, “Aerial prototype palette — experimental, not shipped”) is deliberately not adopted, and the map surface stays `#eef2e8` because a deeper tint pushed the `alto` fill from 3.06:1 to 2.96:1 against its own surface.
+**Route-scoped palette (S3) — supersedes the earlier “no new palette” note.** The file now declares the approved board's dark slate/aqua roles and applies them to this route only. The roles are declared on `body:has(#overview)`, the same route anchor the print rules already use, because the console's own selector cannot reach the shell rows above it; `tokens.css` is untouched and stays `color-scheme: light`, so the other eleven views keep the light chrome. The neutral roles (`--canvas`, `--paper`, `--soft`, `--ink`, `--muted`, `--line`) are re-pointed inside that anchor so the header, the update bar and the footer read the same surfaces as the console, and the accent roles are re-pointed on `#overview` alone; the product bar and the sidebar are re-based there to the route's slate (`--aerial-panel`) and water (`--aerial-water`), and keep their normal forest styling on every other route.
+
+| Role | Declared | Where | Measured pairs |
+| --- | --- | --- | --- |
+| `--aerial-water` | `#152934` | console and map ground | ink 13.32:1, muted 8.74:1, edge 3.79:1 |
+| `--aerial-panel` | `#17222b` | cards and topbar | ink 14.33:1, muted 9.41:1, accent 10.63:1, warm 7.80:1, gold 9.92:1 |
+| `--aerial-raised` | `#243341` | work rail, map insets, state surfaces | ink 11.46:1, muted 7.53:1, accent 8.51:1 |
+| `--aerial-edge` | `#6b8395` | every card, control and focus ring boundary | panel 4.08:1, water 3.79:1, raised 3.27:1 |
+| `--aerial-accent` | `#94dfda` | eyebrows, rail labels, links, focus | panel 10.63:1, raised 8.51:1, water 9.89:1 |
+| `--aerial-warm` | `#f0a184` | the attention card and the warm chips | panel 7.80:1 |
+
+`--aerial-edge` is the board's `#647b8a` border role one step lighter: that value measures 2.92:1 against the raised surface it also borders, below the 3:1 minimum for a component boundary, while `#6b8395` clears all three surfaces it touches without changing family. The risk fills are **not** redeclared: `--level-low/medium/high/unknown/neutral-*` keep their shipped values, because the map and the legend promise the same colour, and every fill still measures at or above 3:1 against the new water surface (`alto` 4.33:1, `medio` 7.57:1, `bajo` 5.86:1, `desconocido` 9.11:1, neutral 12.55:1). The `.zone-selected` and `.zone-shape:focus-visible` rings keep their shipped dark strokes for the same reason: those rings border the pale fills, where a light ring would measure 1.08–1.28:1, and the selection is announced in text by the selector, the rail reading and `aria-pressed`.
 
 | Selector | Role | Declared values |
 | --- | --- | --- |
-| `#overview .aerial-workspace` | Composition grid | `grid-template-columns: minmax(0, 1fr) minmax(288px, 320px)`; areas `canvas`/`rail`, `result`/`rail`; `gap: 16px`; `margin-bottom: 20px` |
+| `body:has(#overview)` | Route palette and ground | nine `--aerial-*` roles, the six neutral roles re-pointed, `background: --aerial-water`, `color: --aerial-ink` |
+| `body:has(#overview) :focus-visible` | Route focus ring | `outline-color: --aerial-accent`; width and offset stay the application's (`3px`, `2px`) |
+| `body:has(#overview) .product-nav*` | Product bar of this route | `--aerial-panel` surface, `--aerial-edge` border, links `--aerial-muted` (9.41:1), current page `--aerial-accent` on `--aerial-raised` (8.51:1), panel and grouped items follow |
+| `body:has(#overview) .sidebar*`, `.brand*`, `.workspace*`, `.health-card`, `.health-head`, `.side-action`, `.session-card*`, `.session-mark` | Column of this route | `--aerial-water` column, `--aerial-ink` labels (13.32:1), `--aerial-muted` notes (8.74:1), aqua brand mark (9.89:1), edge frames (3.79:1); shipped status-dot hues kept (7.43 / 4.95 / 6.85:1) |
+| `body:has(#overview) .breadcrumbs span`, `.zone-chip > span`, `footer button` | Three shell literals | `--aerial-edge`, `--aerial-accent`, `--aerial-accent`; every other shell colour follows the re-pointed roles |
+| `body:has(#overview) main`, `.topbar`, `.topbar h1`, `.breadcrumbs`, `.zone-chip`, `.update-bar` | Air above the canvas | `main` padding-block `12px 24px`, topbar `min-height: 52px` and `6px` block padding, route `h1` `17px`, breadcrumbs `11px`, chip `5px 8px`, update bar `6px` block padding at `9.5px` |
+| `#overview` | Console | `padding: 12px 16px 18px`, `1px solid --aerial-edge`, `var(--radius)`, `--aerial-water`; accent/warm/gold/shadow roles re-pointed here only; intro row `margin-bottom: 6px`, `h2` `19px` |
+| `#overview .aerial-workspace` | Composition grid | `grid-template-columns: minmax(0, 1fr) minmax(280px, 336px)`; areas `canvas`/`rail`, `result`/`rail`; `gap: 18px` |
 | `#overview .aerial-canvas` | Map column | `grid-area: canvas`; the map card carries no bottom margin of its own |
 | `#overview .aerial-canvas .map-stage` | One map track | `minmax(0, 1fr) minmax(0, 190px)`, and a single `minmax(0, 1fr)` track while `.map-insets` is empty (`:has(.map-insets:empty)`) |
-| `#overview .aerial-canvas .map-viewport`, `.map-svg` | Canvas surface | `min-height: 440px`, unchanged `#eef2e8` fill; `360px` at `≤1100px`, `260px` at `≤720px` |
+| `#overview .aerial-canvas .map-panel` | Map card | `padding: 12px`, `1px solid --aerial-edge`, no bottom margin; heading `8px 12px 6px`, toolbar `margin-top: 5px`, stage `margin-top: 8px` |
+| `#overview .aerial-canvas .map-viewport`, `.map-svg` | Canvas surface | `min-height: 480px`, `--aerial-water` fill, `1px solid --aerial-edge`; `420px` at `≤1100px`, `300px` at `≤720px` |
+| `#overview .aerial-canvas .map-inset` / `.map-inset svg` | Inset frames | `--aerial-raised` frame, `--aerial-water` canvas |
 | `#overview .aerial-result` | Reading column | `grid-area: result`; the risk card keeps its own padding and drops only `margin-bottom` |
-| `#overview .aerial-rail` | Workstation panel | `position: sticky`, `top: calc(var(--product-nav-h, 48px) + 16px)`, `--paper`, `1px solid var(--line)`, `var(--radius)`, `var(--shadow)`, `padding: 16px`, `gap: 10px`; `static` below `1100px` |
-| `#overview .aerial-block` | Rail section | `padding-top: 10px`, `1px solid var(--line)` top border, `gap: 8px` |
-| `#overview .aerial-rail > h3` / `.aerial-block > h4` | Rail headings | `15px/650`, tracking `-.3px`; `11px/800` in `--ink` |
-| `#overview .aerial-state` / `.aerial-note` | State and note | `11px/1.5` `--ink`; `10px/1.55` `--muted` |
-| `#overview .aerial-readings dt` / `dd` | Reading rows | `10px` `--muted`; `10px/700` `--ink`, `max-width: 62%`, `overflow-wrap: anywhere` |
-| `#overview .aerial-links a` | Rail link | `11px/700`, `--forest-700`, underline, offset `2px`, `min-height: 36px` (`40px` at `≤720px`); focus `outline: 3px solid #cf7d4f`, offset `2px` |
+| `#overview .aerial-rail` | Workstation panel | `position: sticky`, `top: calc(var(--product-nav-h, 48px) + 16px)`, `--aerial-raised`, `1px solid --aerial-edge`, `var(--radius)`, `var(--shadow)`, `padding: 16px`, `gap: 12px`; `static` below `1100px` |
+| `#overview .aerial-block` / `> h4` | Rail section | `padding-top: 10px`, `1px solid #31475a` top hairline, `gap: 8px`; label `10px/800` uppercase in `--aerial-accent` |
+| `#overview .aerial-rail > h3` | Rail title | `13px/700`, tracking `0.06em`, uppercase, `--aerial-ink` |
+| `#overview .aerial-state` / `.aerial-note` | State and note | `12px/1.5` `--aerial-ink`; `11px/1.55` `--aerial-muted` |
+| `#overview .aerial-readings dt` / `dd` | Reading rows | `11px` `--aerial-muted`; `11px/700` `--aerial-ink`, `max-width: 62%`, `overflow-wrap: anywhere` |
+| `#overview .aerial-links a` | Rail link | `12px/700`, `--aerial-accent`, underline, offset `2px`, `min-height: 36px` (`40px` at `≤720px`); focus inherits the route ring |
+| `#overview .risk-pill`, `.risk-state`, `.risk-symbol` | Operational states | pill and state on `--aerial-raised` with an `--aerial-edge` border; symbol on `--aerial-panel` |
+| `#overview .factor-track` | Proportion bars | track `#2c3d4d`, fill `--aerial-accent` |
+| `#overview .metric-attention` | Attention metric | `border-color: #7a5a4a`, `background: #2a2320` |
+| `#overview .neutral-tag`, `.unimplemented` | Scope badges | `--aerial-raised` on an edge border; `#2b2a1e` with `#e8d9a6` text and a `#8a7a4a` dashed border |
+| `#overview .data-list > div`, `.decision-links li` | Row hairlines | `border-bottom-color: #31475a` |
 
-**Breakpoints.** `1100px` turns the two columns into one — `canvas`, `rail`, `result`, in that document order — and releases the sticky rail. `720px` tightens the gap, drops the canvas to `260px` and gives the rail links a `40px` target. The four widths measured in Chromium (1440, 1280, 1024, 390) are recorded in the [visual audit](VISUAL-AUDIT.md#t2--aerial-workspace-2026-11-26).
+**Breakpoints.** `1100px` turns the two columns into one — `canvas`, `rail`, `result`, in that document order — releases the sticky rail and drops the canvas floor to `420px`. `720px` is the compaction that puts the map in the phone's first screen: the column becomes a wrapping row of the same landmarks (brand, workspace scope, session state, logout — DOM order untouched, nothing hidden), the topbar/update-bar/main paddings shrink, the map card's head becomes a block of full-width lines, the canvas floor drops to `300px`, the rail link target grows to `40px` and the logout keeps a `28px` target. Measured: the canvas starts at `y=537` of 844 and all three fixture shapes are inside the first screen (it started at `y=777` with none). `@media (prefers-reduced-motion: reduce)` turns off the route's transitions, animations and smooth scrolling. The widths measured in Chromium (1440, 390) are recorded in the [visual audit](VISUAL-AUDIT.md#t2-follow-up--dark-slate-console-s3-2026-11-27).
 
 **Copy rule.** The rail states only facts the views already published: the session's one inflight batch (`jobProgress`), the selected zone's label from the catalogue, the kind of answer the last read settled on, and how many comunas actually carry a read level. It never repeats the level (the card owns it), never infers progress, and links only to routes `src/app/routes.ts` declares. The prototype's per-comuna queue, camera poses, cut-off slider, mock sectors and coordinates have no served data and are not simulated.
 
