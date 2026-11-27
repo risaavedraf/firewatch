@@ -221,3 +221,85 @@ test('the honesty tags state the rule and the synthetic origin only when a sourc
   expect(textOf('executive-synthetic')).toContain(SYNTHETIC_TAG);
   expect(textOf('executive-synthetic')).toMatch(/último lote publicado declara entradas de demostración/);
 });
+
+// ── T4 · the approved board's reading hierarchy ─────────────────────────────
+//
+// `design/firewatch-v1-vuelo/07-panel-ejecutivo.html` opens with a band of level
+// counts, each a large number under its level label, and states the panel's
+// limits in a disclosure band under the reading. The panel keeps every count the
+// server answered and the identifiers other suites read; what changes is the
+// shape — and the band is a reading, not a filter, because the summary endpoint
+// publishes counts and no per-level listing.
+
+test('the level counts are the board band, with the numbers the server sent and no invented filter', () => {
+  render(<ExecutivePanel state={{ kind: 'ready', summary: summary() }} />);
+
+  const band = document.getElementById('executive-levels');
+  expect(band).not.toBeNull();
+  const cells = [...(band?.querySelectorAll('.decision-summary__cell') ?? [])];
+  // One cell per member of the closed level vocabulary, labelled with the domain's
+  // own Spanish label so the band and the map legend cannot disagree.
+  expect(cells).toHaveLength(4);
+  expect(cells.map(cell => cell.querySelector('.decision-summary__label')?.textContent)).toEqual([
+    'ALTO',
+    'MEDIO',
+    'BAJO',
+    'INFORMACIÓN INSUFICIENTE',
+  ]);
+  expect(cells.map(cell => cell.querySelector('strong')?.textContent)).toEqual(['5', '9', '20', '4']);
+
+  // The identifiers the rest of the product reads are the count nodes themselves.
+  expect(textOf('executive-level-alto')).toBe('5');
+  expect(textOf('executive-level-medio')).toBe('9');
+  expect(textOf('executive-level-bajo')).toBe('20');
+  expect(textOf('executive-level-desconocido')).toBe('4');
+
+  // The board filters its invented sector list from these cells. This panel has no
+  // per-level list to filter and the endpoint publishes no such read, so it renders
+  // no control and no pressed state instead of a dead one.
+  expect(band?.querySelector('button')).toBeNull();
+  expect(document.getElementById('executive-panel')?.querySelector('[aria-pressed]')).toBeNull();
+});
+
+test('the panel states its own limits in the board disclosure band without inventing a sector reading', () => {
+  render(<ExecutivePanel state={{ kind: 'ready', summary: summary() }} />);
+
+  const limits = document.getElementById('executive-limits');
+  expect(limits).not.toBeNull();
+  const summaries = [...(limits?.querySelectorAll('summary') ?? [])].map(node => node.textContent ?? '');
+  expect(summaries.join(' ')).toMatch(/Solo lectura/);
+  expect(summaries.join(' ')).toMatch(/comuna/i);
+  // Closed by default: the disclosures are the board's secondary layer, and the
+  // counts above them are what the reader sees first.
+  expect(limits?.querySelector('details[open]')).toBeNull();
+
+  const text = limits?.textContent ?? '';
+  // The board's table is per sector; this contract is per comuna (CUT), and the
+  // panel says so instead of rendering an empty fourth axis.
+  expect(text).toMatch(/no publica conteos por sector/i);
+  expect(text).toMatch(/no publica, no aprueba ni cambia niveles/i);
+});
+
+// D-B is not an open question in this product: `odd/tasks/pm-01-executive-panel.md`
+// records the responsible's decision ("the two last published lots at high") and
+// the server applies it. The panel must not label it as undecided, and the decision
+// still has to be explained where the count is read.
+test('D-B is the resolved definition the server applies, not an open decision', () => {
+  render(<ExecutivePanel state={{ kind: 'ready', summary: summary() }} />);
+
+  const limits = document.getElementById('executive-limits');
+  const summaries = [...(limits?.querySelectorAll('summary') ?? [])].map(node => node.textContent ?? '');
+  expect(summaries.join(' ')).toMatch(/Definición acordada · D-B/);
+  // The misleading label and its "without deciding" framing are gone everywhere in
+  // the panel, not only in the summary row.
+  const panelText = document.getElementById('executive-panel')?.textContent ?? '';
+  expect(panelText).not.toMatch(/Definición abierta/i);
+  expect(panelText).not.toMatch(/sin decidir/i);
+
+  // The explanation the count depends on is preserved: what makes a zone critical,
+  // and that the server computes it.
+  expect(panelText).toMatch(/dos últimos lotes publicados tienen\s+nivel alto/i);
+  expect(textOf('executive-critical-rule')).toBe(CRITICAL_RULE);
+  expect(textOf('executive-panel-note')).toMatch(/definición acordada/i);
+  expect(textOf('executive-panel-note')).toMatch(/no un modelo entrenado ni una predicción/);
+});

@@ -1,0 +1,332 @@
+/* FireWatch · decision workspace (T4).
+ *
+ * The three decision screens ported from the approved canvas — the executive
+ * panel (07), the comparator (08) and the notification centre (09) — share one
+ * reading hierarchy: a head that names the question, a band of counts or states,
+ * the reading itself, and the limits under it.
+ *
+ * Every rule below is scoped to its own view id. The three screens are the only
+ * consumers, so a change here cannot reach the map, the history or the actions
+ * screens, and the shipped component values (panel, chip, data list, table) keep
+ * their existing definitions in `app.css`.
+ *
+ * Colours are the declared tokens only. The level marks are paired with their
+ * written label, never colour alone. */
+
+/* ── The head both screens already had ────────────────────────────────────── */
+
+/* The canvas puts its chips at the top right of the view head. The production
+   intro row keeps that arrangement and lets them wrap under the title instead of
+   squeezing it on a phone. */
+.decision-head {
+  align-items: flex-start;
+}
+
+.decision-head__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: none;
+  max-width: 100%;
+}
+
+/* The panel modifiers carry 18 px of their own padding in `app.css`, so the
+   primitive's heading padding would inset the title from the body text it labels.
+   The three decision panels therefore keep the primitive's heading rhythm and drop
+   only its side padding, exactly as the notification panel already did. */
+.executive-panel > .panel-heading,
+.compare-panel > .panel-heading {
+  padding: 0 0 12px;
+}
+
+/* On a phone the head cannot hold the title and its tag side by side without
+   squeezing both; it stacks, and the tag goes under the title. */
+@media (max-width: 560px) {
+  .executive-panel > .panel-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+/* ── The counts band (07) ─────────────────────────────────────────────────── */
+
+/* The board opens the panel with one cell per level: a marked label above a large
+   count. Each cell is a reading, not a control — the summary endpoint publishes
+   counts and no per-level listing, so nothing here is pressable. */
+.decision-band {
+  margin: 14px 0 4px;
+}
+
+.decision-band__head {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.decision-band__head h4 {
+  margin: 0;
+}
+
+.decision-band__hint {
+  margin: 0;
+  max-width: 76ch;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.decision-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.decision-summary__cell {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+}
+
+.decision-summary__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+/* The mark repeats the map legend's level colours; the label beside it is what
+   carries the meaning, so the band is readable without colour. */
+.decision-summary__label::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--level-neutral-line);
+  background: var(--level-neutral-fill);
+}
+
+.decision-summary__cell[data-level='alto'] .decision-summary__label::before {
+  border-color: var(--level-high-line);
+  background: var(--level-high-fill);
+}
+
+.decision-summary__cell[data-level='medio'] .decision-summary__label::before {
+  border-color: var(--level-medium-line);
+  background: var(--level-medium-fill);
+}
+
+.decision-summary__cell[data-level='bajo'] .decision-summary__label::before {
+  border-color: var(--level-low-line);
+  background: var(--level-low-fill);
+}
+
+.decision-summary__cell[data-level='desconocido'] .decision-summary__label::before {
+  border-color: var(--level-unknown-line);
+  background: var(--level-unknown-fill);
+}
+
+.decision-summary__cell strong {
+  color: var(--ink);
+  font-size: 25px;
+  font-weight: 550;
+  letter-spacing: -0.8px;
+  line-height: 1.1;
+}
+
+/* ── The limits band (07) ─────────────────────────────────────────────────── */
+
+/* Under the reading, the board states what the panel does not do. The same shape
+   holds the three statements this contract can make. */
+.decision-limits {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+
+.decision-limits__item {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+}
+
+.decision-limits__item > summary {
+  display: grid;
+  gap: 2px;
+  min-height: 44px;
+  padding: 9px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.decision-limits__item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.decision-limits__item > summary::after {
+  content: '▾';
+  grid-row: 1 / span 2;
+  align-self: center;
+  justify-self: end;
+  color: var(--forest-700);
+  font-size: 10px;
+}
+
+.decision-limits__item > summary .eyebrow {
+  margin: 0;
+}
+
+.decision-limits__title {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.decision-limits__item[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.decision-limits__item > summary:focus-visible {
+  outline: 3px solid #cf7d4f;
+  outline-offset: 2px;
+  border-radius: 9px;
+}
+
+.decision-limits__item p {
+  margin: 0;
+  padding: 10px 12px 12px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+/* ── The related readings (07, without the board's invented table) ────────── */
+
+.decision-links {
+  margin-top: 4px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.decision-links h3 {
+  margin-bottom: 9px;
+}
+
+.decision-links ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.decision-links li {
+  display: grid;
+  gap: 1px;
+  padding: 7px 0;
+  border-bottom: 1px solid #eef1ee;
+}
+
+.decision-links li:last-child {
+  border-bottom: 0;
+}
+
+.decision-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  justify-self: start;
+  color: var(--forest-700);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.decision-links a:focus-visible {
+  outline: 3px solid #cf7d4f;
+  outline-offset: 2px;
+}
+
+.decision-links li span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.decision-links .panel-note {
+  margin: 10px 0 0;
+}
+
+/* The counts band's own link to the notification centre is a row too: 24 px of
+   target height keeps it a comfortable pointer target on a phone. */
+.executive-block a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+/* ── The comparator's selection/reading split (08) ────────────────────────── */
+
+/* The board keeps the selection in a narrow column and the compared reading
+   beside it. Both are real panels: the left one owns the catalogue controls, the
+   right one owns the answer. */
+.compare-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.compare-layout > .panel {
+  margin-bottom: 0;
+}
+
+.compare-layout .panel-note:first-of-type {
+  margin-top: 0;
+}
+
+@media (max-width: 1000px) {
+  .compare-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .decision-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .decision-head__chips {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .decision-limits__item > summary,
+  .decision-limits__item p {
+    padding-inline: 10px;
+  }
+
+  .decision-links {
+    padding: 14px 14px 16px;
+  }
+}

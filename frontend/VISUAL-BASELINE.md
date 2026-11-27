@@ -2,7 +2,7 @@
 
 Use this document to audit the real frontend before changing styles. The committed prototype in `docs/pitch-g1-design` (`d651459`) is a reference for layout and hierarchy, not a reason to port fixtures or replace working product behavior.
 
-Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), [sign-in styles](src/styles/auth.css), the [aerial workspace styles](src/styles/aerial-workspace.css) and the [territorial coverage styles](src/styles/territorial-coverage.css) at the local baseline `742e760`, plus the T1 navigation change, the T2 aerial workspace and the T3 coverage board on 2026-11-26. The inventory adapts the active-source sections of `design/system.md` from the prototype branch; it does not adopt its experimental aerial palette.
+Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), [sign-in styles](src/styles/auth.css), the [aerial workspace styles](src/styles/aerial-workspace.css), the [territorial coverage styles](src/styles/territorial-coverage.css) and the [decision workspace styles](src/styles/decision-workspace.css) at the local baseline `742e760`, plus the T1 navigation change, the T2 aerial workspace, the T3 coverage board and the T4 decision workspace on 2026-11-26. The inventory adapts the active-source sections of `design/system.md` from the prototype branch; it does not adopt its experimental aerial palette.
 
 ## Palette
 
@@ -192,7 +192,7 @@ These ratios use WCAG relative luminance for opaque sRGB pairs. Compare before r
 
 | Class | Role | Values |
 | --- | --- | --- |
-| `.product-nav` | Bar above the shell | `position: sticky`, `top: 0`, `min-height: var(--product-nav-h, 48px)`, `--forest-900`, `3px 16px`, bottom border `#41625b` |
+| `.product-nav` | Bar above the shell | `position: sticky`, `top: 0`, `min-height: var(--product-nav-h, 48px)` with a local `--product-nav-h: 48px` (the bar never sizes itself from the offset it publishes), `--forest-900`, `3px 16px`, bottom border `#41625b`; `ProductNav` publishes the measured box as `--product-nav-h` on `body` |
 | `.product-nav__link` | Always-visible shortcut | visible word `Mapa`/`Historial`/`Acciones`; `aria-label` carries the route label; `12px/1.3`, min-height `40px`, `0 10px`, radius `7px`, `#c3d6cf`; current row `#f0eee0` with `--forest-900` text |
 | `.product-nav__summary` | Disclosure control | `button` with `aria-expanded`/`aria-controls`; `12px/650`, min-height `40px`, border `#90aaa0`, `#e7faf5`; expanded `#effdf9` on `#254d47` |
 | `.product-nav__panel` | Out-of-flow menu | `position: absolute`, `top: calc(100% + 4px)`, `right: 16px`, `width: min(760px, calc(100% - 24px))`, `max-height: min(70dvh, 520px)`, `overflow-y: auto`, opaque `#1e4241`, `14px 16px`, radius `10px` |
@@ -202,7 +202,7 @@ These ratios use WCAG relative luminance for opaque sRGB pairs. Compare before r
 | `.product-nav__where` | Current-location line | right-aligned `11px`, value `#e7faf5`, label `#a5c8bf`; visually hidden but still announced below `560px` |
 | `.product-nav :is(a, button):focus-visible` | Focus ring | `3px` `#d7aa73`, offset `2px`; bar controls use offset `0` so the ring stays inside the 48px bar |
 
-The panel is opaque instead of translucent: it overlays the light workspace, so its labels are measured against the declared `#1e4241` rather than against whatever happens to be behind it. Layout: `.app-shell` and `.sidebar` reserve `calc(100vh - var(--product-nav-h, 48px))`, and the sidebar sticks at `top: var(--product-nav-h, 48px)`. At `≤720px` the sidebar becomes static and the panel narrows to `calc(100% - 16px)`; at `≤480px` the bar wraps instead of scrolling horizontally.
+The panel is opaque instead of translucent: it overlays the light workspace, so its labels are measured against the declared `#1e4241` rather than against whatever happens to be behind it. Layout: `.app-shell` and `.sidebar` reserve `calc(100vh - var(--product-nav-h, 48px))`, and the sidebar sticks at `top: var(--product-nav-h, 48px)`. The `:root` value is a `48px` fallback: `ProductNav` publishes the bar's measured height into `--product-nav-h` on `body`, so a wrapped bar reserves the second row instead of leaving content under it, while the bar's own `min-height` stays `48px` and can return to one row (T4 correction). At `≤720px` the sidebar becomes static and the panel narrows to `calc(100% - 16px)`; at `≤480px` the bar wraps instead of scrolling horizontally — with the T4 shortcuts that is two rows at 320, 340 and 360 px and one row at 390 px (measured).
 
 **Known follow-up.** `scripts/check.mjs` still asserts the old `.sidebar nav` declaration set, and that script is outside this unit's edit surface. The rule remains in `app.css` with no rendered consumer; the gate and the rule should be retired together in a follow-up.
 
@@ -259,12 +259,40 @@ The panel is opaque instead of translucent: it overlays the light workspace, so 
 
 **Copy rule.** The rail states only facts the payload carries: each zone is a comuna by CUT code, and "cobertura" is the count of the five declared element types that comuna declares — never a percentage of territory, never a sector reading, never a risk level. A count of zero is described as the fixture declaring no element of that type, not as missing data. The board's sector rows, cut-off slider, environment descriptions and contextual priority are not simulated. Each rail control is a `button type="button"` with `aria-pressed` that moves focus to the commune's breakdown: the rail does not use `#` anchors because the hash is the router's state.
 
+## Decision workspace (T4)
+
+T4 ports the three decision boards — [`07-panel-ejecutivo.html`](../design/firewatch-v1-vuelo/07-panel-ejecutivo.html), [`08-comparar-sectores.html`](../design/firewatch-v1-vuelo/08-comparar-sectores.html) and [`09-notificaciones.html`](../design/firewatch-v1-vuelo/09-notificaciones.html) — to `#executive`, `#compare` and `#notifications`, and adds the real `#executive` route with the bar's fourth shortcut (`Panel ejecutivo`). The three screens share one stylesheet, [`src/styles/decision-workspace.css`](src/styles/decision-workspace.css), and its selectors are either scoped to a view id or to classes only these screens render (`.decision-*`, `.executive-panel`, `.compare-panel`).
+
+**No new palette and no new scale.** The file declares colors only through the existing tokens (`--paper`, `--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--level-*`) plus the shipped focus ring literal `#cf7d4f`; the dashed empty mark uses `#c8d2c6` and the card surface keeps the shipped `#f8faf7`. Type uses the in-use sizes (`9`, `10`, `11`, `15`, `16`, `24`, `25px`), spacing the 4px-derived values already in use (`8`, `12`, `16`, `18px`), radius `9px` and the existing `--radius`.
+
+| Selector | Role | Declared values |
+| --- | --- | --- |
+| `.decision-head` / `.decision-head__chips` | Board view head | `align-items: flex-start` on the shipped `.intro-row`; chips `flex-wrap: wrap`, `gap: 6px`, `justify-content: flex-end` |
+| `.decision-band` / `.decision-band__head` | Counts band (07) | `margin: 14px 0 4px`; head `display: grid`, `gap: 3px`; hint `max-width: 76ch`, `9px/1.6`, `--muted` |
+| `.decision-summary` | Count cells | `grid-template-columns: repeat(4, minmax(0, 1fr))`, `gap: 8px`; two columns at `≤900px` |
+| `.decision-summary__cell` | One level count | `padding: 12px 13px`, border `1px solid --line`, radius `9px`, surface `--paper` |
+| `.decision-summary__label` | Level label | `9px/800`, tracking `.06em`, uppercase, `--muted`; a 6px mark repeats the level fill and line of the map legend |
+| `.decision-summary__cell strong` | Count value | `25px/550`, tracking `-.8px`, `--ink` — the shipped metric value |
+| `.decision-limits` / `.decision-limits__item` | Limits band (07) | `display: grid`, `gap: 8px`; each item `1px solid --line`, radius `9px`, `--paper`; `summary` `min-height: 44px`, `padding: 9px 12px`, marker suppressed, `▾` at the inline end; open item gets a bottom border |
+| `.decision-limits__title` / `.decision-limits__item p` | Disclosure text | Title `11px/700 --ink`; body `10px/1.65 --muted`, `padding: 10px 12px 12px` |
+| `.decision-links` | Related readings (07) | `padding: 16px 18px 18px`, `1px solid --line`, `--radius`, `--paper`, `--shadow`; links `11px/700 --forest-700`, `min-height: 24px`; notes `10px/1.6 --muted` |
+| `.compare-layout` | Comparator split (08) | `grid-template-columns: minmax(0, 360px) minmax(0, 1fr)`, `gap: 16px`, `align-items: start`; one column at `≤1000px`; child panels lose their bottom margin |
+| `.executive-panel > .panel-heading`, `.compare-panel > .panel-heading` | Panel head alignment | `padding: 0 0 12px`: the primitive keeps its rhythm and drops the side padding the panel modifier already supplies, as the notification panel already did. At `≤560px` the executive head stacks (title, then its rule tag) |
+| `.notification-empty*` ([`notifications.css`](src/styles/notifications.css)) | Notification empty card (09) | Card `display: grid`, `justify-items: start`, `gap: 8px`, `padding: 24px 22px 26px`, dashed `--line`, radius `9px`, `#f8faf7`; 58px dashed mark; eyebrow `9px/800`; title `16px/650`; copy and two points `10px/1.65 --muted`, `max-width: 68ch` |
+
+**What the boards carry that the product does not.** The three boards are built on mock sectors, an invented alert preview and per-level filtering. The service publishes comuna-level aggregates (`code = CUT`), stored alert rows and one summary per cutoff, so T4 ports the hierarchy and drops the mock data: the counts band is a reading without a filter control, the comparator keeps its real catalogue picker and granularity selects instead of the board's sector buttons, the notification centre keeps the real read and states the empty page in the board's card shape, and the executive view links to the screens that hold the detail instead of rendering a sector table. The copy states the comuna granularity where the board shows sectors.
+
+**Routes.** The router now declares fifteen hashes in the same four groups; `#executive` sits in `Prevención` beside `#overview` because it reads the same catalogue, and the bar's four shortcuts are `Mapa`, `Historial`, `Acciones` and `Panel`. The three shortcuts T1 shipped keep their place and their accessible names.
+
+**Verifier correction.** The limits band's D-B statement now reads `Definición acordada · D-B` in both consumers, because `odd/tasks/pm-01-executive-panel.md` records the definition as resolved and the server applies it; the rule and its explanation are unchanged. The notification empty card is state-dependent: a first empty page states the register is empty, and a later cursor page states that this page is empty and offers `Anterior`. Both are pinned by public DOM tests. The narrow bar reflow and its measured offset are recorded in the [visual audit](VISUAL-AUDIT.md#t4-correction--verifier-blockers-2026-11-26).
+
 ## What still needs a browser
 
 - Resolve inherited backgrounds, disabled and focus states, and route-specific overrides in the rendered views. For example, Actions already overrides some chip and tag colors, so their base ratios do not describe every view.
 - Sign-in hero gradients and translucent sidebar surfaces are now measured from rendered pixels, not from token pairs: see "Mixed surfaces" in the [visual audit](VISUAL-AUDIT.md). The lowest legitimate text sample is 5.07:1; the only sub-threshold value is a decorative `aria-hidden` glyph.
 - The corrected T1 product navigation was measured in Chromium 158 (headless) at 1440×900, 1024×720 and 390×800 under an intercepted local fixture; see ["T1 — global product navigation"](VISUAL-AUDIT.md#t1--global-product-navigation-2026-11-26-corrected). Its axe rule subset, text-spacing override and assistive-technology pass were not run for this change.
 - Capture the eight production views before restyling, then verify the same states and viewports after changes. Include keyboard focus, zoom and data loading, empty and error states where applicable.
+- The T4 decision screens were measured in an isolated Chromium against fixtures built from the real components at 1440×900, 1280×900, 1024×768 and 390×844; see ["T4 — decision workspace"](VISUAL-AUDIT.md#t4--decision-workspace-2026-11-26). The live authenticated application, the axe subset, browser zoom, text-spacing overrides and assistive technology were not run for T4.
 
 ### Public sign-in baseline
 

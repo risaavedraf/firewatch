@@ -12,7 +12,11 @@
    `WCAG-AA-CONFORMANCE.md`. */
 
 :root {
-  /* Height the shell reserves for the bar; the sidebar offsets itself by it. */
+  /* Height the shell reserves for the bar; the sidebar offsets itself by it.
+     `ProductNav` overwrites this on `body` with the box the bar actually
+     occupies, because below 390px the shortcuts and the disclosure wrap onto a
+     second row. The 48px here is the fallback for the first frame and for an
+     environment that cannot measure (the DOM test suite's jsdom). */
   --product-nav-h: 48px;
 }
 
@@ -24,6 +28,11 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 2px 8px;
+  /* The bar keeps its own minimum at one row, and deliberately shadows the
+     measured value published on `body`: if the bar sized itself from the offset it
+     publishes, a wrapped bar would pin itself at two rows and could not return to
+     one when the viewport grows again. */
+  --product-nav-h: 48px;
   min-height: var(--product-nav-h, 48px);
   padding: 3px 16px;
   border-bottom: 1px solid #41625b;

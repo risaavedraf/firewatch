@@ -274,7 +274,7 @@ Two more product fixes came from the populated pass. The infrastructure breakdow
 
 ## T1 — global product navigation (2026-11-26, corrected)
 
-The shell now renders [`ProductNav`](src/components/ProductNav.tsx) as the approved canvas' arrangement: a thin horizontal bar above and outside the workspace, with three shortcuts and an out-of-flow **Más destinos** panel. Routing, the document title, the session gate, the store, the role handling and the gateway polling are untouched; the same fourteen hashes are the only destinations. The canvas' fourth shortcut, `Panel ejecutivo`, was not implemented because no route serves it; that decision is T4's.
+The shell now renders [`ProductNav`](src/components/ProductNav.tsx) as the approved canvas' arrangement: a thin horizontal bar above and outside the workspace, with three shortcuts and an out-of-flow **Más destinos** panel. Routing, the document title, the session gate, the store, the role handling and the gateway polling are untouched; the same fourteen hashes are the only destinations. The canvas' fourth shortcut, `Panel ejecutivo`, was not implemented because no route serves it; that decision is T4's, and T4 implemented it: `#executive` now serves the executive panel and the bar carries `Panel` as its fourth shortcut.
 
 **Environment.** Chromium **158.0.8127.38**, headless, against the locally built application (`npm run build:local` served by `scripts/serve.mjs`), driven over the DevTools protocol. The workspace sits behind Keycloak, so the run used an isolated fixture: the identity token response and every gateway read were intercepted inside the browser session — a locally generated, unsigned token payload declaring `viewer`, and gateway reads answered `403` so no view could claim data. No real credential, realm or gateway was used, and nothing was installed. No screenshot was written; the evidence is rendered geometry, computed styles and the accessibility tree.
 
@@ -424,3 +424,158 @@ The five coverage marks are `aria-hidden` decoration; the sentence beside them c
 ### Not measured for T3
 
 No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for this change; the earlier passes in this document predate it. The screenshots are viewport and full-page captures at 1440, 1280, 1024 and 390 of the populated state plus the desktop pending and 403 states — not of every route, and not of the print preview: the print rules added here were not rendered to paper, and the existing print contract (`#infrastructure-zones`, `.infrastructure-synthetic` and `.infrastructure-formula` kept; `.infrastructure-print-action` hidden) is still asserted against `app.css` by the DOM suite. The 390 px first screen is still dominated by the shell the T1/T2 scope leaves in place, so the coverage stage begins at `y=1456` there. The fixture carries four comunas; a long real catalogue was not rendered. Evidence files: `tmp/t3-coverage/{before,after}/` (ignored scratch, `report.json` plus screenshots), probe `tmp/t3-coverage/probe.mjs`, comparison `tmp/t3-coverage/compare.mjs`.
+
+## T4 — decision workspace (2026-11-26)
+
+`#executive` is a new real route: the canvas bar's fourth shortcut (`Panel`, `#executive`) now points at a view that reads the same `GET /v1/risk/executive-summary` the overview already read, through one shared hook. `#compare` and `#notifications` keep their routes, reads, filters, mutations, ARIA and states; only their view-scoped composition changed. The three screens share [`src/styles/decision-workspace.css`](src/styles/decision-workspace.css); the notification empty card is styled in [`src/styles/notifications.css`](src/styles/notifications.css). Auth, the backend, shared stores and the domain contract were not touched.
+
+**Environment.** An isolated **Chromium** headless shell (the Playwright `chromium_headless_shell-1223` build already present locally), driven over CDP against `file://` fixture pages. Each fixture is the **real component output**: a temporary jsdom harness rendered `ExecutivePanel`, `CompareView`, `NotificationsView` and (after the change) `ExecutiveView` with the same fixtures their suites use, and the resulting view markup was written beside the real stylesheets. No network, no gateway, no Keycloak, no credential, no backend state and nothing installed. The before/after pair uses the same fixtures, the same viewports and the same probe; the *before* pages link a snapshot of the base commit's stylesheets (`git show bb8a956:frontend/src/styles/*`, written under `tmp/t4-fix/base-css/`), so the base markup is measured against the base CSS rather than against this change's stylesheet. Evidence: `tmp/t4-fix/{before,after}/` (`measure.json` plus screenshots at 1440×900, 1280×900, 1024×768 and 390×844) and probes `tmp/t4-fixture-probe.mjs` / `tmp/t4-contrast.mjs` (ignored scratch).
+
+**Scope of the comparison.** The fixtures cover the states that carry the ported hierarchy: the executive panel with a served summary, the comparator with two answered zones, the notification list with two rows and the notification empty page. Focus/hover/drag-transient states, a live authenticated session and a real-length catalogue are **not** in the fixture set, so the screenshots establish composition and target geometry, not every state.
+
+### Composition, before and after
+
+Boxes are the rendered `getBoundingClientRect` of the element named. The left column is the base tree (`bb8a956`), the right one is this change.
+
+| View / viewport | Before | After |
+| --- | --- | --- |
+| `executive-panel` 1440 | one panel `1372×539`, heading `h3`, level counts inside a data list | same panel `1372×895`, `h3` with a counts band of 4 cells `328×72` and three limit disclosures (67px summary rows) |
+| `executive-view` 1440 | route does not exist | `h2 Panel ejecutivo` at `y=48`, panel `1372×895` at `y=121`, band cells `328×72` |
+| `executive-view` 390 | route does not exist | `h2` at `y=41`, panel `360×1395` at `y=176`, band 2×2 of `161×72` / `161×84` cells |
+| `compare` 1440 | one panel `1372×834`; history table `630×117` | two panels side by side: selection `360×437`, reading `996×647`; history table `442×147` inside the reading column |
+| `compare` 1024 | one panel `976×878` | two panels: selection `360×437`, reading `600×674` |
+| `compare` 390 | one panel `360×1485`, history table at `y=968` | stacked panels: selection `360×429` at `y=176`, reading `360×1087` at `y=621`; history table at `y=1069` |
+| `notifications-empty` 1440 | empty block `1334×129`, panel `1372×381` | designed card `1334×288`, panel `1372×539` (58px dashed mark, eyebrow, title, copy, two points) |
+| `notifications-list` 1440/390 | panel `1372×454` / `360×547`, table `1334×154` / `433×154` | identical |
+| `notifications-empty` 390 | card `330×146`, panel `360×418` | card `330×296`, panel `360×569` |
+
+**Overflow.** `document.documentElement.scrollWidth` equals `window.innerWidth` on every measured fixture at all four widths, before and after; the only element wider than its column is the pre-existing `#notifications-table` inside its shipped `.table-wrap` scroll region at 390 px (`433×154` in a `330` px card, identical before and after).
+
+### PRESERVE — differential against the baseline
+
+The same probe ran against both trees and compared the data-bearing keys of four fixtures across four viewports (`docScrollWidth`, `innerWidth`, horizontal overflow, view title text/size, panel count and boxes, panel heading text/level/size, control counts, every focusable target's tag/id/height, and the Tab sequence):
+
+- **Notifications, populated list: 0 differences** in all four viewport comparisons. Same panel box (`1372×454` / `360×547`), table box, control counts (`1 select`, `3 buttons`), tab order and focus ring at 1440, 1280, 1024 and 390.
+- **Notifications, empty page: intended geometry only** — the card grows `129 → 288` px at 1440 and `146 → 296` px at 390, and the panel with it (`381 → 539` and `418 → 569`), because the design card adds the mark and the two points; the status line, control counts, tab order and the card's `16px` title are unchanged.
+- **Comparator: intended composition only** — panel count `1 → 2`, the headings become the board's two (`Elige 2 o 3 zonas`, `Riesgo, variables e historial`), and the history table is `188` px narrower at 1440 (it moves into the reading column). The two selects, both `Quitar` buttons and the window/status copy are identical at every viewport. At 1280 and 1024 the narrower reading column makes the two **pre-existing** history `.table-wrap` regions overflow horizontally, so they enter the Tab sequence as focusable scroll regions; at 1440 and 390 the sequence is unchanged.
+- **Executive panel: headings and counts identical**, with two additions — the 4-cell counts band (3 `details` in the DOM, 3 new Tab stops) and the panel's own growth (`539 → 895` px at 1440, `1089 → 1395` at 390). `#executive-coverage-*`, `#executive-level-*`, `#executive-delta-*`, `#executive-critical-*`, `#executive-alerts-*`, `#executive-alert-link` and `#executive-panel-note` render with the same values as before.
+
+**Contracts kept.** The public DOM contract was additionally pinned before the CSS existed: the focused suite went from `8 failed` / `10 failed | 126 passed (136)` (with two suites failing at the import of the not-yet-created `ExecutiveView`) to `8 passed (8)` / `149 passed (149)`. `tests/app/router.test.tsx` now pins all fifteen hashes and the four shortcuts; the T1 Back/Forward, modified-activation and skip-link history tests are unchanged and still pass on the grouped routes.
+
+### Keyboard
+
+Tab sequence measured from the document start in the isolated browser; the repeating tail is the headless shell handing focus to browser chrome and back, not a page trap.
+
+| Fixture | Sequence (page order) | Focus ring |
+| --- | --- | --- |
+| `executive-view` 1440 | `#executive-alert-link` → three limit `summary` rows → `#overview` → `#compare` → `#notifications` → `#actions` | `3px solid rgb(207, 125, 79)` on every stop |
+| `executive-panel` 1440 | `#executive-alert-link` → three `summary` rows (before: the link alone) | as above |
+| `compare` 1440 | `#compare-zone-picker` → `#compare-granularity` → `Quitar` → `Quitar` (before: identical) | as above |
+| `compare` 390 | the same four, then the two history scroll regions, then the same order (before: identical) | as above |
+| `notifications-empty` 390 | `#notifications-order` only (before: identical) | as above |
+| `notifications-list` 390 | `#notifications-order` → table scroll region → `#notifications-next` (before: identical) | as above |
+
+Target heights measured for the new controls: limit `summary` `67px` (≥44), related-reading links `24px` (`min-height`, up from a 17px text box), the executive alert link `24px`, the count cells are not interactive. The pre-existing comparator selects (`38px`), `Quitar` (`25px`) and pager (`33px`) keep their shipped sizes.
+
+### The shared bar (fourth shortcut)
+
+The bar is a shared component, so its fourth shortcut was measured on its own fixture at four widths. `Panel` renders as a fourth native `a[href]` to `#executive`, keeps the accessible name `Panel ejecutivo` (the DOM suites pin it), and is the only `aria-current="page"` entry when that route is open. At 1440 and 1280 the bar stays one `48px` row with the four shortcuts at `x=16..270`; at 390 it also stays one `48px` row (`x=12..250`, `Estás en` visually hidden below 560 px) with no horizontal overflow. The three T1 shortcuts keep their exact order and labels; the fourth is appended after them. **Corrected after verification:** the fourth shortcut moves the wrap earlier than this section first recorded — at 340 and 360 px the bar wraps to `89px`, and the reserved offset stayed `48px`, so a focused commune breakdown was painted over by the second row. The measured before/after table and the fix are in ["T4 correction — verifier blockers"](#t4-correction--verifier-blockers-2026-11-26).
+
+### Contrast (rendered computed styles)
+
+Ratios computed in the page from each element's `color` and its nearest painted background.
+
+| Pair | Ratio | Read |
+| --- | --- | --- |
+| Count label `--muted` on `--paper`, 9px/800 | 5.49:1 | meets 4.5:1 |
+| Count value `--ink` on `--paper`, 25px/550 | 11.85:1 | meets 4.5:1 |
+| Band hint `--muted` on `--paper`, 9px/400 | 5.49:1 | meets 4.5:1 |
+| Limit title `--ink` on `--paper`, 11px/700 | 11.85:1 | meets 4.5:1 |
+| Limit copy `--muted` on `--paper`, 10px/400 | 5.49:1 | meets 4.5:1 |
+| Related link `--forest-700` on `--paper`, 11px/700 | 7.36:1 | meets 4.5:1 |
+| View title `--ink` on `--canvas`, 24px/600 | 10.93:1 | meets 4.5:1 (large text) |
+| Empty eyebrow `--forest-700` on `#f8faf7`, 9px/800 | 7.08:1 | meets 4.5:1 |
+| Empty title `--ink` on `#f8faf7`, 16px/650 | 11.39:1 | meets 4.5:1 |
+| Empty copy and points `--muted` on `#f8faf7`, 10px/400 | 5.28:1 | meets 4.5:1 |
+| Empty `code` `--forest-700` on `#f8faf7`, 10px/400 | 7.08:1 | meets 4.5:1 |
+| Comparator status `--muted` on `--paper`, 10px/400 | 5.49:1 | meets 4.5:1 |
+| `Quitar` `--forest-700` on `--soft`, 10px/400 | 6.51:1 | meets 4.5:1 |
+
+Non-text: the painted focus ring `#cf7d4f` is `3.11:1` on `--paper` (meets 3:1) and `2.75:1` on `--soft`, a shipped pair the earlier passes already recorded. The dashed empty mark `#c8d2c6` on `#f8faf7` is `1.48:1`; it is `aria-hidden` decoration and the eyebrow, title and copy carry the state, so nothing depends on it. Level marks in the counts band repeat the map legend's fills; each sits beside its written label, never alone.
+
+### States
+
+| Screen | States the fixture set covers | Result |
+| --- | --- | --- |
+| `#executive` | served summary | band + six reading blocks + three limits; one request |
+| `#executive` | failure (`503`), pending, signed out | stated inline, no counts; covered by DOM tests, not screenshotted |
+| `#compare` | two zones answered; catalogue loaded; <2 zones; catalogue 403; comparison failure; empty answer | the split panels keep every state in the panel that owns it; all covered by the existing suite |
+| `#notifications` | two-row page (pager) and empty first page | table and pager unchanged; empty page uses the designed card |
+| `#overview` | the executive section unchanged | it renders the same panel, one request, same identifiers |
+
+### Automated
+
+`npm run verify` passed on the final tree: lint, typecheck, `57` test files / `762` tests, the source gate over `72` shipped files, the local build and the loopback HTTP smoke. The T3 record names `56` files / `749` tests for the base tree, so this change adds one suite and thirteen tests and removes none. The focused command from the task — `tests/app/router.test.tsx tests/app/shell.test.tsx tests/components/executive.test.tsx tests/views/executive.test.tsx tests/views/overview.test.tsx tests/views/compare.test.tsx tests/views/notifications.test.tsx tests/a11y/heading-hierarchy.test.tsx` — finished at `8 files / 149 tests` passed.
+
+### Not measured for T4
+
+No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for this change. The composition measurements above used view-level fixture pages — the real components' markup, but not the shell, the gate or a real token; the correction below adds a shell-level fixture with the real gate, while still no live identity provider or gateway was contacted. The 1440/1280/1024/390 captures are of the four fixtures listed above; the 390 px first fold is dominated by the shell the T1/T2 scope leaves in place, so only the view's own composition is described. The comparator's history and the notification table still scroll horizontally inside their shipped `.table-wrap` at 390 px, unchanged by this task. The executive panel's behaviour with a much longer critical-zone list was not rendered.
+
+## T4 correction — verifier blockers (2026-11-26)
+
+Three blockers from the independent verification were corrected inside T4's own edit surface. No scope was added: auth, the backend, the shared APIs and stores, the domain contract and the design/tracker files were not touched.
+
+### 1. D-B was labelled as an open decision
+
+`odd/tasks/pm-01-executive-panel.md` records D-B as **resolved** by the responsible — a zone is critical when its two last published lots are `alto` — and the server applies it. The panel's limits band nevertheless carried the eyebrow `Definición abierta · D-B`, which is the one thing the record says it is not.
+
+Both consumers of `ExecutivePanel` (`#overview` and `#executive`) now render the same corrected copy:
+
+| Element | Before | After |
+| --- | --- | --- |
+| Limits summary eyebrow | `Definición abierta · D-B` | `Definición acordada · D-B` |
+| Limits body | "…es la definición con la que esta página cuenta zonas críticas" | "…es la definición acordada (D-B): una zona es crítica cuando sus dos últimos lotes publicados tienen nivel alto. El servidor la aplica y esta página reproduce su conteo." (alert-count and CUT-naming limits kept) |
+| `#executive-panel-note` | "La etiqueta … es D-B" | "La etiqueta … es la definición acordada (D-B) y el servidor la aplica" |
+
+The rule, its literal `Alto en los dos últimos lotes`, the count and the "regla propia activa, no un modelo entrenado ni una predicción" sentence are unchanged. `Definición abierta` and `sin decidir` appear nowhere in the panel's rendered text.
+
+**Pinned by** `tests/components/executive.test.tsx` (rendered copy, both forbidden strings, the explanation and the count label) plus one rendered-copy test in each consumer: `tests/views/overview.test.tsx` and `tests/views/executive.test.tsx`. RED before the change: those three tests failed; GREEN after: the same five focused suites ran `103 passed (103)`.
+
+### 2. The later-page empty state claimed the whole register was empty
+
+`showEmpty` covers any empty page, and the card said "No hay alertas de cambio de nivel registradas". The list is cursor-paginated, so an empty page after a populated one is a fact about **that page**: the rows before it exist. The card is now state-dependent:
+
+| State | Eyebrow | Title | Body / points |
+| --- | --- | --- | --- |
+| First page empty (true global empty) | `SIN DATOS · ESTADO REAL` | `Sin notificaciones` | "No hay alertas de cambio de nivel registradas…" plus what would fill the list and what the page does not do (unchanged) |
+| Later page empty | `PÁGINA VACÍA` | `Esta página no tiene alertas` | "La página *n* no devolvió alertas. La lista se pagina por cursor y las páginas anteriores sí tenían filas, así que este vacío no afirma que no haya alertas registradas." plus "Usa «Anterior» para volver a la página que tenía filas" and the no-writes point |
+
+The status line is now page-scoped ("…una lista vacía de alertas en la página *n*") while staying `role="status" aria-live="polite"`. `Anterior` remains enabled on a later empty page, the settle-focus contract still lands on `#notifications-status`, and going back restores the real rows.
+
+**Pinned by** `tests/views/notifications.test.tsx`: a new test asserts the later-page card does not contain the global sentence, says this page is empty, names `Anterior`, keeps the page-scoped status and focus, and restores page 1; the pre-existing later-page test now expects the page-scoped title. RED before the change: both failed; GREEN after.
+
+### 3. The fourth shortcut moved the wrap earlier while the reserved offset stayed 48px
+
+T4's fourth shortcut (`Panel`) makes the bar wrap at **340 and 360 px** as well as 320 px. Every rule that reserves the bar reads `--product-nav-h` (shell height, sticky sidebar top, the aerial rail offset and `#infrastructure .infrastructure-zone { scroll-margin-top: calc(var(--product-nav-h) + 14px) }`), and the fixed 48px left the second row painting over content — including a commune breakdown that T3 scrolls to the top and focuses.
+
+**Environment.** An isolated Chromium headless shell against a locally built fixture served on loopback: the real `entry` mounts the real `Shell` (which owns `ProductNav`) around the real `InfrastructureView`, signs in through the real PKCE round trip against a local fixture token endpoint, and reads a local fixture catalogue. The baseline build serves the **same entry, CSS and views** and replaces only the two navigation modules with their `bb8a956` copies (`ProductNav.tsx` and the route table it reads), so the comparison isolates the navigation change. No live credential, realm, gateway, backend write or network egress; nothing installed. Evidence: `tmp/t4-nav/{baseline,current}*`, `occlusion.json`, screenshots, probe `tmp/t4-nav-occlusion.mjs`, server `tmp/t4-nav-server.mjs` (ignored scratch).
+
+The reserved value is the effective `--product-nav-h` an element inherits; the correction publishes it on `body` while `:root` keeps the `48px` fallback and the bar itself shadows it with its own `48px`.
+
+| Width | Baseline `bb8a956` | Current, before the correction | Current, after the correction |
+| --- | --- | --- | --- |
+| 320 | bar `89px`, reserved `48px`, focused breakdown top `62` vs bar bottom `89` → **27 px occluded** | same as baseline | bar `89px`, reserved `89px`, `scroll-margin-top 103px`, target top `103` → **0 occluded** |
+| 340 | bar `48px`, reserved `48px`, target top `62` → 0 | bar `89px`, reserved `48px`, target top `62` → **27 px occluded** | bar `89px`, reserved `89px`, margin `103px`, target top `103` → 0 |
+| 360 | bar `48px` → 0 | bar `89px`, reserved `48px` → **27 px occluded** | bar `89px`, reserved `89px` → 0 |
+| 390 | bar `48px`, reserved `48px`, margin `62px` → 0 | identical to baseline | identical (reserved `48px`, margin `62px`) |
+| 1440 | bar `48px`, reserved `48px`, margin `62px` → 0 | identical to baseline | identical (reserved `48px`, margin `62px`) |
+
+**Fix.** `ProductNav` now publishes the box the bar actually occupies to `--product-nav-h` (on mount, on `resize`, and through a `ResizeObserver` when the box changes), keeps the stylesheet's `48px` until it can measure (jsdom or a hidden document), and removes the property on unmount. The property is written on `body`, and `product-nav.css` gives the bar its own `--product-nav-h: 48px`, so the bar never sizes itself from the offset it publishes: a self-sizing bar would have deadlocked at two rows instead of returning to one when the viewport grows. The measured values confirm it — at 320/340/360 the inherited offset is `89px` and the bar's own value stays `48px`; at 390/1440 both are `48px`. No T3 file was edited: the coverage view's `scroll-margin-top` follows the published value (`103px` wrapped, `62px` on one row).
+
+**PRESERVE.** At 390 and 1440 the published value is `48px`, so the shell height, the sticky sidebar top, the aerial rail offset and the coverage scroll margin are exactly the baseline values. The drill-through at those widths measured `targetTop 62` / `barBottom 48` before and after. No horizontal page overflow at any measured width (`scrollWidth == innerWidth` at 320, 340, 360, 390 and 1440, baseline and current). The out-of-flow menu is unchanged: opening it kept `document.scrollHeight` constant and the panel stayed inside the viewport at every width. Keyboard order in the bar is the four shortcuts then `Más destinos`; every stop painted `3px` rings (`rgb(215, 170, 115)` on the bar, skip link `rgb(167, 77, 52)`) and stayed visible and inside the viewport. The drill-through itself is unchanged: `#coverage-entry-05102` keeps `aria-pressed="true"`, `#infrastructure-zone-05102` receives focus with `outline: 3px solid rgb(207, 125, 79)`, and the hash stays `#infrastructure`. No page errors were logged by either build at any width.
+
+**Pinned by** `tests/app/shell.test.tsx`: the bar publishes the measured height (`89px`), follows a viewport change back to `48px`, keeps the fallback when nothing is measurable (`0`), and removes the property on unmount. RED before the change: the test read an empty property; GREEN after.
+
+### Limits of this correction
+
+The nav measurement used the real components in an isolated local fixture, not the live authenticated application, and the fixture catalogue is four synthetic communes rather than a real region; the drill-through target was the second commune, which is tall enough to be scrolled under the bar. The narrow widths measured are 320, 340, 360, 390 and 1440 CSS px; 375, 414 and zoom-driven widths were not sampled. The keyboard pass covers the bar and the first stops after it, not the whole commune rail. No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for this correction.

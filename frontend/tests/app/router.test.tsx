@@ -55,7 +55,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('the fourteen views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
+test('the fifteen views are declared once, with the two merged pairs, the infrastructure demo and no duplicate hash', () => {
   const ids = routes.map(route => route.id);
   // Declared in navigation order: the four groups are Prevención, Información,
   // Acceso and Coordinación, so `#pending` (Información) precedes `#session`
@@ -68,9 +68,12 @@ test('the fourteen views are declared once, with the two merged pairs, the infra
   // Información so the verdict precedes the provenance detail `#sources` already
   // carries, and `#notifications` joins Coordinación beside the activity register
   // (PM-08). `#compare` is PM-05's own comparator, declared beside the batch
-  // history it compares across zones.
+  // history it compares across zones. T4 adds `#executive` beside the territory:
+  // the executive panel is the aggregate reading of the same catalogue, and the
+  // canvas bar carries it as its fourth shortcut.
   expect(ids).toEqual([
     'overview',
+    'executive',
     'infrastructure',
     'history',
     'compare',
@@ -176,6 +179,65 @@ test('Back/Forward reveals the new current grouped destination and menu selectio
   navigate('#notifications');
   expect(button).toHaveAttribute('aria-expanded', 'true');
   expect([...document.querySelectorAll('.product-nav [aria-current="page"]')].map(link => link.getAttribute('href'))).toEqual(['#notifications']);
+});
+
+// T4 — the executive panel is a real destination, not a panel of the overview:
+// it reads the same server summary through its own route, and the canvas' fourth
+// shortcut points at it. Every hash the router declared before T4 is still here.
+test('all fifteen hashes and the four bar shortcuts are declared, and only the opened one renders', async () => {
+  render(<App />);
+
+  const hashes = routes.map(route => route.hash);
+  expect(hashes).toEqual([
+    '#overview',
+    '#executive',
+    '#infrastructure',
+    '#history',
+    '#compare',
+    '#actions',
+    '#observations',
+    '#simulator',
+    '#status',
+    '#sources',
+    '#jobs',
+    '#pending',
+    '#session',
+    '#notifications',
+    '#audit',
+  ]);
+  expect(new Set(hashes).size).toBe(15);
+
+  const shortcuts = [...document.querySelectorAll('.product-nav__shortcuts a[href]')];
+  expect(shortcuts.map(link => link.textContent?.trim())).toEqual(['Mapa', 'Historial', 'Acciones', 'Panel']);
+  expect(shortcuts.map(link => link.getAttribute('href'))).toEqual(['#overview', '#history', '#actions', '#executive']);
+  expect(shortcuts.map(link => link.getAttribute('aria-label'))).toEqual([
+    'Mapa · Territorio',
+    'Historial de lotes',
+    'Acciones preventivas',
+    'Panel ejecutivo',
+  ]);
+
+  for (const hash of hashes) {
+    navigate(hash);
+    expect(renderedViews()).toEqual([hash.slice(1)]);
+  }
+});
+
+// The shortcut is additive: the three the bar already carried keep their place
+// and their accessible names, and the reader's current destination stays marked
+// exactly once on the new route.
+test('the executive panel has a dedicated #executive route, shortcut and document title', async () => {
+  render(<App />);
+
+  navigate('#executive');
+  expect(renderedViews()).toEqual(['executive']);
+  expect(document.getElementById('executive-view-title')?.textContent).toBe('Panel ejecutivo');
+  expect(document.title).toBe('Panel ejecutivo | FireWatch');
+
+  const current = [...document.querySelectorAll('.product-nav [aria-current="page"]')];
+  expect(current).toHaveLength(1);
+  expect(current[0]).toHaveAttribute('href', '#executive');
+  expect(document.querySelector('.product-nav__where')?.textContent).toContain('Panel ejecutivo');
 });
 
 // The remaining grouped→grouped history case: a modified activation is the

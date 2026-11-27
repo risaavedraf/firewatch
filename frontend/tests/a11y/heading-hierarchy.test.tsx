@@ -8,6 +8,7 @@ import { gatewayOrigin, issuer, pkceTransactionKey } from '../../src/config';
 import { completeLogin, resetSession } from '../../src/core/session';
 import { PanelHeading } from '../../src/components/ui';
 import { ActionsView } from '../../src/views/ActionsView';
+import { ExecutiveView } from '../../src/views/ExecutiveView';
 import { AuditView } from '../../src/views/AuditView';
 import { PendingView } from '../../src/views/PendingView';
 import { SessionView } from '../../src/views/SessionView';
@@ -40,6 +41,7 @@ import { createCryptoStub, createFetchStub, createStorageStub, flush, jwt } from
 
 const ACTIONS_URL = `${gatewayOrigin}/v1/prevention/actions`;
 const AUDIT_URL = `${gatewayOrigin}/v1/audit`;
+const EXECUTIVE_URL = `${gatewayOrigin}/v1/risk/executive-summary`;
 const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
 const ADMIN_TOKEN = jwt({ realm_access: { roles: ['admin'] } });
 
@@ -247,6 +249,55 @@ test('the pending view opens at level 2 under the shell h1', () => {
     'pending-title',
   );
   expect(document.querySelector('#pending .eyebrow')).toHaveTextContent('ALCANCE DE ESTA ENTREGA');
+});
+
+// T4 — the executive route opens at level 2 and composes the server panel under
+// it: the view states where the reader is, the panel states what it read, and the
+// blocks below are the panel's sections. The levels band moved the counts into a
+// list, so the band's own heading is what keeps the descent coherent.
+test('the executive view opens at level 2 and keeps the server panel under it', async () => {
+  await connect();
+  const { container } = render(<ExecutiveView />);
+  await waitFor(() => expect(fetchStub.callsFor(EXECUTIVE_URL)).toHaveLength(1));
+  await act(async () => {
+    fetchStub.answer(EXECUTIVE_URL, {
+      coverage: { catalogue_zones: 3, zones_without_batch: 1, stale_zones: 0, demo_zones: 0 },
+      levels: { alto: 1, medio: 1, bajo: 0, desconocido: 0 },
+      delta: {
+        zones_compared: 1,
+        zones_changed: 0,
+        zones_without_previous: 1,
+        zones_incomparable: 0,
+        transitions: [],
+      },
+      predominant_variables: [{ name: 'viento', zones: 1 }],
+      critical_zones: { count: 1, zone_ids: ['05101'] },
+      active_alerts: { count: 0 },
+    });
+    await flush();
+  });
+
+  const view = container.querySelector('#executive') as HTMLElement;
+  expectCoherentHierarchy(view, 'executive');
+  expect(screen.getByRole('heading', { level: 2, name: 'Panel ejecutivo' })).toHaveAttribute(
+    'id',
+    'executive-view-title',
+  );
+  expect(screen.getByRole('heading', { level: 3, name: 'Panel ejecutivo' })).toHaveAttribute(
+    'id',
+    'executive-title',
+  );
+  for (const name of [
+    'Niveles',
+    'Cobertura',
+    'Variación reciente',
+    'Variables predominantes',
+    'Zonas críticas',
+    'Alertas registradas',
+  ]) {
+    expect(screen.getByRole('heading', { level: 4, name }), name).toBeInTheDocument();
+  }
+  expect(document.querySelector('#executive .eyebrow')).toHaveTextContent('PANEL EJECUTIVO');
 });
 
 test('the session view opens at level 2 and keeps the permissions matrix under its own panel', async () => {

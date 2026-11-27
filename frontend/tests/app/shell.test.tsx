@@ -223,9 +223,9 @@ test('the update bar states the real review state and never contradicts the avai
 // ── T1 · the global product navigation ─────────────────────────────────────
 // The approved canvas puts a thin horizontal bar above the workspace, outside
 // it, and opens its grouped destinations as an out-of-flow multi-column panel.
-// The shell has no executive route yet (T4 owns it), so the shortcuts are the
-// canvas' destinations that really exist; nothing is invented for the bar and
-// every href comes from `routes`.
+// The bar carries the canvas' four shortcuts: the three it already had keep their
+// place, and T4 adds the executive panel's now that the route exists. Every href
+// still comes from `routes`.
 
 test('the product navigation is a horizontal bar above the shell, not a region inside the sidebar', () => {
   renderShell();
@@ -246,7 +246,7 @@ test('the product navigation is a horizontal bar above the shell, not a region i
   expect(sidebar?.querySelector('nav')).toBeNull();
 });
 
-test('the bar keeps three canvas shortcuts, every declared hash once, and names the current location', () => {
+test('the bar keeps four canvas shortcuts, every declared hash once, and names the current location', () => {
   renderShell();
 
   const nav = screen.getByRole('navigation', { name: 'Navegación del producto FireWatch' });
@@ -254,17 +254,18 @@ test('the bar keeps three canvas shortcuts, every declared hash once, and names 
   expect(new Set(hrefs)).toEqual(new Set(routes.map(route => route.hash)));
   expect(hrefs).toHaveLength(routes.length);
 
-  // The canvas' fourth shortcut (Panel ejecutivo) has no route yet; the bar must
-  // not point at a destination the application does not serve.
+  // The canvas' fourth shortcut (Panel ejecutivo) is a real route since T4; the
+  // bar must not point at a destination the application does not serve.
   const shortcuts = [...nav.querySelectorAll('.product-nav__shortcuts a[href]')];
-  expect(shortcuts.map(link => link.textContent?.trim())).toEqual(['Mapa', 'Historial', 'Acciones']);
-  expect(shortcuts.map(link => link.getAttribute('href'))).toEqual(['#overview', '#history', '#actions']);
+  expect(shortcuts.map(link => link.textContent?.trim())).toEqual(['Mapa', 'Historial', 'Acciones', 'Panel']);
+  expect(shortcuts.map(link => link.getAttribute('href'))).toEqual(['#overview', '#history', '#actions', '#executive']);
   expect(shortcuts.every(href => routes.some(route => route.hash === href.getAttribute('href')))).toBe(true);
   // The short visible label stays the beginning of the full accessible name, so
   // the bar fits one row without losing the destination.
   expect(shortcuts[0]).toHaveAccessibleName('Mapa · Territorio');
   expect(shortcuts[1]).toHaveAccessibleName('Historial de lotes');
   expect(shortcuts[2]).toHaveAccessibleName('Acciones preventivas');
+  expect(shortcuts[3]).toHaveAccessibleName('Panel ejecutivo');
 
   expect(document.querySelector('.product-nav__where')?.textContent).toContain('Territorio');
 });
@@ -306,7 +307,7 @@ test('the grouped destinations live in an out-of-flow disclosure outside the she
   expect(panel?.closest('.product-nav')).not.toBeNull();
 
   const grouped = [...(panel?.querySelectorAll('a[href]') ?? [])].map(link => link.getAttribute('href'));
-  const shortcutHrefs = ['#overview', '#history', '#actions'];
+  const shortcutHrefs = ['#overview', '#history', '#actions', '#executive'];
   expect(new Set(grouped)).toEqual(new Set(routes.map(route => route.hash).filter(href => !shortcutHrefs.includes(href))));
   expect(panel?.querySelector('.product-nav__groups')).not.toBeNull();
 
@@ -351,7 +352,7 @@ test('the open panel keeps every grouped destination reachable without trapping 
 
   await user.click(screen.getByRole('button', { name: /más destinos/i }));
   const links = [...document.querySelectorAll('.product-nav__panel a[href]')] as HTMLElement[];
-  expect(links).toHaveLength(routes.length - 3);
+  expect(links).toHaveLength(routes.length - 4);
 
   links[0].focus();
   expect(document.activeElement).toBe(links[0]);
@@ -459,4 +460,46 @@ test('the sign-out control stays in the sidebar bottom block, outside the scroll
   expect(sidebarRule?.[0]).toMatch(/top:\s*var\(--product-nav-h/);
   const smallViewport = appCss.match(/@media\s*\(max-width:\s*720px\)[\s\S]*?\.sidebar\s*\{[^}]*\}/);
   expect(smallViewport?.[0]).toMatch(/height:\s*auto/);
+});
+
+// ── T4 correction · the reserved offset follows the real bar ────────────────
+// At 320–360 px the four shortcuts and the disclosure wrap onto two rows. Every
+// rule that reserves the bar reads `--product-nav-h`: the shell height, the sticky
+// sidebar top and the coverage view's `scroll-margin-top`. A fixed 48px would let
+// the second row cover content, and cover a commune breakdown the reader just
+// focused. The bar therefore publishes its measured box, and keeps the stylesheet's
+// 48px fallback when there is nothing to measure (jsdom, or a hidden document).
+test('the bar publishes its measured height so a wrapped bar cannot cover content', () => {
+  const rect = (height: number) =>
+    ({ height, width: 360, top: 0, bottom: height, left: 0, right: 360, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  let barHeight = 89;
+  const original = Element.prototype.getBoundingClientRect;
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    if (this instanceof HTMLElement && this.classList.contains('product-nav')) return rect(barHeight);
+    return original.call(this);
+  });
+
+  const { unmount } = renderShell();
+  // Published on `body`: the bar shadows it with its own 48px so a wrapped bar can
+  // return to one row when the viewport grows again.
+  const root = document.body;
+  expect(root.style.getPropertyValue('--product-nav-h')).toBe('89px');
+
+  // A wider window fits one row, and the reserved offset follows it back down.
+  barHeight = 48;
+  act(() => {
+    window.dispatchEvent(new Event('resize'));
+  });
+  expect(root.style.getPropertyValue('--product-nav-h')).toBe('48px');
+
+  // Nothing to measure: the 48px fallback stays instead of reserving nothing.
+  barHeight = 0;
+  act(() => {
+    window.dispatchEvent(new Event('resize'));
+  });
+  expect(root.style.getPropertyValue('--product-nav-h')).toBe('48px');
+
+  // Unmounting restores the stylesheet value for whatever mounts next.
+  unmount();
+  expect(root.style.getPropertyValue('--product-nav-h')).toBe('');
 });

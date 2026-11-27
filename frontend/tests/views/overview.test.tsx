@@ -1348,6 +1348,44 @@ test('the executive panel opens the overview with the numbers the server answere
   expect(mapIsHidden()).toBe(false);
 });
 
+// D-B is resolved in the product (the two last published lots at high), so the
+// overview's panel must not present it as an open decision while it explains the
+// rule the count uses.
+test('the overview states D-B as the resolved definition, not an open one', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  fetchStub.answer(EXECUTIVE_URL, executiveSummaryBody());
+  await settle();
+
+  const limits = textOf('executive-limits');
+  expect(limits).toMatch(/Definición acordada · D-B/);
+  expect(limits).not.toMatch(/Definición abierta|sin decidir/i);
+  expect(limits).toMatch(/dos últimos lotes publicados tienen\s+nivel alto/i);
+  expect(textOf('executive-panel-note')).toMatch(/definición acordada/i);
+});
+
+// T4 — the overview keeps the same server summary as the board's counts band.
+// One read, the same section, the same numbers: the executive route renders the
+// same panel, and the overview must not pay a second request for it.
+test('the overview keeps the executive section as the board band, read once (T4)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca'), feature('05103', 'Quilpué')]));
+  fetchStub.answer(EXECUTIVE_URL, executiveSummaryBody());
+  await settle();
+
+  expect(fetchStub.callsFor(EXECUTIVE_URL)).toHaveLength(1);
+  const band = document.querySelector('#overview #executive-levels');
+  expect(band).not.toBeNull();
+  expect([...band!.querySelectorAll('.decision-summary__cell')]).toHaveLength(4);
+  expect(textOf('executive-level-alto')).toBe('1');
+  expect(textOf('executive-coverage-catalogue')).toBe('3');
+  // The section stays where T2 left it, one direct child after the aerial canvas.
+  expect(Array.from(element('overview').children).indexOf(element('executive-panel'))).toBe(2);
+  // The overview's own content is untouched by the panel's restyle.
+  expect(textOf('zone-count')).toBe('3');
+  expect(textOf('risk-level')).toMatch(/Sin|ALTO/);
+});
+
 test('a failed executive summary is stated inline and the rest of the overview keeps working (PM-01)', async () => {
   await openSignedIn();
   await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));

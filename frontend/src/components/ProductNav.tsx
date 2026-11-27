@@ -8,16 +8,17 @@ import { navigationGroups, routes, type RouteDefinition, type ViewId } from '../
 // the menu groups are the declared navigation groups, so the navigation cannot
 // drift from the router.
 //
-// The canvas keeps four shortcuts in a thin bar outside the workspace. This
-// application has three of those destinations, so the bar exposes exactly those;
-// the executive panel is T4's, and inventing its hash would point at a view the
-// application does not serve. The visible labels are the canvas' short words; the
-// accessible name is the route's full label, and it always starts with the visible
-// word (WCAG 2.5.3).
+// The canvas keeps four shortcuts in a thin bar outside the workspace, and the
+// application now serves all four destinations. The visible labels are the
+// canvas' short words; the accessible name is the route's full label, and it
+// always starts with the visible word (WCAG 2.5.3). The three the bar already
+// carried keep their place: T4 appends the executive panel's shortcut, so the
+// earlier destinations do not move under the reader.
 const SHORTCUTS: readonly { id: ViewId; label: string; name?: string }[] = [
   { id: 'overview', label: 'Mapa', name: 'Mapa · Territorio' },
   { id: 'history', label: 'Historial' },
   { id: 'actions', label: 'Acciones' },
+  { id: 'executive', label: 'Panel' },
 ];
 
 const shortcuts = SHORTCUTS.flatMap(shortcut => {
@@ -62,6 +63,7 @@ export function ProductNav({ route }: { route: RouteDefinition }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLAnchorElement>(null);
+  const navRef = useRef<HTMLElement>(null);
   // The route this component last rendered, and whether the last navigation was
   // chosen from this menu. Together they decide when a route change reveals the
   // new current grouped destination and when it must not reopen a menu the reader
@@ -70,6 +72,39 @@ export function ProductNav({ route }: { route: RouteDefinition }) {
   const selectedFromMenu = useRef(false);
 
   const activeInDisclosure = groups.some(group => group.entries.some(entry => entry.id === route.id));
+
+  // The bar is sticky and in flow, and every rule that reserves it reads
+  // `--product-nav-h`: the shell's height, the sticky sidebar top, the aerial rail
+  // offset and the coverage view's `scroll-margin-top`. Below 390px the shortcuts
+  // and the disclosure wrap onto a second row, so a fixed 48px would reserve less
+  // than the bar paints and a focused commune breakdown would land under it. The
+  // bar publishes the box it actually occupies, keeps the stylesheet's 48px until
+  // it can measure, and re-measures when the viewport or the box changes.
+  //
+  // The property is written on `body`, not on `:root`, and the bar shadows it with
+  // its own 48px (`product-nav.css`): the reserved offset must follow a wrapped bar
+  // without the bar sizing itself from the value it publishes.
+  useEffect(() => {
+    const node = navRef.current;
+    if (node === null) return undefined;
+    const scope = document.body;
+    const publish = (): void => {
+      const height = Math.ceil(node.getBoundingClientRect().height);
+      // Nothing to measure (jsdom, or a hidden document): keep the fallback
+      // instead of reserving zero and letting the bar cover content.
+      if (height <= 0) return;
+      scope.style.setProperty('--product-nav-h', `${height}px`);
+    };
+    publish();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(publish);
+    observer?.observe(node);
+    window.addEventListener('resize', publish);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', publish);
+      scope.style.removeProperty('--product-nav-h');
+    };
+  }, []);
 
   useEffect(() => {
     if (lastRouteId.current === route.id) return;
@@ -107,7 +142,7 @@ export function ProductNav({ route }: { route: RouteDefinition }) {
   }, [open, route.id]);
 
   return (
-    <nav className="product-nav" aria-label="Navegación del producto FireWatch">
+    <nav className="product-nav" ref={navRef} aria-label="Navegación del producto FireWatch">
       <ul className="product-nav__shortcuts">
         {shortcuts.map(shortcut => {
           const active = shortcut.route.id === route.id;

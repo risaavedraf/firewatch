@@ -7,6 +7,7 @@ import type { Failure } from '../core/api';
 import { listRiskAlerts, type AlertOrder, type RiskAlert } from '../core/notifications';
 import { levelLabel } from '../domain';
 import type { SessionState } from '../core/session';
+import '../styles/decision-workspace.css';
 
 // PM-08 S1/S2 — the notification centre.
 //
@@ -68,7 +69,9 @@ function stateMessage(session: SessionState, signedIn: boolean, page: PageState,
     case 'loading':
       return 'Consultando alertas…';
     case 'empty':
-      return 'La API devolvió una lista vacía de alertas.';
+      // The list is cursor-paginated, so an empty page is a fact about THIS page.
+      // Only the first page can speak for the whole register.
+      return `La API devolvió una lista vacía de alertas en la página ${pageNumber}.`;
     case 'ready':
       return `Mostrando la página ${pageNumber} del listado de alertas.`;
     case 'failure':
@@ -216,6 +219,10 @@ function NotificationRegister({ session }: { session: SessionState }) {
   const hasPreviousPage = cursorStack.length > 0;
   const showTable = signedIn && page.phase === 'ready' && page.items.length > 0;
   const showEmpty = signedIn && page.phase === 'empty';
+  // An empty page reached by paging is not the empty register: the rows before it
+  // exist, and the card must not claim there are no registered alerts. Only a
+  // first page can say that, because the first page is where the list starts.
+  const emptyIsLaterPage = showEmpty && hasPreviousPage;
   // The first-page empty state is the artboard's card and carries no pager. An
   // empty page reached by paging is different: "Anterior" must stay available or
   // the only way back disappears with the rows.
@@ -230,7 +237,7 @@ function NotificationRegister({ session }: { session: SessionState }) {
 
   return (
     <section className="view" id="notifications" data-view="notifications" aria-labelledby="notifications-title">
-      <div className="intro-row">
+      <div className="intro-row decision-head">
         <div>
           <p className="eyebrow">PM-08 · CENTRO DE NOTIFICACIONES</p>
           <h2 id="notifications-title">Notificaciones</h2>
@@ -239,7 +246,12 @@ function NotificationRegister({ session }: { session: SessionState }) {
             las marca y no las envía.
           </p>
         </div>
-        <span className="neutral-tag">SOLO LECTURA</span>
+        {/* The board's two scope chips, both true of this page: it reads and it
+            sends nothing. */}
+        <div className="decision-head__chips">
+          <span className="neutral-tag">SOLO LECTURA</span>
+          <span className="neutral-tag">SIN ENVÍO DE AVISOS</span>
+        </div>
       </div>
 
       <article className="panel notification-panel" aria-busy={page.phase === 'loading'}>
@@ -282,12 +294,39 @@ function NotificationRegister({ session }: { session: SessionState }) {
 
           {showEmpty ? (
             <div className="notification-empty">
-              <p className="eyebrow">SIN DATOS · ESTADO REAL</p>
-              <h3 id="notifications-empty-title">Sin notificaciones</h3>
-              <p>
-                No hay alertas de cambio de nivel registradas. Este estado no es un error de carga y no se rellena con
-                filas de ejemplo.
+              {/* The board's empty card: a dashed mark, the honest eyebrow, the
+                  title and what would fill the list. Decorative on purpose — the
+                  text below carries the whole meaning. */}
+              <span className="notification-empty-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} focusable="false">
+                  <path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9Z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M10 18.5a2 2 0 0 0 4 0" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M3.5 3.5 20.5 20.5" strokeDasharray="2 3" strokeLinecap="round" />
+                </svg>
+              </span>
+              <p className="eyebrow">{emptyIsLaterPage ? 'PÁGINA VACÍA' : 'SIN DATOS · ESTADO REAL'}</p>
+              <h3 id="notifications-empty-title">
+                {emptyIsLaterPage ? 'Esta página no tiene alertas' : 'Sin notificaciones'}
+              </h3>
+              <p className="notification-empty-copy">
+                {emptyIsLaterPage
+                  ? `La página ${pageNumber} no devolvió alertas. La lista se pagina por cursor y las páginas anteriores sí tenían filas, así que este vacío no afirma que no haya alertas registradas.`
+                  : 'No hay alertas de cambio de nivel registradas. Este estado no es un error de carga y no se rellena con filas de ejemplo.'}
               </p>
+              <ul className="notification-empty-points">
+                {emptyIsLaterPage ? (
+                  <li>Usa «Anterior» para volver a la página que tenía filas.</li>
+                ) : (
+                  <li>
+                    Qué llenaría la lista: cada alerta por cambio de nivel que el servicio registre en{' '}
+                    <code>/v1/risk/alerts</code>, con su sector, su umbral y su fecha.
+                  </li>
+                )}
+                <li>
+                  Qué no hace esta página: no crea, no marca como leída y no envía ninguna alerta, y no simula un
+                  servicio caído.
+                </li>
+              </ul>
             </div>
           ) : null}
 

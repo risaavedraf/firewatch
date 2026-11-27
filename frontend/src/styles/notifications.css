@@ -97,29 +97,75 @@
   color: var(--muted);
 }
 
-.notification-empty {
-  padding: 30px 18px;
+/* T4 — the approved board's empty state is a designed card, not a line of
+   centred copy: a dashed mark, the eyebrow that names the state, the title, the
+   explanation and what would fill the list. Everything above stays inside the
+   real read: the card only appears when the service answered an empty page. */
+#notifications .notification-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 24px 22px 26px;
   border: 1px dashed var(--line);
   border-radius: 9px;
   background: #f8faf7;
-  text-align: center;
+  text-align: left;
 }
 
-.notification-empty .eyebrow {
-  margin-bottom: 5px;
+#notifications .notification-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 2px;
+  border: 1px dashed #c8d2c6;
+  border-radius: 50%;
+  color: var(--forest-700);
 }
 
-.notification-empty h3 {
-  margin-bottom: 8px;
+#notifications .notification-empty-mark svg {
+  width: 28px;
+  height: 28px;
+}
+
+#notifications .notification-empty .eyebrow {
+  margin: 0;
+}
+
+#notifications .notification-empty h3 {
+  margin: 0;
   font-size: 16px;
+  letter-spacing: -0.4px;
 }
 
-.notification-empty p:last-child {
-  max-width: 640px;
-  margin: 0 auto;
+#notifications .notification-empty-copy {
+  max-width: 68ch;
+  margin: 0;
   color: var(--muted);
   font-size: 10px;
   line-height: 1.65;
+}
+
+#notifications .notification-empty-points {
+  display: grid;
+  gap: 4px;
+  max-width: 68ch;
+  margin: 2px 0 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+#notifications .notification-empty-points code {
+  color: var(--forest-700);
+  font-size: 10px;
+}
+
+@media (max-width: 720px) {
+  #notifications .notification-empty {
+    padding: 20px 16px 22px;
+  }
 }
 
 @media (max-width: 720px) {
