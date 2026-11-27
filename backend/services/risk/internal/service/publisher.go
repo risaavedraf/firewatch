@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	v1 "firewatch.local/contracts/events/v1"
 	observations "firewatch.local/contracts/observations/v1"
@@ -28,6 +29,17 @@ type BatchWriter interface {
 // exists to close.
 type ScheduledBatchWriter interface {
 	PublishScheduled(ctx context.Context, request v1.Event, assessment repository.Assessment) error
+}
+
+// ManualBatchWriter persists one assessed batch produced by an explicit manual
+// cycle run, recording the verified token subject as the evaluation's actor.
+//
+// It is separate from the scheduled seam for the same reason that one is separate
+// from the job completion: the origin is decided by the method, so a store that
+// cannot record an actor makes the manual path fail closed instead of publishing a
+// run nobody can be attributed to.
+type ManualBatchWriter interface {
+	PublishManual(ctx context.Context, request v1.Event, assessment repository.Assessment, actor string) error
 }
 
 // RiskObserver records the outcome of one published assessment. It is optional:
@@ -190,6 +202,36 @@ func (p Publisher) PublishScheduled(ctx context.Context, request v1.Event) error
 		return errors.New("publisher is misconfigured: the store cannot persist a scheduled publication without a job completion")
 	}
 	return p.publish(ctx, request, scheduled.PublishScheduled)
+}
+
+// PublishManual runs the SAME publication path for one zone of a manual cycle run:
+// a verified operator asked for this evaluation, so the batch is persisted through
+// the store's manual seam, which records the manual origin and that operator as the
+// actor.
+//
+// Everything else - scenario resolution, provider selection, validation,
+// classification, policy identity, logging and the outcome counter - is shared with
+// the other two origins, so a manual run cannot become a way to skip a guard. Two
+// things are refused before any acquisition: a store with no manual seam, which
+// would otherwise publish an evaluation nobody can be attributed to, and a blank
+// actor, because a manual evaluation whose operator was not proved must not exist.
+func (p Publisher) PublishManual(ctx context.Context, request v1.Event, actor string) error {
+	if p.Store == nil {
+		return errors.New("publisher is misconfigured: a store is required")
+	}
+	manual, ok := p.Store.(ManualBatchWriter)
+	if !ok {
+		return errors.New("publisher is misconfigured: the store cannot persist a manual publication with a verified actor")
+	}
+	// The actor is the verified token subject the API gate handed down. It is never
+	// a field of the request, and a blank one is refused here so the failure is
+	// attributable before a fetch, a classification or a write can happen.
+	if strings.TrimSpace(actor) == "" {
+		return errors.New("manual publication requires the verified token subject of the operator")
+	}
+	return p.publish(ctx, request, func(ctx context.Context, request v1.Event, assessment repository.Assessment) error {
+		return manual.PublishManual(ctx, request, assessment, actor)
+	})
 }
 
 // publish fetches the provider selected for the request, classifies what it

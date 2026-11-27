@@ -46,20 +46,24 @@ func (s stubProvider) Fetch(ctx context.Context, window observations.Window) (ob
 
 // stubWriter is a BatchWriter that records what the publication path tried to
 // persist and can be made to fail, so persistence is asserted without a
-// database and a store failure is proven to surface through Publish. The two
+// database and a store failure is proven to surface through Publish. The three
 // persistence seams are counted separately: Publish is the explicit-job
-// completion seam and PublishScheduled is the automatic-cycle seam, so a test
-// can prove the publication path chose the one its origin requires.
+// completion seam, PublishScheduled is the automatic-cycle seam and PublishManual
+// is the verified operator's seam, so a test can prove the publication path chose
+// the one its origin requires.
 type stubWriter struct {
 	calls      int
 	scheduled  int
+	manual     int
 	request    v1.Event
 	assessment repository.Assessment
 	// scheduledRequest and scheduledAssessment record the automatic-cycle seam
 	// separately from the explicit-job one, so a test can assert both what was
-	// persisted and which seam persisted it.
+	// persisted and which seam persisted it. actors records the actor of every
+	// manual publication, verbatim.
 	scheduledRequest    v1.Event
 	scheduledAssessment repository.Assessment
+	actors              []string
 	err                 error
 }
 
@@ -77,10 +81,19 @@ func (w *stubWriter) PublishScheduled(ctx context.Context, request v1.Event, ass
 	return w.err
 }
 
+func (w *stubWriter) PublishManual(ctx context.Context, request v1.Event, assessment repository.Assessment, actor string) error {
+	w.manual++
+	w.actors = append(w.actors, actor)
+	w.assessment = assessment
+	return w.err
+}
+
 // jobOnlyWriter implements ONLY the explicit-job persistence seam. It models a
 // store that was never given a way to persist a scheduled publication, so a
 // scheduled request against it must fail closed instead of quietly settling a
-// job that does not exist.
+// job that does not exist. It has no manual seam either, so a manual publication
+// against it must fail closed rather than store an evaluation nobody can be
+// attributed to.
 type jobOnlyWriter struct{ calls int }
 
 func (w *jobOnlyWriter) Publish(_ context.Context, _ v1.Event, _ repository.Assessment) error {
@@ -1107,6 +1120,105 @@ func TestPublishBuildsTheModelVectorBeforeClassifying(t *testing.T) {
 	}
 	if got := classifier.features.Model.TempMaxC; !got.Value.Present || got.Value.Value != 31 {
 		t.Fatalf("the classifier received %+v, want the vector the source built", got)
+	}
+}
+
+// PM-06 (S1-S2): a manual publication persists through the manual seam and records
+// the verified subject as the evaluation's actor. It is the same publication path
+// as the other two origins - the real fixture is fetched, validated, classified and
+// policy-checked - and the only difference is the provenance the store receives.
+// The request's descriptive ActorID is deliberately a different string, so a writer
+// that derived the actor from the request would fail here.
+func TestPublishManualRecordsTheVerifiedActorThroughTheManualSeam(t *testing.T) {
+	writer := &stubWriter{}
+	request := sampleRequest()
+	request.ActorID = "cycle-scheduler"
+	if err := (Publisher{
+		Provider:   source.NewFixtureProvider(),
+		Classifier: classify.NewAcademicRuleV1(),
+		Store:      writer,
+	}).PublishManual(context.Background(), request, "operator-ana"); err != nil {
+		t.Fatalf("publish a manual evaluation: %v", err)
+	}
+	if writer.manual != 1 || writer.scheduled != 0 || writer.calls != 0 {
+		t.Fatalf("manual=%d scheduled=%d completion=%d, want the manual seam exactly once", writer.manual, writer.scheduled, writer.calls)
+	}
+	if len(writer.actors) != 1 || writer.actors[0] != "operator-ana" {
+		t.Fatalf("the store received actors %v, want exactly the verified subject %q", writer.actors, "operator-ana")
+	}
+	assessment := writer.assessment
+	if assessment.ModelVersion != classify.AcademicRuleV1ID || assessment.RiskLevel != string(classify.LevelAlto) {
+		t.Fatalf("manual assessment = %+v, want the real fixture assessment", assessment)
+	}
+	if len(assessment.Factors) != 5 || assessment.Rationale == "" || assessment.Policy == nil {
+		t.Fatalf("the manual path skipped part of the shared pipeline: %+v", assessment)
+	}
+}
+
+// PM-06: a manual publication that cannot name its operator is refused before any
+// acquisition, any classification and any write. The schema refuses the row anyway,
+// so failing here keeps the refusal attributable instead of surfacing as a storage
+// error, and it makes an unauthenticated manual evaluation impossible to construct.
+func TestPublishManualFailsClosedWithoutAVerifiedActor(t *testing.T) {
+	for _, actor := range []string{"", "   ", "\t\n "} {
+		t.Run("actor "+actor, func(t *testing.T) {
+			writer := &stubWriter{}
+			err := (Publisher{
+				Provider:   source.NewFixtureProvider(),
+				Classifier: classify.NewAcademicRuleV1(),
+				Store:      writer,
+			}).PublishManual(context.Background(), sampleRequest(), actor)
+			if err == nil {
+				t.Fatal("a manual publication without a verified subject was published")
+			}
+			if !strings.Contains(err.Error(), "verified") {
+				t.Fatalf("the refusal does not name the missing identity: %v", err)
+			}
+			if writer.manual != 0 || writer.scheduled != 0 || writer.calls != 0 {
+				t.Fatalf("manual=%d scheduled=%d completion=%d, want nothing persisted", writer.manual, writer.scheduled, writer.calls)
+			}
+		})
+	}
+}
+
+// PM-06: a store with no manual seam must fail closed instead of falling back to the
+// scheduled one: falling back would persist an evaluation the operator who asked for
+// it cannot be attributed to, which is the half of the mandante's criterion the
+// manual seam exists to satisfy.
+func TestPublishManualFailsClosedWhenTheStoreCannotRecordAnActor(t *testing.T) {
+	writer := &jobOnlyWriter{}
+	err := (Publisher{
+		Provider:   source.NewFixtureProvider(),
+		Classifier: classify.NewAcademicRuleV1(),
+		Store:      writer,
+	}).PublishManual(context.Background(), sampleRequest(), "operator-ana")
+	if err == nil {
+		t.Fatal("a store without the manual seam accepted a manual publication")
+	}
+	if !strings.Contains(err.Error(), "manual") {
+		t.Fatalf("the refusal does not name the missing seam: %v", err)
+	}
+	if writer.calls != 0 {
+		t.Fatalf("the completion seam was reached %d times for a manual publication", writer.calls)
+	}
+}
+
+// PM-06: the manual path keeps the shared guards, so asking for an evaluation by
+// hand cannot become a way to skip one. An unknown scenario is refused permanently
+// and nothing is persisted, exactly as on the scheduled path.
+func TestPublishManualKeepsTheSharedGuards(t *testing.T) {
+	writer := &stubWriter{}
+	err := (Publisher{
+		Provider:   source.NewFixtureProvider(),
+		Classifier: classify.NewAcademicRuleV1(),
+		Store:      writer,
+	}).PublishManual(context.Background(), scenarioRequest("no-such-scenario", scenarioInstant), "operator-ana")
+	var permanent interface{ Permanent() bool }
+	if !errors.As(err, &permanent) || !permanent.Permanent() {
+		t.Fatalf("the manual refusal is not permanent: %v", err)
+	}
+	if writer.manual != 0 {
+		t.Fatalf("an unknown scenario reached the manual seam %d times", writer.manual)
 	}
 }
 

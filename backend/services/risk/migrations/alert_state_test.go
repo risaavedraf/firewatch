@@ -74,9 +74,11 @@ func TestRiskAlertStateMigrationIsGuardedAndAppendOnly(t *testing.T) {
 
 // TestRiskAlertStateClaimsTheNextFreeLedgerVersion states the reservation this
 // branch depends on: risk holds 1-8, 10, 12, 13, 17 and 18, prevention holds 9,
-// 11 and 14-16, so 19 is the next free integer across the integrated tree. The
-// cross-service collision guard separately reads prevention's registry; this test
-// pins the claim itself so a renumber cannot happen silently.
+// 11 and 14-16, so 19 was the next free integer across the integrated tree when
+// this migration was claimed. 20 was already the ledger's next determination
+// afterwards and PM-06 took it, so 19 must stay 19 and nothing may be inserted
+// below it. The cross-service collision guard separately reads prevention's
+// registry; this test pins the claim itself so a renumber cannot happen silently.
 func TestRiskAlertStateClaimsTheNextFreeLedgerVersion(t *testing.T) {
 	owns := false
 	for _, migration := range All() {
@@ -90,9 +92,19 @@ func TestRiskAlertStateClaimsTheNextFreeLedgerVersion(t *testing.T) {
 	if !owns {
 		t.Error("risk does not register version 19; the personal state table would never be created")
 	}
+	// The versions claimed after 19 must be exactly the ones the ledger recorded
+	// afterwards, so this migration cannot be renumbered and no number between them
+	// can be inserted silently.
+	afterwards := map[int]string{}
 	for _, migration := range All() {
 		if migration.Version > 19 {
-			t.Errorf("risk claims version %d (%s); 19 is the next free integer of the shared ledger", migration.Version, migration.Name)
+			afterwards[migration.Version] = migration.Name
 		}
+	}
+	if name, claimed := afterwards[20]; !claimed || name != "batch_evaluation_actor" {
+		t.Errorf("version 20 is registered as %q (present=%t), want batch_evaluation_actor", name, claimed)
+	}
+	if len(afterwards) != 1 {
+		t.Errorf("versions claimed after 19 are %v, want only 20; a new claim must update this test and the ledger together", afterwards)
 	}
 }
