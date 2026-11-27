@@ -53,6 +53,8 @@ Los tokens existen y se importan (`../../frontend/src/main.tsx:7`); `../../front
 
 El límite de accesibilidad está declarado por la propia entrega (`../../frontend/README.md:149`: sin certificación WCAG, sin lector de pantalla, y la aserción de foco a 390 px cierra sobre BODY cuando la lista de acciones está vacía), y el alcance de accesibilidad sigue como decisión abierta D5 (`../entrega/acta-cierre.md:29-39`).
 
+**Dónde se sigue la migración del diseño al frontend real:** en [`firewatch-design-migration.md`](firewatch-design-migration.md), rama `feat/firewatch-design-migration`. Ahí están entregados `T1`–`T8` y `T10`–`T14` —shell sin sidebar, paleta oscura aérea global, inicio compacto sin scroll y mapa aéreo 3D sobre las 38 comunas— y siguen abiertos `T9` (artefacto de frontend de producción y orígenes públicos finales) y `C3` (tema de login servido por Keycloak y revisión visual en escritorio). Ese tracker es de alcance y evidencia: no cierra ninguna de las cinco filas `V1-D` ni adelanta las filas `PM-*` de este grupo.
+
 | ID | Tarea | S# | Cierra cuando | Ruta |
 | --- | --- | --- | --- | --- |
 | V1-D-01 | Documentar `frontend/src/styles/tokens.css` como sistema de diseño: paleta, escala tipográfica, espaciado, radios, sombras y uso por componente. | S1 | El documento enumera cada token declarado en `frontend/src/styles/tokens.css` con su valor y el componente o vista que lo consume, y cada par texto/fondo en uso lleva su contraste medido con la cifra. | inline |
