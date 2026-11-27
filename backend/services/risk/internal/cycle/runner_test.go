@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,17 +19,35 @@ import (
 
 // stubPublisher records the requests one cycle published and can be made to fail
 // on a chosen zone, so ordering and partial failure are both observable. It
-// implements the scheduled seam only: the cycle has no way to ask for a job
-// completion.
+// implements both publication seams the runner owns - the automatic cycle's and
+// the verified operator's - and records which one published each zone, so a test
+// can prove the origin is decided by the seam and not by the request's actor
+// string.
 type stubPublisher struct {
-	calls int
-	zones []string
-	fail  map[string]error
+	calls   int
+	zones   []string
+	fail    map[string]error
+	manual  []string
+	actors  []string
+	sources []string
 }
 
 func (p *stubPublisher) PublishScheduled(_ context.Context, request v1.Event) error {
 	p.calls++
 	p.zones = append(p.zones, request.ZoneID)
+	p.sources = append(p.sources, "scheduler")
+	if err := p.fail[request.ZoneID]; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *stubPublisher) PublishManual(_ context.Context, request v1.Event, actor string) error {
+	p.calls++
+	p.zones = append(p.zones, request.ZoneID)
+	p.manual = append(p.manual, request.ZoneID)
+	p.actors = append(p.actors, actor)
+	p.sources = append(p.sources, "manual")
 	if err := p.fail[request.ZoneID]; err != nil {
 		return err
 	}
@@ -203,13 +222,16 @@ func TestAutomaticCyclePublicationNeverReportsAJobCompletion(t *testing.T) {
 }
 
 // recordingWriter is the minimal BatchWriter the runner test needs; it proves the
-// real publication path was reached without a database. The two persistence
-// seams are counted separately: Publish settles an explicitly requested job and
-// PublishScheduled persists an automatic cycle's batch without reporting one, so
-// a test can prove the runner chose the scheduled seam.
+// real publication path was reached without a database. The three persistence
+// seams are counted separately: Publish settles an explicitly requested job,
+// PublishScheduled persists an automatic cycle's batch without reporting one, and
+// PublishManual persists a manual cycle's batch with the verified operator, so a
+// test can prove the runner chose the seam its origin requires.
 type recordingWriter struct {
 	completions int
 	scheduled   int
+	manual      int
+	actors      []string
 	request     v1.Event
 	assessment  repository.Assessment
 }
@@ -228,6 +250,14 @@ func (w *recordingWriter) PublishScheduled(_ context.Context, request v1.Event, 
 	return nil
 }
 
+func (w *recordingWriter) PublishManual(_ context.Context, request v1.Event, assessment repository.Assessment, actor string) error {
+	w.manual++
+	w.actors = append(w.actors, actor)
+	w.request = request
+	w.assessment = assessment
+	return nil
+}
+
 // A run that produces no zones still reports a deterministic empty result.
 func TestRunnerWithNoZonesIsAnEmptyCompleteRun(t *testing.T) {
 	publisher := &stubPublisher{}
@@ -239,5 +269,86 @@ func TestRunnerWithNoZonesIsAnEmptyCompleteRun(t *testing.T) {
 	}
 	if !reflect.DeepEqual(result.Zones, []ZoneResult{}) {
 		t.Fatalf("zones = %#v, want an empty non-nil slice", result.Zones)
+	}
+}
+
+// PM-06 (S1-S2): the automatic tick publishes through the scheduled seam and
+// records no actor, because nobody asked for that run. A scheduled evaluation that
+// carried an actor would claim an identity the automatic cycle never had.
+func TestScheduledRunPublishesThroughTheScheduledSeamAndNamesNoActor(t *testing.T) {
+	publisher := &stubPublisher{}
+	runner, _ := newTestRunner(publisher, "zona-a", "zona-b")
+
+	result := runner.RunOnce(context.Background())
+	if !result.Complete {
+		t.Fatalf("result = %+v", result)
+	}
+	if publisher.calls != 2 || len(publisher.manual) != 0 || len(publisher.actors) != 0 {
+		t.Fatalf("published %d zones, manual=%v actors=%v; the automatic tick must use the scheduled seam only", publisher.calls, publisher.manual, publisher.actors)
+	}
+}
+
+// PM-06 (S1-S2): a manual run publishes through the manual seam and hands it the
+// verified subject the API gate proved. The actor is never read off the request:
+// the request's descriptive ActorID still reads "cycle-scheduler" and the persisted
+// origin is manual.
+func TestManualRunPublishesTheVerifiedActorThroughTheManualSeam(t *testing.T) {
+	writer := &recordingWriter{}
+	publisher := &service.Publisher{
+		Provider:   source.NewFixtureProvider(),
+		Classifier: classify.NewAcademicRuleV1(),
+		Store:      writer,
+	}
+	instant := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	runner := New(source.NewFixtureProvider(), publisher, Options{
+		Zones:    []string{"valparaiso-demo", "zona-b"},
+		Interval: 15 * time.Minute,
+		Now:      func() time.Time { return instant },
+	})
+
+	result := runner.RunManual(context.Background(), "operator-ana")
+	if !result.Complete {
+		t.Fatalf("result = %+v", result)
+	}
+	if writer.manual != 2 || writer.scheduled != 0 || writer.completions != 0 {
+		t.Fatalf("manual=%d scheduled=%d completions=%d, want the manual seam twice and no job completion", writer.manual, writer.scheduled, writer.completions)
+	}
+	for _, actor := range writer.actors {
+		if actor != "operator-ana" {
+			t.Fatalf("persisted actor %q, want the verified subject %q", actor, "operator-ana")
+		}
+	}
+	if writer.request.ActorID != "cycle-scheduler" {
+		t.Fatalf("the request's descriptive actor changed to %q; it must never be the provenance", writer.request.ActorID)
+	}
+	if writer.assessment.RiskLevel != string(classify.LevelAlto) || writer.assessment.Policy == nil {
+		t.Fatalf("the manual path skipped the shared assessment checks: %+v", writer.assessment)
+	}
+}
+
+// PM-06: a manual run that cannot name its operator fails closed before any zone
+// is published or any row is written. An empty or whitespace-only actor is not an
+// identity, and the freshness state records the refusal instead of a completed run.
+func TestManualRunWithoutAVerifiedActorPublishesNothing(t *testing.T) {
+	for _, actor := range []string{"", "   ", "\t\n "} {
+		t.Run("actor "+strconv.Quote(actor), func(t *testing.T) {
+			publisher := &stubPublisher{}
+			runner, _ := newTestRunner(publisher)
+
+			result := runner.RunManual(context.Background(), actor)
+			if result.Complete {
+				t.Fatalf("a manual run with no operator reported itself complete: %+v", result)
+			}
+			if publisher.calls != 0 {
+				t.Fatalf("a manual run with no operator published %d zones", publisher.calls)
+			}
+			if len(result.Zones) != 1 || !strings.Contains(result.Zones[0].Error, "verified") {
+				t.Fatalf("the refusal does not name the missing identity: %+v", result.Zones)
+			}
+			statuses := runner.Statuses()
+			if len(statuses) != 1 || statuses[0].Complete {
+				t.Fatalf("the refusal was not recorded in the freshness state: %+v", statuses)
+			}
+		})
 	}
 }

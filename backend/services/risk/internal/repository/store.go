@@ -68,6 +68,15 @@ type Batch struct {
 	// job carried a scenario. They are job identity, never classifier input.
 	ScenarioID  string     `json:"scenario_id,omitempty"`
 	EvaluatedAt *time.Time `json:"evaluated_at,omitempty"`
+	// EvaluationTrigger and EvaluatedBy are the provenance of the evaluation
+	// itself: whether the automatic scheduler produced it or a verified operator
+	// asked for it, and, for a manual one, the token subject of that operator. The
+	// trigger is always recorded (the column is NOT NULL with a default), and the
+	// actor is NULL - never an empty string - when nobody asked for the run, so the
+	// absence of an actor stays distinguishable from a blank name. The actor is
+	// never taken from a request: a subject a client can name is not an identity.
+	EvaluationTrigger string  `json:"evaluation_trigger"`
+	EvaluatedBy       *string `json:"evaluated_by"`
 }
 
 // Assessment is the persisted result of classifying one job request.
@@ -139,7 +148,9 @@ const (
 )
 
 // Publish persists one assessed batch and its outbox event for an explicitly
-// requested job.
+// requested job. The evaluation is recorded as a scheduler evaluation: no verified
+// operator subject exists on a queued delivery, so this path cannot claim a manual
+// actor and records none.
 //
 // The transaction shape is deliberate: the inbox row is the deduplication gate,
 // the batches insert is idempotent on job_id, and the outbox event is written in
@@ -148,7 +159,7 @@ const (
 // swallowed: it emits a completion for the stored batch (see
 // redispatchCompletion) so an operator re-dispatch can still settle the job.
 func (s Store) Publish(ctx context.Context, request v1.Event, assessment Assessment) error {
-	return s.persist(ctx, request, assessment, settleJob)
+	return s.persist(ctx, request, assessment, settleJob, scheduledEvaluation())
 }
 
 // PublishScheduled persists one assessed batch produced by the internal
@@ -167,14 +178,36 @@ func (s Store) Publish(ctx context.Context, request v1.Event, assessment Assessm
 // untouched. A missing or malformed completion is still a defect; an automatic
 // cycle simply never produces one.
 func (s Store) PublishScheduled(ctx context.Context, request v1.Event, assessment Assessment) error {
-	return s.persist(ctx, request, assessment, persistOnly)
+	return s.persist(ctx, request, assessment, persistOnly, scheduledEvaluation())
 }
 
-// persist is the single transaction both publication origins share. Only the
-// completion step depends on the settlement: the inbox gate, the idempotent
-// batches insert and the metadata are identical for a requested job and an
-// automatic cycle.
-func (s Store) persist(ctx context.Context, request v1.Event, assessment Assessment, settlement jobSettlement) error {
+// PublishManual persists one assessed batch produced by an explicit manual cycle
+// run, recording the manual origin and the verified token subject the API gate
+// proved as its actor.
+//
+// It shares the scheduled seam's settlement - a cycle is not a job, so no
+// completion is emitted - and differs from it in exactly one column pair: the
+// batch records that a verified operator asked for this evaluation and who that
+// operator was. actor is the subject from the request context, never a field of
+// the request; a blank one is refused before the transaction opens, so a refused
+// manual publication stores neither an inbox mark nor a batch, and the schema
+// refuses the row anyway.
+//
+// See evaluationOrigin in evaluation.go for the closed vocabulary both manual and
+// scheduled publications record.
+func (s Store) PublishManual(ctx context.Context, request v1.Event, assessment Assessment, actor string) error {
+	origin, err := manualEvaluation(actor)
+	if err != nil {
+		return err
+	}
+	return s.persist(ctx, request, assessment, persistOnly, origin)
+}
+
+// persist is the single transaction every publication origin shares. Only the
+// settlement and the recorded provenance depend on the origin: the inbox gate, the
+// idempotent batches insert and the metadata are identical for a requested job, an
+// automatic cycle and a manual run.
+func (s Store) persist(ctx context.Context, request v1.Event, assessment Assessment, settlement jobSettlement, origin evaluationOrigin) error {
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -227,9 +260,16 @@ func (s Store) persist(ctx context.Context, request v1.Event, assessment Assessm
 	if request.EvaluatedAt != nil {
 		evaluatedAt = *request.EvaluatedAt
 	}
+	// The provenance of the evaluation is decided by the seam that published it, and
+	// the actor stays SQL NULL for a scheduled evaluation: an absent actor is a fact,
+	// not an empty name, and 020's CHECK refuses the inconsistent pairs.
+	var evaluatedBy any
+	if origin.actor != "" {
+		evaluatedBy = origin.actor
+	}
 	batchID := uuid.NewString()
-	result, err = tx.Exec(ctx, `INSERT INTO batches(id,job_id,zone_id,requested_at,valid_until,model_version,demo,risk_level,factors,rationale,policy_ref,scenario_id,evaluated_at,location)
-		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,ST_SetSRID(ST_MakePoint(-71.6127,-33.0472),4326)) ON CONFLICT(job_id) DO NOTHING`, batchID, request.JobID, request.ZoneID, request.RequestedAt, request.RequestedAt.Add(15*time.Minute), assessment.ModelVersion, assessment.Demo, assessment.RiskLevel, string(encoded), assessment.Rationale, policy, scenarioID, evaluatedAt)
+	result, err = tx.Exec(ctx, `INSERT INTO batches(id,job_id,zone_id,requested_at,valid_until,model_version,demo,risk_level,factors,rationale,policy_ref,scenario_id,evaluated_at,evaluation_trigger,evaluated_by,location)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,ST_SetSRID(ST_MakePoint(-71.6127,-33.0472),4326)) ON CONFLICT(job_id) DO NOTHING`, batchID, request.JobID, request.ZoneID, request.RequestedAt, request.RequestedAt.Add(15*time.Minute), assessment.ModelVersion, assessment.Demo, assessment.RiskLevel, string(encoded), assessment.Rationale, policy, scenarioID, evaluatedAt, origin.trigger, evaluatedBy)
 	if err != nil {
 		// An unknown zone (batches_zone_id_fkey) or an unregistered model version
 		// (batches_model_version_fkey) is refused here. Both are deterministic
@@ -430,7 +470,7 @@ func (s Store) ModelParamsHash(ctx context.Context, version string) (string, boo
 }
 
 func (s Store) List(ctx context.Context, zone string, limit int) ([]Batch, error) {
-	rows, err := s.DB.Query(ctx, `SELECT b.id::text,b.job_id::text,b.zone_id,b.requested_at,b.published_at,b.valid_until,b.model_version,b.demo,b.risk_level,coalesce(b.factors, '[]'::jsonb),coalesce(b.rationale, ''),coalesce(b.policy_ref, 'null'::jsonb),b.scenario_id,b.evaluated_at,ST_AsGeoJSON(CASE WHEN b.zone_id='valparaiso-demo' THEN b.location ELSE z.geometry END) FROM batches b JOIN zones z ON z.code=b.zone_id WHERE b.zone_id=$1 ORDER BY b.requested_at DESC,b.id DESC LIMIT $2`, zone, limit)
+	rows, err := s.DB.Query(ctx, `SELECT b.id::text,b.job_id::text,b.zone_id,b.requested_at,b.published_at,b.valid_until,b.model_version,b.demo,b.risk_level,coalesce(b.factors, '[]'::jsonb),coalesce(b.rationale, ''),coalesce(b.policy_ref, 'null'::jsonb),b.scenario_id,b.evaluated_at,b.evaluation_trigger,b.evaluated_by,ST_AsGeoJSON(CASE WHEN b.zone_id='valparaiso-demo' THEN b.location ELSE z.geometry END) FROM batches b JOIN zones z ON z.code=b.zone_id WHERE b.zone_id=$1 ORDER BY b.requested_at DESC,b.id DESC LIMIT $2`, zone, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -439,14 +479,14 @@ func (s Store) List(ctx context.Context, zone string, limit int) ([]Batch, error
 	for rows.Next() {
 		var b Batch
 		var factors, policy string
-		var geometry *string
-		var scenario *string
-		if err := rows.Scan(&b.ID, &b.JobID, &b.ZoneID, &b.RequestedAt, &b.PublishedAt, &b.ValidUntil, &b.ModelVersion, &b.Demo, &b.RiskLevel, &factors, &b.Rationale, &policy, &scenario, &b.EvaluatedAt, &geometry); err != nil {
+		var geometry, scenario, evaluatedBy *string
+		if err := rows.Scan(&b.ID, &b.JobID, &b.ZoneID, &b.RequestedAt, &b.PublishedAt, &b.ValidUntil, &b.ModelVersion, &b.Demo, &b.RiskLevel, &factors, &b.Rationale, &policy, &scenario, &b.EvaluatedAt, &b.EvaluationTrigger, &evaluatedBy, &geometry); err != nil {
 			return nil, err
 		}
 		if err := b.readAssessment(factors, policy, scenario); err != nil {
 			return nil, err
 		}
+		b.EvaluatedBy = evaluatedBy
 		if geometry == nil {
 			return nil, fmt.Errorf("zone %s has no catalogue geometry", b.ZoneID)
 		}
@@ -475,7 +515,7 @@ func (s Store) List(ctx context.Context, zone string, limit int) ([]Batch, error
 //
 // An empty result is a valid answer, not an error.
 func (s Store) LatestPerZone(ctx context.Context) ([]Batch, error) {
-	rows, err := s.DB.Query(ctx, `SELECT DISTINCT ON (b.zone_id) b.id::text,b.job_id::text,b.zone_id,b.requested_at,b.published_at,b.valid_until,b.model_version,b.demo,b.risk_level,coalesce(b.factors, '[]'::jsonb),coalesce(b.rationale, ''),coalesce(b.policy_ref, 'null'::jsonb),b.scenario_id,b.evaluated_at FROM batches b JOIN zones z ON z.code=b.zone_id ORDER BY b.zone_id,b.requested_at DESC,b.id DESC`)
+	rows, err := s.DB.Query(ctx, `SELECT DISTINCT ON (b.zone_id) b.id::text,b.job_id::text,b.zone_id,b.requested_at,b.published_at,b.valid_until,b.model_version,b.demo,b.risk_level,coalesce(b.factors, '[]'::jsonb),coalesce(b.rationale, ''),coalesce(b.policy_ref, 'null'::jsonb),b.scenario_id,b.evaluated_at,b.evaluation_trigger,b.evaluated_by FROM batches b JOIN zones z ON z.code=b.zone_id ORDER BY b.zone_id,b.requested_at DESC,b.id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -484,13 +524,14 @@ func (s Store) LatestPerZone(ctx context.Context) ([]Batch, error) {
 	for rows.Next() {
 		var b Batch
 		var factors, policy string
-		var scenario *string
-		if err := rows.Scan(&b.ID, &b.JobID, &b.ZoneID, &b.RequestedAt, &b.PublishedAt, &b.ValidUntil, &b.ModelVersion, &b.Demo, &b.RiskLevel, &factors, &b.Rationale, &policy, &scenario, &b.EvaluatedAt); err != nil {
+		var scenario, evaluatedBy *string
+		if err := rows.Scan(&b.ID, &b.JobID, &b.ZoneID, &b.RequestedAt, &b.PublishedAt, &b.ValidUntil, &b.ModelVersion, &b.Demo, &b.RiskLevel, &factors, &b.Rationale, &policy, &scenario, &b.EvaluatedAt, &b.EvaluationTrigger, &evaluatedBy); err != nil {
 			return nil, err
 		}
 		if err := b.readAssessment(factors, policy, scenario); err != nil {
 			return nil, err
 		}
+		b.EvaluatedBy = evaluatedBy
 		batches = append(batches, b)
 	}
 	return batches, rows.Err()

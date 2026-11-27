@@ -1286,12 +1286,46 @@ paths:
         complete. A zone that fails does not abort the rest, and an incomplete
         cycle publishes nothing invalid. With no scheduler configured the route
         answers 503 cycle_unavailable.
+
+        This is the manual evaluation. Every batch it persists records
+        evaluation_trigger `manual` and evaluated_by set to the subject of the
+        verified bearer token that called it, so an operator-triggered evaluation
+        is distinguishable from the automatic cycle's. The actor is never an
+        input: it comes from the verified token and from nowhere else.
+
+        The route declares no meaningful request body. An absent body, a
+        whitespace-only body and the empty JSON object `{}` are all accepted and
+        behave identically. Any other body is refused with 400 `invalid_body`
+        before the cycle starts and before anything is stored: a body that
+        declares a JSON member at all (including actor, evaluated_by or
+        evaluation_trigger), a body that is not a JSON object (null, an array, a
+        string, a number or a boolean), a malformed body, a body carrying more
+        than one JSON value, and a body larger than 4 KiB. Ignoring a submitted
+        actor would look like it had been honoured, which is why the refusal is
+        explicit rather than silent.
       responses:
         '200':
           description: Outcome of the cycle that just ran.
           content:
             application/json:
               schema: {$ref: '#/components/schemas/CycleRunResult'}
+        '400':
+          description: >-
+            The request carried a body this route does not accept. Accepted: no
+            body, a whitespace-only body, and the empty JSON object {}. Refused
+            with code invalid_body, before the cycle starts and before anything
+            is stored: any body that declares a JSON member (actor,
+            evaluated_by, evaluation_trigger or any other name), any body that is
+            not a JSON object (null, array, string, number, boolean), a malformed
+            body, a body carrying more than one JSON value, and a body larger
+            than 4 KiB. The actor is taken from the verified token only, so a
+            submitted one can never be recorded.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '503':
@@ -3219,6 +3253,14 @@ components:
         Every member a batch response serves, whichever read produced it. It
         exists so the per-zone reads and the aggregate read cannot drift: the
         aggregate element is this core without the geometry.
+
+        `evaluation_trigger` and `evaluated_by` are the provenance of the
+        evaluation itself. The trigger is always one of the two documented
+        values; the actor is the verified token subject of the operator who asked
+        for a manual evaluation, and null for a scheduled one, because a run
+        nobody requested has no actor. No request body declares an actor: the
+        value comes from the verified bearer token, never from the caller, and a
+        manual trigger that tried to name one is rejected.
       required:
         - id
         - job_id
@@ -3234,6 +3276,8 @@ components:
         - factors
         - rationale
         - policy
+        - evaluation_trigger
+        - evaluated_by
       properties:
         id: {type: string, format: uuid}
         job_id: {type: string, format: uuid}
@@ -3259,6 +3303,24 @@ components:
           description: >-
             Synthetic evaluation instant preserved from the job. Not an
             observation cutoff or real-data freshness measurement.
+        evaluation_trigger:
+          type: string
+          enum: [scheduler, manual]
+          description: >-
+            Who triggered this evaluation. `scheduler` means nobody asked for it
+            at request time: the automatic fifteen minute cycle or a queued job
+            delivery. `manual` means a verified operator asked for it through
+            POST /v1/risk/cycle/run. The stored value is closed by a database
+            CHECK, so no third value can reach a read.
+        evaluated_by:
+          type: string
+          nullable: true
+          description: >-
+            Verified token subject of the operator who asked for a manual
+            evaluation; null for a scheduled one. It is the subject of the
+            bearer token the API gate verified, never a field of the request:
+            no endpoint declares an actor parameter, and a manual trigger that
+            names one in its body is rejected with 400 before anything runs.
         model_version:
           type: string
           example: academic-rule-v1

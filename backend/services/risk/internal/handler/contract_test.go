@@ -159,6 +159,7 @@ func TestRiskContractAggregateBatchesMatchTheContract(t *testing.T) {
 	contract := loadContract(t)
 	published := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
 	policy := classify.PolicyRef{PolicyID: "academic-rule-v1", Parameters: map[string]string{"alto": "0.7"}, ParamsHash: "59259c4c0c470e5a0d512fe09f6c748c38fd29f9bc5d760d49754555c66e699b"}
+	actor := "operator-ana"
 	batch := repository.Batch{
 		ID:           uuid.NewString(),
 		JobID:        uuid.NewString(),
@@ -174,6 +175,11 @@ func TestRiskContractAggregateBatchesMatchTheContract(t *testing.T) {
 		Rationale:    "Puntaje ponderado alto.",
 		Notice:       "",
 		Policy:       &policy,
+		// The wire literals are pinned here on purpose: this test validates the
+		// published contract, so it must fail if the contract's enum and the value
+		// a manual evaluation actually serves ever disagree.
+		EvaluationTrigger: "manual",
+		EvaluatedBy:       &actor,
 	}
 
 	for _, tc := range []struct {
@@ -235,6 +241,111 @@ func TestRiskContractEmptyStateResponse(t *testing.T) {
 		t.Fatalf("got %d want %d: %s", w.Code, http.StatusNotFound, w.Body.String())
 	}
 	assertResponseMatchesContract(t, contract, "/v1/risk/latest", http.MethodGet, w)
+}
+
+// PM-06 (S1-S2): the documented batch carries the provenance of the evaluation, so
+// the two reads that serve a batch must serve both members with the values storage
+// holds. This is the contract half of "a scheduler evaluation is distinguishable
+// from a manual one": a document that declared the members while the response
+// omitted them, or served a different vocabulary, fails here instead of at review.
+func TestRiskContractBatchProvenanceMatchesTheContract(t *testing.T) {
+	contract := loadContract(t)
+	published := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	actor := "operator-ana"
+	policy := classify.PolicyRef{PolicyID: "academic-rule-v1", Parameters: map[string]string{"alto": "0.7"}, ParamsHash: "59259c4c0c470e5a0d512fe09f6c748c38fd29f9bc5d760d49754555c66e699b"}
+	newBatch := func(trigger string, evaluatedBy *string) repository.Batch {
+		return repository.Batch{
+			ID:           uuid.NewString(),
+			JobID:        uuid.NewString(),
+			ZoneID:       "valparaiso-demo",
+			RequestedAt:  published,
+			PublishedAt:  published.Add(time.Minute),
+			ValidUntil:   published.Add(15 * time.Minute),
+			ModelVersion: "academic-rule-v1",
+			DataStatus:   "current",
+			RiskLevel:    "alto",
+			Factors:      json.RawMessage(`[{"name":"temperatura","known":true,"value":32,"contribution":0.85}]`),
+			Rationale:    "Puntaje ponderado alto.",
+			Policy:       &policy,
+			// The per-zone reads serve the catalogue geometry, so the fixture carries
+			// one: the point here is the provenance pair, and a body without geometry
+			// would fail the contract for a reason unrelated to this test.
+			Geometry:          json.RawMessage(`{"type":"Point","coordinates":[-71.6127,-33.0472]}`),
+			EvaluationTrigger: trigger,
+			EvaluatedBy:       evaluatedBy,
+		}
+	}
+
+	for _, tc := range []struct {
+		name        string
+		trigger     string
+		evaluatedBy *string
+	}{
+		{"scheduled evaluation records no actor", "scheduler", nil},
+		{"manual evaluation records the verified subject", "manual", &actor},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stored := newBatch(tc.trigger, tc.evaluatedBy)
+			store := &fakeStore{batches: []repository.Batch{stored}, zones: map[string]bool{"valparaiso-demo": true}}
+			base, token := authorizedServer(t, "viewer", store)
+			app := withCorrelationID(base)
+
+			// The single-batch read.
+			single := request(t, app, token, "/v1/risk/latest?zone_id=valparaiso-demo")
+			if single.Code != http.StatusOK {
+				t.Fatalf("latest got %d: %s", single.Code, single.Body.String())
+			}
+			assertResponseMatchesContract(t, contract, "/v1/risk/latest", http.MethodGet, single)
+			assertBatchProvenance(t, single.Body.Bytes(), tc.trigger, tc.evaluatedBy, false)
+
+			// The bounded window read.
+			history := request(t, app, token, "/v1/risk/history?zone_id=valparaiso-demo")
+			if history.Code != http.StatusOK {
+				t.Fatalf("history got %d: %s", history.Code, history.Body.String())
+			}
+			assertResponseMatchesContract(t, contract, "/v1/risk/history", http.MethodGet, history)
+			assertBatchProvenance(t, history.Body.Bytes(), tc.trigger, tc.evaluatedBy, true)
+		})
+	}
+}
+
+// assertBatchProvenance decodes one batch body - or a one-element array of them -
+// and checks the provenance members against what storage held, including that a
+// scheduled evaluation serves evaluated_by as JSON null rather than as a blank
+// string or an omitted member.
+func assertBatchProvenance(t *testing.T, body []byte, trigger string, evaluatedBy *string, array bool) {
+	t.Helper()
+	encoded := body
+	if array {
+		var list []json.RawMessage
+		if err := json.Unmarshal(body, &list); err != nil {
+			t.Fatalf("decode history body: %v: %s", err, body)
+		}
+		if len(list) != 1 {
+			t.Fatalf("history served %d batches, want 1: %s", len(list), body)
+		}
+		encoded = list[0]
+	}
+	var decoded map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("decode batch body: %v: %s", err, body)
+	}
+	if got := string(decoded["evaluation_trigger"]); got != `"`+trigger+`"` {
+		t.Errorf("evaluation_trigger = %s, want %q", got, trigger)
+	}
+	got, present := decoded["evaluated_by"]
+	if !present {
+		t.Fatal("evaluated_by is absent from the response; the contract declares it required and nullable")
+	}
+	if evaluatedBy == nil {
+		if string(got) != "null" {
+			t.Errorf("evaluated_by = %s, want null for a scheduled evaluation", got)
+		}
+		return
+	}
+	if string(got) != `"`+*evaluatedBy+`"` {
+		t.Errorf("evaluated_by = %s, want %q", got, *evaluatedBy)
+	}
 }
 
 // PM-16 / S1 (T3): the documented `effective` object has exactly three shapes.
