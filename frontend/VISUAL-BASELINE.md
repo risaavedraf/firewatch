@@ -2,7 +2,9 @@
 
 Use this document to audit the real frontend before changing styles. The committed prototype in `docs/pitch-g1-design` (`d651459`) is a reference for layout and hierarchy, not a reason to port fixtures or replace working product behavior.
 
-Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), [sign-in styles](src/styles/auth.css), the [aerial workspace styles](src/styles/aerial-workspace.css), the [territorial coverage styles](src/styles/territorial-coverage.css) and the [decision workspace styles](src/styles/decision-workspace.css) at the local baseline `742e760`, plus the T1 navigation change, the T2 aerial workspace, the T3 coverage board and the T4 decision workspace on 2026-11-26, and the T2 aerial console reappraisal (S3) on 2026-11-27. The inventory adapts the active-source sections of `design/system.md` from the prototype branch. The aerial palette is adopted, but only as a route-scoped role set under `#overview` (S3); it is never a global token.
+Source: [tokens](src/styles/tokens.css), [workspace styles](src/styles/app.css), [product navigation](src/styles/product-nav.css), [sign-in styles](src/styles/auth.css), the [aerial workspace styles](src/styles/aerial-workspace.css), the [territorial coverage styles](src/styles/territorial-coverage.css) and the [decision workspace styles](src/styles/decision-workspace.css) at the local baseline `742e760`, plus the T1–T8 screen ports, and the T10–T14 design migration of 2026-11-27 (global aerial night palette, sidebar-free shell, compact entrance, interactive 3D aerial stage, dark-adapted workspaces). The inventory adapts the active-source sections of `design/system.md` from the prototype branch.
+
+**The aerial night palette is global (T10, S8).** `tokens.css` declares the slate/ocean surfaces, the high-contrast ink and the aqua accent once in `:root`, with `color-scheme: dark`, and every stylesheet reads them. The former cream/forest defaults (`--canvas #f5f5ef`, `--paper #fffefa`, `--ink #233b39`) are retired, not aliased; the names `--forest-950/900/700/500` survive only as legacy aliases mapped to the dark tones. A `@media print` block re-points the same roles to black-on-white, so the two views that print keep their paper surfaces.
 
 ## Palette
 
@@ -10,46 +12,53 @@ Every row is one declared custom property. Value is copied from `tokens.css`; th
 
 | Token | Value | Source | In use |
 | --- | --- | --- | --- |
-| `--forest-950` | `#102c2d` | [`tokens.css`](src/styles/tokens.css) | Map selection stroke, auth panel heading. |
-| `--forest-900` | `#173c3b` | [`tokens.css`](src/styles/tokens.css) | Sidebar surface, primary button, active nav label, toast, auth hero base. |
-| `--forest-700` | `#285e56` | [`tokens.css`](src/styles/tokens.css) | Links, eyebrows, map labels, primary hover, selected-row accent, guard citations. |
-| `--forest-500` | `#638579` | [`tokens.css`](src/styles/tokens.css) | Metric icons, zone-chip glyph, lock mark, auth accent. |
-| `--canvas` | `#f5f5ef` | [`tokens.css`](src/styles/tokens.css) | Page background, auth page background. |
-| `--paper` | `#fffefa` | [`tokens.css`](src/styles/tokens.css) | Panels, cards, topbar, inputs, button label on forest, toast text. |
-| `--ink` | `#233b39` | [`tokens.css`](src/styles/tokens.css) | Body text, table values, data-list values. |
-| `--muted` | `#5c6c65` | [`tokens.css`](src/styles/tokens.css) | Notes, captions, labels, secondary metadata. |
-| `--line` | `#dde3da` | [`tokens.css`](src/styles/tokens.css) | Panel, card, topbar, footer and table borders; dividers. |
-| `--soft` | `#eef1e9` | [`tokens.css`](src/styles/tokens.css) | Base chip, table selected row, secondary-button hover, auth tabs track. |
-| `--terracotta` | `#a74d34` | [`tokens.css`](src/styles/tokens.css) | Attention metric value, auth link, auth error text, risk error text. |
-| `--terracotta-soft` | `#f7e9e2` | [`tokens.css`](src/styles/tokens.css) | High/insufficient chip background, auth error surface. |
-| `--gold` | `#85691e` | [`tokens.css`](src/styles/tokens.css) | Auth step number, gold accent text. |
-| `--gold-soft` | `#f7f0d9` | [`tokens.css`](src/styles/tokens.css) | Medium/pending/queued/stale chip and admin tag background; warning banner. |
+| `--canvas` | `#0f1922` | [`tokens.css`](src/styles/tokens.css) | `body` page ground, `AuthView` page ground (the measured `rgb(15, 25, 34)`), print re-points it to `#ffffff`. |
+| `--aerial-water` | `#152934` | [`tokens.css`](src/styles/tokens.css) | `#overview` console ground, the 3D stage floor, the sign-in hero, and `theme-color` in `index.html`. |
+| `--paper` | `#17222b` | [`tokens.css`](src/styles/tokens.css) | Product bar, shell header, panels, cards, inputs, toast. |
+| `--soft` | `#21313f` | [`tokens.css`](src/styles/tokens.css) | Base chip, selected table row, health and session cards, auth tab track. |
+| `--surface-raised` | `#243341` | [`tokens.css`](src/styles/tokens.css) | Out-of-flow product-nav panel, aerial rail, map insets, pressed HUD controls. |
+| `--ink` | `#f4f1eb` | [`tokens.css`](src/styles/tokens.css) | Body text, table values, data-list values, headings. |
+| `--muted` | `#b8c8d2` | [`tokens.css`](src/styles/tokens.css) | Notes, captions, labels, secondary metadata. |
+| `--line` | `#354b5c` | [`tokens.css`](src/styles/tokens.css) | Panel, card, topbar, footer and table borders; row dividers. |
+| `--line-soft` | `#2a3a47` | [`tokens.css`](src/styles/tokens.css) | Quieter container separators inside a card. |
+| `--edge` | `#647b8a` | [`tokens.css`](src/styles/tokens.css) | Control boundaries on `--canvas`, `--aerial-water` and `--paper`. |
+| `--edge-strong` | `#6b8395` | [`tokens.css`](src/styles/tokens.css) | The same boundary where it is painted on `--surface-raised`, where `--edge` measures 2.92:1. |
+| `--accent` | `#94dfda` | [`tokens.css`](src/styles/tokens.css) | Links, eyebrows, selected navigation, brand-mark fill, focus ring, map labels. |
+| `--accent-ink` | `#0c1b24` | [`tokens.css`](src/styles/tokens.css) | The ink a **filled** accent control is labelled with; the light ink never goes on the accent. |
+| `--focus` | `#94dfda` | [`tokens.css`](src/styles/tokens.css) | The single focus indicator, `3px` with offset `2px`, on every surface. |
+| `--forest-950` | `#f4f1eb` | [`tokens.css`](src/styles/tokens.css) | Legacy alias — the old "darkest green", now the light ink for text on a dark surface. |
+| `--forest-900` | `#17222b` | [`tokens.css`](src/styles/tokens.css) | Legacy alias — the retired column/button surface, now `--paper`. |
+| `--forest-700` | `#94dfda` | [`tokens.css`](src/styles/tokens.css) | Legacy alias — the readable accent those sheets paint as text and links, now `--accent`. |
+| `--forest-500` | `#b8c8d2` | [`tokens.css`](src/styles/tokens.css) | Legacy alias — secondary text and glyphs, now `--muted`. |
+| `--terracotta` | `#f0a184` | [`tokens.css`](src/styles/tokens.css) | Attention metric value, auth link and error text, the attention card. |
+| `--terracotta-soft` | `#3b2a24` | [`tokens.css`](src/styles/tokens.css) | Error and high-risk chip surfaces. |
+| `--gold` | `#e5c87e` | [`tokens.css`](src/styles/tokens.css) | Auth step number, session mark, administrative note text. |
+| `--gold-soft` | `#33301f` | [`tokens.css`](src/styles/tokens.css) | Medium/pending/queued/stale chip, admin tag and warning-banner surface. |
+| `--danger` | `#f4b6a6` | [`tokens.css`](src/styles/tokens.css) | The semantic refusal tone; a word, never the only signal. |
+| `--success` | `#8ee0b4` | [`tokens.css`](src/styles/tokens.css) | The semantic ready tone. |
+| `--info-surface` / `--info-text` | `#1c333c` / `#a9dbe8` | [`tokens.css`](src/styles/tokens.css) | Informational note surface and its ink. |
 
 ## Level palette
 
-The level palette is part of the tokens because map fills, legend swatches and chips must not drift apart. Fill and line are both declared.
+The level palette is part of the tokens because map fills, legend swatches and chips must not drift apart. Each severity is a **family** of five roles: `fill` is the map shape and the legend swatch, `line` its outline, `ink` the text painted on that fill, and `surface`/`text` the chip, badge or status-row pair. T10 dark-adapted the families as a family rather than per view, so a chip cannot outlive the map it explains.
 
 | Token | Value | Source | In use |
 | --- | --- | --- | --- |
-| `--level-low-fill` | `#84ab8e` | [`tokens.css`](src/styles/tokens.css) | Map fill for `bajo`, legend swatch `swatch-bajo`. |
-| `--level-low-line` | `#5c8467` | [`tokens.css`](src/styles/tokens.css) | Stroke of the low fill and its legend swatch border. |
-| `--level-medium-fill` | `#d0b756` | [`tokens.css`](src/styles/tokens.css) | Map fill for `medio`, legend swatch `swatch-medio`. |
-| `--level-medium-line` | `#a99850` | [`tokens.css`](src/styles/tokens.css) | Stroke of the medium fill and its legend swatch border. |
-| `--level-high-fill` | `#c77454` | [`tokens.css`](src/styles/tokens.css) | Map fill for `alto`, legend swatch `swatch-alto`. |
-| `--level-high-line` | `#b36647` | [`tokens.css`](src/styles/tokens.css) | Stroke of the high fill and its legend swatch border. |
-| `--level-unknown-fill` | `#c3cbcd` | [`tokens.css`](src/styles/tokens.css) | Map fill for `desconocido` (published, information-insufficient level). |
-| `--level-unknown-line` | `#6b7a80` | [`tokens.css`](src/styles/tokens.css) | Stroke of the unknown fill and its legend swatch border. |
-| `--level-neutral-fill` | `#e6ecea` | [`tokens.css`](src/styles/tokens.css) | Map fill when there is no published level at all. |
-| `--level-neutral-line` | `#9fb3ab` | [`tokens.css`](src/styles/tokens.css) | Stroke of the neutral fill and its legend swatch border. |
+| `--level-low-fill` / `-line` / `-ink` / `-surface` / `-text` | `#72b1a1` / `#8fcbb8` / `#0c1b24` / `#1c3733` / `#a6e3d0` | [`tokens.css`](src/styles/tokens.css) | Map fill for `bajo`, legend swatch `swatch-bajo`, current chip. |
+| `--level-medium-fill` / `-line` / `-ink` / `-surface` / `-text` | `#d7b16a` / `#e0c478` / `#0c1b24` / `#332c1b` / `#e8d29a` | [`tokens.css`](src/styles/tokens.css) | Map fill for `medio`, pending and queued chips, warning banner. |
+| `--level-high-fill` / `-line` / `-ink` / `-surface` / `-text` | `#d97962` / `#e5988a` / `#0c1b24` / `#3a2420` / `#f4b6a6` | [`tokens.css`](src/styles/tokens.css) | Map fill for `alto`, high and insufficient chips. |
+| `--level-extreme-fill` / `-line` / `-ink` / `-surface` / `-text` | `#d96f56` / `#f0a088` / `#0c1b24` / `#3d1f1a` / `#f2a894` | [`tokens.css`](src/styles/tokens.css) | The top severity role the palette reserves; the API serves no `extremo` level, and no view invents one. |
+| `--level-unknown-fill` / `-line` / `-ink` / `-surface` / `-text` | `#c4cbd1` / `#dde3e7` / `#0c1b24` / `#2b3238` / `#d7dde2` | [`tokens.css`](src/styles/tokens.css) | Map fill for `desconocido` (published, information-insufficient level). |
+| `--level-neutral-fill` / `-line` / `-ink` / `-surface` / `-text` | `#71879a` / `#8fa4b0` / `#0c1b24` / `#22303b` / `#c9d6de` | [`tokens.css`](src/styles/tokens.css) | Map fill when there is no published level at all; neutral tags and count badges. |
 
-The app also uses literal chip surfaces tied to the same meanings: high/insufficient `#f7e9e2` + `#9c472f`, medium/pending `#f7f0d9` + `#7f641e`, low/current `#e7f0e6` + `#396246`, candidate `#e3efef` + `#32686a`. Those are declared in `app.css`, not as tokens.
+Every fill still clears 3:1 against the map floor: `alto` 4.91, `medio` 7.43, `bajo` 6.09, `desconocido` 9.16, neutral 4.03 on `--aerial-water #152934`. The retired literal chip surfaces (`#f7e9e2`, `#f7f0d9`, `#e7f0e6`, `#e3efef`) are gone: those chips read their family's `surface`/`text` pair now.
 
 ## Structure tokens
 
 | Token | Value | Source | In use |
 | --- | --- | --- | --- |
 | `--radius` | `12px` | [`tokens.css`](src/styles/tokens.css) | Panels and metric cards only. |
-| `--shadow` | `0 3px 14px rgb(24 52 40 / 3%)` | [`tokens.css`](src/styles/tokens.css) | Panels, metric cards and the auth card. |
+| `--shadow` | `0 12px 28px rgb(0 0 0 / 34%)` | [`tokens.css`](src/styles/tokens.css) | Panels, metric cards, the auth card and the floating 3D HUD. |
 | `--font` | `Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` | [`tokens.css`](src/styles/tokens.css) | Body and all UI text; `main.tsx` imports it through the token file. |
 
 ## Typography
@@ -66,21 +75,21 @@ In-use sizes, with the role they carry:
 | --- | --- | --- |
 | Body | `14px` / default 400 / `1.5` | `app.css` body |
 | Page title | `clamp(27px, 2.5vw, 37px)` / `600` / `1.18`, tracking `-1.2px` | `app.css` h1 |
-| Topbar title | `20px` / inherits / tracking `-.6px` | `app.css` `.topbar h1` |
+| Header title | `18px` / inherits / tracking `-.5px`, `16px` at `≤720px` | `app.css` `.topbar h1` |
 | Panel title | `15px` / `600`-family heading, tracking `-.3px` | `app.css` `.panel-heading h3, h2` |
 | Section heading | `17px` / `600` / tracking `-.3px`; `24px` for `.intro-row h2` | `app.css` h2 |
 | Subheading | `13px` / `650`; `11px` for h4 | `app.css` h3, h4 |
-| Interface label | `12px` (product navigation links and items, inputs), `11px` (`small-label`, body-ish), `10px` (buttons, tables, chips, notes), `9px` (table headers, data lists, sidebar meta), `8px` (badges, legend labels, technical notice) | `app.css`, `product-nav.css` |
+| Interface label | `12px` (product navigation links and items, inputs), `11px` (`small-label`, body-ish), `10px` (buttons, tables, chips, notes), `9px` (table headers, data lists), `8px` (badges, legend labels, technical notice) | `app.css`, `product-nav.css` |
 | Smallest label | `7px` / `850` / tracking `.08em` for `.source-label` | `app.css` |
 | Eyebrow / navigation group | `9px` / `800` / tracking `1.4–1.5px` / uppercase | `app.css` `.eyebrow`; `product-nav.css` `.product-nav__group-title`, `.product-nav__panel-title`, `.product-nav__where-label` |
 | Metric value | `25px` / `550` / tracking `-.8px` / `1.1` | `app.css` `.metric > strong` |
-| Auth hero title | `clamp(30px, 3.4vw, 46px)` / heading / `1.08`, tracking `-1.6px` | `auth.css` `.auth-hero h1` |
-| Auth card title | `23px` / heading / tracking `-.8px` | `auth.css` `.auth-panel-body h2` |
-| Auth lead / actions | `13px` / `650–700` / `1.5–1.55` | `auth.css` |
+| Auth hero title | `clamp(24px, 4.4dvh, 40px)` / heading / `1.08`, tracking `-.9px` — viewport-height fluid so the entrance stays one screen | `auth.css` `.auth-hero h1` |
+| Auth card title | `clamp(19px, 2.2dvh, 23px)` / heading / tracking `-.5px` | `auth.css` `.auth-panel-body h2` |
+| Auth lead / actions | `12.5–13px` / `650–700` / `1.45–1.55` | `auth.css` |
 
-Weight range in the stylesheets is `500`, `550`, `600`, `650`, `700`, `800`, `850`; `550` and `850` are deliberate intermediate values, not the usual `400/500/700`. Line-height runs from `1.08` (auth hero) to `1.65` (banners and panel footnotes). Tracking runs from `-1.6px` to `1.6px`.
+Weight range in the stylesheets is `500`, `550`, `600`, `650`, `700`, `800`, `850`; `550` and `850` are deliberate intermediate values, not the usual `400/500/700`. Line-height runs from `1.08` (auth hero) to `1.65` (banners and panel footnotes). Tracking runs from `-1.2px` to `1.6px`.
 
-Distinct declaration counts, for future comparison: `app.css` has 17 distinct `font-size` values and `auth.css` has 10, including the two fluid `clamp()` headings. There is no modular ratio to infer from them, and this baseline does not impose one.
+Distinct declaration counts, for future comparison: `app.css` has 20 distinct `font-size` values and `auth.css` has 15, including the fluid `clamp()`/dvh headings. There is no modular ratio to infer from them, and this baseline does not impose one.
 
 ## Spacing
 
@@ -88,187 +97,167 @@ There is **no spacing scale token**. All spacing is literal. The recurring value
 
 | Context | Values in use |
 | --- | --- |
-| Page gutters | `34px` horizontal for topbar, update bar, main and footer; `24px` at `≤1200px`; `16px/15px` at `≤720px` |
-| Shell | Sidebar `234px` (`208px` at `≤1200px`), min-height `560px`, sticky `100vh`; topbar min-height `75px`; main `min(1500px, 100%)` with `27px 34px 35px` padding |
+| Page gutters | `34px` horizontal for topbar, update bar, main and footer; `24px` at `≤1200px`; at `≤720px` the header drops to `14px`, the update bar to `16px` and main to `15px` |
+| Shell | **No left column (T10/S7).** `.app-shell` is one flex column of `min-height: calc(100vh - var(--product-nav-h, 48px))`; the header is a wrapping row of `min-height: 56px` with `8px 34px` padding that carries the brand, the route, the territorial chip, the readiness card and the session control. At `≤720px` it stacks to `7px 14px` and the utility cluster becomes a two-column grid. Main `min(1500px, 100%)` with `27px 34px 35px` padding |
 | Panels | Heading `20px 22px 17px`; body `18px` (`14px` at `≤720px`); `.padded` `22px` |
 | Grids | `16px` metric/dashboard/lower gap; `22px` two/three-column and pipeline gap; `20px` job layout; `10px` map stage |
 | Dense rows | `8px 0` data-list rows (`5px 0` compact); `11px 14px` table headers; `12px 14px` table cells; `10px 0` quality findings |
-| Controls | `8px 11px` buttons, min-height `34px` (`29px` secondary); `9px 11px` inputs; navigation bar `0 10px` shortcuts at min-height `40px` and `3px 8px` panel items at min-height `32px` (`product-nav.css`); `5px 8px` chips and badges; `7px 11px` zone chip |
-| Auth | Card padding `30px 30px 24px`; hero `44px clamp(28px, 5vw, 72px) 36px`; primary/Google min-height `46px`; tabs `36px`; steps gap `10px` |
+| Controls | `8px 11px` buttons, min-height `34px` (`29px` secondary); `9px 11px` inputs; navigation bar `0 10px` shortcuts at min-height `40px` and `3px 8px` panel items at min-height `32px` (`product-nav.css`); `5px 8px` chips and badges; `7px 11px` zone chip; header utility cards `4px 9px` with `36px` controls |
+| Auth | Card padding `clamp(18px, 2.4dvh, 26px) clamp(17px, 2vw, 24px) clamp(15px, 2dvh, 20px)`; hero block padding `clamp(20px, 3.6dvh, 32px) clamp(18px, 4vw, 56px) clamp(16px, 2.6dvh, 26px)`; primary/Google min-height `46px`; tabs `40px`; disclosure summary `40px`, body capped at `min(34dvh, 300px)` |
 
-Breakpoints: `1200px`, `1000px`, `720px` in `app.css`; `900px` and `420px` in `auth.css`; `720px` and `480px` in `product-nav.css`. The map viewport drops from `298px` min-height to `250px` and then `220px`.
+Breakpoints: `1200px`, `1000px`, `720px` in `app.css`; `960px`, `600px` and `380px` in `auth.css`; `720px` and `480px` in `product-nav.css`; `1180px`/`900px` in `territorial-coverage.css`; `1279px` in `field-workspace.css`. The 3D stage floor is `clamp(440px, 62vh, 680px)`.
 
 ## Radius
 
-`--radius: 12px` covers panels and metric cards. Everything else is a literal: `3px` legend swatches, `4px` factor track, `5px` chips/risk pills/text buttons, `6px` badges/icon buttons/inputs/technical notice, `7px` nav links/buttons/selects/auth tabs, `8px` skip link/map insets/auth error, `9px` workspace/health card/map viewport/risk state/zone chip/toast, `10px` warning banner/auth tabs track/auth primary and Google button/auth features, `11px` brand mark, `14px` auth card at `≤420px`, `16px` auth card, `50%` dots and step numbers.
+`--radius: 12px` covers panels and metric cards. Everything else is a literal: `3px` legend swatches, `4px` factor track, `5px` chips/risk pills/text buttons, `6px` badges/icon buttons/inputs/technical notice, `7px` nav links/buttons/selects/auth tabs/HUD controls, `8px` skip link/map insets/header utility cards/zone chip, `9px` workspace/health card/map stage/brand mark/risk state/toast, `10px` warning banner/auth tabs track/auth primary and Google button/auth card (mobile)/HUD rows/3D stage frame, `14px` auth card, `50%` dots and step numbers.
 
 ## Shadows
 
-`--shadow` is the only shadow token. Literals in use: auth card `0 18px 50px rgb(16 44 45 / 8%), var(--shadow)`; toast `0 8px 30px rgb(16 44 45 / 19%)`; auth selected tab `0 1px 3px rgb(16 44 45 / 12%)`; selected table row `inset 3px 0 0 var(--forest-700)`.
+`--shadow` (`0 12px 28px rgb(0 0 0 / 34%)`) is the only shadow token, and the palette is dark, so depth is carried by the surface steps (`--canvas` → `--paper` → `--surface-raised`) rather than by shadow. Literals in use: toast `0 8px 30px rgb(0 0 0 / 45%)`; auth selected tab `0 1px 3px rgb(0 0 0 / 28%)`; selected table row `inset 3px 0 0 var(--accent)`; floating 3D HUD rows `rgb(15 25 34 / 78%)` over `backdrop-filter: blur(6px)`.
 
 ## Source-level contrast
 
-These ratios use WCAG relative luminance for opaque sRGB pairs. Compare before rounding: 4.5:1 for ordinary text, and 3:1 for the listed focus and map boundaries. A low ratio is an audit lead, not proof of a browser failure in every selector or state.
+These ratios use WCAG 2.1 relative luminance for opaque sRGB pairs, computed from the values declared in `tokens.css`. Compare before rounding: 4.5:1 for ordinary text, and 3:1 for the listed focus rings, control boundaries and map shapes. A low ratio is an audit lead, not proof of a browser failure in every selector or state. The retired cream/forest rows are gone with the palette they described; the shipped pairs are:
 
 | CSS use | Foreground | Background | Ratio | Threshold |
 | --- | --- | --- | --- | --- |
-| `--ink #233b39` on `--paper #fffefa` | `#233b39` | `#fffefa` | 11.85:1 | Meets 4.5:1 |
-| `--ink #233b39` on `--canvas #f5f5ef` | `#233b39` | `#f5f5ef` | 10.93:1 | Meets 4.5:1 |
-| `--muted #5c6c65` on `--paper #fffefa` | `#5c6c65` | `#fffefa` | 5.49:1 | Meets 4.5:1 |
-| `--muted #5c6c65` on `--canvas #f5f5ef` | `#5c6c65` | `#f5f5ef` | 5.07:1 | Meets 4.5:1 |
-| `--muted #5c6c65` on `--soft #eef1e9` | `#5c6c65` | `#eef1e9` | 4.86:1 | Meets 4.5:1 |
-| `--muted #5c6c65` on `#edf1f2` tag grey | `#5c6c65` | `#edf1f2` | 4.87:1 | Meets 4.5:1 |
-| `--muted #5c6c65` on `#eef2e8` map surface | `#5c6c65` | `#eef2e8` | 4.88:1 | Meets 4.5:1 |
-| `--forest-700 #285e56` on `--paper #fffefa` | `#285e56` | `#fffefa` | 7.36:1 | Meets 4.5:1 |
-| `--paper #fffefa` on `--forest-900 #173c3b` | `#fffefa` | `#173c3b` | 11.92:1 | Meets 4.5:1 |
-| `#c3d6cf` bar shortcut on `--forest-900 #173c3b` | `#c3d6cf` | `#173c3b` | 7.93:1 | Meets 4.5:1 |
-| `#c3d6cf` panel item on `#1e4241` | `#c3d6cf` | `#1e4241` | 7.24:1 | Meets 4.5:1 |
-| `#a5c8bf` bar labels on `--forest-900 #173c3b` | `#a5c8bf` | `#173c3b` | 6.65:1 | Meets 4.5:1 |
-| `#a5c8bf` panel labels and note on `#1e4241` | `#a5c8bf` | `#1e4241` | 6.08:1 | Meets 4.5:1 |
-| `#f0eee0` current panel item on `#1e4241` | `#f0eee0` | `#1e4241` | 9.43:1 | Meets 4.5:1 |
-| `#d7aa73` navigation focus ring on the bar | `#d7aa73` | `#173c3b` | 5.66:1 | Meets 3:1 |
-| `#d7aa73` navigation focus ring on the panel | `#d7aa73` | `#1e4241` | 5.17:1 | Meets 3:1 |
-| `#90aaa0` disclosure boundary on the bar | `#90aaa0` | `#173c3b` | 4.84:1 | Meets 3:1 |
-| `#90aaa0` former label on the opaque panel | `#90aaa0` | `#1e4241` | 4.42:1 | **Below 4.5:1 — corrected to `#a5c8bf`** |
-| `#e7faf5` disclosure summary and current-location value on `--forest-900 #173c3b` | `#e7faf5` | `#173c3b` | 11.11:1 | Meets 4.5:1 |
-| `#a5c8bf` disclosure note on `--forest-900 #173c3b` | `#a5c8bf` | `#173c3b` | 6.65:1 | Meets 4.5:1 |
-| `#f0eee0` current grouped item on `--forest-900 #173c3b` | `#f0eee0` | `#173c3b` | 10.32:1 | Meets 4.5:1 |
-| `#90aaa0` disclosure control boundary on `--forest-900 #173c3b` | `#90aaa0` | `#173c3b` | 4.84:1 | Meets 3:1 |
-| `#d7aa73` navigation focus ring on `--forest-900 #173c3b` | `#d7aa73` | `#173c3b` | 5.66:1 | Meets 3:1 |
-| `#a8c2b7` brand tagline on `--forest-900 #173c3b` | `#a8c2b7` | `#173c3b` | 6.34:1 | Meets 4.5:1 |
-| `#7d6c3f` unimplemented notice on `#faf7ee` | `#7d6c3f` | `#faf7ee` | 4.79:1 | Meets 4.5:1 |
-| `#9c472f` on `--terracotta-soft #f7e9e2` | `#9c472f` | `#f7e9e2` | 5.28:1 | Meets 4.5:1 |
-| `#7f641e` on `--gold-soft #f7f0d9` | `#7f641e` | `#f7f0d9` | 4.92:1 | Meets 4.5:1 |
-| `#396246` on `#e7f0e6` | `#396246` | `#e7f0e6` | 5.98:1 | Meets 4.5:1 |
-| `#32686a` on `#e3efef` | `#32686a` | `#e3efef` | 5.37:1 | Meets 4.5:1 |
-| `#65736b` base chip on `--soft #eef1e9` | `#65736b` | `#eef1e9` | 4.36:1 | Below 4.5:1 |
-| `#64747a` neutral tag on `#edf1f2` | `#64747a` | `#edf1f2` | 4.27:1 | Below 4.5:1 |
-| `#cf7d4f` focus ring on `--canvas #f5f5ef` | `#cf7d4f` | `#f5f5ef` | 2.86:1 | Below 3:1 |
-| `#cf7d4f` focus ring on `--paper #fffefa` | `#cf7d4f` | `#fffefa` | 3.11:1 | Meets 3:1 |
-| `#cf7d4f` focus ring on `--forest-900 #173c3b` | `#cf7d4f` | `#173c3b` | 3.84:1 | Meets 3:1 |
-| `--forest-950 #102c2d` selection stroke on `--level-high-fill #c77454` | `#102c2d` | `#c77454` | 4.26:1 | Meets 3:1 |
-| `--forest-950 #102c2d` selection stroke on `--level-low-fill #84ab8e` | `#102c2d` | `#84ab8e` | 5.77:1 | Meets 3:1 |
-| `--level-high-fill #c77454` on `#eef2e8` map surface | `#c77454` | `#eef2e8` | 3.06:1 | Meets 3:1 |
-| `--level-low-fill #84ab8e` on `#eef2e8` map surface | `#84ab8e` | `#eef2e8` | 2.26:1 | Below 3:1 |
-| `--level-medium-fill #d0b756` on `#eef2e8` map surface | `#d0b756` | `#eef2e8` | 1.75:1 | Below 3:1 |
-| `--level-unknown-fill #c3cbcd` on `#eef2e8` map surface | `#c3cbcd` | `#eef2e8` | 1.45:1 | Below 3:1 |
-| Table header | `#5c6c65` | `#f3f4ed` | 5.01:1 | Meets 4.5:1 |
-| Body text on selected row | `#233b39` | `#eef1e9` | 10.47:1 | Meets 4.5:1 |
-| Primary hover | `#fcfcf2` | `#285e56` | 7.20:1 | Meets 4.5:1 |
-| Nav hover | `#effdf9` | `#254d47` | 9.00:1 | Meets 4.5:1 |
-| Selected nav label | `#173c3b` | `#f0eee0` | 10.32:1 | Meets 4.5:1 |
-| Dataset badge | `#236852` | `#e8f5ef` | 5.90:1 | Meets 4.5:1 |
-| Count badge | `#52646b` | `#edf1f2` | 5.44:1 | Meets 4.5:1 |
-| Admin tag | `#755a22` | `#f7f0d9` | 5.68:1 | Meets 4.5:1 |
-| Warning banner | `#705d35` | `#f7f0d9` | 5.57:1 | Meets 4.5:1 |
-| Warning title | `#5f4717` | `#f7f0d9` | 7.67:1 | Meets 4.5:1 |
-| Inline notice | `#56705d` | `#eef3ea` | 4.82:1 | Meets 4.5:1 |
-| Attention metric | `#a74d34` | `#fcf6f0` | 5.22:1 | Meets 4.5:1 |
-| Technical notice hover | `#7d6c3f` | `#f4efe0` | 4.47:1 | Below 4.5:1 |
-| Search placeholder | `#8a968b` | `#fffefa` | 3.05:1 | Below 4.5:1 |
-| Table row index on paper | `#879787` | `#fffefa` | 3.06:1 | Below 4.5:1 |
-| Auth tab | `#5c6c65` | `#eef1e9` | 4.86:1 | Meets 4.5:1 |
-| Selected auth tab | `#173c3b` | `#fffefa` | 11.92:1 | Meets 4.5:1 |
-| Auth panel title | `#102c2d` | `#fffefa` | 14.65:1 | Meets 4.5:1 |
-| Auth step number | `#85691e` | `#f7f0d9` | 4.56:1 | Meets 4.5:1 |
-| Google label | `#1f1f1f` | `#ffffff` | 16.48:1 | Meets 4.5:1 |
-| Google label on hover | `#1f1f1f` | `#f7f8f5` | 15.46:1 | Meets 4.5:1 |
-| Auth link | `#a74d34` | `#fffefa` | 5.54:1 | Meets 4.5:1 |
-| Auth status error | `#a74d34` | `#f7e9e2` | 4.72:1 | Meets 4.5:1 |
-| Map low boundary against map surface | `#5c8467` | `#eef2e8` | 3.74:1 | Meets 3:1 |
-| Map low selection stroke against fill | `#102c2d` | `#84ab8e` | 5.77:1 | Meets 3:1 |
-| Map medium boundary against map surface | `#a99850` | `#eef2e8` | 2.54:1 | Below 3:1 |
-| Map medium selection stroke against fill | `#102c2d` | `#d0b756` | 7.46:1 | Meets 3:1 |
-| Map high boundary against map surface | `#b36647` | `#eef2e8` | 3.77:1 | Meets 3:1 |
-| Map high selection stroke against fill | `#102c2d` | `#c77454` | 4.26:1 | Meets 3:1 |
-| Map unknown boundary against map surface | `#6b7a80` | `#eef2e8` | 3.92:1 | Meets 3:1 |
-| Map unknown selection stroke against fill | `#102c2d` | `#c3cbcd` | 8.97:1 | Meets 3:1 |
-| Map neutral boundary against map surface | `#9fb3ab` | `#eef2e8` | 1.95:1 | Below 3:1 |
-| Map neutral selection stroke against fill | `#102c2d` | `#e6ecea` | 12.36:1 | Meets 3:1 |
+| `--ink #f4f1eb` on `--canvas #0f1922` | `#f4f1eb` | `#0f1922` | 15.75:1 | Meets 4.5:1 |
+| `--ink #f4f1eb` on `--aerial-water #152934` | `#f4f1eb` | `#152934` | 13.32:1 | Meets 4.5:1 |
+| `--ink #f4f1eb` on `--paper #17222b` | `#f4f1eb` | `#17222b` | 14.33:1 | Meets 4.5:1 |
+| `--ink #f4f1eb` on `--soft #21313f` | `#f4f1eb` | `#21313f` | 11.82:1 | Meets 4.5:1 |
+| `--ink #f4f1eb` on `--surface-raised #243341` | `#f4f1eb` | `#243341` | 11.46:1 | Meets 4.5:1 |
+| `--muted #b8c8d2` on `--canvas #0f1922` | `#b8c8d2` | `#0f1922` | 10.34:1 | Meets 4.5:1 |
+| `--muted #b8c8d2` on `--paper #17222b` | `#b8c8d2` | `#17222b` | 9.41:1 | Meets 4.5:1 |
+| `--muted #b8c8d2` on `--aerial-water #152934` | `#b8c8d2` | `#152934` | 8.74:1 | Meets 4.5:1 |
+| `--muted #b8c8d2` on `--soft #21313f` | `#b8c8d2` | `#21313f` | 7.76:1 | Meets 4.5:1 |
+| `--muted #b8c8d2` on `--surface-raised #243341` | `#b8c8d2` | `#243341` | 7.53:1 | Meets 4.5:1 |
+| `--accent #94dfda` on `--paper #17222b` | `#94dfda` | `#17222b` | 10.63:1 | Meets 4.5:1 |
+| `--accent #94dfda` on `--canvas #0f1922` | `#94dfda` | `#0f1922` | 11.69:1 | Meets 4.5:1 |
+| `--accent #94dfda` on `--surface-raised #243341` | `#94dfda` | `#243341` | 8.51:1 | Meets 4.5:1 |
+| `--accent-ink #0c1b24` on `--accent #94dfda` | `#0c1b24` | `#94dfda` | 11.54:1 | Meets 4.5:1 |
+| `--ink #f4f1eb` on `--accent #94dfda` | `#f4f1eb` | `#94dfda` | 1.79:1 | **Below 4.5:1 — why `--accent-ink` exists**; the light ink is never painted on a filled accent control |
+| `--focus #94dfda` ring on `--surface-raised` (worst surface) | `#94dfda` | `#243341` | 8.51:1 | Meets 3:1 |
+| `--edge #647b8a` boundary on `--canvas` | `#647b8a` | `#0f1922` | 4.01:1 | Meets 3:1 |
+| `--edge #647b8a` boundary on `--paper` | `#647b8a` | `#17222b` | 3.65:1 | Meets 3:1 |
+| `--edge #647b8a` boundary on `--aerial-water` | `#647b8a` | `#152934` | 3.39:1 | Meets 3:1 |
+| `--edge #647b8a` boundary on `--soft` | `#647b8a` | `#21313f` | 3.01:1 | Meets 3:1 |
+| `--edge #647b8a` boundary on `--surface-raised` | `#647b8a` | `#243341` | 2.92:1 | **Below 3:1 — that surface uses `--edge-strong`** |
+| `--edge-strong #6b8395` boundary on `--surface-raised` | `#6b8395` | `#243341` | 3.27:1 | Meets 3:1 |
+| `--edge-strong #6b8395` on `--canvas` / `--paper` / `--aerial-water` | `#6b8395` | `#0f1922` / `#17222b` / `#152934` | 4.49 / 4.08 / 3.79:1 | Meets 3:1 |
+| `--level-low-fill #72b1a1` on the map floor `#152934` | `#72b1a1` | `#152934` | 6.09:1 | Meets 3:1 |
+| `--level-medium-fill #d7b16a` on the map floor | `#d7b16a` | `#152934` | 7.43:1 | Meets 3:1 |
+| `--level-high-fill #d97962` on the map floor | `#d97962` | `#152934` | 4.91:1 | Meets 3:1 |
+| `--level-extreme-fill #d96f56` on the map floor | `#d96f56` | `#152934` | 4.55:1 | Meets 3:1 |
+| `--level-unknown-fill #c4cbd1` on the map floor | `#c4cbd1` | `#152934` | 9.16:1 | Meets 3:1 |
+| `--level-neutral-fill #71879a` on the map floor | `#71879a` | `#152934` | 4.03:1 | Meets 3:1 |
+| Level `ink` on its own `fill` (low / medium / high / extreme / unknown / neutral) | `#0c1b24` | family fill | 7.11 / 8.67 / 5.73 / 5.31 / 10.69 / 4.70:1 | Meets 4.5:1 |
+| Level `text` on its own `surface` (low / medium / high / extreme / unknown / neutral) | family text | family surface | 8.83 / 9.31 / 8.32 / 7.67 / 9.49 / 9.11:1 | Meets 4.5:1 |
+| Printed `--ink` / `--muted` / `--accent` / `--gold` / `--terracotta` on white | `#111` / `#333` / `#0b4f4a` / `#5b4712` / `#8a2f1c` | `#ffffff` | 18.88 / 12.63 / 9.41 / 9.70 / 8.60:1 | Meets 4.5:1 (print block) |
 
-## Global product navigation (T1)
+## Global product navigation (T1, palette T10)
 
-[`src/components/ProductNav.tsx`](src/components/ProductNav.tsx) replaces the flat sidebar list with the approved canvas' arrangement: a thin horizontal bar above and outside the workspace (`.app-shell`), three always-present shortcuts (`#overview`, `#history`, `#actions`), a **Más destinos** disclosure whose panel is out of flow, and an **Estás en** line naming the open route. The other eleven routes are grouped by the navigation groups declared in [`src/app/routes.ts`](src/app/routes.ts). Every link is derived from `routes`; the canvas' fourth shortcut (Panel ejecutivo) is deferred to T4 because no route serves it yet. The component CSS is [`src/styles/product-nav.css`](src/styles/product-nav.css), scoped to `.product-nav`; `app.css` owns the bar's offset and the shell it sits above.
+[`src/components/ProductNav.tsx`](src/components/ProductNav.tsx) replaces the retired flat sidebar list with the approved canvas' arrangement: a thin horizontal bar above and outside the workspace (`.app-shell`), four always-present shortcuts (`#overview`, `#history`, `#actions`, `#executive`), a **Más destinos** disclosure whose panel is out of flow, and an **Estás en** line naming the open route. The other eleven routes are grouped by the navigation groups declared in [`src/app/routes.ts`](src/app/routes.ts), and every link is derived from `routes`. The component CSS is [`src/styles/product-nav.css`](src/styles/product-nav.css), scoped to `.product-nav`; `app.css` owns the bar's offset and the shell it sits above.
+
+**S8 made the bar read the global roles.** Until T10 it was forest green on every route but the aerial one, which repainted it from `body:has(#overview)`; it is slate/aqua on every route now and declares no colour of its own. The panel stays **opaque** (`--surface-raised`): its labels are measured against the declared surface, not against whatever happens to be behind an overlay.
 
 | Class | Role | Values |
 | --- | --- | --- |
-| `.product-nav` | Bar above the shell | `position: sticky`, `top: 0`, `min-height: var(--product-nav-h, 48px)` with a local `--product-nav-h: 48px` (the bar never sizes itself from the offset it publishes), `--forest-900`, `3px 16px`, bottom border `#41625b`; `ProductNav` publishes the measured box as `--product-nav-h` on `body` |
-| `.product-nav__link` | Always-visible shortcut | visible word `Mapa`/`Historial`/`Acciones`; `aria-label` carries the route label; `12px/1.3`, min-height `40px`, `0 10px`, radius `7px`, `#c3d6cf`; current row `#f0eee0` with `--forest-900` text |
-| `.product-nav__summary` | Disclosure control | `button` with `aria-expanded`/`aria-controls`; `12px/650`, min-height `40px`, border `#90aaa0`, `#e7faf5`; expanded `#effdf9` on `#254d47` |
-| `.product-nav__panel` | Out-of-flow menu | `position: absolute`, `top: calc(100% + 4px)`, `right: 16px`, `width: min(760px, calc(100% - 24px))`, `max-height: min(70dvh, 520px)`, `overflow-y: auto`, opaque `#1e4241`, `14px 16px`, radius `10px` |
-| `.product-nav__item` | Grouped destination | `12px/1.35`, min-height `32px`, `3px 8px`, radius `5px`, `#c3d6cf`; current `#f0eee0`, underlined |
-| `.product-nav__group-title`, `.product-nav__panel-title` | Navigation labels | `9px/800`, tracking `1.4px`, uppercase, `#a5c8bf` |
-| `.product-nav__note` | Panel footnote | `10px/1.5`, `#a5c8bf` |
-| `.product-nav__where` | Current-location line | right-aligned `11px`, value `#e7faf5`, label `#a5c8bf`; visually hidden but still announced below `560px` |
-| `.product-nav :is(a, button):focus-visible` | Focus ring | `3px` `#d7aa73`, offset `2px`; bar controls use offset `0` so the ring stays inside the 48px bar |
+| `.product-nav` | Bar above the shell | `position: sticky`, `top: 0`, `min-height: var(--product-nav-h, 48px)` with a local `--product-nav-h: 48px` (the bar never sizes itself from the offset it publishes), `--paper` `#17222b`, `3px 16px`, bottom border `--line`; `ProductNav` publishes the measured box as `--product-nav-h` on `body` |
+| `.product-nav__link` | Always-visible shortcut | visible word `Mapa`/`Historial`/`Acciones`/`Panel`; `aria-label` carries the route label; `12px/650`, min-height `40px`, `0 10px`, radius `7px`, `--muted` (9.41:1); the current row is a **filled accent chip** `--accent` with `--accent-ink` (11.54:1) |
+| `.product-nav__summary` | Disclosure control | `button` with `aria-expanded`/`aria-controls`; `12px/650`, min-height `40px`, `0 11px`, boundary `--edge-strong` (4.08:1 on the bar), `--ink`; expanded is `--accent` text on `--soft` |
+| `.product-nav__panel` | Out-of-flow menu | `position: absolute`, `top: calc(100% + 4px)`, `right: 16px`, `width: min(760px, calc(100% - 24px))`, `max-height: min(70dvh, 520px)`, `overflow-y: auto`, opaque `--surface-raised`, `1px --edge-strong`, `14px 16px`, radius `10px`, shadow `0 18px 40px rgb(0 0 0 / 45%)` |
+| `.product-nav__item` | Grouped destination | `12px/500/1.35`, min-height `32px`, `3px 8px`, radius `5px`, `--ink` (11.46:1 on the panel); the current one is `--accent`, weight `700`, underlined (8.51:1) |
+| `.product-nav__group-title`, `.product-nav__panel-title` | Navigation labels | `9px/800`, tracking `1.4px`, uppercase, `--muted` |
+| `.product-nav__note` | Panel footnote | `10px/1.5`, `--muted`, top hairline `--line` |
+| `.product-nav__where` | Current-location line | right-aligned `11px`, value `--ink`, label `--muted`; truncated with an ellipsis, never wrapped over the shortcuts |
+| `.product-nav :is(a, button):focus-visible` | Focus ring | `3px` `--focus` `#94dfda`, offset `2px`; the bar's own controls use offset `0` so the ring stays inside the 48px bar |
 
-The panel is opaque instead of translucent: it overlays the light workspace, so its labels are measured against the declared `#1e4241` rather than against whatever happens to be behind it. Layout: `.app-shell` and `.sidebar` reserve `calc(100vh - var(--product-nav-h, 48px))`, and the sidebar sticks at `top: var(--product-nav-h, 48px)`. The `:root` value is a `48px` fallback: `ProductNav` publishes the bar's measured height into `--product-nav-h` on `body`, so a wrapped bar reserves the second row instead of leaving content under it, while the bar's own `min-height` stays `48px` and can return to one row (T4 correction). At `≤720px` the sidebar becomes static and the panel narrows to `calc(100% - 16px)`; at `≤480px` the bar wraps instead of scrolling horizontally — with the T4 shortcuts that is two rows at 320, 340 and 360 px and one row at 390 px (measured).
+**Layout after S7.** There is no sidebar to reserve: `.app-shell` is one flex column of `min-height: calc(100vh - var(--product-nav-h, 48px))` and the bar stays sticky at the page's zero offset. The `:root` `48px` is a fallback, because `ProductNav` publishes the bar's measured height into `--product-nav-h` on `body`; a wrapped bar therefore reserves its second row instead of leaving content under it, while the bar's own `min-height` stays `48px` and can return to one row. At `≤720px` the bar keeps `12px` of inline padding and the panel narrows to `calc(100% - 16px)`; below `480px` the bar wraps instead of scrolling horizontally — two rows at 320, 340 and 360 px and one row at 390 px (measured, T4 correction).
 
-**Retired in T8.** The `.sidebar nav` rule was the last thing in `app.css` with no
-consumer, and its only reader was a source-gate assertion. T8 removed the rule and
-replaced the assertion with the active contract it was standing in for: the column
-keeps its viewport-bounded height below the sticky bar, the bar stays sticky at the
-page's zero offset and reserves the height the shell and the column subtract, and
-the grouped menu stays out of flow, bounded to the viewport and scrollable inside
-itself (`scripts/check.mjs` §7). The served stylesheet is byte-identical to the
-previous build except that one rule, and the layout test pins both the live
-markup — the sidebar renders no `<nav>` — and the rule's absence. Measurements:
-[visual audit](VISUAL-AUDIT.md#t8--integrated-proof-and-the-retired-sidebar-rule-2026-11-27).
+**Retired in T8.** The `.sidebar nav` rule was the last thing in `app.css` with no consumer, and its only reader was a source-gate assertion. T8 removed the rule and replaced the assertion with the active contract it stood in for: the bar stays sticky at the page's zero offset and reserves the height the shell subtracts, and the grouped menu stays out of flow, bounded to the viewport and scrollable inside itself (`scripts/check.mjs` §7). Measurements: [visual audit](VISUAL-AUDIT.md#t8--integrated-proof-and-the-retired-sidebar-rule-2026-11-27).
 
-## Aerial workspace (T2)
+## Sidebar-free shell and header (T10, S7)
 
-[`src/styles/aerial-workspace.css`](src/styles/aerial-workspace.css) composes `#overview` as the aerial workspace of the approved board ([`design/firewatch-v1-vuelo/01-vista-aerea.html`](../design/firewatch-v1-vuelo/01-vista-aerea.html)): the map is the canvas, [`AerialWorkstation`](src/components/territory/AerialWorkstation.tsx) is the work rail beside it, and the real published-batch card (`article.panel.risk-panel`, unchanged) is the reading below. Every selector is scoped to `#overview`, so no other route inherits the composition. `MapPanel`, the `ui` primitives, the store, the routes and the API are untouched; the map keeps its owned behaviour and only receives more surface.
-
-**Route-scoped palette (S3) — supersedes the earlier “no new palette” note.** The file now declares the approved board's dark slate/aqua roles and applies them to this route only. The roles are declared on `body:has(#overview)`, the same route anchor the print rules already use, because the console's own selector cannot reach the shell rows above it; `tokens.css` is untouched and stays `color-scheme: light`, so the other eleven views keep the light chrome. The neutral roles (`--canvas`, `--paper`, `--soft`, `--ink`, `--muted`, `--line`) are re-pointed inside that anchor so the header, the update bar and the footer read the same surfaces as the console, and the accent roles are re-pointed on `#overview` alone; the product bar and the sidebar are re-based there to the route's slate (`--aerial-panel`) and water (`--aerial-water`), and keep their normal forest styling on every other route.
-
-| Role | Declared | Where | Measured pairs |
-| --- | --- | --- | --- |
-| `--aerial-water` | `#152934` | console and map ground | ink 13.32:1, muted 8.74:1, edge 3.79:1 |
-| `--aerial-panel` | `#17222b` | cards and topbar | ink 14.33:1, muted 9.41:1, accent 10.63:1, warm 7.80:1, gold 9.92:1 |
-| `--aerial-raised` | `#243341` | work rail, map insets, state surfaces | ink 11.46:1, muted 7.53:1, accent 8.51:1 |
-| `--aerial-edge` | `#6b8395` | every card, control and focus ring boundary | panel 4.08:1, water 3.79:1, raised 3.27:1 |
-| `--aerial-accent` | `#94dfda` | eyebrows, rail labels, links, focus | panel 10.63:1, raised 8.51:1, water 9.89:1 |
-| `--aerial-warm` | `#f0a184` | the attention card and the warm chips | panel 7.80:1 |
-
-`--aerial-edge` is the board's `#647b8a` border role one step lighter: that value measures 2.92:1 against the raised surface it also borders, below the 3:1 minimum for a component boundary, while `#6b8395` clears all three surfaces it touches without changing family. The risk fills are **not** redeclared: `--level-low/medium/high/unknown/neutral-*` keep their shipped values, because the map and the legend promise the same colour, and every fill still measures at or above 3:1 against the new water surface (`alto` 4.33:1, `medio` 7.57:1, `bajo` 5.86:1, `desconocido` 9.11:1, neutral 12.55:1). The `.zone-selected` and `.zone-shape:focus-visible` rings keep their shipped dark strokes for the same reason: those rings border the pale fills, where a light ring would measure 1.08–1.28:1, and the selection is announced in text by the selector, the rail reading and `aria-pressed`.
+[`src/components/Shell.tsx`](src/components/Shell.tsx) has one column now — the workspace — and `main` takes the width the 234 px column used to take. **Nothing the column carried was dropped with it:** the brand, the territorial scope, the gateway readiness card and its refresh control, the session state and the only sign-out control moved into the header as one compact utility cluster, in that reading order and with their ids (`#readiness-status`, `#logout`), their live region and their labels intact. The brand is a mark, not a link: the home destination is the bar's first shortcut directly above. Tab order is skip link → bar shortcuts and disclosure → gateway refresh → sign out → the workspace.
 
 | Selector | Role | Declared values |
 | --- | --- | --- |
-| `body:has(#overview)` | Route palette and ground | nine `--aerial-*` roles, the six neutral roles re-pointed, `background: --aerial-water`, `color: --aerial-ink` |
-| `body:has(#overview) :focus-visible` | Route focus ring | `outline-color: --aerial-accent`; width and offset stay the application's (`3px`, `2px`) |
-| `body:has(#overview) .product-nav*` | Product bar of this route | `--aerial-panel` surface, `--aerial-edge` border, links `--aerial-muted` (9.41:1), current page `--aerial-accent` on `--aerial-raised` (8.51:1), panel and grouped items follow |
-| `body:has(#overview) .sidebar*`, `.brand*`, `.workspace*`, `.health-card`, `.health-head`, `.side-action`, `.session-card*`, `.session-mark` | Column of this route | `--aerial-water` column, `--aerial-ink` labels (13.32:1), `--aerial-muted` notes (8.74:1), aqua brand mark (9.89:1), edge frames (3.79:1); shipped status-dot hues kept (7.43 / 4.95 / 6.85:1) |
-| `body:has(#overview) .breadcrumbs span`, `.zone-chip > span`, `footer button` | Three shell literals | `--aerial-edge`, `--aerial-accent`, `--aerial-accent`; every other shell colour follows the re-pointed roles |
-| `body:has(#overview) main`, `.topbar`, `.topbar h1`, `.breadcrumbs`, `.zone-chip`, `.update-bar` | Air above the canvas | `main` padding-block `12px 24px`, topbar `min-height: 52px` and `6px` block padding, route `h1` `17px`, breadcrumbs `11px`, chip `5px 8px`, update bar `6px` block padding at `9.5px` |
-| `#overview` | Console | `padding: 12px 16px 18px`, `1px solid --aerial-edge`, `var(--radius)`, `--aerial-water`; accent/warm/gold/shadow roles re-pointed here only; intro row `margin-bottom: 6px`, `h2` `19px` |
-| `#overview .aerial-workspace` | Composition grid | `grid-template-columns: minmax(0, 1fr) minmax(280px, 336px)`; areas `canvas`/`rail`, `result`/`rail`; `gap: 18px` |
-| `#overview .aerial-canvas` | Map column | `grid-area: canvas`; the map card carries no bottom margin of its own |
-| `#overview .aerial-canvas .map-stage` | One map track | `minmax(0, 1fr) minmax(0, 190px)`, and a single `minmax(0, 1fr)` track while `.map-insets` is empty (`:has(.map-insets:empty)`) |
-| `#overview .aerial-canvas .map-panel` | Map card | `padding: 12px`, `1px solid --aerial-edge`, no bottom margin; heading `8px 12px 6px`, toolbar `margin-top: 5px`, stage `margin-top: 8px` |
-| `#overview .aerial-canvas .map-viewport`, `.map-svg` | Canvas surface | `min-height: 480px`, `--aerial-water` fill, `1px solid --aerial-edge`; `420px` at `≤1100px`, `300px` at `≤720px` |
-| `#overview .aerial-canvas .map-inset` / `.map-inset svg` | Inset frames | `--aerial-raised` frame, `--aerial-water` canvas |
-| `#overview .aerial-result` | Reading column | `grid-area: result`; the risk card keeps its own padding and drops only `margin-bottom` |
-| `#overview .aerial-rail` | Workstation panel | `position: sticky`, `top: calc(var(--product-nav-h, 48px) + 16px)`, `--aerial-raised`, `1px solid --aerial-edge`, `var(--radius)`, `var(--shadow)`, `padding: 16px`, `gap: 12px`; `static` below `1100px` |
-| `#overview .aerial-block` / `> h4` | Rail section | `padding-top: 10px`, `1px solid #31475a` top hairline, `gap: 8px`; label `10px/800` uppercase in `--aerial-accent` |
-| `#overview .aerial-rail > h3` | Rail title | `13px/700`, tracking `0.06em`, uppercase, `--aerial-ink` |
-| `#overview .aerial-state` / `.aerial-note` | State and note | `12px/1.5` `--aerial-ink`; `11px/1.55` `--aerial-muted` |
-| `#overview .aerial-readings dt` / `dd` | Reading rows | `11px` `--aerial-muted`; `11px/700` `--aerial-ink`, `max-width: 62%`, `overflow-wrap: anywhere` |
-| `#overview .aerial-links a` | Rail link | `12px/700`, `--aerial-accent`, underline, offset `2px`, `min-height: 36px` (`40px` at `≤720px`); focus inherits the route ring |
-| `#overview .risk-pill`, `.risk-state`, `.risk-symbol` | Operational states | pill and state on `--aerial-raised` with an `--aerial-edge` border; symbol on `--aerial-panel` |
-| `#overview .factor-track` | Proportion bars | track `#2c3d4d`, fill `--aerial-accent` |
-| `#overview .metric-attention` | Attention metric | `border-color: #7a5a4a`, `background: #2a2320` |
-| `#overview .neutral-tag`, `.unimplemented` | Scope badges | `--aerial-raised` on an edge border; `#2b2a1e` with `#e8d9a6` text and a `#8a7a4a` dashed border |
-| `#overview .data-list > div`, `.decision-links li` | Row hairlines | `border-bottom-color: #31475a` |
+| `.app-shell` | Workspace column | `min-height: calc(100vh - var(--product-nav-h, 48px))`, `display: flex`; `.main-area` is `flex: 1; min-width: 0` |
+| `.topbar` | Header row | `flex-wrap: wrap`, `space-between`, `gap: 8px 16px`, `min-height: 56px`, `8px 34px`, bottom `1px --line`, `--paper` |
+| `.topbar-lead` / `.topbar-route` | Brand, route and scope | `gap: 14px`; the route block is a grid with a `1px --line` left rule and `14px` of padding |
+| `.topbar h1` | Route title | `18px/600`, tracking `-.5px`, `--ink`, `overflow-wrap: anywhere` (`16px` at `≤720px`) |
+| `.brand` / `.brand-mark` | Mark and wordmark | `32px` accent-filled square with an `--accent-ink` initial (radius `9px`), `15px/650` wordmark, `8px` uppercase tagline in `--muted` |
+| `.zone-chip` | Territorial scope and selected zone | `4px 9px`, `1px --line`, radius `8px`, `--paper`; glyph `--accent`, label `8px --muted`, value `10px/700 --ink` |
+| `.health-card` / `.health-head` / `.health-card p` | Gateway readiness | `4px 9px`, `--soft`, `1px --line`, radius `8px`; sentence `10px/1.35 --muted` capped at `260px`; dots `8px` — ready `#67c99a`, down `#d77b67`, unknown `--muted` |
+| `.session-card` / `.session-card button` | Session and sign-out | `--soft` card with the gold `9px` mark, `10px/700` state and `8.5px` permission note; the button is a `36px` target with an `--edge-strong` boundary |
+| `.status-action` | Readiness refresh | `min-height: 36px`, `4px 10px`, `1px --edge-strong`, radius `7px`, `--paper`; disabled is `progress` with `opacity: .6` |
+| `body`, `main` | Ground and gutters | `body` `--canvas` `#0f1922`; `main` `min(1500px, 100%)` with `27px 34px 35px` |
+| `@media (max-width: 720px)` | Phone header | `.app-shell` becomes `display: block`; `.topbar` `7px 14px`; `.topbar-utils` becomes a `1fr 1fr` grid so the readiness card and the session tablet take one row each |
 
-**Breakpoints.** `1100px` turns the two columns into one — `canvas`, `rail`, `result`, in that document order — releases the sticky rail and drops the canvas floor to `420px`. `720px` is the compaction that puts the map in the phone's first screen: the column becomes a wrapping row of the same landmarks (brand, workspace scope, session state, logout — DOM order untouched, nothing hidden), the topbar/update-bar/main paddings shrink, the map card's head becomes a block of full-width lines, the canvas floor drops to `300px`, the rail link target grows to `40px` and the logout keeps a `28px` target. Measured: the canvas starts at `y=537` of 844 and all three fixture shapes are inside the first screen (it started at `y=777` with none). `@media (prefers-reduced-motion: reduce)` turns off the route's transitions, animations and smooth scrolling. The widths measured in Chromium (1440, 390) are recorded in the [visual audit](VISUAL-AUDIT.md#t2-follow-up--dark-slate-console-s3-2026-11-27).
+The former demonstration strip is no longer a full-width headline: the honesty statement it carried is still made, as a discreet always-visible technical notice that leads to the data-status view, where the whole declaration lives.
+
+## Compact entrance (T11, S5)
+
+S5 — «es el inicio pero se vé cortado porque es muy grande por lo que hay que hacer scroll y eso mejor que no, algo más sencillo». [`src/views/AuthView.tsx`](src/views/AuthView.tsx) is one atmospheric column plus one card. On a desktop the page is **exactly one viewport** and does not scroll; below `960px` the flow is the document's and a phone scrolls naturally. The two long reference panels that used to sit under the card are the closed `<details class="auth-disclosure">` ("Contrato y estados del acceso"), which scrolls inside itself when opened. The PKCE/Keycloak round trip, the security boundaries and the session contracts are unchanged.
+
+| Selector | Role | Declared values |
+| --- | --- | --- |
+| `.auth-page` | Page | `min-height: 100dvh`, one column, `--canvas` `#0f1922`, `--ink` |
+| `@media (min-width: 960px) .auth-page` | One-viewport desktop | `height: 100dvh`, `max-height: 100dvh`, `overflow: hidden`, two columns `1.02fr / .98fr`; `.auth-hero` and `.auth-main` each `min-height: 0; overflow-y: auto; overscroll-behavior: contain`, so a short window scrolls a column, never the page |
+| `.auth-hero` | Atmosphere | `--aerial-water`, two aqua radial gradients (`15%` and `8%` of `--accent`) plus a `44px` topographic grid and two contour rings drawn with gradients only — no font, tile or image is fetched |
+| `.auth-main` / `.auth-main-stack` | Card column | `align-content: safe center`, `width: min(404px, 100%)`, `gap: 12px` |
+| `.auth-card` | Card | `1px --line`, radius `14px`, `--paper`, `var(--shadow)`, fluid `dvh`-based padding |
+| `.auth-tab` / `.auth-tab.is-selected` | Intent tabs | `40px` track on `--soft`, radius `7px`; the selected tab is a **filled accent tab** with `--accent-ink` (11.54:1) and `0 1px 3px rgb(0 0 0 / 28%)` |
+| `.auth-primary` / `.auth-google` | The two real controls | `46px` minimum height; the primary is an accent fill with `--accent-ink` (hover: `--ink` fill), the Google button is `--surface-raised` on `--ink` with an `--edge-strong` boundary (hover: `--soft` with an `--accent` boundary) |
+| `.auth-disclosure` / `.auth-disclosure-summary` | Closed reference block | `1px --line`, radius `10px`, `--paper`; the `summary` is a `40px` row with the marker suppressed and a `▾` at the inline end, which rotates when the block opens. The body is capped at `min(34dvh, 300px)` with its own scroll |
+| `@media (max-width: 600px)` / `(max-width: 380px)` | Phone and narrow | hero and card padding tighten and the fact grid stacks. One column below `960px`, so a 390×844 phone measures `946` px of document — it scrolls by design |
+
+## Aerial workspace and interactive 3D stage (T2, T12)
+
+[`src/styles/aerial-workspace.css`](src/styles/aerial-workspace.css) composes `#overview` as the aerial workspace of the approved board ([`design/firewatch-v1-vuelo/01-vista-aerea.html`](../design/firewatch-v1-vuelo/01-vista-aerea.html)): the map is the canvas, [`AerialWorkstation`](src/components/territory/AerialWorkstation.tsx) is the work rail beside it, and the real published-batch card (`article.panel.risk-panel`, unchanged) is the reading below. Every selector is scoped to `#overview`, so no other route inherits the composition; `MapPanel`, the `ui` primitives, the store, the routes and the API are untouched.
+
+**The palette is no longer declared here (T10).** Until T10 this file declared the board's slate/aqua roles on `body:has(#overview)` and re-coloured the product bar, the header, the update bar and the footer by hand, which is exactly why the map was the only dark screen. Those roles live in `tokens.css` `:root` now and every route reads them; what remains here is the composition, the elements only this route renders, and the air that lets the map reach the first fold.
+
+| Selector | Role | Declared values |
+| --- | --- | --- |
+| `#overview` | Console | `padding: 12px 16px 18px`, `1px solid --edge`, `var(--radius)`, `--aerial-water`; intro row `margin-bottom: 6px`, `h2` `19px` |
+| `#overview .aerial-workspace` | Composition grid | `minmax(0, 1fr) minmax(280px, 336px)`; areas `canvas`/`rail`, `result`/`rail`; `gap: 18px` |
+| `#overview .aerial-canvas .map-stage` | One map track | a single `minmax(0, 1fr)` column; the map card is `12px` padding with an `--edge` border and no bottom margin |
+| `#overview .map-viewport` / `.map-3d-stage` | Stage floor | `min-height: clamp(440px, 62vh, 680px)`, `--aerial-water`, `1px --edge`, radius `10px` / `9px`; `cursor: grab`, `touch-action: none` |
+| `#overview .map-3d-canvas` | Canvas layer | `position: absolute; inset: 0`, `100% × 100%`, `pointer-events: none` — it is scenery below the vector layer |
+| `#overview .map-3d .map-svg` | Accessible vector layer | absolutely positioned over the canvas at the same box; it receives pointer and keyboard, so every comuna stays a `role="button"` path with `aria-pressed` and its `<title>` |
+| `#overview .map-3d .zone-*` | Choropleth and states | the `--level-*-fill` / `-line` tokens, unchanged. A read level is painted at `fill-opacity: .84`; `.zone-neutral` (`.34`) and `.level-desconocido` (`.22`) deliberately sink into the dark relief so no pale plate suggests a severity, and both carry an `--edge-strong` outline. `.zone-hovered` is a `1.8px --accent` stroke, `.zone-selected` a `3px` one, and `:focus-visible` a `3.5px` dashed `--focus` stroke — all measured on the ocean and on any level fill |
+| `#overview .map-3d-hud` / `-row` | Floating controls | `top/right 10px`, rows of `4px` padding, `1px --edge-strong`, radius `10px`, `rgb(15 25 34 / 78%)` with `backdrop-filter: blur(6px)`, `var(--shadow)`; the row is `pointer-events: auto` so the stage can still be dragged elsewhere |
+| `#overview .map-3d-hud button` | HUD control | `36 × 36` minimum, radius `7px`, `--paper` on `--ink`; pressed is `--accent` on `--surface-raised`; focus ring `2px --focus` inside the row |
+| `#overview .map-3d-layers button` | Layer toggles | the same control pair; pressed state `--accent` |
+| `#overview .map-3d-label` / `-beacon` | Names and selection mark | `--ink` labels with a `2.6px` `--aerial-water` halo; the beacon is a dashed `--accent` line with a `2px` water ring |
+| `#overview .map-3d-attribution` | Honesty badge | `--muted` line and `8.5px` note; the text is `Relieve 3D ilustrativo · Límites oficiales SUBDERE/IGM` plus «El relieve y el sombreado son ilustrativos: no son un DEM ni una medición del terreno.» |
+| `#overview .aerial-rail` | Workstation panel | `position: sticky`, `top: calc(var(--product-nav-h, 48px) + 16px)`, `--surface-raised`, `1px --edge`, `var(--radius)`, `var(--shadow)`, `padding: 16px`, `gap: 12px`; `static` below `1100px` |
+| `#overview .aerial-block` / `> h4` | Rail section | `padding-top: 10px`, `1px --line-soft` top hairline, `gap: 8px`; label `10px/800` uppercase in `--accent` |
+| `#overview .aerial-readings dt` / `dd` | Reading rows | `11px --muted`; `11px/700 --ink`, `max-width: 62%`, `overflow-wrap: anywhere` |
+| `#overview .aerial-links a` | Rail link | `12px/700`, `--accent`, underlined, `min-height: 36px` (`40px` at `≤720px`) |
+
+**The stage is interactive (T12, S6).** [`src/components/map/AerialMap3D.tsx`](src/components/map/AerialMap3D.tsx) pairs a Canvas 2D scene (Pacific bathymetry, graticule, luminous shoreline, depth-sorted extruded prisms, hillshading) with the SVG layer that already carried the accessible contract. **Both surfaces are projected from the same camera arithmetic** ([`projection.ts`](src/components/map/projection.ts)), so the choropleth cannot drift from the relief underneath it. Dragging pans; a horizontal drag with the orbit control changes bearing; the HUD tilts (`Vista 3D` / `2D Central`), zooms and focuses the selected comuna; and three layer toggles (`RELIEVE`, `NOMBRES`, `GRILLA`) work by keyboard. The root carries `data-projection-mode="3d"`, `data-camera-pitch`, `data-camera-bearing`, `data-camera-zoom`, `data-camera-focus` and `data-layers`.
+
+Three honesty rules survive the upgrade: a comuna is painted with a risk colour **only** when the session read a canonical level for it; the relief, extrusion and hillshading are **illustrative** — derived from each polygon's real mean longitude and latitude — and the stage says so in `#map-3d-attribution`; and the island frames stay detached insets drawn with their own local camera, never positioned geographically against the continent. Everything is local (Canvas 2D and the served GeoJSON): no tiles, no CDN, no worker, no new dependency, so the page CSP (`'self'`) is untouched.
+
+**Breakpoints.** `1100px` turns the two columns into one — `canvas`, `rail`, `result`, in document order — and releases the sticky rail. `720px` compacts the map into the phone's first screen: the header becomes the wrapping row described above, the canvas floor drops, the rail link target grows to `40px` and the logout keeps a `36px` target. `@media (prefers-reduced-motion: reduce)` turns off the route's transitions, animations and smooth scrolling.
 
 **Copy rule.** The rail states only facts the views already published: the session's one inflight batch (`jobProgress`), the selected zone's label from the catalogue, the kind of answer the last read settled on, and how many comunas actually carry a read level. It never repeats the level (the card owns it), never infers progress, and links only to routes `src/app/routes.ts` declares. The prototype's per-comuna queue, camera poses, cut-off slider, mock sectors and coordinates have no served data and are not simulated.
+
+## Dark-adapted workspaces (T13, S8)
+
+The remaining workspace stylesheets were dark-adapted in place, without moving a rule or changing a selector: [`decision-workspace.css`](src/styles/decision-workspace.css), [`field-workspace.css`](src/styles/field-workspace.css), [`history-workspace.css`](src/styles/history-workspace.css), [`notifications.css`](src/styles/notifications.css), [`observations.css`](src/styles/observations.css), [`operations-workspace.css`](src/styles/operations-workspace.css) and [`territorial-coverage.css`](src/styles/territorial-coverage.css), plus [`InfrastructureMap.tsx`](src/components/map/InfrastructureMap.tsx) for the two SVG literals a stylesheet cannot reach.
+
+The change is a **substitution of role references**, not a restyle: every `--paper`, `--soft`, `--line`, `--ink`, `--muted`, `--forest-700` and `--level-*` reference resolves to the same-named global token, so the geometry, the type scale and the spacing recorded in the T3–T7 sections below are unchanged. The literal accents those files had carried are gone: the retired card surface `#f8faf7`, the dashed mark `#c8d2c6`, the focus ring `#cf7d4f` and the pale map surface `#eef2e8` were replaced by `--paper`/`--soft`, `--line`, `--focus` and `--aerial-water`. Print readability is preserved by the `@media print` block in `tokens.css` and by each file's own print rules.
+
+Two consequences worth knowing when auditing: both map surfaces sit on `--aerial-water` — the aerial stage on `#overview` and the coverage map on `#infrastructure` — so neither is the pale `#eef2e8` plate it used to be; and the focus indicator is the single `--focus` role, so no view can drift back to a terracotta ring.
 
 ## Territorial coverage board (T3)
 
 [`src/styles/territorial-coverage.css`](src/styles/territorial-coverage.css) composes `#infrastructure` as the coverage board of the approved territorial artboards ([`04-cobertura-territorial.html`](../design/firewatch-v1-vuelo/04-cobertura-territorial.html) and [`21-lecturas-por-sector.html`](../design/firewatch-v1-vuelo/21-lecturas-por-sector.html)): the real catalogue map is the canvas, [`CoverageRail`](src/components/territory/CoverageRail.tsx) lists the comunas beside it, the per-type table keeps its shipped columns and the breakdown is unchanged, and two reading panels close the board. Every selector is scoped to `#infrastructure`, so no other route inherits the composition. `InfrastructureMap`, `TableWrap`, the `ui` primitives, the store, the routes and the API are untouched.
 
-**No new palette.** The file declares no colour tokens: it uses `--paper`, `--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--forest-900`, `--radius` and the shipped focus ring literal `#cf7d4f`. The board's aerial palette (`design/system.md`, “Aerial prototype palette — experimental, not shipped”) is deliberately not adopted, and the map keeps its `#eef2e8` surface.
+**No new palette; the palette is global (T13).** The file declares no colour tokens: it reads `--paper`, `--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--forest-900`, `--radius` and the single focus role `--focus` from `tokens.css`. The retired literals it once carried (`#cf7d4f`, `#eef2e8`) are gone and the map floor is `--aerial-water`.
 
 | Selector | Role | Declared values |
 | --- | --- | --- |
@@ -277,7 +266,7 @@ markup — the sidebar renders no `<nav>` — and the rule's absence. Measuremen
 | `#infrastructure .coverage-stage-note` | Granularity note | `max-width: 78ch`, `10px/1.6`, `--muted` |
 | `#infrastructure .coverage-rail` | Commune rail | `display: grid`, `gap: 10px`, `padding-left: 16px`, `border-left: 1px solid --line`; no nested card surface |
 | `#infrastructure .coverage-rail-head h3` | Rail title | `13px/700`, tracking `-.2px`; the count uses the shipped `.count-badge` |
-| `#infrastructure .coverage-entry` | Commune button | `display: grid`, `gap: 5px`, `width: 100%`, `min-height: 44px`, `padding: 8px 9px`, radius `7px`, `font: inherit`, `text-align: left`; hover `--soft`; `aria-pressed="true"` adds `--soft` plus `inset 3px 0 0 --forest-700`; focus `outline: 3px solid #cf7d4f`, offset `2px` |
+| `#infrastructure .coverage-entry` | Commune button | `display: grid`, `gap: 5px`, `width: 100%`, `min-height: 44px`, `padding: 8px 9px`, radius `7px`, `font: inherit`, `text-align: left`; hover `--soft`; `aria-pressed="true"` adds `--soft` plus `inset 3px 0 0 --forest-700`; focus `outline: 3px solid var(--focus)`, offset `2px` |
 | `#infrastructure .coverage-dots` | Coverage marks | `grid-template-columns: repeat(5, 1fr)`, `gap: 3px`; each dot `4px` high, radius `2px`; on `--forest-700`, off `--line`; decorative (`aria-hidden`) |
 | `#infrastructure .coverage-figure` | Coverage figure | `9px/800`, `--forest-700`, `white-space: nowrap` |
 | `#infrastructure .coverage-entry-types` | Declared types | `9px/1.45`, `--muted`, `overflow-wrap: anywhere` |
@@ -285,7 +274,7 @@ markup — the sidebar renders no `<nav>` — and the rule's absence. Measuremen
 | `#infrastructure .infrastructure-zone` | Drill-through target | `scroll-margin-top: calc(var(--product-nav-h, 48px) + 14px)`; `[data-active="true"]` paints `--soft`; focus ring as above |
 | `#infrastructure .coverage-detail` | Reading row | `grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr)`, `gap: 18px`, `padding-top: 16px`, `border-top: 1px solid --line` |
 | `#infrastructure .coverage-reading` | Distinction list | `dl` rows `132px minmax(0, 1fr)`; terms `10px/800 --ink`; descriptions `10px/1.55 --muted` |
-| `#infrastructure .coverage-routes a` | Reading link | `11px/700`, `--forest-700`, underline offset `2px`, `min-height: 36px` (`44px` at `≤720px`); focus `outline: 3px solid #cf7d4f`, offset `2px` |
+| `#infrastructure .coverage-routes a` | Reading link | `11px/700`, `--forest-700`, underline offset `2px`, `min-height: 36px` (`44px` at `≤720px`); focus `outline: 3px solid var(--focus)`, offset `2px` |
 
 **Breakpoints.** `1180px` folds the stage into one column — canvas first, rail below, in DOM order — because below that width the two columns would shrink the map; the rail's side border becomes a top border. `900px` makes the reading row one column. `720px` tightens the stage gap and gives rail buttons a `10px 8px` padding and the reading links a `44px` target. The four widths measured in Chromium (1440, 1280, 1024, 390) are recorded in the [visual audit](VISUAL-AUDIT.md#t3--territorial-coverage-board-2026-11-26).
 
@@ -297,7 +286,7 @@ markup — the sidebar renders no `<nav>` — and the rule's absence. Measuremen
 
 T4 ports the three decision boards — [`07-panel-ejecutivo.html`](../design/firewatch-v1-vuelo/07-panel-ejecutivo.html), [`08-comparar-sectores.html`](../design/firewatch-v1-vuelo/08-comparar-sectores.html) and [`09-notificaciones.html`](../design/firewatch-v1-vuelo/09-notificaciones.html) — to `#executive`, `#compare` and `#notifications`, and adds the real `#executive` route with the bar's fourth shortcut (`Panel ejecutivo`). The three screens share one stylesheet, [`src/styles/decision-workspace.css`](src/styles/decision-workspace.css), and its selectors are either scoped to a view id or to classes only these screens render (`.decision-*`, `.executive-panel`, `.compare-panel`).
 
-**No new palette and no new scale.** The file declares colors only through the existing tokens (`--paper`, `--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--level-*`) plus the shipped focus ring literal `#cf7d4f`; the dashed empty mark uses `#c8d2c6` and the card surface keeps the shipped `#f8faf7`. Type uses the in-use sizes (`9`, `10`, `11`, `15`, `16`, `24`, `25px`), spacing the 4px-derived values already in use (`8`, `12`, `16`, `18px`), radius `9px` and the existing `--radius`.
+**No new palette and no new scale (dark-adapted in T13).** The file declares colors only through the global tokens (`--paper`, `--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--level-*`) plus the single focus role `--focus`; the dashed empty mark is `--edge-strong` and the card surface is `--surface-raised`. Type uses the in-use sizes (`9`, `10`, `11`, `15`, `16`, `24`, `25px`), spacing the 4px-derived values already in use (`8`, `12`, `16`, `18px`), radius `9px` and the existing `--radius`.
 
 | Selector | Role | Declared values |
 | --- | --- | --- |
@@ -312,7 +301,7 @@ T4 ports the three decision boards — [`07-panel-ejecutivo.html`](../design/fir
 | `.decision-links` | Related readings (07) | `padding: 16px 18px 18px`, `1px solid --line`, `--radius`, `--paper`, `--shadow`; links `11px/700 --forest-700`, `min-height: 24px`; notes `10px/1.6 --muted` |
 | `.compare-layout` | Comparator split (08) | `grid-template-columns: minmax(0, 360px) minmax(0, 1fr)`, `gap: 16px`, `align-items: start`; one column at `≤1000px`; child panels lose their bottom margin |
 | `.executive-panel > .panel-heading`, `.compare-panel > .panel-heading` | Panel head alignment | `padding: 0 0 12px`: the primitive keeps its rhythm and drops the side padding the panel modifier already supplies, as the notification panel already did. At `≤560px` the executive head stacks (title, then its rule tag) |
-| `.notification-empty*` ([`notifications.css`](src/styles/notifications.css)) | Notification empty card (09) | Card `display: grid`, `justify-items: start`, `gap: 8px`, `padding: 24px 22px 26px`, dashed `--line`, radius `9px`, `#f8faf7`; 58px dashed mark; eyebrow `9px/800`; title `16px/650`; copy and two points `10px/1.65 --muted`, `max-width: 68ch` |
+| `.notification-empty*` ([`notifications.css`](src/styles/notifications.css)) | Notification empty card (09) | Card `display: grid`, `justify-items: start`, `gap: 8px`, `padding: 24px 22px 26px`, dashed `--edge-strong`, radius `10px`, `--surface-raised`; 58px dashed mark; eyebrow `9px/800`; title `16px/650`; copy and two points `10px/1.65 --muted`, `max-width: 68ch` |
 
 **What the boards carry that the product does not.** The three boards are built on mock sectors, an invented alert preview and per-level filtering. The service publishes comuna-level aggregates (`code = CUT`), stored alert rows and one summary per cutoff, so T4 ports the hierarchy and drops the mock data: the counts band is a reading without a filter control, the comparator keeps its real catalogue picker and granularity selects instead of the board's sector buttons, the notification centre keeps the real read and states the empty page in the board's card shape, and the executive view links to the screens that hold the detail instead of rendering a sector table. The copy states the comuna granularity where the board shows sectors.
 
@@ -333,9 +322,9 @@ status-first hierarchy lands in the model panel `#overview` already renders. The
 [`src/components/history/HistoryLevelMark.tsx`](src/components/history/HistoryLevelMark.tsx), which reuses the
 domain's `levelLabel` and the shipped `--level-*` tokens.
 
-**No new palette and no new scale.** The file declares colors only through the existing tokens (`--paper`,
-`--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--level-*-line`) plus the shipped focus-ring literal
-`#cf7d4f`, the shipped empty-card surface `#f8faf7` and the `#c8d2c6` dashed mark the notification card already
+**No new palette and no new scale (dark-adapted in T13).** The file declares colors only through the global tokens (`--paper`,
+`--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--level-*-line`) plus the single focus role
+`--focus`, the empty-card surface `--surface-raised` and the `--edge-strong` dashed mark the notification card already
 uses. Type stays in the in-use sizes (`9`, `10`, `11`, `13`, `15` px) and spacing in the values already in use.
 
 | Selector | Role | Declared values |
@@ -348,7 +337,7 @@ uses. Type stays in the in-use sizes (`9`, `10`, `11`, `13`, `15` px) and spacin
 | `#history .history-panel table` | Rows table (05) | `min-width: 560px` inside the shipped `.table-wrap` scroll region |
 | `.history-level` / `.history-level-dot` | Level mark (05) | `10px/700`, `--ink`, `gap: 6px`; dot `6px` with `--level-high-line`, `--level-medium-line`, `--level-low-line`, `--level-unknown-line`, `--level-neutral-line`; the word is the claim, the dot is decorative |
 | `#history .empty-state` | Status line (05) | `10px 2px 12px`, left aligned, `line-height: 1.6` |
-| `#history .history-empty-card` | Empty card (05) | grid, `justify-items: start`, `gap: 6px`, `20px 20px 22px`, dashed `1px #c8d2c6`, radius `9px`, `#f8faf7`; `strong` `15px/650 --ink`; copy `10px/1.65 --muted`, `68ch`; the reset keeps `34px` |
+| `#history .history-empty-card` | Empty card (05) | grid, `justify-items: start`, `gap: 6px`, `20px 20px 22px`, dashed `1px --edge-strong`, radius `10px`, `--surface-raised`; `strong` `15px/650 --ink`; copy `10px/1.65 --muted`, `68ch`; the reset keeps `34px` |
 | `#history .history-series-zone` / `.history-bucket` | Every-zone series (05) | block `13px 15px 9px`; head bottom border `#eef1ee`; interval rows `7px 0`, start column `min-width: 168px` (released at `≤560px`) |
 | `#history .history-export` | Delivery block (12) | `display: grid`, `gap: 10px`, `margin-top: 18px`, top border from the shipped rule |
 | `#history .history-export-title` | Delivery title | `13px/650`, tracking `-.2px`, `--ink` |
@@ -403,14 +392,14 @@ ids, and the one new component is
 
 **No new palette and no new scale.** The file declares colours only through the existing tokens (`--paper`,
 `--canvas`, `--line`, `--muted`, `--ink`, `--soft`, `--forest-700`), plus three literals the product already uses:
-the focus ring `#cf7d4f`, the empty-card surface `#f8faf7` and the notification card's dashed mark `#c8d2c6`.
+the single focus role `--focus`, the empty-card surface `--surface-raised` with an `--edge-strong` dashed mark.
 The error tone reuses the shipped `--terracotta-soft` family (`#fdf6ef` surface, `#e0c9b6` border, `#9c472f`
 eyebrow) and the filtered tone keeps `--paper` because it is the only card that carries a control. Type stays in
 the in-use sizes (8, 9, 10, 11, 13px) and spacing in the 4px-derived values already in use.
 
 | Selector | Role | Declared values |
 | --- | --- | --- |
-| `.field-state` (scoped to the three ids) | Designed state card (06/10/11) | grid, `justify-items: start`, `gap: 4px`, `14px 16px 16px`, dashed `1px #c8d2c6`, radius `9px`, `#f8faf7`; `strong` `13px/650 --ink`; body `10px/1.6` capped at `78ch`; the eyebrow keeps the shipped rule |
+| `.field-state` (scoped to the three ids) | Designed state card (06/10/11) | grid, `justify-items: start`, `gap: 4px`, `14px 16px 16px`, dashed `1px --edge`, radius `9px`, `--soft`; `strong` `13px/650 --ink`; body `10px/1.6` capped at `78ch`; the eyebrow keeps the shipped rule |
 | `.field-state-error` | Refusal tone | solid `#e0c9b6`, `#fdf6ef`; eyebrow `#9c472f` |
 | `.field-state-filtered` | Filter tone (carries the reset) | `--paper` fill, so the shipped focus ring keeps its `3.11:1` |
 | `#actions .actions-workbench` | Workbench (06) | `1.25fr / 1fr`, `16px` gap, `align-items: start`; single column when the detail is absent or below `1280px` |
@@ -425,7 +414,7 @@ the in-use sizes (8, 9, 10, 11, 13px) and spacing in the 4px-derived values alre
 | `#simulator .row-flag` | Substituted mark (10) | own line under the variable name, `4px` radius, `--soft`/`--forest-700`, `8px/850` uppercase |
 | `#observations .observation-type` | Record type mark (11) | inline-flex, `min-height: 22px`, `2px 7px`, `1px solid --line`, radius `5px`, `--soft`/`--ink`, `9px/800` uppercase |
 | `#observations .observation-zone strong` | Record subject (11) | `11px/650 --ink`; the record head keeps the date at the right |
-| textareas (scoped to the three ids) | Focus ring | `3px solid #cf7d4f`, offset `2px` — the shipped rule lists `input`/`select`/`a`/`[tabindex]` but not `textarea` |
+| textareas (scoped to the three ids) | Focus ring | `3px solid var(--focus)`, offset `2px` — the shipped rule lists `input`/`select`/`a`/`[tabindex]` but not `textarea` |
 
 **Breakpoints.** `1279px` stacks the workbench (measured: below it the seven-column queue no longer fits its own
 min-content), `720px` stacks each alta group and keeps the shipped form collapse, `560px` stacks the facts grid.
@@ -472,9 +461,9 @@ plus the auth-page rules appended to the existing [`src/styles/auth.css`](src/st
 file is [`src/components/operations/OperationsPrimitives.tsx`](src/components/operations/OperationsPrimitives.tsx)
 (`OperationsViewHead`, `OperationsSteps`, `OperationsStateList`) — placement only; no component decides a state.
 
-**No new palette and no new scale.** Colours come from the declared tokens (`--paper`, `--soft`, `--line`,
-`--muted`, `--ink`, `--gold`, `--forest-700`, `--radius`, `--shadow`) plus the shipped sidebar label `#d5e1db` for
-the auth chip and the shipped focus ring `#cf7d4f` (not re-declared: no new control was added). Type stays in the
+**No new palette and no new scale (dark-adapted in T13).** Colours come from the global tokens (`--paper`, `--soft`, `--line`,
+`--muted`, `--ink`, `--gold`, `--forest-700`, `--radius`, `--shadow`) plus the muted label role `--muted` for
+the auth chip and the single focus role `--focus` (not re-declared: no new control was added). Type stays in the
 in-use sizes (9, 10, 11, 15, 21–24px) and spacing in the existing 4px-derived values.
 
 | Selector | Role | Declared values |
@@ -487,7 +476,7 @@ in-use sizes (9, 10, 11, 15, 21–24px) and spacing in the existing 4px-derived 
 | `.ops-step` | Numbered step (16/17) | `26px` marker column, `9px 0` rows, `1px solid --line` dividers; number `24px` circle `--soft`/`--forest-700` `9px/800` |
 | `.ops-states` | State vocabulary (16/18) | full-width rows, label `10px/700 --ink`, detail `9px/1.5 --muted`; two columns only inside `#audit` where the rows are short |
 | `#sources .ops-side .data-list` | Side facts (15) | the same `dl` stated as rows: one column, `8px 0`, left-aligned value at `100%` — at 340px a right-aligned value broke into one or two words per line |
-| `.auth-chips` / `.auth-chip` | Entrance state (14) | flex wrap, `6px` gap, `4px 8px`, `1px solid #54766e`, radius `5px`, `#d5e1db` on the hero |
+| `.auth-chips` / `.auth-chip` | Entrance state (14) | flex wrap, `6px` gap, `4px 8px`, `1px solid --edge`, radius `6px`, `--muted` on `--paper` |
 | `.auth-facts-panel` / `.auth-facts` | Contract panel (14) | `18px 20px 20px`, `1px solid --line`, `var(--radius)`, `--paper`; fact grid `minmax(96px, 38%)`, label `9px/700 --muted`, value `10px/600 --ink` |
 | `.auth-state-list` | Entrance states (14) | list rows `7px 0` with `1px solid --line`; label `10px/700 --ink`, detail `--muted` |
 
@@ -524,16 +513,46 @@ built from `STATE_LABELS`/`STATE_REASONS`; the four real steps of the jobs contr
 a publication" rule; the four verification steps and the four stated limits; the register's four response branches;
 the inventory's real count (`NOT_IMPLEMENTED.length`); and the source side facts stated as rows at 340px.
 
+## Measured in a browser (T14, 2026-11-27)
+
+The shipped migration was measured in the real installed **Chrome** (headless, `--remote-debugging-port=0`, throwaway profile) against the production bundle served on `http://localhost:4173`, with the gateway (`:18085`) and the identity provider (`:18086`) answered by fixtures — a fixture session, no real credential, gateway or Keycloak. Everything below is a measurement, not a token pair.
+
+**Unauthenticated `AuthView`.**
+
+| Viewport | `scrollHeight` / `innerHeight` | `scrollWidth` / `innerWidth` | `body` background | `details.auth-disclosure` | console + page errors |
+| --- | --- | --- | --- | --- | --- |
+| 1273×797 | `797` / `797` — no vertical scroll | `1273` / `1273` | `rgb(15, 25, 34)` (`#0f1922`) | present, `open=false` | `0` |
+| 1440×900 | `900` / `900` — no vertical scroll | `1440` / `1440` | `rgb(15, 25, 34)` | present, `open=false` | `0` |
+| 390×844 | `946` / `844` — the documented phone flow | `375` / `390` — no horizontal scroll | `rgb(15, 25, 34)` | present, `open=false` | `0` |
+
+**Authenticated workspace routes** (fixture session, `document.querySelector('.sidebar') === null` on every route and viewport, `#readiness-status` and `#logout` visible and reachable on all eight samples).
+
+| Route | Viewport | `scrollWidth` / `innerWidth` | Cream surfaces (`#f5f5ef`, `#fffefa`, `#eef1e9`, `#f8faf7`) | Stage |
+| --- | --- | --- | --- | --- |
+| `#overview` | 1273×797 | `1258` / `1273` | `0` | canvas `774 × 494`, `data-projection-mode="3d"`, `38` comuna options, `38` shapes, pitch `0.9076` |
+| `#overview` | 390×844 | `375` / `390` | `0` | canvas `299 × 340`, `data-projection-mode="3d"`, `38` comuna options |
+| `#history` | 1273×797 | `1258` / `1273` | `0` | dark table + CSV delivery block, level mark `ALTO` |
+| `#actions` | 1273×797 | `1258` / `1273` | `0` | — |
+| `#infrastructure` | 1273×797 | `1258` / `1273` | `0` | — |
+| `#history` / `#actions` / `#infrastructure` | 390×844 | `375` / `390` | `0` | — |
+
+`body` computed `rgb(15, 25, 34)` on all eight samples, and the workspace console computed `rgb(21, 41, 52)` (`--aerial-water`) on `#overview`. Screenshots: `fw-t14-login.png`, `fw-t14-overview-3d.png`, `fw-t14-history-dark.png` (in the session's `TEMP`, not committed).
+
+**Not claimed.** The fixtures served a 38-feature catalogue, one published batch per comuna and an empty infrastructure catalogue, so the 3D stage painted the dark topographic plate for comunas without a *read* level (the honest state: a colour is only painted when the session read a canonical level). No axe run, no browser zoom, no text-spacing override, no assistive technology and no real Keycloak round trip were performed, and the live Docker sandbox was reached only for the bundle it serves.
+
+### Public sign-in baseline (historical — retired palette)
+
+The paragraph below records the pre-T10 sign-in measurement and describes the **retired** cream/forest palette (`#fffefa`, `#173c3b`, terracotta ring `rgb(207, 125, 79)`). It is kept as history; the shipped entrance is the dark one measured above.
+
+Chromium rendered the then-current sign-in screen at 1280×720 and 390×844 with HTTP 200, no horizontal overflow and no uncaught page errors. The first Tab focused **Iniciar sesión** and exposed a solid `rgb(207, 125, 79)` outline. The selected tab and auth card computed to `#fffefa`, with selected text `#173c3b` (11.92:1). Screenshots: `tmp/g1-browser-baseline/auth-1280.png` and `tmp/g1-browser-baseline/auth-390.png` (ignored, relative to the worktree).
+
+The gateway and identity endpoints did not respond during that setup. The run did not sign in or exercise workspace routes, gradient contrast, the full tab order or assistive technology. This is not a WCAG conformance report.
+
 ## What still needs a browser
 
-- Resolve inherited backgrounds, disabled and focus states, and route-specific overrides in the rendered views. For example, Actions already overrides some chip and tag colors, so their base ratios do not describe every view.
-- Sign-in hero gradients and translucent sidebar surfaces are now measured from rendered pixels, not from token pairs: see "Mixed surfaces" in the [visual audit](VISUAL-AUDIT.md). The lowest legitimate text sample is 5.07:1; the only sub-threshold value is a decorative `aria-hidden` glyph.
-- The corrected T1 product navigation was measured in Chromium 158 (headless) at 1440×900, 1024×720 and 390×800 under an intercepted local fixture; see ["T1 — global product navigation"](VISUAL-AUDIT.md#t1--global-product-navigation-2026-11-26-corrected). Its axe rule subset, text-spacing override and assistive-technology pass were not run for this change.
-- Capture the eight production views before restyling, then verify the same states and viewports after changes. Include keyboard focus, zoom and data loading, empty and error states where applicable.
-- The T4 decision screens were measured in an isolated Chromium against fixtures built from the real components at 1440×900, 1280×900, 1024×768 and 390×844; see ["T4 — decision workspace"](VISUAL-AUDIT.md#t4--decision-workspace-2026-11-26). The live authenticated application, the axe subset, browser zoom, text-spacing overrides and assistive technology were not run for T4.
-
-### Public sign-in baseline
-
-Chromium rendered the locally built sign-in screen at 1280×720 and 390×844 with HTTP 200, no horizontal overflow and no uncaught page errors. The first Tab focused **Iniciar sesión** and exposed a solid `rgb(207, 125, 79)` outline. The selected tab and auth card computed to `#fffefa`, with selected text `#173c3b` (11.92:1). Screenshots: `tmp/g1-browser-baseline/auth-1280.png` and `tmp/g1-browser-baseline/auth-390.png` (ignored, relative to the worktree).
-
-The gateway and identity endpoints did not respond during setup. The run did not sign in or exercise workspace routes, gradient contrast, the full tab order or assistive technology. This is not a WCAG conformance report. No application behavior or palette was changed.
+- Resolve inherited backgrounds, disabled and focus states, and route-specific overrides in the rendered views. The T14 samples above cover the body, `main` and view backgrounds and every element's computed `background-color` against the four retired cream literals; per-selector foreground/background pairs inside a card were not enumerated.
+- Sign-in hero gradients and translucent surfaces are measured from rendered pixels, not from token pairs: see "Mixed surfaces" in the [visual audit](VISUAL-AUDIT.md). The lowest legitimate text sample there is 5.07:1; the only sub-threshold value is a decorative `aria-hidden` glyph.
+- The T1 product navigation was measured in Chromium at 1440×900, 1024×720 and 390×800 under an intercepted local fixture; see ["T1 — global product navigation"](VISUAL-AUDIT.md#t1--global-product-navigation-2026-11-26-corrected). Its axe rule subset, text-spacing override and assistive-technology pass were not run.
+- The T4 decision screens were measured in an isolated Chromium against fixtures built from the real components at 1440×900, 1280×900, 1024×768 and 390×844; see ["T4 — decision workspace"](VISUAL-AUDIT.md#t4--decision-workspace-2026-11-26).
+- The 3D stage's pointer gestures (pan, orbit, tilt, zoom) and its three layer toggles were exercised by the component tests and by the worker's browser runs, not by the T14 viewport/contrast/interaction sweep; the sweep asserted the stage's projection mode, canvas pixels, catalogue length and badge.
+- Browser zoom, text-spacing overrides, axe and assistive technology remain unrun for T10–T14. The live authenticated application against a real Keycloak realm was not exercised.
