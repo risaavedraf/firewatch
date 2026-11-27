@@ -407,3 +407,38 @@ test('the sign-in control is disabled while a session is established and enabled
   expect(document.getElementById('login')).not.toHaveAttribute('hidden');
   expect(document.getElementById('account-console')).toHaveAttribute('hidden');
 });
+
+// ── T7 — board 17's head, verification steps and stated limits ─────────────
+// Board 17 opens with the scope of the view and, beside the matrix, explains how
+// the role is verified and lists what the screen deliberately cannot do. Both
+// blocks are documentation of the shipped behaviour: no token is issued here, no
+// role is chosen here, and no permission is granted here.
+test('the view states how the role is verified and what it cannot do (T7)', () => {
+  const { container } = render(<SessionView />);
+
+  const head = document.getElementById('session-head');
+  expect(head).not.toBeNull();
+  expect(head?.querySelector('h2#session-title')).not.toBeNull();
+  expect(head?.querySelector('.eyebrow')).toHaveTextContent('ACCESO A LA API');
+  expect(head).toHaveTextContent('Solo lectura');
+  expect(head).toHaveTextContent('Sesión observada por el servidor');
+
+  const verification = document.getElementById('session-verification');
+  expect(verification).not.toBeNull();
+  expect(verification?.querySelectorAll('.ops-step')).toHaveLength(4);
+  expect(verification).toHaveTextContent(/Keycloak emite el token/);
+  expect(verification).toHaveTextContent(/El gateway verifica firma y sujeto/);
+  expect(verification).toHaveTextContent(/401/);
+  expect(verification).toHaveTextContent(/La página solo lee el claim/);
+
+  const limits = document.getElementById('session-limits');
+  expect(limits).not.toBeNull();
+  expect(limits).toHaveTextContent(/No cambia de usuario/);
+  expect(limits).toHaveTextContent(/No elige ni eleva un rol/);
+  expect(limits).toHaveTextContent(/No edita la matriz de permisos/);
+  expect(limits).toHaveTextContent(/No concede permisos/i);
+
+  // The added documentation is not a new control surface: still no selector, no
+  // input and no role picker anywhere in the view.
+  expect(container.querySelectorAll('select, input')).toHaveLength(0);
+});

@@ -290,3 +290,43 @@ assistive technology ran for this change, and the workspace was not opened with 
 **1.4.4** is unchanged (the change adds `font-size` declarations in absolute `px`, as the rest of the scale does).
 Long real content and the touch-drag gesture on the internal scroll regions were not exercised, and 2.4.11 was not
 re-measured because the fixtures carry no shell.
+
+## T7 evidence — access and operations (2026-11-26)
+
+T7 ports boards 14–19 into the AUTH gate and `#sources`, `#status`, `#jobs`, `#session`, `#audit` and `#pending`.
+The evidence below is scoped to those screens; it does not restate or replace earlier per-criterion measurements
+and is not a conformance claim. Environment: isolated **Chromium 148.0.7778.96** (locally present Playwright build)
+driving the real `App`/`Shell`/views/session module through a Vite fixture whose only substitution is `window.fetch`
+(local token exchange and twelve gateway answers). No live gateway, Keycloak, credential or backend write. Evidence:
+ignored `frontend/tmp/t7-evidence/` and `frontend/tmp/t7-evidence-base/` (base `dbcd7a9`), 27 samples each
+(9 scenes × 1440×900, 1024×768, 390×844), `report.json` plus screenshots.
+
+| Criterion | Measurement | Result |
+| --- | --- | --- |
+| 1.3.1 Info and Relationships | The seven screens keep their landmarks and ids (0 lost in 27 samples) and gain only structural text: a head `<div>` with `<p class="eyebrow">`, `<h2>` and lede, step lists as `<ol>/<li>`, state vocabularies as `<ul>/<li>`, and the auth contract as `<dl>` (label/value pairs). The step number is `aria-hidden` text, so the sentence carries the meaning. No table column, caption or `scope` changed; the register kept its eight columns and the permissions matrix its four | Meets (DOM + sampled) |
+| 1.3.2 Meaningful Sequence | DOM order follows reading order: head → scope banner → main column → side column, with the side column moving under the main one at 1200 px (CSS only). `#audit` keeps register → legend because the eight-column table needs the full width. `#session` puts the matrix in the main column and the account at the side, so the wider answer comes first in both DOM and visual order | Meets (sampled) |
+| 1.4.1 Use of Color | Every state is a word: the legend lists `Listo · Degradado · Desconocido · Requiere admin · No configurado`; the register legend names `Leído · Sin permiso · 403 · No disponible · Vacío`; the auth chip says `Sin sesión` / `Regresando de Keycloak` / `Sesión rechazada` / `Acceso no completado`; the pending count states the number. Removing colour leaves every state readable | Meets (DOM + measured) |
+| 1.4.3 Contrast (Minimum) | Rendered computed colours against the declared background: `.ops-chip` 10.47:1, `.ops-lede`/`.ops-step p`/`.ops-states span`/`.ops-note` 5.49:1, step number 6.51:1, state labels and auth fact values 11.85:1, auth chip 8.95:1 (hero base token; its 4% white overlay only lightens), auth aside eyebrow 5.16:1, auth fact labels and state details 5.49:1. Lowest measured pair **5.16:1** | Meets |
+| 1.4.10 Reflow | `document.documentElement.scrollWidth − clientWidth === 0` in all 27 samples at 1440, 1024 and 390 px (base tree: also 0). The two-column composition collapses to one column at 1200 px and the side reflows by width; nothing is clipped. Internal scroll is unchanged and named: the 390 px register `330/1001`, status table `330/1028`, pending inventory `330/1217` and permissions matrix `330/2256`; the matrix now needs **no** internal scroll at 1024+ (`730/730`, `744/744`) where the base had `389/520` | Meets (sampled) |
+| 1.4.11 Non-text Contrast | No new interactive control, border-only state or colour-only mark was introduced: the new chips are text on `--soft`, the step numbers are text, and the legends are text lists. The existing controls keep the shipped `3px solid rgb(207, 125, 79)` ring; no new focus indicator was declared | Meets by construction (shipped indicator retained) |
+| 1.4.4 Resize Text | The head title is `clamp(22px, 2.2vw, 24px)` and every other new size is the shipped absolute `px` scale (9, 10, 11, 15px), exactly as the rest of the product declares type. No new `vh`/`vw` text, no truncation was added; 200% text resize was **not exercised** | Not measured |
+| 2.1.1 Keyboard | Sixteen `Tab` presses per scene and viewport: the new blocks add no stop (control counts identical to the base in all 27 samples). Reachable in order: `#audit-table` and the session matrix (named scroll regions), `#scenario-select`, `#create-job`, `#account-console`, `#audit-refresh`, `#readiness-refresh`, `#logout`, `#data-status-notice`, `#reset-filters`, the two auth tabs, `#register`/`#login` and the inline switch. `#refresh-job` is absent while the job is unknown because it is honestly disabled. No `tabindex` above `0` was added | Meets (sampled) |
+| 2.4.3 Focus Order | The measured sequence matches the base tree: the added content sits between existing regions and adds no control, so no stop changed place. The auth gate keeps one tab stop for the selected tab (roving tabindex) | Meets (sampled) |
+| 2.4.7 Focus Visible | Every recorded stop except the document body painted `solid 3px`: `rgb(207, 125, 79)` on paper, `rgb(215, 170, 115)` in the product bar, `rgb(167, 77, 52)` on the canvas/skip link. The new elements are non-focusable and inherit the shipped rule | Meets (measured) |
+| 2.4.11 Focus Not Obscured (AA, WCAG 2.2) | The fixture includes the real sticky product bar. No new sticky or fixed element was added and the new heads sit in normal flow, so the change adds no occlusion of its own. A geometric check of a focused control against the sticky bar was **not** performed | Not measured (unchanged by this task) |
+| 2.5.8 Target Size (Minimum) | No new control: the auth gate keeps its two tabs, two primary buttons (one per tab), optional Google buttons and inline switches; the other six screens keep exactly their shipped controls (identical counts in 27 samples). The shipped button scale stays as it was | Meets the absolute minimum via the shipped scale; 44 px not met for the shipped scale |
+| 3.2.5 Change on Request | The state chips, legends, steps and facts are static text. Nothing new requests, navigates or refreshes; the job request, audit refresh, sign-in and sign-up still run only on request | Meets (source + DOM) |
+| 4.1.2 Name, Role, Value | No ARIA role was added except the auth state group's existing label pattern (`role="group" aria-label="Estado de la entrada"`), the lists and headings are native, and the auth screen still renders **no** `input`, `textarea`, `select` or `form`. The register table keeps its caption and column headers; the matrix keeps its four columns and named region; `#audit-badge`, `#sources-badge`, `#pipeline-badge`, `#job-status`, `#session-roles` and the pending ids keep their roles and ids | Meets (DOM) |
+| 4.1.3 Status Messages | The live regions are unchanged: `#auth-status`, `#sources-status`, `#pipeline-status`, `#cycle-status`, `#operational-verdict-announcement`, `#status-verdict`, `#job-status`, `#session-roles-status`, `#auth-status` (session), `#audit-status` and the existing shell regions stay `role="status" aria-live="polite"`. The new heads, steps and legends carry no live role, so no state is announced twice; the sources verdict announcement test still pins one announcement per transition | Meets (DOM + test) |
+
+**Test evidence.** Eight public-behaviour tests were added (two auth, one per remaining view) and seven existing
+a11y assertions in `tests/a11y/heading-hierarchy.test.tsx` and `tests/a11y/table-scroll-regions.test.tsx` were
+extended; no existing accessibility assertion was weakened. RED before the product edit: `11 failed | 121 passed
+(132)` across the nine touched suites. GREEN after: the required focused command `11 files / 176 passed (176)`;
+`npm run verify` exit 0 with `57` files / `795` tests.
+
+**Not measured for T7.** No axe scan, text-spacing override, browser-zoom or 200% text-resize pass, virtual screen
+reader or real assistive technology ran for this change, and no live authenticated session, gateway or Keycloak was
+used. Only 1440×900, 1024×768 and 390×844 were sampled. Long real content, hover/active/print surfaces of the new
+blocks and landscape phones were not exercised. **1.3.4 Orientation**, **1.4.12 Text Spacing** and **1.4.13 Content
+on Hover or Focus** are unchanged by this presentation-only change and were not re-run.

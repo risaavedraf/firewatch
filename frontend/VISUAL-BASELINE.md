@@ -420,6 +420,76 @@ zone. Board 10's factor table also carries a recommendation column and a contrib
 neither a recommendation mapping nor a bar scale for the counterfactual, so only the value and `aporte` the rule
 returned are shown.
 
+## Access and operations (T7)
+
+T7 ports boards 14–19 —
+[`14-acceso.html`](../design/firewatch-v1-vuelo/14-acceso.html),
+[`15-fuentes-y-servicios.html`](../design/firewatch-v1-vuelo/15-fuentes-y-servicios.html),
+[`16-procesamiento.html`](../design/firewatch-v1-vuelo/16-procesamiento.html),
+[`17-sesion-y-permisos.html`](../design/firewatch-v1-vuelo/17-sesion-y-permisos.html),
+[`18-registro-de-actividad.html`](../design/firewatch-v1-vuelo/18-registro-de-actividad.html) and
+[`19-aun-no-implementado.html`](../design/firewatch-v1-vuelo/19-aun-no-implementado.html) — into the seven screens
+the product already has: the AUTH gate ([`src/views/AuthView.tsx`](src/views/AuthView.tsx)), `#sources`,
+`#status`, `#jobs`, `#session`, `#audit` and `#pending`. No route, backend call, auth step, role decision,
+protocol, token lifetime, store, domain contract, `Shell.tsx`, `ui.tsx`, `routes.ts`, `app.css` rule or dependency
+changed; the views keep every id they exposed. The new stylesheet is
+[`src/styles/operations-workspace.css`](src/styles/operations-workspace.css), imported by the six workspace views,
+plus the auth-page rules appended to the existing [`src/styles/auth.css`](src/styles/auth.css). The one new component
+file is [`src/components/operations/OperationsPrimitives.tsx`](src/components/operations/OperationsPrimitives.tsx)
+(`OperationsViewHead`, `OperationsSteps`, `OperationsStateList`) — placement only; no component decides a state.
+
+**No new palette and no new scale.** Colours come from the declared tokens (`--paper`, `--soft`, `--line`,
+`--muted`, `--ink`, `--gold`, `--forest-700`, `--radius`, `--shadow`) plus the shipped sidebar label `#d5e1db` for
+the auth chip and the shipped focus ring `#cf7d4f` (not re-declared: no new control was added). Type stays in the
+in-use sizes (9, 10, 11, 15, 21–24px) and spacing in the existing 4px-derived values.
+
+| Selector | Role | Declared values |
+| --- | --- | --- |
+| `.ops-view-head` | Head (14–19) | flex wrap, `gap: 10px 22px`, `14px 18px 15px`, `1px solid --line`, `var(--radius)`, `--paper`, `var(--shadow)`; title `clamp(22px, 2.2vw, 24px)/600`, tracking `-.9px`; lede `78ch` max, `11px/1.6 --muted` |
+| `#jobs`, `#audit`, `#pending` head | In-card head | no surface, `0 0 12px`, bottom `1px solid --line` — the panel modifier already pads, so the head is the panel's own |
+| `.ops-chip` | Scope chip | `4px 8px`, `1px solid --line`, radius `5px`, `--soft` on `--ink`, `9px/700` |
+| `.ops-layout` / `.ops-stack` / `.ops-side` | Two columns | `minmax(0, 1fr) 340px`, `gap: 16px`, `align-items: start`; columns are grids with `16px` gap and no double panel margin |
+| `.ops-block` | Steps or legend card | `15px 17px 16px`, `1px solid --line`, `var(--radius)`, `--paper`, `var(--shadow)`; title `15px/650` |
+| `.ops-step` | Numbered step (16/17) | `26px` marker column, `9px 0` rows, `1px solid --line` dividers; number `24px` circle `--soft`/`--forest-700` `9px/800` |
+| `.ops-states` | State vocabulary (16/18) | full-width rows, label `10px/700 --ink`, detail `9px/1.5 --muted`; two columns only inside `#audit` where the rows are short |
+| `#sources .ops-side .data-list` | Side facts (15) | the same `dl` stated as rows: one column, `8px 0`, left-aligned value at `100%` — at 340px a right-aligned value broke into one or two words per line |
+| `.auth-chips` / `.auth-chip` | Entrance state (14) | flex wrap, `6px` gap, `4px 8px`, `1px solid #54766e`, radius `5px`, `#d5e1db` on the hero |
+| `.auth-facts-panel` / `.auth-facts` | Contract panel (14) | `18px 20px 20px`, `1px solid --line`, `var(--radius)`, `--paper`; fact grid `minmax(96px, 38%)`, label `9px/700 --muted`, value `10px/600 --ink` |
+| `.auth-state-list` | Entrance states (14) | list rows `7px 0` with `1px solid --line`; label `10px/700 --ink`, detail `--muted` |
+
+**Breakpoints.** `1200px` collapses `.ops-layout` to one column and lets `.ops-side` reflow by available width
+(`auto-fit`), so a side column with a single block keeps the full width instead of painting half an empty row;
+`760px` makes the side a single column and tightens the head and block padding; `420px` drops the head title to
+21px and stacks the auth fact grid. The auth gate keeps its shipped `900px` and `420px` breakpoints; the two
+reference panels move under the card instead of becoming a third column, and at `≤900px` the state-chip row gives
+back its vertical space (`4px` margin, `3px 7px` padding) so the primary action stays inside a 844 px viewport
+(measured `794–840`; base `771–817`).
+
+**The register's legend is below its table, not beside it.** Board 18 gives the legend a side column. The register
+is an eight-column table: measured at 1440, a 340px side column left it `744` px wide with a `833` px scroll width;
+full width it is `1100` px with no internal scroll. The legend is the same list, stated under the table.
+
+**The permission matrix takes the main column.** Board 17 gives the matrix the wider column. It also fixes a
+measured defect: at the shipped `lower-grid` ratio the matrix had `389` px for a `520` px minimum and scrolled
+horizontally at 1440. In the main column it is `744` px at 1440 and `730` px at 1024, both without internal scroll;
+at 390 it keeps its named, focusable scroll region.
+
+**What the boards carry that the product does not.** Board 14's simulated Keycloak opener and its "ilustrative
+session" are not ported: the screen only states the round trip it really observes. Board 15's record selection,
+quality findings and "incorporate" action have no endpoint. Board 16's illustrative queue and its publish,
+advance and reevaluate controls are not ported (no endpoint; the view keeps its "not implemented" note). Board
+17's role picker was already refused and stays refused; its "no sign-out" list is stated as what this view does not
+do, not as a control. Board 18's per-event selection and detail panel need fields the endpoint no longer lacks but
+that this view does not offer as a control. Board 19's prototype links are not ported: no control may imply the
+capability exists. The theme toggle, the mockup session stamp, the focus/cutoff facts and the seven-row count are
+board-only; the inventory renders its own five rows.
+
+**What was added instead, from real data.** The entrance's state chip, derived from the real session state; the
+auth contract and state blocks, whose every sentence already exists in the shipped copy; the five-state legend,
+built from `STATE_LABELS`/`STATE_REASONS`; the four real steps of the jobs contract, including the "deadline is not
+a publication" rule; the four verification steps and the four stated limits; the register's four response branches;
+the inventory's real count (`NOT_IMPLEMENTED.length`); and the source side facts stated as rows at 340px.
+
 ## What still needs a browser
 
 - Resolve inherited backgrounds, disabled and focus states, and route-specific overrides in the rendered views. For example, Actions already overrides some chip and tag colors, so their base ratios do not describe every view.

@@ -912,3 +912,140 @@ declared pairs are the shipped ones). Long real content — an action titled wel
 rows, many observations, a 64-character identifier — was not rendered. The simulator's factor flag was measured
 in the two-substitution state only. Print preview and the touch-drag gesture on the internal scroll regions were
 not exercised.
+
+## T7 — access and operations (2026-11-26)
+
+T7 ports boards 14–19 into the seven screens the product already has: the AUTH gate and `#sources`, `#status`,
+`#jobs`, `#session`, `#audit`, `#pending`. No route, backend call, auth step, role decision, protocol, store,
+domain contract, shared UI, `app.css` rule or dependency changed. The new stylesheet is
+[`src/styles/operations-workspace.css`](src/styles/operations-workspace.css) (imported by the six workspace views)
+and the auth rules appended to [`src/styles/auth.css`](src/styles/auth.css); the new component file is
+[`src/components/operations/OperationsPrimitives.tsx`](src/components/operations/OperationsPrimitives.tsx).
+
+**Environment.** An isolated **Chromium 148.0.7778.96** (the locally present Playwright-managed
+`chromium-1223` build, launched headless through Playwright from the npx cache) against a Vite dev fixture that
+imports the **real `App`, `Shell`, `ProductNav`, views, stylesheets and session module**. The only substitution is
+`window.fetch`: the token exchange and the twelve gateway reads are answered by a local stub, so a session is
+established through the shipped Authorization Code code path without Keycloak, and every view renders the state its
+own domain code derives from the payload. No credential, cookie, live gateway, live Keycloak, backend write or
+database access; nothing installed. Fixture and probe live in the OS temp directory; evidence is ignored scratch:
+`frontend/tmp/t7-evidence/` (after) and `frontend/tmp/t7-evidence-base/` (base `dbcd7a9` extracted with
+`git archive`, 28 files each), screenshots `*.png`, measurements `report.json`.
+
+**Samples.** 9 scenes × 3 viewports = **27 samples** per tree: `auth`, `sources`, `status`, `jobs`, `session`,
+`audit`, `pending`, plus `audit403` (register answers 403) and `sources503` (provenance answers 503), at
+1440×900, 1024×768 and 390×844. **0 console errors, 0 uncaught page errors and 0 px page-level horizontal overflow
+in all 27** (base tree: same).
+
+### Composition, before and after
+
+Boxes are `getBoundingClientRect` in CSS px. Left is `dbcd7a9`, right is this change.
+
+| Element / viewport | Before | After |
+| --- | --- | --- |
+| Sources view 1440 | `1138×1496`, title + banner + three stacked panels | `1138×1682`; head `1138×118` at `y=186`, banner at `y=320`, stack `782` + side `340` at `y=398` |
+| Sources side facts 1440 | full-width panels | side `340`; facts stated as rows (`8px 0`, value left, `100%`) |
+| Status view 1440 | `1138×852`, title + verdict + table | `1138×931`; head `1138×156`, stack `782` + side `340`; table `744/744` (no internal scroll) |
+| Status states 1440 | none | five rows in the side block, in the contract's order |
+| Jobs view 1440 | `1138×335`, one panel | `1138×662`; in-card head `1100×100`, stack `744` + side `340`, four-step flow block |
+| Session view 1440 | `1138×2109`; matrix `389` wide, `520` scroll width | `1138×1995`; head `1138×136`, matrix column `744` wide and `744` scroll width (no internal scroll), account at side `340`, two documentation blocks below |
+| Audit view 1440 | `1138×375`; register full width `1100/1100` | `1138×612`; in-card head `1100×101`, register still `1100/1100`, legend under it in two columns |
+| Audit 403 1440 | `1138×246` | `1138×484`; badge `SIN PERMISO`, `HTTP 403 · forbidden` copy, table region stays hidden `0/0` |
+| Pending view 1440 | `1138×467` | `1138×512`; in-card head `1100×100` with the real count `5`, table `1100/1100`, closing note |
+| Auth gate 1440 | page `1440×900`; card `420×583` at `879,159` (vertically centred) | page `1440×1224`; card `420×583` at `879,40` (the stack is taller than the viewport, so `align-content: safe center` pins it to the top and the primary action moves **up**); the two reference panels (`420` wide, `545` tall together) follow from `y=639` |
+| Auth gate 390 | card `358×569` at `16,407`; sign-up panel from `500`; primary action `771–817` | page `390×1690`; card at `16,431`; sign-up panel from `524`; primary action `794–840`, still fully inside 844 after the mobile chip spacing; panels `358` from `y=1030` |
+| Any view 1024 | single shipped layouts | `.ops-layout` one column; side reflows by width (`sources` two `376` columns, single-block sides full width `730/768`) |
+| Any view 390 | single column | single column `360` (or `330` inside a panel); no page overflow |
+
+The first fold at 390 px is still dominated by the shell (T1/T2 scope), so the new heads start below it. On the
+sign-in gate the primary action is above the fold at 1440 and 1024, and stays inside it at 390×844: measured
+`794–840` against an 844 px viewport (base `771–817`). The `+24px` at 390 is the new state-chip row after its
+mobile spacing, which was reduced to keep the button visible.
+
+### PRESERVE — differential against the baseline
+
+The same 27 samples ran against `dbcd7a9` (`git archive`, own stylesheets) and this tree.
+
+- **Identifiers: 0 lost in all 27 samples.** Added ids, identical in each of the three viewports per scene:
+  `auth` +5 (`auth-state`, `auth-facts`, `auth-facts-title`, `auth-states`, `auth-states-title`), `sources` +1
+  (`sources-head`), `status` +3 (`status-head`, `status-states`, `status-states-title`), `jobs` +3 (`jobs-head`,
+  `jobs-flow`, `jobs-flow-title`), `session` +5 (`session-head`, `session-verification`,
+  `session-verification-title`, `session-limits`, `session-limits-title`), `audit` +3 (`audit-head`,
+  `audit-states`, `audit-states-title`) and `pending` +3 (`pending-head`, `pending-count`, `pending-note`). No id
+  was renamed or removed.
+- **Controls: identical counts in all 27 samples** — `main`/auth `button`, `a`, `select` and `input` counts match
+  the base tree exactly. The new heads, steps and legends are `section`/`ol`/`ul`/`dl`/`span`, so they add no
+  control, no tab stop and no disabled affordance.
+- **Behaviour: the shipped suites are unchanged.** The 168 pre-existing tests in the focused command
+  (`auth`, `sources`, `status`, `jobs`, `session`, `audit`, `pending`, `core/session`, `app/router`,
+  `a11y/heading-hierarchy`, `a11y/table-scroll-regions`) pass before and after without a single edited assertion;
+  the extensions are additive. The full suite is `57 files / 795 tests` (base `787`), all passing.
+
+### States
+
+| Screen | State | Observed |
+| --- | --- | --- |
+| `#sources` | provenance read | badge `PUBLICADA`, integrity sentence names the service's own verification |
+| `#sources` | provenance 503 | badge `NO DISPONIBLE`; `Procedencia geográfica no disponible (HTTP 503 · unavailable)…`; no green mark, no invented rule identity |
+| `#status` | all services ready | badge `OPERATIVO`; legend lists `Listo · Degradado · Desconocido · Requiere admin · No configurado`; table `744/744` |
+| `#jobs` | no job yet | `Sin trabajo para la zona seleccionada.` / `Sin solicitud`; `Actualizar estado` is disabled and therefore not in the Tab order |
+| `#session` | token read | badge `TOKEN LEÍDO`, roles `viewer, admin` verbatim; limits block states the deliberate absences |
+| `#audit` | read | badge `LEÍDO`, two rows, count `2` |
+| `#audit` | 403 | badge `SIN PERMISO`, `HTTP 403 · forbidden` sentence, count `—`, table region hidden |
+| `#pending` | inventory | count `5` (the exported list's length), `NO IMPLEMENTADO` badge, closing note, no control |
+| AUTH | no session / registering | chip `Sin sesión` + `Entrada sin credenciales`; `#registro` opens the sign-up tab; no credential field |
+
+No scene reports a success it did not observe: the pending and 403 states are the served state, and the jobs idle
+state keeps the disabled refresh.
+
+### Keyboard and focus (measured)
+
+Sixteen sequential `Tab` presses were recorded per scene and viewport. Every stop except the document body (the
+cycle point) painted a `solid 3px` outline: the shipped `rgb(207, 125, 79)` on paper, `rgb(215, 170, 115)` in the
+product bar and `rgb(167, 77, 52)` on the canvas/skip link. The new blocks add no stop. Reachable in the recorded
+order: `#audit-table` (the named scroll region, with its ring), the session matrix wrapper, `#scenario-select`,
+`#create-job`, `#account-console`, `#audit-refresh`, `#readiness-refresh`, `#logout`, `#data-status-notice`,
+`#reset-filters` and the two auth tabs plus `#register`/`#login` and the inline switch. The page cycles rather
+than trapping focus, and the auth gate keeps its roving tabindex (one tab stop for the selected tab).
+
+### Contrast (rendered computed styles, Chromium)
+
+Font colours were read from the rendered element and ratios computed against the declared background token. The
+auth chip sits on a gradient; its own `rgba(255 255 255 / 4%)` overlay is reported, and the ratio uses the hero's
+`--forest-900` base (the overlay only lightens it).
+
+| Element | Size | Rendered colour | Background | Ratio |
+| --- | --- | --- | --- | --- |
+| `.ops-chip` | 9px | `rgb(35, 59, 57)` | `--soft` | 10.47:1 |
+| `.ops-lede`, `.ops-step p`, `.ops-states span`, `.ops-note` | 9–11px | `rgb(92, 108, 101)` | `--paper` | 5.49:1 |
+| `.ops-step-num` | 9px | `rgb(40, 94, 86)` | `--soft` | 6.51:1 |
+| `.ops-states strong`, `.auth-facts dd` | 10px | `rgb(35, 59, 57)` | `--paper` | 11.85:1 |
+| `.auth-chip` | 9px | `rgb(213, 225, 219)` | hero base `#173c3b` | 8.95:1 |
+| `.auth-aside-eyebrow` | 9px | `rgb(133, 105, 30)` | `--paper` | 5.16:1 |
+| `.auth-facts dt`, `.auth-state-list span`, `.auth-aside-note` | 9–10px | `rgb(92, 108, 101)` | `--paper` | 5.49:1 |
+
+All new text pairs meet 4.5:1. The focus ring was not re-declared: every new element is non-interactive, and the
+existing controls keep the shipped ring.
+
+### Automated
+
+Eight public-behaviour tests were added (two in `tests/views/auth.test.tsx`; one each in `sources`, `status`,
+`jobs`, `session`, `audit` and `pending`), and four existing `a11y/heading-hierarchy` cases plus three existing
+`a11y/table-scroll-regions` cases were extended with assertions; no existing assertion was weakened or removed.
+**RED before the product edit:** the nine touched suites ran `11 failed | 121 passed (132)`, each failure the
+missing head/legend/count contract (for example `expected null not to be null` on `#sources-head`). **GREEN after:**
+the required focused command runs `11 files / 176 passed (176)`. `npm run verify` on the final tree passed lint,
+typecheck, `57` files / `795` tests, the source gate over `78` shipped files, the local build and the loopback
+smoke (exit 0). `git diff --check` is clean.
+
+### Not measured for T7
+
+No axe scan, text-spacing override, browser-zoom or 200% text-resize pass, virtual screen reader or real assistive
+technology ran for this change. The fixture carries the real shell and the real session module, but not a live
+authenticated gateway, a live Keycloak or a real token; the auth round trip is the shipped code against a local
+stub. Only 1440×900, 1024×768 and 390×844 were sampled — 1280, 768, 375, 320 and landscape phones were not. Long
+real content (100 audit events, dozens of scenario options, a 64-character action id) was not rendered. Hover,
+active and print surfaces of the new blocks were not re-measured (they declare the shipped ones); the product has
+no dark mode, so none was checked. The register's legend was moved below the table after measurement showed a
+horizontal scrollbar beside it at 1440; the 1024 audit table still scrolls internally (`730/833`) inside its named,
+focusable region.

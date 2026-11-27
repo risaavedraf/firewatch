@@ -490,3 +490,32 @@ test('unmounting stops the poll timer', async () => {
   await tick(timing.pollIntervalMs * 2);
   expect(fetchStub.callsFor(JOB_URL)).toHaveLength(1);
 });
+
+// ── T7 — board 16's real flow, without the queue or the G6 actions ─────────
+// Board 16 explains the asynchronous route before offering anything: request,
+// bounded poll, the server decides the publication, then a correlated read. That
+// explanation is true of this view today, so it is ported. The board's
+// illustrative queue and its three publish/advance/reevaluate controls are not:
+// the service has no such endpoint and the view already declares that absence.
+test('the flow panel states the real server sequence and offers no simulated action (T7)', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  const flow = document.getElementById('jobs-flow');
+  expect(flow).not.toBeNull();
+  expect(flow?.querySelector('h3#jobs-flow-title')).toHaveTextContent('El servidor decide y publica');
+  expect(flow?.querySelectorAll('.ops-step')).toHaveLength(4);
+  expect(flow).toHaveTextContent(/POST \/v1\/jobs/);
+  expect(flow).toHaveTextContent(/202/);
+  expect(flow).toHaveTextContent(/403/);
+  expect(flow).toHaveTextContent(/La publicación la decide el servidor/i);
+  // The deadline rule survives verbatim: an expired read is never a publication.
+  expect(flow).toHaveTextContent(/publicación sin verificar, nunca un nivel bajo/i);
+
+  // Plain explanation only: the flow adds no control that would perform one of
+  // the three actions the service cannot back, and the real request control stays
+  // outside it.
+  expect(flow?.querySelectorAll('button, a, input, select')).toHaveLength(0);
+  expect(flow?.querySelector('#create-job')).toBeNull();
+});

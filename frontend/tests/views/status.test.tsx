@@ -610,3 +610,34 @@ test('the table is semantic: caption, headers with scope and a text state per ro
     expect(row.querySelector('.status-state')?.textContent?.trim()).not.toBe('');
   }
 });
+
+// ── T7 — board 16's head plus the served state vocabulary ──────────────────
+// The aggregate board states its scope in a head and, beside the verdict,
+// translates the five states the service can serve. The legend only repeats the
+// labels and reasons the table already renders; it adds no probe, no control and
+// no state the contract does not declare.
+test('the board opens with its head and states what each served state means (T7)', async () => {
+  const { fetchStub } = await connect();
+  render(<StatusView />);
+  await flush();
+  answerReads(fetchStub);
+  await waitFor(() => expect(rows()).toHaveLength(5));
+
+  const head = document.getElementById('status-head');
+  expect(head).not.toBeNull();
+  expect(head?.querySelector('h2#status-title')).not.toBeNull();
+  expect(head?.querySelector('.eyebrow')).toHaveTextContent('SERVICIOS Y AGREGADO');
+  expect(head).toHaveTextContent(/Una lectura acotada/i);
+  expect(head).toHaveTextContent('Sin comprobaciones propias');
+
+  const states = document.getElementById('status-states');
+  expect(states).not.toBeNull();
+  expect(states?.querySelectorAll('li')).toHaveLength(5);
+  for (const label of ['Listo', 'Degradado', 'Desconocido', 'Requiere admin', 'No configurado']) {
+    expect(states).toHaveTextContent(label);
+  }
+  // A legend, not a second control surface: the board keeps exactly the reads and
+  // the table it already shipped.
+  expect(states?.querySelectorAll('button, a, input, select, [role="button"]')).toHaveLength(0);
+  expect(document.querySelectorAll('#status .table-wrap')).toHaveLength(1);
+});

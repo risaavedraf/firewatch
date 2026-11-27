@@ -1,4 +1,6 @@
-import { PanelHeading, StatusCopy, TableWrap, UnimplementedBadge } from '../components/ui';
+import { StatusCopy, TableWrap, UnimplementedBadge } from '../components/ui';
+import { OperationsViewHead } from '../components/operations/OperationsPrimitives';
+import '../styles/operations-workspace.css';
 
 // N8 — the inventory of capabilities the retired mockup offered and the backend
 // cannot back. Declaring them is part of the delivery: naming an absence here is
@@ -67,20 +69,27 @@ export function PendingView() {
   return (
     <section className="view" id="pending" data-view="pending" aria-labelledby="pending-title">
       <article className="panel pending-panel">
-        <PanelHeading
+        {/* Board 19's head, with the real count instead of the board's seven: the
+            number is the exported list's own length, so it cannot drift from the
+            rows below it. No prototype link from the board is ported. */}
+        <OperationsViewHead
+          id="pending-head"
           eyebrow="ALCANCE DE ESTA ENTREGA"
           title="Aún no implementado"
           titleId="pending-title"
-          level={2}
-          badge={
-            <span id="pending-badge">
-              <UnimplementedBadge />
-            </span>
-          }
-        />
+          lede="Estas capacidades del mockup retirado no tienen respaldo en el backend actual. Declararlas es parte de la entrega: no se simulan y ningún control de esta página las ofrece."
+        >
+          <span className="ops-chip">Solo lectura</span>
+          <span className="count-badge" id="pending-count">
+            {NOT_IMPLEMENTED.length}
+          </span>
+          <span id="pending-badge">
+            <UnimplementedBadge />
+          </span>
+        </OperationsViewHead>
         <StatusCopy id="pending-status">
-          Estas capacidades del mockup retirado no tienen respaldo en el backend actual. Declararlas es parte de la
-          entrega: no se simulan y ningún control de esta página las ofrece.
+          Inventario de solo lectura: cada fila declara la capacidad ausente, por qué no está y dónde iría. Ninguna
+          fila es un control ni una simulación, y el backend actual no respalda ninguna de ellas.
         </StatusCopy>
         <TableWrap label="Capacidades sin respaldo en el backend">
           <table>
@@ -105,6 +114,11 @@ export function PendingView() {
             </tbody>
           </table>
         </TableWrap>
+        <p className="ops-note" id="pending-note">
+          Mostrar una ausencia no cierra ninguna fila: cada entrada sale de esta lista solo cuando el backend responde
+          la capacidad que declara. Esta página no enlaza prototipos ni ofrece controles deshabilitados que aparenten
+          una función.
+        </p>
       </article>
     </section>
   );

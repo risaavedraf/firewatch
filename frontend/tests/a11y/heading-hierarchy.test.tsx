@@ -238,6 +238,14 @@ test('the audit view opens at level 2 under the shell h1', async () => {
     'audit-title',
   );
   expect(document.querySelector('#audit .eyebrow')).toHaveTextContent('COORDINACIÓN');
+
+  // T7 — the head stays inside the card the panel modifier pads, and the new
+  // response legend is a section of the register one level below it.
+  expect(document.getElementById('audit-head')?.contains(document.getElementById('audit-title'))).toBe(true);
+  expect(screen.getByRole('heading', { level: 3, name: 'Qué declara cada respuesta' })).toHaveAttribute(
+    'id',
+    'audit-states-title',
+  );
 });
 
 test('the pending view opens at level 2 under the shell h1', () => {
@@ -249,6 +257,9 @@ test('the pending view opens at level 2 under the shell h1', () => {
     'pending-title',
   );
   expect(document.querySelector('#pending .eyebrow')).toHaveTextContent('ALCANCE DE ESTA ENTREGA');
+  // T7 — the board 19 head is the panel's own head, so the title keeps its place
+  // and its level; only the lede and the count were added under it.
+  expect(document.getElementById('pending-head')?.querySelector('h2#pending-title')).not.toBeNull();
 });
 
 // T4 — the executive route opens at level 2 and composes the server panel under
@@ -323,6 +334,19 @@ test('the session view opens at level 2 and keeps the permissions matrix under i
   for (const id of ['session-roles', 'permissions-rows', 'account-console']) {
     expect(document.getElementById(id), id).not.toBeNull();
   }
+
+  // T7 — the view head owns the level-2 title, and the two documentation blocks
+  // added under the panels are level-3 sections, so the descent stays one step
+  // at a time after the matrix's level-4 heading.
+  expect(document.getElementById('session-head')?.querySelector('h2#session-title')).not.toBeNull();
+  expect(screen.getByRole('heading', { level: 3, name: 'Cómo se verifica el rol' })).toHaveAttribute(
+    'id',
+    'session-verification-title',
+  );
+  expect(screen.getByRole('heading', { level: 3, name: 'Qué no hace esta vista' })).toHaveAttribute(
+    'id',
+    'session-limits-title',
+  );
 });
 
 // ── The primitive and the views that did not opt in ────────────────────────
@@ -359,6 +383,9 @@ test('a view that did not opt into a level keeps its panel headings at level 3',
     'id',
     'sources-title',
   );
+  // T7 — the board 15 head carries the view title; the panels below it keep the
+  // default level the primitive shipped.
+  expect(document.getElementById('sources-head')?.querySelector('h2#sources-title')).not.toBeNull();
   // PM-16 renamed this panel to its operational verdict; the heading level is
   // still the default one, which is what this case pins.
   for (const name of ['Fuentes y procedencia', 'Servicios y veredicto operativo', 'Frescura y última ejecución']) {

@@ -1,0 +1,343 @@
+/* FireWatch · access and operations port (T7).
+ *
+ * Boards 14-19 (acceso, fuentes y servicios, procesamiento, sesión y permisos,
+ * registro de actividad, aún no implementado) share one composition: a head with
+ * the eyebrow, the screen title, its lede and the screen's scope; a main column
+ * and a side column; and, inside the columns, blocks that explain a real
+ * sequence or the state vocabulary the screen can render.
+ *
+ * The classes are namespaced `ops-` and the file is imported by the six
+ * workspace views, so it reaches the browser BEFORE `app.css`. The prefix is
+ * what keeps that ordering harmless: no `app.css` selector declares an `ops-`
+ * class, so there is no equal-specificity contest to lose, and the few rules
+ * that must beat a shipped element rule (`.ops-view-head h2` over `h2`) do so on
+ * specificity, not on order.
+ *
+ * Every colour is a declared token. The one focus ring in this file is the
+ * shipped `#cf7d4f`, and it is applied only where a block wraps a real control.
+ * Type stays in the in-use sizes (8, 9, 10, 11, 15, 24px) and spacing in the
+ * 4px-derived values the product already uses. Nothing here animates, so there
+ * is no motion for `prefers-reduced-motion` to remove.
+ *
+ * The audit of what the boards carry that the product does not is in
+ * `frontend/VISUAL-BASELINE.md`, section "Access and operations (T7)". */
+
+/* ── The head (14-19) ─────────────────────────────────────────────────────── */
+
+/* The board's bordered head. It is the view's own title card, so it carries the
+   panel surface and radius while staying outside the panels it introduces. */
+.ops-view-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 22px;
+  margin-bottom: 16px;
+  padding: 14px 18px 15px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.ops-view-head-copy {
+  min-width: 0;
+}
+
+.ops-view-head .eyebrow {
+  margin-bottom: 4px;
+}
+
+/* The shipped page title is 24px in an `intro-row`; the head keeps that step so
+   the boards' title weight survives the move into a card. */
+.ops-view-head h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(22px, 2.2vw, 24px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -.9px;
+}
+
+.ops-lede {
+  max-width: 78ch;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.ops-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+/* The board's neutral chip, on the shipped `--soft` surface with `--ink` text
+   (10.9:1). It states scope, never a result. */
+.ops-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* Inside a panel the head is the panel's own head: the panel modifier already
+   declares the padding, so the card surface would nest two boxes. */
+#jobs .ops-view-head,
+#audit .ops-view-head,
+#pending .ops-view-head {
+  margin-bottom: 14px;
+  padding: 0 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ── Main column and side column (15, 16, 17, 18) ─────────────────────────── */
+
+/* Board 15's side panel states its facts as rows, not as a two-ended table: at
+   340px a right-aligned value would be squeezed into a column of one or two
+   words per line. The same `dl` markup is kept; only the axis changes, and only
+   inside this view's side column. */
+#sources .ops-side .data-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding: 8px 0;
+}
+
+#sources .ops-side .data-list dd {
+  max-width: 100%;
+  text-align: left;
+}
+
+.ops-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+.ops-stack,
+.ops-side {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+
+/* The shipped panel and block both carry their own bottom margin; inside a
+   column the grid gap is the only spacing that should apply. */
+.ops-stack > .panel,
+.ops-side > .panel,
+.ops-stack > .ops-block,
+.ops-side > .ops-block {
+  margin-bottom: 0;
+}
+
+.ops-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.ops-duo > .ops-block {
+  margin-bottom: 0;
+}
+
+/* The register's legend sits under its table (the eight-column table needs the
+   full panel width), so it owns the separation the grid gap would have given it
+   in a column, and its four short rows run in two columns where they fit. */
+#audit .ops-block {
+  margin-top: 16px;
+}
+
+#audit .ops-states {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+}
+
+/* ── A block: steps or a state vocabulary (16, 17, 18) ───────────────────── */
+
+.ops-block {
+  min-width: 0;
+  padding: 15px 17px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.ops-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.ops-block-head > div {
+  min-width: 0;
+}
+
+.ops-block-head .eyebrow {
+  margin-bottom: 3px;
+}
+
+.ops-block-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -.3px;
+}
+
+.ops-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+/* ── Steps ───────────────────────────────────────────────────────────────── */
+
+.ops-steps {
+  display: grid;
+  gap: 0;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ops-step {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ops-step:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.ops-step-num {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--forest-700);
+  font-size: 9px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-step strong {
+  display: block;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.ops-step p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+/* ── State vocabulary ─────────────────────────────────────────────────────── */
+
+.ops-states {
+  display: grid;
+  gap: 0;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ops-states li {
+  display: grid;
+  gap: 1px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ops-states li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.ops-states strong {
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.ops-states span {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+/* Below 1200px the sidebar already leaves less width than a table and a 340px
+   column need. The side column moves under the main one and splits by available
+   width: `auto-fit` collapses the empty track when a side column carries a
+   single block, so jobs and the register do not paint half an empty row. */
+@media (max-width: 1200px) {
+  .ops-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ops-side {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+
+  .ops-duo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .ops-side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #audit .ops-states {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ops-view-head {
+    padding: 12px 14px 13px;
+  }
+
+  .ops-block {
+    padding: 13px 14px 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .ops-view-head h2 {
+    font-size: 21px;
+  }
+}

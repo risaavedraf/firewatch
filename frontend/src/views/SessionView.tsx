@@ -1,7 +1,13 @@
 import { PanelHeading, StatusCopy, TableWrap } from '../components/ui';
+import {
+  OperationsStateList,
+  OperationsSteps,
+  OperationsViewHead,
+} from '../components/operations/OperationsPrimitives';
 import { rejectedSessionCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
 import { accountConsoleURL, startLogin, type SessionState } from '../core/session';
+import '../styles/operations-workspace.css';
 
 // N8b — the session + permissions view (S13/S17). It carries two clearly
 // separated things and nothing else:
@@ -243,130 +249,192 @@ export function SessionView() {
 
   return (
     <section className="view" id="session" data-view="session" aria-labelledby="session-title">
-      <PanelHeading eyebrow="ACCESO A LA API" title="Sesión y permisos" titleId="session-title" level={2} />
+      {/* Board 17's head: what the session declares, what the server decides and
+          what this page cannot change. The chips state the scope, not a role. */}
+      <OperationsViewHead
+        id="session-head"
+        eyebrow="ACCESO A LA API"
+        title="Sesión y permisos"
+        titleId="session-title"
+        lede="Lo que la sesión declara, lo que el servidor decide y lo que esta página no puede cambiar. La matriz documenta las guardas reales; el rol mostrado es un dato del token, no una autorización."
+      >
+        <span className="ops-chip">Solo lectura</span>
+        <span className="ops-chip">Sesión observada por el servidor</span>
+      </OperationsViewHead>
 
-      <div className="lower-grid">
-        <article className="panel auth-panel">
-          <div className="panel-heading">
-            <div>
-              <h3>{signedIn ? 'Tu cuenta' : 'Conectar sesión'}</h3>
-            </div>
-            <span className="lock-mark" aria-hidden="true">
-              ⌑
-            </span>
-          </div>
-          <p className="panel-note">
-            {signedIn
-              ? 'Tu cuenta vive en Keycloak: ahí cambias tu contraseña, tu nombre o tu correo. FireWatch nunca solicita ni recibe tu contraseña; la API valida los permisos.'
-              : 'Inicia sesión en Keycloak. FireWatch nunca solicita ni recibe tu contraseña; la API valida los permisos.'}
-          </p>
-          {/* F3 — one control, one state. `Shell.tsx` hides the logout control while
-              signed out; this one is disabled while a session is established or still
-              being established, so an authenticated operator can no longer see an
-              enabled "Iniciar sesión" whose only effect would be to restart the OAuth
-              flow. With a session it is also hidden: the account link below is the
-              only thing this panel can usefully offer an operator who is signed in. */}
-          <button
-            id="login"
-            className="primary-button"
-            type="button"
-            hidden={signedIn}
-            disabled={session.status !== 'signed-out'}
-            onClick={() => startLogin()}
+      <div className="ops-layout">
+        <div className="ops-stack">
+          <section
+            className="panel access-panel permissions-panel"
+            id="permissions"
+            aria-labelledby="permissions-title"
           >
-            Iniciar sesión con Keycloak
-          </button>
-          {/* A plain link to the identity provider's own account console. It leaves
-              the page on purpose: profile and password changes never pass through
-              FireWatch. */}
-          <a id="account-console" className="primary-button" href={accountConsoleURL()} hidden={!signedIn}>
-            Gestionar mi cuenta en Keycloak
-          </a>
-          <p className="panel-note">
-            El token de acceso permanece solo en memoria mientras esta página está abierta. No se guardan tokens ni se
-            envían cookies.
-          </p>
-          <p id="auth-status" className="auth-status" role="status" aria-live="polite">
-            {authStatus}
-          </p>
-        </article>
-
-        <section
-          className="panel access-panel permissions-panel"
-          id="permissions"
-          aria-labelledby="permissions-title"
-        >
-          <PanelHeading
-            eyebrow="COORDINACIÓN"
-            title="Perfiles y permisos"
-            titleId="permissions-title"
-            badge={
-              <span className="neutral-tag" id="session-roles-badge">
-                {role.badge}
-              </span>
-            }
-          />
-          <StatusCopy id="session-roles-status">{role.status}</StatusCopy>
-          <dl className="data-list compact">
-            <div>
-              <dt>Roles declarados por el token</dt>
-              <dd id="session-roles">{role.value}</dd>
-            </div>
-          </dl>
-          <p id="session-role-note" className="panel-note">
-            El rol se lee del claim <code>realm_access.roles</code> del token de acceso, que es la única fuente real: el
-            gateway solo publica riesgo, trabajos y auditoría, así que no existe un endpoint de identidad al que
-            preguntar. La página decodifica el payload y <strong>no verifica su firma</strong>; por eso el valor es un
-            dato informativo sobre el token y no una autorización. Quien decide es el servidor, que sí verifica la
-            firma: concede el riesgo con <code>viewer</code> o <code>admin</code> y las acciones de trabajo solo con{' '}
-            <code>admin</code>.
-          </p>
-          <h4>Matriz de perfiles y permisos</h4>
-          <p id="permissions-matrix-note" className="panel-note">
-            Documentación verificada contra las guardas reales del servidor, no contra lo que la interfaz promete. Cada
-            fila cita la guarda por <code>ruta#token</code>, la ruta y la cadena de ruta o expresión que la guarda
-            contiene, sin número de línea:{' '}
-            <code>backend/services/risk/internal/handler/security.go#"viewer"</code> acepta{' '}
-            <code>viewer</code> o <code>admin</code> y{' '}
-            <code>backend/services/jobs/internal/handler/security.go#"admin"</code> acepta solo{' '}
-            <code>admin</code>, con{' '}
-            <code>backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)</code> y{' '}
-            <code>backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)</code> envolviendo sus
-            mux completos. Un token verificado sin ninguno de esos roles recibe 403; un token que no se puede
-            verificar recibe 401.
-          </p>
-          <TableWrap label="Matriz de perfiles y permisos">
-            <table>
-              <caption className="sr-only">
-                Matriz documentada de perfiles y permisos, con la guarda real del servidor que la sustenta
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Capacidad</th>
-                  <th scope="col">viewer</th>
-                  <th scope="col">admin</th>
-                  <th scope="col">Guarda verificada (ruta#token)</th>
-                </tr>
-              </thead>
-              <tbody id="permissions-rows">
-                {PERMISSION_MATRIX.map(entry => (
-                  <tr key={entry.capability}>
-                    <td>{entry.capability}</td>
-                    <td>{entry.viewer}</td>
-                    <td>{entry.admin}</td>
-                    <td>{entry.guards.length > 0 ? entry.guards.join(' · ') : entry.note}</td>
+            <PanelHeading
+              eyebrow="COORDINACIÓN"
+              title="Perfiles y permisos"
+              titleId="permissions-title"
+              badge={
+                <span className="neutral-tag" id="session-roles-badge">
+                  {role.badge}
+                </span>
+              }
+            />
+            <StatusCopy id="session-roles-status">{role.status}</StatusCopy>
+            <dl className="data-list compact">
+              <div>
+                <dt>Roles declarados por el token</dt>
+                <dd id="session-roles">{role.value}</dd>
+              </div>
+            </dl>
+            <p id="session-role-note" className="panel-note">
+              El rol se lee del claim <code>realm_access.roles</code> del token de acceso, que es la única fuente real: el
+              gateway solo publica riesgo, trabajos y auditoría, así que no existe un endpoint de identidad al que
+              preguntar. La página decodifica el payload y <strong>no verifica su firma</strong>; por eso el valor es un
+              dato informativo sobre el token y no una autorización. Quien decide es el servidor, que sí verifica la
+              firma: concede el riesgo con <code>viewer</code> o <code>admin</code> y las acciones de trabajo solo con{' '}
+              <code>admin</code>.
+            </p>
+            <h4>Matriz de perfiles y permisos</h4>
+            <p id="permissions-matrix-note" className="panel-note">
+              Documentación verificada contra las guardas reales del servidor, no contra lo que la interfaz promete. Cada
+              fila cita la guarda por <code>ruta#token</code>, la ruta y la cadena de ruta o expresión que la guarda
+              contiene, sin número de línea:{' '}
+              <code>backend/services/risk/internal/handler/security.go#"viewer"</code> acepta{' '}
+              <code>viewer</code> o <code>admin</code> y{' '}
+              <code>backend/services/jobs/internal/handler/security.go#"admin"</code> acepta solo{' '}
+              <code>admin</code>, con{' '}
+              <code>backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)</code> y{' '}
+              <code>backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)</code> envolviendo sus
+              mux completos. Un token verificado sin ninguno de esos roles recibe 403; un token que no se puede
+              verificar recibe 401.
+            </p>
+            <TableWrap label="Matriz de perfiles y permisos">
+              <table>
+                <caption className="sr-only">
+                  Matriz documentada de perfiles y permisos, con la guarda real del servidor que la sustenta
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Capacidad</th>
+                    <th scope="col">viewer</th>
+                    <th scope="col">admin</th>
+                    <th scope="col">Guarda verificada (ruta#token)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableWrap>
-          <p id="permissions-unimplemented" className="unimplemented-note">
-            No portado a propósito: el mockup retirado permitía <em>elegir</em> un rol en la página. Ese selector no se
-            implementa porque la página no puede conceder permisos y un selector sería un límite de autorización falso.
-            Tampoco hay selector, conmutador ni preferencia de rol en ninguna parte de esta vista: el rol mostrado es el
-            que el token declara y no altera ninguna petición, panel ni decisión.
-          </p>
-        </section>
+                </thead>
+                <tbody id="permissions-rows">
+                  {PERMISSION_MATRIX.map(entry => (
+                    <tr key={entry.capability}>
+                      <td>{entry.capability}</td>
+                      <td>{entry.viewer}</td>
+                      <td>{entry.admin}</td>
+                      <td>{entry.guards.length > 0 ? entry.guards.join(' · ') : entry.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableWrap>
+            <p id="permissions-unimplemented" className="unimplemented-note">
+              No portado a propósito: el mockup retirado permitía <em>elegir</em> un rol en la página. Ese selector no se
+              implementa porque la página no puede conceder permisos y un selector sería un límite de autorización falso.
+              Tampoco hay selector, conmutador ni preferencia de rol en ninguna parte de esta vista: el rol mostrado es el
+              que el token declara y no altera ninguna petición, panel ni decisión.
+            </p>
+          </section>
+        </div>
+
+        <aside className="ops-side">
+            {/* Board 17 puts the session facts at the side and the matrix in the
+                main column: the matrix is the answer this page exists for, and at a
+                340px column its guard citations were unreadable. The panel, its ids
+                and its content are unchanged. */}
+          <article className="panel auth-panel">
+            <div className="panel-heading">
+              <div>
+                <h3>{signedIn ? 'Tu cuenta' : 'Conectar sesión'}</h3>
+              </div>
+              <span className="lock-mark" aria-hidden="true">
+                ⌑
+              </span>
+            </div>
+            <p className="panel-note">
+              {signedIn
+                ? 'Tu cuenta vive en Keycloak: ahí cambias tu contraseña, tu nombre o tu correo. FireWatch nunca solicita ni recibe tu contraseña; la API valida los permisos.'
+                : 'Inicia sesión en Keycloak. FireWatch nunca solicita ni recibe tu contraseña; la API valida los permisos.'}
+            </p>
+            {/* F3 — one control, one state. `Shell.tsx` hides the logout control while
+                signed out; this one is disabled while a session is established or still
+                being established, so an authenticated operator can no longer see an
+                enabled "Iniciar sesión" whose only effect would be to restart the OAuth
+                flow. With a session it is also hidden: the account link below is the
+                only thing this panel can usefully offer an operator who is signed in. */}
+            <button
+              id="login"
+              className="primary-button"
+              type="button"
+              hidden={signedIn}
+              disabled={session.status !== 'signed-out'}
+              onClick={() => startLogin()}
+            >
+              Iniciar sesión con Keycloak
+            </button>
+            {/* A plain link to the identity provider's own account console. It leaves
+                the page on purpose: profile and password changes never pass through
+                FireWatch. */}
+            <a id="account-console" className="primary-button" href={accountConsoleURL()} hidden={!signedIn}>
+              Gestionar mi cuenta en Keycloak
+            </a>
+            <p className="panel-note">
+              El token de acceso permanece solo en memoria mientras esta página está abierta. No se guardan tokens ni se
+              envían cookies.
+            </p>
+            <p id="auth-status" className="auth-status" role="status" aria-live="polite">
+              {authStatus}
+            </p>
+          </article>
+        </aside>
+      </div>
+
+      {/* Board 17's remaining side content, kept below the layout: how the role
+          is verified, and the absences that are deliberate. Both are
+          documentation of the shipped behaviour and carry no control. */}
+      <div className="ops-duo">
+        <OperationsSteps
+          id="session-verification"
+          titleId="session-verification-title"
+          eyebrow="GUARDAS REALES"
+          title="Cómo se verifica el rol"
+          items={[
+            {
+              title: 'Keycloak emite el token',
+              detail: 'El reino asigna los roles; la página no los elige ni los cambia.',
+            },
+            {
+              title: 'El gateway verifica firma y sujeto',
+              detail: 'Un token que no se puede verificar recibe 401 antes de cualquier guarda de rol.',
+            },
+            {
+              title: 'Las guardas del servicio deciden',
+              detail: 'viewer o admin para riesgo; solo admin para trabajos y auditoría.',
+            },
+            {
+              title: 'La página solo lee el claim',
+              detail: 'No concede ni eleva permisos; el valor es informativo y el servidor sigue siendo la única autoridad.',
+            },
+          ]}
+          note="La página decodifica el payload sin verificar la firma; el servidor, que sí la verifica, es la única autoridad."
+        />
+        <OperationsStateList
+          id="session-limits"
+          titleId="session-limits-title"
+          eyebrow="LÍMITES"
+          title="Qué no hace esta vista"
+          items={[
+            { label: 'No cambia de usuario', detail: 'La cuenta se administra en Keycloak y la sesión se cierra desde la barra superior.' },
+            { label: 'No elige ni eleva un rol', detail: 'Elegir un rol en esta página sería un límite de autorización falso.' },
+            { label: 'No edita la matriz de permisos', detail: 'La matriz documenta las guardas reales del servidor.' },
+            { label: 'No concede permisos', detail: 'El servidor verifica los permisos en cada petición.' },
+          ]}
+        />
       </div>
     </section>
   );

@@ -10,6 +10,7 @@ import {
   useSessionState,
 } from '../app/store';
 import { StatusCopy, UnimplementedNote } from '../components/ui';
+import { OperationsSteps, OperationsViewHead } from '../components/operations/OperationsPrimitives';
 import { timing } from '../config';
 import { createJob, history, job as readJob, latest, scenarios } from '../core/api';
 import type { Failure } from '../core/api';
@@ -17,6 +18,7 @@ import { getAccessToken, getSessionSnapshot, subscribeSession } from '../core/se
 import { expectedBatchInHistory, matchesBatch, presentBatch } from '../domain';
 import type { JobProgressKind } from '../domain/job-progress';
 import type { Job, Scenario } from '../types/api';
+import '../styles/operations-workspace.css';
 
 // The processing view: request one synthetic batch for the selected zone, then
 // read the job back with a bounded poll. Three rules travel with this code.
@@ -458,44 +460,90 @@ export function JobsView() {
   return (
     <section className="view" id="jobs" data-view="jobs" aria-labelledby="jobs-title">
       <article className="panel jobs-panel">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">LOTE DE DEMOSTRACIÓN</p>
-            <h2 id="jobs-title">Procesamiento asíncrono</h2>
-          </div>
+        {/* Board 16 opens the screen by naming the question and, above the
+            controls, explains the sequence the service really performs. The
+            illustrative queue and the three G6 actions of the board are not
+            ported: there is no endpoint behind them. */}
+        <OperationsViewHead
+          id="jobs-head"
+          eyebrow="LOTE DE DEMOSTRACIÓN"
+          title="Procesamiento asíncrono"
+          titleId="jobs-title"
+          lede="Solicita un lote sintético para la zona seleccionada y lee el trabajo con una consulta acotada. El servidor decide cuándo publica; esta página solo solicita, espera y verifica la lectura."
+        >
           <span className="admin-tag">ACCIÓN ADMINISTRATIVA</span>
-        </div>
-        <div className="job-layout">
-          <div>
-            <div className="scenario-field">
-              <label htmlFor="scenario-select">Escenario sintético</label>
-              <select
-                id="scenario-select"
-                aria-label="Escenario sintético a solicitar"
-                value={scenarioId}
-                disabled={selectorDisabled}
-                onChange={event => setScenarioId(event.target.value)}
-              >
-                <option value="">Sin escenario (fixture analítico heredado)</option>
-                {(catalogue ?? []).map(scenario => (
-                  <option key={scenario.id} value={scenario.id}>
-                    {scenarioLabel(scenario)}
-                  </option>
-                ))}
-              </select>
-              <p className="panel-note" id="scenario-note">
-                {scenarioNote}
+          <span className="ops-chip">Trabajo sintético</span>
+        </OperationsViewHead>
+        <div className="ops-layout">
+          <div className="ops-stack">
+            <OperationsSteps
+              id="jobs-flow"
+              titleId="jobs-flow-title"
+              eyebrow="HOY"
+              title="El servidor decide y publica"
+              badge={<span className="neutral-tag">CONTRATO ACTUAL</span>}
+              items={[
+                {
+                  title: 'Solicitar lote de la zona',
+                  detail: (
+                    <>
+                      <code>POST /v1/jobs</code> responde 202 con el trabajo aceptado. Requiere admin; un viewer recibe
+                      403.
+                    </>
+                  ),
+                },
+                {
+                  title: 'Esperar y consultar',
+                  detail: (
+                    <>
+                      <code>GET /v1/jobs/{'{id}'}</code> con un número de intentos y un plazo acotados por esta página.
+                    </>
+                  ),
+                },
+                {
+                  title: 'La publicación la decide el servidor',
+                  detail: 'La página no fija el lote ni mueve su estado: solo lee lo que el servicio publica.',
+                },
+                {
+                  title: 'Confirmar la lectura',
+                  detail:
+                    'Solo se declara publicado si el lote aparece correlacionado en el último lote y en el historial. Un plazo agotado es una publicación sin verificar, nunca un nivel bajo.',
+                },
+              ]}
+              note="El estado en vivo no se simula: la cola del tablero de diseño es ilustrativa y no se dibuja aquí."
+            />
+            <div>
+              <div className="scenario-field">
+                <label htmlFor="scenario-select">Escenario sintético</label>
+                <select
+                  id="scenario-select"
+                  aria-label="Escenario sintético a solicitar"
+                  value={scenarioId}
+                  disabled={selectorDisabled}
+                  onChange={event => setScenarioId(event.target.value)}
+                >
+                  <option value="">Sin escenario (fixture analítico heredado)</option>
+                  {(catalogue ?? []).map(scenario => (
+                    <option key={scenario.id} value={scenario.id}>
+                      {scenarioLabel(scenario)}
+                    </option>
+                  ))}
+                </select>
+                <p className="panel-note" id="scenario-note">
+                  {scenarioNote}
+                </p>
+              </div>
+              <p className="panel-note">
+                Solicita el procesamiento de la zona seleccionada. Esta operación requiere permisos de administrador y crea
+                únicamente un trabajo sintético.
               </p>
+              <button id="create-job" className="primary-button" type="button" disabled={createDisabled} onClick={requestBatch}>
+                Solicitar lote de la zona
+              </button>
             </div>
-            <p className="panel-note">
-              Solicita el procesamiento de la zona seleccionada. Esta operación requiere permisos de administrador y crea
-              únicamente un trabajo sintético.
-            </p>
-            <button id="create-job" className="primary-button" type="button" disabled={createDisabled} onClick={requestBatch}>
-              Solicitar lote de la zona
-            </button>
           </div>
-          <div className="job-result">
+          <aside className="ops-side">
+            <div className="job-result">
             <p className="eyebrow">ESTADO DEL TRABAJO</p>
             <StatusCopy id="job-status">{status}</StatusCopy>
             <dl className="data-list compact">
@@ -523,7 +571,8 @@ export function JobsView() {
             >
               Actualizar estado
             </button>
-          </div>
+            </div>
+          </aside>
         </div>
         <UnimplementedNote>
           Publicar lote, el avance manual del estado y la reevaluación: no existen como endpoint; el servidor decide y

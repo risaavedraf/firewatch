@@ -185,3 +185,62 @@ test('with the flag, both tabs offer Google and it opens Keycloak with the googl
   expect(target.searchParams.get('kc_idp_hint')).toBe('google');
   expect(target.searchParams.get('code_challenge_method')).toBe('S256');
 });
+
+// ── T7 — the board 14 hierarchy, stated truthfully ─────────────────────────
+// Board 14 opens the entrance with an eyebrow, a title, a lede and a row of
+// state chips, then names the real contract and the states a person can meet in
+// a side column. The production screen is a full-page gate instead of a view
+// inside the shell, so the same hierarchy is stated in the hero and under the
+// card. What the chips may say is the session this screen actually observes:
+// nothing here simulates a sign-in or a permission.
+test('the entrance states its real state and the contract it cannot change (T7)', () => {
+  render(<AuthView />);
+
+  const state = document.getElementById('auth-state');
+  expect(state).not.toBeNull();
+  expect(state).toHaveAttribute('role', 'group');
+  expect(state).toHaveTextContent('Sin sesión');
+  expect(state).toHaveTextContent('Entrada sin credenciales');
+
+  // The facts are the shipped contract, not a promise: the identity provider, the
+  // in-memory token and the realm-owned roles.
+  const facts = document.getElementById('auth-facts');
+  expect(facts).not.toBeNull();
+  expect(facts).toHaveTextContent('Keycloak · Authorization Code + PKCE');
+  expect(facts).toHaveTextContent(/se escriben solo en Keycloak/i);
+  expect(facts).toHaveTextContent(/no se persiste ni viaja en cookie/i);
+  expect(facts).toHaveTextContent(/el servidor los verifica en cada petición/i);
+  expect(facts).toHaveTextContent(/no una frontera de autorización/i);
+
+  // The states list names the outcomes the screen really renders, including the
+  // credential error it can never show.
+  const states = document.getElementById('auth-states');
+  expect(states).not.toBeNull();
+  expect(states).toHaveTextContent('Sin sesión');
+  expect(states).toHaveTextContent(/Regresando de Keycloak/);
+  expect(states).toHaveTextContent(/Sesión rechazada/);
+  expect(states).toHaveTextContent(/Cancelado/);
+  expect(states).toHaveTextContent(/no se muestra: la página nunca recibe la credencial/i);
+
+  // Presentation only: the screen still renders no credential field and no extra
+  // control beyond the two tabs, the two round trips and the inline switches.
+  expect(document.querySelectorAll('input, textarea, select, form')).toHaveLength(0);
+});
+
+test('the state chip follows the real session transition instead of a fixed label (T7)', async () => {
+  render(<AuthView />);
+  window.sessionStorage.setItem(pkceTransactionKey, JSON.stringify({ state: 's', verifier: 'verifier' }));
+
+  let callback!: Promise<void>;
+  act(() => {
+    callback = completeLogin('?code=c&state=s');
+  });
+  expect(document.getElementById('auth-state')).toHaveTextContent('Regresando de Keycloak');
+
+  await flush();
+  fetchStub.answer(TOKEN_URL, { error: 'invalid_grant' }, 400);
+  await act(async () => {
+    await expect(callback).rejects.toThrow();
+  });
+  expect(document.getElementById('auth-state')).toHaveTextContent('Acceso no completado');
+});
