@@ -204,6 +204,28 @@ test('draws the fictional points and route lines and names every type in the leg
   }
 });
 
+// S7/S8 — «que el mapa sea interactivo como lo diseñamos, que resalte». The plate is
+// now a dark cartographic surface, and the chart grid that gives it that reading is
+// decoration: it carries no place, it is not announced, and it adds no focusable
+// target. The figures stay the only content of the drawing.
+test('the chart grid is decoration behind the figures, not a basemap or a control', async () => {
+  await openSignedIn();
+  await serve(fixture());
+
+  const svg = document.getElementById('infrastructure-map-svg') as unknown as SVGSVGElement;
+  const grid = svg.querySelector('.infrastructure-map-graticule');
+  const shapes = svg.querySelector('.infrastructure-map-shapes');
+  expect(grid).not.toBeNull();
+  expect(shapes).not.toBeNull();
+  expect(grid?.getAttribute('aria-hidden')).toBe('true');
+  expect(grid?.querySelectorAll('line').length).toBeGreaterThan(0);
+  // The grid paints first, so it can never cover a published geometry.
+  expect(grid?.nextElementSibling).toBe(shapes);
+  // No new target: the drawing stays a figure, and the legend/rows keep the only
+  // controls of the map region.
+  expect(svg.querySelectorAll('[tabindex], a, button').length).toBe(0);
+});
+
 test('prints through the browser and the print stylesheet keeps the synthetic label, formula and table', async () => {
   await openSignedIn();
   await serve(fixture());

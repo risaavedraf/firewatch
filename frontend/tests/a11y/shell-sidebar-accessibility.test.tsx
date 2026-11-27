@@ -11,28 +11,37 @@ import { completeLogin, resetSession } from '../../src/core/session';
 
 import { createCryptoStub, createFetchStub, flush, jwt } from '../core/harness';
 
-// The sidebar accessibility invariants the clipped-control finding touched: the
-// keyboard must reach the only sign-out control with the shared visible focus
-// ring, and the product navigation's labels must clear WCAG AA on the sidebar
-// background. The geometric half — the control inside the sidebar's visible box
-// at 1024x768, 1280x720, 1366x768 and 1440x900, without scrolling the column — is
-// measured in a browser and recorded under tmp/e2e-sidebar/; jsdom has no layout
-// engine, so what is pinned here is the stylesheet the browser receives plus the
-// rendered control.
+// The shell's accessibility invariants after S7 removed the left column.
 //
-// T1 replaced the flat, always-expanded sidebar list with the global product
-// navigation: three shortcuts, a grouped native disclosure and the current
-// location. The contrast and focus invariants survive the change, so they are
-// asserted against the component that now carries them (`product-nav.css`)
-// instead of the retired `.nav-link` rules. The pairs are pinned deliberately:
-// the E2E probe once compared a link colour with itself, so the real background
-// (`--forest-900`) is read from the token file and both sides are computed.
+// The column used to own four things a keyboard or screen-reader reader needs:
+// the gateway availability live region with its refresh control, the session
+// state with the only sign-out control, the territorial scope and a visible focus
+// ring measured against its own dark surface. T10 moved all four into the shell
+// header, so the invariants are asserted against the header that now carries
+// them — same ids, same live region, same labels — plus the contrast of every
+// pair the new cluster paints.
+//
+// The geometric half (no horizontal overflow at 320/390/1280/1440, the control
+// inside the header box) is measured in a browser; jsdom has no layout engine, so
+// what is pinned here is the shipped stylesheet the browser receives plus the
+// rendered controls.
 const READY_URL = `${gatewayOrigin}/health/ready`;
 const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
 
 const appCss = readFileSync(resolve(process.cwd(), 'src', 'styles', 'app.css'), 'utf8');
 const productNavCss = readFileSync(resolve(process.cwd(), 'src', 'styles', 'product-nav.css'), 'utf8');
 const tokensCss = readFileSync(resolve(process.cwd(), 'src', 'styles', 'tokens.css'), 'utf8');
+
+const palette = new Map<string, string>();
+for (const match of tokensCss.split(/@media\s+print/)[0].matchAll(/--([\w-]+)\s*:\s*(#[0-9a-fA-F]{6})\b/g)) {
+  palette.set(match[1], match[2]);
+}
+
+function token(name: string): string {
+  const value = palette.get(name);
+  if (value === undefined) throw new Error(`tokens.css declares no --${name} as an explicit hex value`);
+  return value;
+}
 
 let fetchStub: ReturnType<typeof createFetchStub>;
 
@@ -72,34 +81,11 @@ function luminance(hex: string): number {
 
 function contrast(a: string, b: string): number {
   const [lighter, darker] = [luminance(a), luminance(b)].sort((left, right) => right - left);
-  return (lighter + 0.05) / (darker + 0.05);
+  return Math.round(((lighter + 0.05) / (darker + 0.05)) * 100) / 100;
 }
 
-beforeEach(setup);
-
-test('the sign-out control stays in the tab order with the shared visible focus ring', async () => {
-  renderShell();
-  fetchStub.answer(READY_URL, null, 204);
-  await waitFor(() => expect(fetchStub.callsFor(READY_URL)).toHaveLength(1));
-
-  await signIn();
-  await waitFor(() => expect(document.getElementById('logout')).not.toHaveAttribute('hidden'));
-
-  const logout = document.getElementById('logout');
-  expect(logout).toBeInstanceOf(HTMLButtonElement);
-  expect(logout).toHaveAttribute('type', 'button');
-  // Not removed from the tab order and not disabled: a keyboard user reaches it
-  // with Tab, like every other control on the page.
-  expect(logout).not.toHaveAttribute('tabindex');
-  expect(logout).not.toBeDisabled();
-
-  // The shared focus ring the control inherits must survive.
-  expect(appCss).toMatch(/button:focus-visible[^{}]*\{[^}]*outline:\s*3px solid/);
-});
-
-// ── The product navigation ────────────────────────────────────────────────
-// Small CSS readers instead of a stylesheet dependency: the component sheet is
-// flat, and every assertion fails loudly if the rule it asks about is missing.
+// Small CSS readers instead of a stylesheet dependency: the sheets are flat, and
+// every assertion fails loudly if the rule it asks about is missing.
 function ruleBody(css: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = css.match(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`));
@@ -116,25 +102,135 @@ function declaration(body: string, property: string): string {
   return found.slice(property.length + 1).trim();
 }
 
-function hexIn(value: string): string {
-  const found = value.match(/#[0-9a-f]{6}/i);
-  if (found === null) throw new Error(`no hex colour in ${value}`);
-  return found[0];
+// A role reference (`var(--x)`) is resolved through `tokens.css`; an explicit hex
+// is measured as declared. That way a colour moved into a token cannot pass on the
+// strength of a literal that happens to be repeated here.
+function colour(value: string): string {
+  const reference = value.match(/var\(--([\w-]+)\)/);
+  if (reference !== null) return token(reference[1]);
+  const hex = value.match(/#[0-9a-f]{6}/i);
+  if (hex === null) throw new Error(`no resolvable colour in ${value}`);
+  return hex[0];
 }
 
-test('the product bar and its out-of-flow panel keep WCAG AA contrast against their actual backgrounds', () => {
-  const barHex = tokensCss.match(/--forest-900:\s*(#[0-9a-f]{6})/i)?.[1];
-  expect(barHex).toBeTruthy();
-  const bar = barHex as string;
+beforeEach(setup);
 
-  const panelRule = ruleBody(productNavCss, '.product-nav__panel');
-  // The panel is opaque: the measured pair is the pair a reader sees. The former
-  // 3% white overlay over the sidebar produced this same tone (#1e4241), and on
-  // it the old #90aaa0 label measured 4.42:1 — below AA. That defect is pinned
-  // here so the colour cannot silently come back.
-  expect(declaration(panelRule, 'background')).toMatch(/^#[0-9a-f]{6}$/i);
-  const panel = hexIn(declaration(panelRule, 'background'));
-  expect(contrast('#90aaa0', panel)).toBeLessThan(4.5);
+test('the sign-out control stays in the tab order with the shared visible focus ring (S7)', async () => {
+  renderShell();
+  fetchStub.answer(READY_URL, null, 204);
+  await waitFor(() => expect(fetchStub.callsFor(READY_URL)).toHaveLength(1));
+
+  await signIn();
+  await waitFor(() => expect(document.getElementById('logout')).not.toHaveAttribute('hidden'));
+
+  const logout = document.getElementById('logout');
+  expect(logout).toBeInstanceOf(HTMLButtonElement);
+  expect(logout).toHaveAttribute('type', 'button');
+  expect(logout).toHaveAccessibleName('Cerrar sesión');
+  // Not removed from the tab order and not disabled: a keyboard user reaches it
+  // with Tab, like every other control on the page.
+  expect(logout).not.toHaveAttribute('tabindex');
+  expect(logout).not.toBeDisabled();
+  // It belongs to the shell header, not to the destinations menu.
+  expect(logout?.closest('header.topbar')).not.toBeNull();
+  expect(logout?.closest('.product-nav')).toBeNull();
+
+  // The shared focus ring the control inherits must survive the palette change.
+  expect(appCss).toMatch(/button:focus-visible[^{}]*\{[^}]*outline:\s*3px solid var\(--focus\)/);
+});
+
+test('the gateway cluster keeps its live region, its single refresh control and its measured pairs (S7)', async () => {
+  renderShell();
+
+  // The probe has not settled yet: the control states that in its only visible
+  // way and cannot be fired twice.
+  const refresh = document.getElementById('readiness-refresh');
+  expect(refresh).toBeInstanceOf(HTMLButtonElement);
+  expect(refresh).toHaveAccessibleName('Actualizar estado');
+  expect(refresh).toBeDisabled();
+
+  await waitFor(() => expect(fetchStub.callsFor(READY_URL)).toHaveLength(1));
+  fetchStub.answer(READY_URL, null, 204);
+  await waitFor(() => expect(document.querySelector('.health-dot.ready')).not.toBeNull());
+
+  const status = document.getElementById('readiness-status');
+  expect(status).toHaveAttribute('role', 'status');
+  expect(status).toHaveAttribute('aria-live', 'polite');
+  expect(status?.closest('header.topbar')).not.toBeNull();
+  await waitFor(() => expect(refresh).not.toBeDisabled());
+
+  // The card is a named region, not an anonymous box.
+  const card = document.querySelector('.health-card');
+  expect(card?.tagName).toBe('SECTION');
+  expect(document.getElementById(card?.getAttribute('aria-labelledby') ?? '')).not.toBeNull();
+
+  // The cluster is painted on the soft role; the message is the readable muted
+  // tone there, and the refresh control is ink on paper with a 3:1 boundary.
+  const cardRule = ruleBody(appCss, '.health-card');
+  const cardSurface = colour(declaration(cardRule, 'background'));
+  expect(cardSurface).toBe(token('soft'));
+  expect(contrast(colour(declaration(ruleBody(appCss, '.health-card p'), 'color')), cardSurface)).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(colour(declaration(ruleBody(appCss, '.health-head'), 'color')), cardSurface)).toBeGreaterThanOrEqual(4.5);
+
+  const refreshRule = ruleBody(appCss, '.status-action');
+  expect(contrast(colour(declaration(refreshRule, 'color')), colour(declaration(refreshRule, 'background')))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(colour(declaration(refreshRule, 'border')), colour(declaration(refreshRule, 'background')))).toBeGreaterThanOrEqual(3);
+  // A real target, not a 10px text link.
+  expect(Number.parseInt(declaration(refreshRule, 'min-height'), 10)).toBeGreaterThanOrEqual(32);
+});
+
+test('the header cluster paints every label with a measured pair (S7/S8)', () => {
+  const paper = token('paper');
+  const soft = token('soft');
+
+  // Brand mark: the filled square carries the dark ink, never the light one.
+  const brandRule = ruleBody(appCss, '.brand-mark');
+  const brandFill = colour(declaration(brandRule, 'background'));
+  expect(contrast(colour(declaration(brandRule, 'color')), brandFill)).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(brandFill, paper)).toBeGreaterThanOrEqual(3);
+
+  const pairs: Array<[string, string, string, string]> = [
+    ['brand name', ruleBody(appCss, '.brand strong'), 'color', paper],
+    ['brand scope', ruleBody(appCss, '.brand small'), 'color', paper],
+    ['route group', ruleBody(appCss, '.breadcrumbs'), 'color', paper],
+    ['route title', ruleBody(appCss, '.topbar h1'), 'color', paper],
+    ['zone scope', ruleBody(appCss, '.zone-chip small'), 'color', paper],
+    ['zone value', ruleBody(appCss, '.zone-chip strong'), 'color', paper],
+    ['zone glyph', ruleBody(appCss, '.zone-chip > span'), 'color', paper],
+    ['session state', ruleBody(appCss, '.session-card strong'), 'color', soft],
+    ['session detail', ruleBody(appCss, '.session-card small'), 'color', soft],
+    ['sign-out label', ruleBody(appCss, '.session-card button'), 'color', soft],
+    ['session mark', ruleBody(appCss, '.session-mark'), 'color', soft],
+  ];
+
+  for (const [label, body, property, background] of pairs) {
+    expect(contrast(colour(declaration(body, property)), background), `${label} contrast`).toBeGreaterThanOrEqual(4.5);
+  }
+
+  // The sign-out control's own surface is the paper role and its boundary clears
+  // the 3:1 non-text minimum against the card behind it.
+  const logoutRule = ruleBody(appCss, '.session-card button');
+  expect(colour(declaration(logoutRule, 'background'))).toBe(paper);
+  expect(contrast(colour(declaration(logoutRule, 'border')), soft)).toBeGreaterThanOrEqual(3);
+
+  // The header itself is the paper surface with the readable ink.
+  const topbarRule = ruleBody(appCss, '.topbar');
+  expect(colour(declaration(topbarRule, 'background'))).toBe(paper);
+  expect(contrast(token('muted'), paper)).toBeGreaterThanOrEqual(4.5);
+});
+
+// ── The product navigation ────────────────────────────────────────────────
+// The bar is always the slate/aqua palette now (S8). Every pair is resolved
+// through `tokens.css` so a colour changed there is measured again instead of
+// passing on the strength of a literal repeated in this file.
+test('the product bar and its out-of-flow panel keep WCAG AA contrast against their actual backgrounds (S8)', () => {
+  const bar = colour(declaration(ruleBody(productNavCss, '.product-nav'), 'background'));
+  const panel = colour(declaration(ruleBody(productNavCss, '.product-nav__panel'), 'background'));
+
+  expect(bar).toBe(token('paper'));
+  // The panel is opaque: the measured pair is the pair a reader sees.
+  expect(panel).toBe(token('surface-raised'));
+  expect(contrast(panel, bar)).toBeGreaterThanOrEqual(1);
 
   const pairs = [
     ['shortcut label', ruleBody(productNavCss, '.product-nav__link'), 'color', bar],
@@ -147,23 +243,25 @@ test('the product bar and its out-of-flow panel keep WCAG AA contrast against th
     ['panel note', ruleBody(productNavCss, '.product-nav__note'), 'color', panel],
   ] as const;
   for (const [label, body, property, background] of pairs) {
-    const ratio = contrast(hexIn(declaration(body, property)), background);
-    expect(ratio, `${label} contrast`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(colour(declaration(body, property)), background), `${label} contrast`).toBeGreaterThanOrEqual(4.5);
   }
 
-  // Current destinations on both surfaces, and the light shortcut row.
+  // The current destinations: the shortcut is a filled accent chip with the dark
+  // ink on it, and the grouped entry uses the accent on the raised panel.
   const activeShortcut = ruleBody(productNavCss, ".product-nav__link[aria-current='page']");
-  expect(declaration(activeShortcut, 'color')).toBe('var(--forest-900)');
-  expect(contrast(bar, hexIn(declaration(activeShortcut, 'background')))).toBeGreaterThanOrEqual(4.5);
+  const activeFill = colour(declaration(activeShortcut, 'background'));
+  expect(activeFill).toBe(token('accent'));
+  expect(contrast(colour(declaration(activeShortcut, 'color')), activeFill)).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(activeFill, bar)).toBeGreaterThanOrEqual(3);
   const activeItem = ruleBody(productNavCss, ".product-nav__item[aria-current='page']");
-  expect(contrast(hexIn(declaration(activeItem, 'color')), panel)).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(colour(declaration(activeItem, 'color')), panel)).toBeGreaterThanOrEqual(4.5);
 
-  // The disclosure control's boundary and the focus ring clear the 3:1
-  // non-text target against both surfaces they sit on.
+  // The disclosure control's boundary and the focus ring clear the 3:1 non-text
+  // target against both surfaces they sit on.
   const summary = ruleBody(productNavCss, '.product-nav__summary');
-  expect(contrast(hexIn(declaration(summary, 'border')), bar)).toBeGreaterThanOrEqual(3);
+  expect(contrast(colour(declaration(summary, 'border')), bar)).toBeGreaterThanOrEqual(3);
   const focusRule = ruleBody(productNavCss, '.product-nav :is(a, button):focus-visible');
-  const focus = hexIn(declaration(focusRule, 'outline'));
+  const focus = colour(declaration(focusRule, 'outline'));
   expect(contrast(focus, bar)).toBeGreaterThanOrEqual(3);
   expect(contrast(focus, panel)).toBeGreaterThanOrEqual(3);
   // The 48px bar cannot host a 5px ring around its 40px controls, so the bar puts
@@ -179,10 +277,10 @@ test('the product bar and its out-of-flow panel keep WCAG AA contrast against th
 });
 
 test('the disclosure panel is out of flow, bounded and multi-column at every width', () => {
-  const bar = ruleBody(productNavCss, '.product-nav');
-  expect(declaration(bar, 'position')).toBe('sticky');
-  expect(declaration(bar, 'top')).toBe('0');
-  expect(declaration(bar, 'min-height')).toMatch(/var\(--product-nav-h/);
+  const barRule = ruleBody(productNavCss, '.product-nav');
+  expect(declaration(barRule, 'position')).toBe('sticky');
+  expect(declaration(barRule, 'top')).toBe('0');
+  expect(declaration(barRule, 'min-height')).toMatch(/var\(--product-nav-h/);
   // The bar is not a clipping container: a focus ring on its controls can paint.
   expect(ruleBody(productNavCss, '.product-nav')).not.toMatch(/overflow(?:-x|-y)?:\s*(?:hidden|auto|scroll)/);
 
@@ -253,26 +351,36 @@ test('the skip link moves focus into the content region and keeps the fragment',
   expect(window.location.hash).toBe('#audit');
 });
 
-test('the 720px layout keeps the sidebar static and the bar overlay bounded', () => {
+// ── The narrow shell ─────────────────────────────────────────────────────
+// Removing the column is what gives a phone its width back: the header wraps
+// instead of shrinking, and nothing is hidden to make it fit. The old 720px block
+// turned the column into a row and hid the gateway card; both are gone.
+test('the narrow layout wraps the header cluster instead of hiding any of it (S7)', () => {
   const smallViewport = appCss.match(/@media\s*\(max-width:\s*720px\)[\s\S]*?\n\}/)?.[0] ?? '';
   expect(smallViewport).not.toBe('');
 
-  const sidebarRule = smallViewport.match(/\.sidebar\s*\{[^}]*\}/)?.[0] ?? '';
-  expect(sidebarRule).toMatch(/position:\s*static/);
-  expect(sidebarRule).toMatch(/width:\s*auto/);
-  expect(sidebarRule).toMatch(/height:\s*auto/);
-  expect(sidebarRule).toMatch(/min-height:\s*0/);
+  // The retired column keeps no rule at any width.
+  expect(appCss).not.toMatch(/\.sidebar\b/);
+  expect(smallViewport).not.toMatch(/\.sidebar\b/);
 
-  const navSmall = productNavCss.match(/@media\s*\(max-width:\s*720px\)[\s\S]*?\n\}/)?.[0] ?? '';
-  expect(navSmall).toMatch(/\.product-nav\s*\{[^}]*padding-inline:\s*12px/);
-  expect(navSmall).toMatch(/\.product-nav__panel\s*\{[^}]*right:\s*8px/);
+  // The gateway card is never hidden: it carries the readiness live region and the
+  // refresh control on every viewport.
+  expect(appCss).not.toMatch(/\.health-card\s*\{[^}]*display:\s*none/);
 
-  const narrower = productNavCss.match(/@media\s*\(max-width:\s*480px\)[\s\S]*?\n\}/)?.[0] ?? '';
-  expect(narrower).toMatch(/\.product-nav\s*\{[^}]*flex-wrap:\s*wrap/);
+  const header = ruleBody(appCss, '.topbar');
+  expect(declaration(header, 'flex-wrap')).toBe('wrap');
+  expect(parseFloat(declaration(header, 'min-height'))).toBeLessThan(75);
 
-  // Below 560px the location line stops taking row width but stays in the
-  // accessibility tree: it is the live region that names the new route.
-  const compact = productNavCss.match(/@media\s*\(max-width:\s*560px\)[\s\S]*?\n\}/)?.[0] ?? '';
-  expect(compact).toMatch(/\.product-nav__where\s*\{[^}]*position:\s*absolute/);
-  expect(compact).toMatch(/clip-path:\s*inset\(50%\)/);
+  // Every cluster box may shrink: `min-width: 0` on each one is what keeps a long
+  // zone name or readiness sentence from widening the page.
+  for (const selector of ['.topbar', '.topbar-lead', '.topbar-utils', '.brand', '.topbar-route', '.zone-chip', '.health-card', '.session-card']) {
+    expect(declaration(ruleBody(appCss, selector), 'min-width'), `${selector} must be able to shrink`).toBe('0');
+  }
+
+  expect(smallViewport).toMatch(/\.topbar\s*\{[^}]*padding:\s*7px 14px/);
+  expect(smallViewport).toMatch(/\.topbar-utils\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\)/);
+
+  // The only sign-out control keeps its target size on a phone.
+  const logout = smallViewport.match(/\.session-card button\s*\{[^}]*\}/)?.[0] ?? '';
+  expect(Number.parseInt((logout.match(/min-height:\s*(\d+)px/) ?? [])[1] ?? '0', 10)).toBeGreaterThanOrEqual(36);
 });

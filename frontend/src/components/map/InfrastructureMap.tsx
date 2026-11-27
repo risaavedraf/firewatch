@@ -22,6 +22,14 @@ const MAP_WIDTH = 760;
 const MAP_HEIGHT = 360;
 const MAP_PADDING = 18;
 
+// The chart grid. It is drawn from the viewBox, carries no place, coast or boundary,
+// and is the only decoration the drawing adds: S7/S8 asked the coverage map to read
+// like a cartographic plate instead of a flat diagram, and a graticule does that
+// without inventing terrain the repository has no source for. The group is
+// `aria-hidden`, so a screen reader meets the figures and the legend, not the grid.
+const GRATICULE_STEP = 60;
+const GRATICULE_MAJOR_EVERY = 3;
+
 interface ProjectedElement {
   zone: string;
   element: InfrastructureElement;
@@ -67,6 +75,16 @@ function linePath(points: readonly Point[]): string {
   return points
     .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
     .join(' ');
+}
+
+function graticuleMarks(size: number): number[] {
+  const marks: number[] = [];
+  for (let step = 1; step * GRATICULE_STEP < size; step += 1) marks.push(step * GRATICULE_STEP);
+  return marks;
+}
+
+function graticuleClass(step: number): string | undefined {
+  return step % GRATICULE_MAJOR_EVERY === 0 ? 'is-major' : undefined;
 }
 
 function markerLabel(element: InfrastructureElement): string {
@@ -160,6 +178,28 @@ export function InfrastructureMap({ catalogue }: { catalogue: InfrastructureCata
             Geometrías ficticias de un fixture sintético: colegios, viviendas, hospitales e hidrantes como puntos, y
             rutas como líneas. No son ubicaciones reales de infraestructura ni un mapa base.
           </desc>
+          <g className="infrastructure-map-graticule" aria-hidden="true">
+            {graticuleMarks(MAP_WIDTH).map((x, index) => (
+              <line
+                key={`meridian-${x}`}
+                className={graticuleClass(index + 1)}
+                x1={x}
+                y1={0}
+                x2={x}
+                y2={MAP_HEIGHT}
+              />
+            ))}
+            {graticuleMarks(MAP_HEIGHT).map((y, index) => (
+              <line
+                key={`parallel-${y}`}
+                className={graticuleClass(index + 1)}
+                x1={0}
+                y1={y}
+                x2={MAP_WIDTH}
+                y2={y}
+              />
+            ))}
+          </g>
           <g className="infrastructure-map-shapes">
             {layout.elements.map((entry, index) => {
               const key = `${entry.zone}-${entry.element.id}-${index}`;

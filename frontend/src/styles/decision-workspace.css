@@ -10,6 +10,12 @@
  * screens, and the shipped component values (panel, chip, data list, table) keep
  * their existing definitions in `app.css`.
  *
+ * S8 — «tiene que ser los nuevos colores globalres». These sheets were written for
+ * the cream page, so this one kept the light `#eef1ee` row separator and the
+ * terracotta focus ring. Both are retired: the separators read `--line-soft`, the
+ * rings read `--focus`, and the reading tiles answer a pointer with the raised
+ * role instead of staying inert.
+ *
  * Colours are the declared tokens only. The level marks are paired with their
  * written label, never colour alone. */
 
@@ -96,6 +102,16 @@
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--paper);
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+/* A tile is a reading, not a control, so it answers the pointer with a lift and a
+   crisper boundary instead of a pressable look. The boundary on the raised role is
+   `--edge-strong`: `--edge` measures 2.92:1 there, one step under 3:1. */
+.decision-summary__cell:hover {
+  border-color: var(--edge-strong);
+  background: var(--surface-raised);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 22%);
 }
 
 .decision-summary__label {
@@ -164,6 +180,13 @@
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--paper);
+  transition: border-color .15s ease, background .15s ease;
+}
+
+/* The whole summary is the disclosure control, so the hover belongs to it and not
+   to the row it happens to sit in. */
+.decision-limits__item:hover {
+  border-color: var(--edge-strong);
 }
 
 .decision-limits__item > summary {
@@ -171,8 +194,14 @@
   gap: 2px;
   min-height: 44px;
   padding: 9px 12px;
+  border-radius: 9px;
   cursor: pointer;
   list-style: none;
+  transition: background .15s ease;
+}
+
+.decision-limits__item > summary:hover {
+  background: var(--soft);
 }
 
 .decision-limits__item > summary::-webkit-details-marker {
@@ -184,7 +213,7 @@
   grid-row: 1 / span 2;
   align-self: center;
   justify-self: end;
-  color: var(--forest-700);
+  color: var(--accent);
   font-size: 10px;
 }
 
@@ -203,7 +232,7 @@
 }
 
 .decision-limits__item > summary:focus-visible {
-  outline: 3px solid #cf7d4f;
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
   border-radius: 9px;
 }
@@ -243,7 +272,7 @@
   display: grid;
   gap: 1px;
   padding: 7px 0;
-  border-bottom: 1px solid #eef1ee;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .decision-links li:last-child {
@@ -255,14 +284,20 @@
   align-items: center;
   min-height: 24px;
   justify-self: start;
-  color: var(--forest-700);
+  color: var(--accent);
   font-size: 11px;
   font-weight: 700;
   text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color .15s ease;
+}
+
+.decision-links a:hover {
+  color: var(--ink);
 }
 
 .decision-links a:focus-visible {
-  outline: 3px solid #cf7d4f;
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -291,7 +326,7 @@
    right one owns the answer. */
 .compare-layout {
   display: grid;
-  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -328,5 +363,15 @@
 
   .decision-links {
     padding: 14px 14px 16px;
+  }
+}
+
+/* Motion is feedback only, so it is removable. */
+@media (prefers-reduced-motion: reduce) {
+  .decision-summary__cell,
+  .decision-limits__item,
+  .decision-limits__item > summary,
+  .decision-links a {
+    transition: none;
   }
 }

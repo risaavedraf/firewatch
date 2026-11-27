@@ -13,11 +13,12 @@
  * that must beat a shipped element rule (`.ops-view-head h2` over `h2`) do so on
  * specificity, not on order.
  *
- * Every colour is a declared token. The one focus ring in this file is the
- * shipped `#cf7d4f`, and it is applied only where a block wraps a real control.
- * Type stays in the in-use sizes (8, 9, 10, 11, 15, 24px) and spacing in the
- * 4px-derived values the product already uses. Nothing here animates, so there
- * is no motion for `prefers-reduced-motion` to remove.
+ * Every colour is a declared token. S8 retired the light-page ring this file named:
+ * the focus ring is the global `--focus` role, and the block that wraps a real
+ * control says so with `:focus-within`, so a keyboard user knows which card owns
+ * the next Tab. Type stays in the in-use sizes (8, 9, 10, 11, 15, 24px) and spacing
+ * in the 4px-derived values the product already uses; the transition is feedback
+ * only and is removed under `prefers-reduced-motion`.
  *
  * The audit of what the boards carry that the product does not is in
  * `frontend/VISUAL-BASELINE.md`, section "Access and operations (T7)". */
@@ -181,6 +182,18 @@
   box-shadow: var(--shadow);
 }
 
+/* The panels inside the two-column layout wrap the controls of these views, so the
+   card that owns the focus says so instead of leaving the reader to guess which of
+   four panels the next Tab belongs to. Feedback only: nothing moves. */
+.ops-layout .panel {
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.ops-layout .panel:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow);
+}
+
 .ops-block-head {
   display: flex;
   flex-wrap: wrap;
@@ -242,7 +255,7 @@
   height: 24px;
   border-radius: 50%;
   background: var(--soft);
-  color: var(--forest-700);
+  color: var(--accent);
   font-size: 9px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -300,11 +313,13 @@
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
-/* Below 1200px the sidebar already leaves less width than a table and a 340px
-   column need. The side column moves under the main one and splits by available
-   width: `auto-fit` collapses the empty track when a side column carries a
-   single block, so jobs and the register do not paint half an empty row. */
-@media (max-width: 1200px) {
+/* Below 1100px the two columns stop fitting without a squeezed table or a narrow
+   side column. S7 removed the 234 px sidebar, so the layout keeps its two columns
+   about 100 px further down than it did when the column was eating that width. The
+   side column then moves under the main one and splits by available width:
+   `auto-fit` collapses the empty track when a side column carries a single block,
+   so jobs and the register do not paint half an empty row. */
+@media (max-width: 1099px) {
   .ops-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -339,5 +354,12 @@
 @media (max-width: 420px) {
   .ops-view-head h2 {
     font-size: 21px;
+  }
+}
+
+/* The focused-card boundary is feedback only, so it is removable. */
+@media (prefers-reduced-motion: reduce) {
+  .ops-layout .panel {
+    transition: none;
   }
 }

@@ -21,9 +21,11 @@
 body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
-button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid #cf7d4f; outline-offset: 2px; }
-/* The shared light ring is retained on dark surfaces. These controls sit on the canvas. */
-.skip-link:focus-visible, #data-status-notice:focus-visible, #reset-filters:focus-visible { outline-color: var(--terracotta); }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* The ring is the global focus role on every surface: the page is dark now, so a
+   second light-surface ring is not needed and a literal here is how the old one
+   drifted away from the palette. */
+.skip-link:focus-visible, #data-status-notice:focus-visible, #reset-filters:focus-visible { outline-color: var(--focus); }
 /* The hidden attribute must beat the display rules declared further down for the
    same elements (the map svg and the logout control are both toggled this way). */
 [hidden] { display: none !important; }
@@ -42,64 +44,66 @@ code { font-size: 11px; }
 .skip-link:focus { top: 12px; }
 
 /* ── Demonstration strip ─────────────────────────────────────────────────── */
-.demo-strip { min-height: 34px; display: flex; justify-content: space-between; gap: 15px; padding: 7px 24px; background: #0b2421; color: #bdd8d1; font-size: 11px; }
-.demo-strip strong { color: #a6e1d4; letter-spacing: .08em; }
+/* The strip is no longer rendered: the shell states its scope in the update bar
+   and in the data-status view, so the retired rules were removed with it (S8). */
 
 /* ── Shell ──────────────────────────────────────────────────────────────── */
-/* The shell used to sit below the demonstration strip; the strip is no longer
-   rendered, and T1 put the product bar above the shell instead. Both the shell
-   and the sticky column reserve exactly the bar's declared height, so no blank
-   band is left under the column and the sign-out control stays on screen. */
+/* S7 removed the left column: the shell has one column (the workspace) and it
+   takes the full width, so `main` is not narrower than the viewport for a
+   navigation strip that the product bar already provides. */
 .app-shell { min-height: calc(100vh - var(--product-nav-h, 48px)); display: flex; }
-.sidebar { position: sticky; top: var(--product-nav-h, 48px); width: 234px; height: calc(100vh - var(--product-nav-h, 48px)); min-height: 560px; display: flex; flex-direction: column; padding: 30px 19px 22px; color: #d5e1db; background: var(--forest-900); overflow-y: auto; }
-.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; margin-bottom: 26px; color: #fffdf4; }
-.brand-mark { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; background: #d7aa73; color: var(--forest-900); font-family: Georgia, serif; font-size: 20px; font-style: italic; }
+.main-area { flex: 1; min-width: 0; }
+
+/* The shell header. One compact, wrapping row instead of a 75 px band above a
+   234 px column: the brand, the route, the territorial context, the gateway
+   readiness card and the session tablet share it. Every box may shrink
+   (`min-width: 0`), which is what lets a long zone name or the readiness sentence
+   wrap inside the row instead of widening the page at 320 px. */
+.topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; min-width: 0; min-height: 56px; padding: 8px 34px; border-bottom: 1px solid var(--line); background: var(--paper); }
+.topbar-lead { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.topbar-route { display: grid; gap: 1px; min-width: 0; padding-left: 14px; border-left: 1px solid var(--line); }
+.topbar-utils { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
+.topbar h1 { margin: 0; overflow-wrap: anywhere; color: var(--ink); font-size: 18px; font-weight: 600; letter-spacing: -.5px; line-height: 1.2; }
+.breadcrumbs { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.brand { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--ink); }
+.brand-mark { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-family: Georgia, serif; font-size: 18px; font-style: italic; }
+.brand-copy { min-width: 0; }
 .brand strong, .brand small { display: block; }
-.brand strong { color: #f6fff9; font-size: 18px; font-weight: 650; letter-spacing: -.6px; }
-.brand small { margin-top: 2px; color: #a8c2b7; font-size: 8px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; }
-/* The workspace block. `Shell` renders these hooks and the retired mockup
-   declared them; the rule set was not carried over with the markup, so the
-   block fell back to raw stacked text (the scope label, the name and the map
-   icon each on its own line). Restored from
-   odd/urgent/rediseno-pagina/referencia-mockup/frontend/styles/app.css. */
-.workspace { display: flex; gap: 10px; align-items: center; padding: 13px 10px; border: 1px solid #41625b; border-radius: 9px; font-size: 12px; margin-bottom: 26px; }
-.workspace-mark { display: grid; place-items: center; background: #36564e; border-radius: 7px; width: 29px; height: 33px; color: #ebd8b4; }
-.workspace small { font-size: 9px; color: #acbfb6; }
-.workspace > .icon { width: 15px; margin-left: auto; color: #95b2a6; }
-/* The column's chrome — the brand, the workspace, the Gateway card and the
-   session card that holds the only sign-out control — has to stay on screen at
-   the laptop heights this page is used at. T1 moved the navigation out of the
-   column into the bar above the shell, so the column no longer yields space to a
-   list; it keeps its own viewport-bounded height and overflow, and the bottom
-   block is pinned with `margin-top: auto`. The old `.sidebar nav` scroll block
-   went with the list it belonged to (T8): its only reader was a source-gate
-   assertion, and that assertion now guards the live bar and its menu in
-   `product-nav.css` instead. */
-.sidebar-bottom { margin-top: auto; padding: 28px 4px 0; font-size: 10px; color: #bdd0c3; }
-.health-card { margin-bottom: 15px; padding: 13px; border: 1px solid #41625b; border-radius: 9px; background: rgb(255 255 255 / 3%); }
-.health-head { display: flex; align-items: center; justify-content: space-between; color: #e7faf5; font-size: 11px; }
-.health-card p { margin: 7px 0; color: #a5c8bf; font-size: 10px; }
-.health-dot { width: 8px; height: 8px; border-radius: 50%; background: #a1b3ae; }
+.brand strong { color: var(--ink); font-size: 15px; font-weight: 650; letter-spacing: -.5px; line-height: 1.15; }
+.brand small { margin-top: 1px; color: var(--muted); font-size: 8px; font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; }
+
+/* The territorial context: the scope the product serves and the zone the reader
+   selected, in the header instead of in the removed column. */
+.zone-chip { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.zone-chip > span { flex: 0 0 auto; color: var(--accent); font-size: 15px; line-height: 1; }
+.zone-chip small, .zone-chip strong { display: block; }
+.zone-chip small { color: var(--muted); font-size: 8px; font-weight: 600; letter-spacing: .06em; }
+.zone-chip strong { color: var(--ink); font-size: 10px; font-weight: 700; overflow-wrap: anywhere; }
+
+/* Gateway readiness. The live region and its control are preserved from the
+   column, but a long status sentence now shares one row with the control: on the
+   desktop the sentence takes two small lines at most, and on a phone the card
+   takes its own full row. */
+.health-card { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; min-width: 0; padding: 4px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
+.health-head { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 10px; font-weight: 700; }
+.health-card p { flex: 1 1 150px; min-width: 0; max-width: 260px; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.35; }
+.health-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .health-dot.ready { background: #67c99a; }
 .health-dot.down { background: #d77b67; }
-.side-action { padding: 0; border: 0; background: none; color: #a6e1d4; font-size: 10px; }
-.session-card { display: flex; align-items: center; gap: 9px; padding: 13px 3px 0; border-top: 1px solid rgb(255 255 255 / 9%); }
-.session-mark { color: #d2ad63; font-size: 11px; }
-.session-card strong, .session-card small { display: block; }
-.session-card strong { color: #e7faf5; font-size: 10px; }
-.session-card small { color: #82aba2; font-size: 9px; }
-.session-card button { margin-left: auto; padding: 5px 7px; border: 1px solid #54766e; border-radius: 5px; background: transparent; color: #e8f8f3; font-size: 9px; }
+.status-action { min-height: 36px; padding: 4px 10px; border: 1px solid var(--edge-strong); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 10px; font-weight: 650; white-space: nowrap; }
+.status-action:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.status-action:disabled { cursor: progress; opacity: .6; }
 
-.main-area { flex: 1; min-width: 0; }
-.topbar { min-height: 75px; display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 0 34px; border-bottom: 1px solid var(--line); background: var(--paper); }
-.breadcrumbs { color: var(--muted); font-size: 12px; }
-.breadcrumbs span { margin: 0 10px; color: #a2ada4; }
-.topbar h1 { margin: 3px 0 0; font-size: 20px; letter-spacing: -.6px; }
-.zone-chip { display: flex; align-items: center; gap: 9px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
-.zone-chip > span { color: var(--forest-500); font-size: 18px; }
-.zone-chip small, .zone-chip strong { display: block; }
-.zone-chip small { color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: 1px; }
-.zone-chip strong { font-size: 10px; }
+/* Session state and the only sign-out control. The control keeps a 36 px target
+   on every viewport and sits on the header surface, where its ink is measured. */
+.session-card { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
+.session-card > div { min-width: 0; }
+.session-mark { flex: 0 0 auto; color: var(--gold); font-size: 9px; line-height: 1; }
+.session-card strong, .session-card small { display: block; }
+.session-card strong { color: var(--ink); font-size: 10px; font-weight: 700; }
+.session-card small { color: var(--muted); font-size: 8.5px; line-height: 1.35; }
+.session-card button { min-height: 36px; margin-left: 2px; padding: 4px 10px; border: 1px solid var(--edge-strong); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 10px; font-weight: 650; white-space: nowrap; }
+.session-card button:hover { border-color: var(--accent); color: var(--accent); }
 .icon-button { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); }
 .menu-button { display: none; }
 .update-bar { display: flex; align-items: center; gap: 7px; padding: 16px 34px 0; color: var(--muted); font-size: 10px; }
@@ -110,42 +114,48 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .intro-row h2 { margin: 0; font-size: 24px; letter-spacing: -1px; }
 /* The readable forest token is the eyebrow default: every eyebrow sits on a
    light surface, and scoping it per view left later views at 3.7:1. */
-.eyebrow { margin: 0 0 7px; color: var(--forest-700); font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+.eyebrow { margin: 0 0 7px; color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
 /* The readable forest token applies to every intro row, whichever view renders
    it: the earlier per-view list silently excluded the views added after it. */
 .subheading { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
 
 /* ── Badges ─────────────────────────────────────────────────────────────── */
+/* S8 — every badge reads the global roles: the risk families for their own
+   meaning, the gold family for the administrative note, the muted tone for a
+   neutral count. The light #edf1f2 pill is gone with the light page. */
 .dataset-badge, .neutral-tag, .admin-tag, .count-badge, .small-label { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid transparent; border-radius: 6px; font-size: 8px; font-weight: 850; letter-spacing: .06em; white-space: nowrap; }
-.dataset-badge { color: #236852; background: #e8f5ef; }
-.dataset-badge i { width: 6px; height: 6px; border-radius: 50%; background: #2f9b70; }
-.neutral-tag { color: var(--muted); background: #edf1f2; }
-.count-badge { color: #52646b; background: #edf1f2; }
-.admin-tag { color: #755a22; background: var(--gold-soft); }
+.dataset-badge { color: var(--level-low-text); background: var(--level-low-surface); }
+.dataset-badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--level-low-line); }
+.neutral-tag { color: var(--muted); background: var(--soft); }
+.count-badge { color: var(--muted); background: var(--soft); }
+.admin-tag { color: var(--gold); background: var(--gold-soft); }
 .small-label { border-color: var(--line); color: var(--muted); font-weight: 600; letter-spacing: 1px; }
 
 /* ── Notices ────────────────────────────────────────────────────────────── */
-.warning-banner { display: flex; align-items: center; gap: 12px; margin-bottom: 17px; padding: 13px 15px; border: 1px solid #f0dfb9; border-radius: 10px; background: var(--gold-soft); color: #705d35; }
-.warning-icon { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: 1px solid #c69b48; border-radius: 50%; font-size: 12px; font-weight: 800; }
+.warning-banner { display: flex; align-items: center; gap: 12px; margin-bottom: 17px; padding: 13px 15px; border: 1px solid #7a5a3a; border-radius: 10px; background: var(--gold-soft); color: #e8d9a6; }
+.warning-icon { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: 1px solid var(--gold); border-radius: 50%; font-size: 12px; font-weight: 800; }
 .warning-banner p { margin: 0; font-size: 10px; line-height: 1.65; }
-.warning-banner strong { color: #5f4717; }
+.warning-banner strong { color: var(--gold); }
 .warning-banner code, .panel-note code { font-size: 9px; }
-.inline-notice { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 22px; padding: 12px 15px; border: 1px solid #dfe8d8; border-radius: 7px; background: #eef3ea; color: #56705d; font-size: 11px; }
+.inline-notice { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 22px; padding: 12px 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); color: var(--muted); font-size: 11px; }
 .inline-notice .icon { width: 16px; height: 16px; }
 
 /* Honest "not implemented yet" marker. Never used to fake a working action. */
-.unimplemented { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px dashed #c8bda0; border-radius: 6px; background: #faf7ee; color: #7d6c3f; font-size: 8px; font-weight: 800; letter-spacing: .06em; }
+.unimplemented { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px dashed #8a7a4a; border-radius: 6px; background: #2b2a1e; color: #f0e0b4; font-size: 8px; font-weight: 800; letter-spacing: .06em; }
 .unimplemented-note { margin: 6px 0 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
+/* A filled control is the accent with the dark ink on it: #94dfda is a light
+   tone, and the light ink would measure 1.79:1 on it. The secondary control is
+   the raised/soft surface with the readable ink and a 3:1 boundary. */
 .button, .primary-button, .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 34px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 7px; font-size: 10px; font-weight: 700; white-space: nowrap; transition: background .15s; }
-.primary-button, .button-primary { border-color: var(--forest-900); background: var(--forest-900); color: #fcfcf2; }
-.primary-button:hover:not(:disabled), .button-primary:hover:not(:disabled) { background: var(--forest-700); border-color: var(--forest-700); }
-.secondary-button, .button-secondary { background: var(--paper); color: var(--forest-700); }
-.secondary-button:hover:not(:disabled), .button-secondary:hover:not(:disabled) { background: var(--soft); }
+.primary-button, .button-primary { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.primary-button:hover:not(:disabled), .button-primary:hover:not(:disabled) { border-color: #aeeae6; background: #aeeae6; }
+.secondary-button, .button-secondary { border-color: var(--edge-strong); background: var(--soft); color: var(--ink); }
+.secondary-button:hover:not(:disabled), .button-secondary:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-raised); }
 .secondary-button { min-height: 29px; }
 .primary-button:disabled, .secondary-button:disabled, .button:disabled { cursor: not-allowed; opacity: .48; }
-.button-text, .text-button { padding: 4px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--forest-700); font-size: 10px; text-align: left; white-space: nowrap; }
+.button-text, .text-button { padding: 4px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--accent); font-size: 10px; text-align: left; white-space: nowrap; }
 .button-text:hover, .text-button:hover { background: var(--soft); }
 .full-width { width: 100%; }
 
@@ -154,10 +164,10 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .metrics-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .metric { padding: 17px 19px 15px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }
 .metric-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 15px; color: var(--muted); font-size: 11px; }
-.metric-top .icon { color: var(--forest-500); }
+.metric-top .icon { color: var(--muted); }
 .metric > strong { display: block; font-size: 25px; font-weight: 550; letter-spacing: -.8px; line-height: 1.1; }
 .metric p { margin: 9px 0 0; color: var(--muted); font-size: 10px; }
-.metric-attention { border-color: #ead9ca; background: #fcf6f0; }
+.metric-attention { border-color: #7a5a4a; background: #2a2320; }
 .metric-attention > strong, .metric-attention .icon { color: var(--terracotta); }
 
 /* ── Panels ─────────────────────────────────────────────────────────────── */
@@ -191,8 +201,8 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .executive-block ul { margin: 6px 0 0; padding-left: 16px; font-size: 10px; line-height: 1.6; }
 .executive-block li { margin-bottom: 3px; }
 .executive-block p { margin: 4px 0 0; font-size: 10px; }
-.executive-block a { color: var(--forest-700); font-size: 10px; font-weight: 700; text-decoration: underline; }
-.executive-block a:focus-visible { outline: 3px solid #cf7d4f; outline-offset: 2px; }
+.executive-block a { color: var(--accent); font-size: 10px; font-weight: 700; text-decoration: underline; }
+.executive-block a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .executive-block .data-list { margin-top: 4px; }
 .executive-panel #executive-rule-tag { white-space: normal; text-align: right; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(340px, .8fr); gap: 16px; }
@@ -202,7 +212,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 
 /* ── Data lists ─────────────────────────────────────────────────────────── */
 .data-list { display: grid; gap: 0; margin: 12px 0 0; }
-.data-list > div { display: flex; justify-content: space-between; gap: 15px; padding: 8px 0; border-bottom: 1px solid #eef1ee; font-size: 9px; }
+.data-list > div { display: flex; justify-content: space-between; gap: 15px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 9px; }
 .data-list > div:last-child { border-bottom: 0; }
 .data-list dt { color: var(--muted); }
 .data-list dd { max-width: 64%; margin: 0; color: var(--ink); font-weight: 700; text-align: right; overflow-wrap: anywhere; }
@@ -216,17 +226,19 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 #sources-restriction, #sources-attribution, #sources-cutoff, #sources-input, #pipeline-risk, #pipeline-jobs, #pipeline-gateway { white-space: normal; }
 
 /* ── Chips ──────────────────────────────────────────────────────────────── */
-.chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 5px; background: var(--soft); color: #65736b; font-size: 10px; font-weight: 550; white-space: nowrap; }
+/* Each state keeps its own family from the global risk roles, so a pending chip
+   and a medium-risk zone share one measured surface instead of two literals. */
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 5px; background: var(--soft); color: var(--muted); font-size: 10px; font-weight: 550; white-space: nowrap; }
 .chip-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.chip-high, .chip-insufficient { background: var(--terracotta-soft); color: #9c472f; }
-.chip-medium, .chip-pending, .chip-queued, .chip-stale { background: var(--gold-soft); color: #7f641e; }
-.chip-low, .chip-current, .chip-reviewed, .chip-published, .chip-active, .chip-sufficient, .chip-closed { background: #e7f0e6; color: #396246; }
-.chip-candidate, .chip-in_progress { background: #e3efef; color: #32686a; }
+.chip-high, .chip-insufficient { background: var(--level-high-surface); color: var(--level-high-text); }
+.chip-medium, .chip-pending, .chip-queued, .chip-stale { background: var(--level-medium-surface); color: var(--level-medium-text); }
+.chip-low, .chip-current, .chip-reviewed, .chip-published, .chip-active, .chip-sufficient, .chip-closed { background: var(--level-low-surface); color: var(--level-low-text); }
+.chip-candidate, .chip-in_progress { background: var(--info-surface); color: var(--info-text); }
 
 /* ── Territorial map ────────────────────────────────────────────────────── */
 .map-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-.map-toolbar label { color: var(--forest-700); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
-.map-toolbar select { min-width: 220px; max-width: 100%; height: 34px; padding: 0 9px; border: 1px solid #ced8cb; border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 10px; }
+.map-toolbar label { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+.map-toolbar select { min-width: 220px; max-width: 100%; height: 34px; padding: 0 9px; border: 1px solid var(--edge-strong); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 10px; }
 .map-summary { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin: 0; }
 .map-summary strong { font-size: 10px; }
 .map-summary span { color: var(--muted); font-size: 9px; }
@@ -235,14 +247,14 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    muted note one. It is a live region: the state is announced, not only painted. */
 .map-job-progress { margin: 10px 0 0; color: var(--ink); font-size: 9px; line-height: 1.6; }
 .map-stage { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 10px; margin-top: 12px; }
-.map-viewport { position: relative; min-height: 298px; overflow: hidden; border: 1px solid #d4dfd0; border-radius: 9px; background: #eef2e8; }
+.map-viewport { position: relative; min-height: 298px; overflow: hidden; border: 1px solid var(--edge); border-radius: 9px; background: var(--aerial-water); }
 .map-svg { display: block; width: 100%; height: auto; min-height: 298px; }
 .map-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; padding: 20px; color: var(--muted); font-size: 10px; text-align: center; }
 .map-insets { display: flex; flex-direction: column; gap: 8px; }
 .map-insets:empty { display: none; }
-.map-inset { margin: 0; padding: 6px; border: 1px solid #d6e3df; border-radius: 8px; background: #f7faf8; }
-.map-inset svg { display: block; width: 100%; height: auto; border-radius: 5px; background: #eef4f1; }
-.map-inset figcaption { margin-top: 4px; color: var(--forest-700); font-size: 8px; font-weight: 700; line-height: 1.35; }
+.map-inset { margin: 0; padding: 6px; border: 1px solid var(--edge); border-radius: 8px; background: var(--surface-raised); }
+.map-inset svg { display: block; width: 100%; height: auto; border-radius: 5px; background: var(--aerial-water); }
+.map-inset figcaption { margin-top: 4px; color: var(--accent); font-size: 8px; font-weight: 700; line-height: 1.35; }
 .map-inset-note { margin: 8px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
 
 /* Order matters: the neutral and level rules must win over the base fill. */
@@ -253,8 +265,13 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .level-medio { fill: var(--level-medium-fill); stroke: var(--level-medium-line); }
 .level-alto { fill: var(--level-high-fill); stroke: var(--level-high-line); }
 .level-desconocido { fill: var(--level-unknown-fill); stroke: var(--level-unknown-line); }
-.zone-selected { stroke-width: 3; stroke: var(--forest-950); }
-.zone-shape:focus-visible { outline: none; stroke: #000; stroke-width: 5; stroke-dasharray: 6 3; }
+.zone-selected { stroke-width: 3; stroke: var(--accent); }
+/* The focus indicator of a map shape is the same 5 px dashed stroke the retired
+   light page used, dark-adapted: the dark ink reads against every light risk fill,
+   and the mid-slate neutral fill — the one fill dark ink cannot carry — keeps the
+   light ink instead. */
+.zone-shape:focus-visible { outline: none; stroke: var(--accent-ink); stroke-width: 5; stroke-dasharray: 6 3; }
+.zone-neutral:focus-visible { stroke: var(--ink); }
 
 .map-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0 0; padding: 0; list-style: none; }
 .map-legend li { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 8px; }
@@ -267,14 +284,14 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .map-legend-note { margin: 7px 0 0; color: var(--muted); font-size: 8px; line-height: 1.55; }
 .map-source { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .map-source p { margin: 0 0 5px; color: var(--muted); font-size: 8px; line-height: 1.55; }
-.source-label { display: inline-block; margin-right: 5px; color: var(--forest-700); font-size: 7px; font-weight: 850; letter-spacing: .08em; }
+.source-label { display: inline-block; margin-right: 5px; color: var(--accent); font-size: 7px; font-weight: 850; letter-spacing: .08em; }
 .map-caption { color: var(--muted); }
 
 /* ── Risk panel ─────────────────────────────────────────────────────────── */
 .risk-panel { display: flex; flex-direction: column; }
-.risk-pill { padding: 5px 8px; border-radius: 5px; background: var(--soft); color: var(--forest-700); font-size: 8px; font-weight: 850; white-space: nowrap; }
-.risk-state { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: #f8faf7; }
-.risk-symbol { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #d9e3dc; border-radius: 9px; background: var(--paper); color: var(--muted); font-size: 22px; }
+.risk-pill { padding: 5px 8px; border-radius: 5px; background: var(--soft); color: var(--accent); font-size: 8px; font-weight: 850; white-space: nowrap; }
+.risk-state { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); }
+.risk-symbol { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--edge-strong); border-radius: 9px; background: var(--paper); color: var(--muted); font-size: 22px; }
 .risk-state strong, .risk-state small { display: block; }
 .risk-state strong { font-size: 15px; }
 .risk-state small { margin-top: 2px; color: var(--muted); font-size: 8px; }
@@ -282,17 +299,17 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 #batch-origin { font-weight: 700; }
 #batch-validity { margin: 0 0 10px; color: var(--muted); font-size: 9px; font-weight: 700; }
 #sources-status, #pipeline-status { min-height: 32px; }
-.risk-error { color: #944a39 !important; }
-.risk-good { color: #237354 !important; }
+.risk-error { color: var(--danger) !important; }
+.risk-good { color: var(--success) !important; }
 
 /* ── Operational verdict (PM-16) ───────────────────────────────────────── */
 /* The status rows and the verdict share ONE panel: PM-16 asks for a single
    explicit verdict, not a second health screen. The block uses the paper/line
    tokens so it reads as a summary, and the badge carries the same weight as the
    panel badges instead of inventing a louder alarm style. */
-.operational-verdict { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 9px; background: #f8faf7; }
+.operational-verdict { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); }
 .operational-verdict-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
-.operational-verdict-head .eyebrow { margin: 0; color: var(--forest-700); }
+.operational-verdict-head .eyebrow { margin: 0; color: var(--accent); }
 .operational-verdict h4 { margin: 0 0 6px; font-size: 14px; letter-spacing: -.2px; }
 .operational-verdict > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .operational-verdict > .panel-note { margin-top: 8px; }
@@ -305,27 +322,31 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    The bar is only rendered when the batch carries a real `contribution`. */
 #risk-factors { margin: 0; padding: 0; list-style: none; }
 #risk-factors li { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; color: var(--muted); font-size: 10px; }
-.factor-track { width: 57px; height: 4px; flex: 0 0 auto; border-radius: 4px; background: #e8e9df; }
-.factor-track span { display: block; height: 100%; border-radius: 4px; background: #a1b49d; }
+.factor-track { width: 57px; height: 4px; flex: 0 0 auto; border-radius: 4px; background: #2c3d4d; }
+.factor-track span { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
 
 /* ── Tables ─────────────────────────────────────────────────────────────── */
 .table-wrap, .table-scroll { overflow: auto; }
-.table-wrap:focus-visible, .table-scroll:focus-visible { outline: 3px solid #cf7d4f; outline-offset: 2px; }
+.table-wrap:focus-visible, .table-scroll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
-th { padding: 11px 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #f3f4ed; color: var(--muted); font-size: 9px; font-weight: 550; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
-td { padding: 12px 14px; border-bottom: 1px solid #edf0e7; color: var(--ink); font-size: 10px; vertical-align: middle; }
-tbody tr:hover { background: #f9faf4; }
+th { padding: 11px 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--soft); color: var(--muted); font-size: 9px; font-weight: 550; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
+td { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); color: var(--ink); font-size: 10px; vertical-align: middle; }
+tbody tr:hover { background: var(--surface-raised); }
 /* The selected row of the actions table. It is declared after the hover tint on
    purpose: both selectors carry the same specificity, so only a later rule keeps
    the mark while the pointer is over the row instead of falling back to the plain
    hover colour. The accent is painted on the first cell because a
    `border-collapse: collapse` table drops a box-shadow declared on the row. */
 tbody tr.is-selected { background: var(--soft); }
+/* The selected row's accent. It keeps the legacy alias on purpose: the alias is
+   the same measured accent (--forest-700 resolves to #94dfda) and the actions
+   regression suite pins this declaration as the guard that the mark is painted on
+   the cell a collapsed table can actually paint. */
 tbody tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--forest-700); }
 tr:last-child td { border-bottom: 0; }
 td strong { font-weight: 550; }
 td small { margin-top: 4px; color: var(--muted); font-size: 9px; }
-td code { color: var(--forest-700); font-size: 10px; }
+td code { color: var(--accent); font-size: 10px; }
 td:last-child { overflow-wrap: anywhere; }
 .empty-state { padding: 16px 10px; color: var(--muted); font-size: 10px; text-align: center; }
 .history-panel:not(.has-rows) .table-wrap, .history-panel:not(.has-rows) .filter-bar { display: none; }
@@ -350,20 +371,20 @@ td:last-child { overflow-wrap: anywhere; }
 .history-series-zone-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 6px; font-size: 10px; }
 .history-series-count { color: var(--muted); font-size: 9px; white-space: nowrap; }
 .history-buckets { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.history-bucket { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 6px 0; border-top: 1px solid #eef1ee; color: var(--muted); font-size: 9px; }
+.history-bucket { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 6px 0; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 9px; }
 .history-bucket:first-child { border-top: 0; }
 .history-bucket-start code { color: var(--ink); font-size: 9px; }
 .history-bucket-level { color: var(--ink); font-weight: 700; }
-.history-bucket-provenance code { color: var(--forest-700); font-size: 9px; }
+.history-bucket-provenance code { color: var(--accent); font-size: 9px; }
 /* The synthetic mark is carried by the word as well as the colour: the text is
    the claim, the colour only repeats it. */
-.history-bucket-demo { color: #9c472f; font-weight: 700; }
+.history-bucket-demo { color: var(--terracotta); font-weight: 700; }
 /* While the download is in flight the control stays focusable through
    `aria-disabled`, so the keyboard reader does not lose its place. It states the
    same visual state as the `disabled` buttons beside it. */
 .history-export button[aria-disabled="true"]:not(:disabled) { cursor: not-allowed; opacity: .48; }
-.row-index { margin-right: 8px; color: #879787; font-size: 9px; }
-.selected-label { color: var(--forest-700); font-size: 9px; }
+.row-index { margin-right: 8px; color: var(--muted); font-size: 9px; }
+.selected-label { color: var(--accent); font-size: 9px; }
 .row-actions { display: flex; align-items: center; gap: 7px; }
 .audit-detail { max-width: 350px; overflow-wrap: anywhere; }
 
@@ -392,8 +413,8 @@ td:last-child { overflow-wrap: anywhere; }
 .filter-label { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 10px; }
 .filter-label select { width: auto; font-size: 11px; }
 .result-count { margin-left: auto; color: var(--muted); font-size: 10px; }
-input, select, textarea { width: 100%; min-width: 0; padding: 9px 11px; border: 1px solid #ced8cb; border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 12px; }
-input::placeholder { color: #8a968b; font-size: 11px; }
+input, select, textarea { width: 100%; min-width: 0; padding: 9px 11px; border: 1px solid var(--edge-strong); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 12px; }
+input::placeholder { color: var(--muted); font-size: 11px; }
 #history-query::placeholder { color: var(--muted); }
 .empty { padding: 38px 22px; color: var(--muted); text-align: center; }
 .empty .icon { width: 26px; height: 26px; margin-bottom: 12px; }
@@ -402,7 +423,7 @@ input::placeholder { color: #8a968b; font-size: 11px; }
 
 /* ── Quality findings / pipeline ────────────────────────────────────────── */
 .quality-steps { margin: 0; padding-left: 23px; }
-.quality-steps li { padding: 5px 0 8px 8px; color: var(--forest-700); }
+.quality-steps li { padding: 5px 0 8px 8px; color: var(--accent); }
 .quality-finding { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .quality-finding:first-of-type { padding-top: 0; }
 .quality-finding p { margin: 5px 0; color: var(--muted); font-size: 11px; }
@@ -413,13 +434,13 @@ input::placeholder { color: #8a968b; font-size: 11px; }
 
 /* ── Authentication / jobs ─────────────────────────────────────────────── */
 .auth-panel { align-self: start; }
-.lock-mark { color: var(--forest-700); font-size: 20px; }
+.lock-mark { color: var(--accent); font-size: 20px; }
 .auth-status { min-height: 14px; margin: 8px 0 0; color: var(--muted); font-size: 9px; }
 .token-controls { display: flex; gap: 7px; }
 .token-controls input { height: 37px; }
 .jobs-panel { margin-top: 0; }
 .scenario-field { display: grid; gap: 6px; margin: 0 0 12px; }
-.scenario-field label { color: var(--forest-700); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+.scenario-field label { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
 .scenario-field select { max-width: 100%; height: 34px; padding: 0 9px; font-size: 10px; }
 .scenario-field .panel-note { margin: 0; }
 .job-layout { display: grid; grid-template-columns: minmax(200px, .8fr) minmax(300px, 1.2fr); gap: 20px; margin-top: 13px; }
@@ -431,9 +452,9 @@ input::placeholder { color: #8a968b; font-size: 11px; }
 
 /* ── Footer and toast ──────────────────────────────────────────────────── */
 footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 34px; padding: 17px 0 23px; border-top: 1px solid var(--line); color: var(--muted); font-size: 9px; }
-footer button { display: flex; align-items: center; gap: 6px; padding: 6px; border: 0; background: none; color: var(--forest-700); font-size: 10px; }
+footer button { display: flex; align-items: center; gap: 6px; padding: 6px; border: 0; background: none; color: var(--accent); font-size: 10px; }
 footer .icon { width: 13px; height: 13px; }
-.toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: min(440px, calc(100vw - 32px)); padding: 15px 20px; border-radius: 9px; background: var(--forest-900); color: var(--paper); box-shadow: 0 8px 30px rgb(16 44 45 / 19%); font-size: 12px; opacity: 0; transform: translateY(15px); pointer-events: none; transition: opacity .2s, transform .2s; }
+.toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: min(440px, calc(100vw - 32px)); padding: 15px 20px; border: 1px solid var(--edge-strong); border-radius: 9px; background: var(--surface-raised); color: var(--ink); box-shadow: 0 8px 30px rgb(0 0 0 / 42%); font-size: 12px; opacity: 0; transform: translateY(15px); pointer-events: none; transition: opacity .2s, transform .2s; }
 .toast.is-visible { opacity: 1; transform: translateY(0); }
 
 /* ── Preventive actions ─────────────────────────────────────────────────── */
@@ -463,14 +484,14 @@ footer .icon { width: 13px; height: 13px; }
    the actions view the status words and the panel badge are 8–10 px, so their
    colour is darkened until it clears 4.5:1 on its own background. */
 #actions .chip { color: var(--ink); background: var(--soft); }
-#actions .neutral-tag { color: var(--ink); background: #edf1f2; }
+#actions .neutral-tag { color: var(--ink); background: var(--soft); }
 
 /* Discreet scope notice. The demonstration statement used to be the page's
    headline strip, above everything and impossible to miss. It is now a small,
    always-visible link in the update bar that opens the data-status view, where
    the full declaration lives: the statement stays, the shouting stops. */
-.technical-notice { margin-left: auto; padding: 3px 8px; border: 1px dashed #c8bda0; border-radius: 6px; background: #faf7ee; color: #7d6c3f; font-size: 8px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; }
-.technical-notice:hover { background: #f4efe0; }
+.technical-notice { margin-left: auto; padding: 3px 8px; border: 1px dashed #8a7a4a; border-radius: 6px; background: #2b2a1e; color: #f0e0b4; font-size: 8px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; }
+.technical-notice:hover { background: #34331f; }
 
 /* ── Zone comparator (PM-05) ────────────────────────────────────────────── */
 /* The comparison is ONE read, so the card is organised as one control row, one
@@ -478,24 +499,24 @@ footer .icon { width: 13px; height: 13px; }
    bottom of the card as an `unimplemented-note`: the axis does not exist, and
    the page says so instead of drawing an empty column. */
 .compare-controls { display: flex; flex-wrap: wrap; gap: 12px 18px; margin: 0 0 6px; }
-.compare-controls label { display: grid; gap: 5px; min-width: 220px; color: var(--forest-700); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+.compare-controls label { display: grid; gap: 5px; min-width: 220px; color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
 .compare-controls select { max-width: 100%; }
 /* The selection is an `<ol>`: position is the comparison axis, so the number is
    rendered as text and the list marker is removed rather than hidden by colour. */
 .compare-selection { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
 .compare-selection:empty { display: none; }
 .compare-selection li { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); font-size: 10px; }
-.compare-order { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--forest-700); color: var(--paper); font-size: 8px; font-weight: 800; }
+.compare-order { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 8px; font-weight: 800; }
 .compare-selection-label { font-weight: 650; }
 .compare-zones { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 14px; }
-.compare-zone { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: #f8faf7; }
+.compare-zone { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); }
 .compare-zone h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: -.2px; }
 .compare-zone h5 { margin: 12px 0 5px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .compare-level { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
 .compare-origin { color: var(--muted); font-size: 9px; }
 /* A null assessment is a stated absence, not a low level: the block is set apart
    from the surrounding data so it cannot be read as a value. */
-.compare-absent { padding: 10px 12px; border: 1px dashed #c8bda0; border-radius: 7px; background: #faf7ee; color: #57441c; font-size: 10px; line-height: 1.55; }
+.compare-absent { padding: 10px 12px; border: 1px dashed #8a7a4a; border-radius: 7px; background: #2b2a1e; color: #f0e0b4; font-size: 10px; line-height: 1.55; }
 .compare-absent p { margin: 0; }
 .compare-factors { margin: 0; padding-left: 16px; font-size: 10px; line-height: 1.6; }
 .compare-quiet { color: var(--muted); font-size: 9px; }
@@ -504,7 +525,6 @@ footer .icon { width: 13px; height: 13px; }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 1200px) {
-  .sidebar { width: 208px; padding-inline: 12px; }
   .topbar, .update-bar { padding-inline: 24px; }
   main { padding-inline: 24px; }
   footer { margin-inline: 24px; }
@@ -524,18 +544,29 @@ footer .icon { width: 13px; height: 13px; }
   .pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* The session container and its single logout control must stay visible at
-   720px; the health card is the one that gives up its space. */
+/* S7 — the header is what makes a phone fold fit now that the column is gone. It
+   wraps into three compact lines — brand and route, then the territory and the
+   session tablet, then the gateway card across both columns — and hides nothing:
+   the readiness live region and its control survive at every width. */
 @media (max-width: 720px) {
-  .demo-strip { align-items: flex-start; flex-direction: column; gap: 1px; padding: 7px 14px; }
   .app-shell { display: block; }
-  .sidebar { position: static; width: auto; height: auto; min-height: 0; padding: 14px 15px 10px; }
-  .brand { padding: 0 2px 12px; margin-bottom: 0; }
-  .health-card { display: none; }
-  .topbar { min-height: 68px; padding: 11px 16px; }
-  .topbar h1 { font-size: 17px; }
-  .zone-chip { padding: 5px 7px; }
-  .zone-chip > span { display: none; }
+  .topbar { gap: 6px 10px; padding: 7px 14px; }
+  .topbar-lead { gap: 10px; }
+  .topbar-route { padding-left: 10px; }
+  .topbar h1 { font-size: 16px; }
+  .topbar-utils { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: 100%; gap: 6px 8px; }
+  .brand-mark { width: 28px; height: 28px; font-size: 16px; }
+  .brand strong { font-size: 13px; }
+  .brand small { font-size: 7px; letter-spacing: .08em; }
+  .zone-chip { padding: 4px 7px; }
+  .zone-chip > span { font-size: 13px; }
+  .zone-chip small { font-size: 7px; }
+  .health-card { grid-column: 1 / -1; padding: 5px 8px; }
+  .health-card p { flex-basis: 100%; max-width: none; font-size: 9.5px; }
+  .session-card { flex-wrap: wrap; padding: 4px 8px; }
+  .session-card strong { font-size: 9.5px; }
+  .session-card small { font-size: 8px; }
+  .session-card button { min-height: 36px; padding: 4px 8px; font-size: 9.5px; }
   .update-bar { padding: 14px 16px 0; }
   main { padding: 20px 15px 28px; }
   .intro-row { align-items: flex-start; flex-direction: column; gap: 9px; }
@@ -580,27 +611,29 @@ footer .icon { width: 13px; height: 13px; }
    basemap or a tile layer. */
 .infrastructure-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 .infrastructure-print-note { flex-basis: 100%; margin: 0; text-align: right; }
-.infrastructure-synthetic { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 10px; padding: 13px 15px; border: 2px solid #b58b45; border-left-width: 7px; border-radius: 9px; background: #fdf6e8; color: #57441c; }
+.infrastructure-synthetic { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 10px; padding: 13px 15px; border: 2px solid #b58b45; border-left-width: 7px; border-radius: 9px; background: #2b2a1e; color: #f0e0b4; }
 .infrastructure-synthetic strong { font-size: 12px; letter-spacing: .08em; }
 .infrastructure-synthetic span { font-size: 10px; line-height: 1.55; }
-.infrastructure-formula { margin: 0 0 12px; padding: 10px 12px; border: 1px dashed #b9c9b4; border-radius: 7px; background: #f5f8f1; color: var(--forest-700); font-size: 10px; line-height: 1.6; }
-.infrastructure-map { margin: 14px 0 0; padding: 10px; border: 1px solid #d4dfd0; border-radius: 9px; background: #eef2e8; }
-.infrastructure-map figcaption { margin-bottom: 8px; color: var(--forest-700); font-size: 10px; font-weight: 700; }
+.infrastructure-formula { margin: 0 0 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 7px; background: var(--soft); color: var(--accent); font-size: 10px; line-height: 1.6; }
+.infrastructure-map { margin: 14px 0 0; padding: 10px; border: 1px solid var(--edge); border-radius: 9px; background: var(--aerial-water); }
+.infrastructure-map figcaption { margin-bottom: 8px; color: var(--accent); font-size: 10px; font-weight: 700; }
 .infrastructure-map-svg { display: block; width: 100%; height: auto; min-height: 220px; }
 .infrastructure-map-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 9px 0 0; padding: 0; list-style: none; }
 .infrastructure-map-legend li { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 8px; }
-.infrastructure-legend-marker { width: 11px; height: 11px; flex: 0 0 auto; background: #5f6f66; }
-.infrastructure-legend-colegio { border-radius: 2px; background: #356a8a; }
-.infrastructure-legend-vivienda { border-radius: 50%; background: #4f7d46; }
-.infrastructure-legend-hospital { border-radius: 1px; background: #9b4b3b; transform: rotate(45deg); }
-.infrastructure-legend-hidrante { background: #8a6a1f; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
-.infrastructure-legend-ruta { width: 18px; height: 3px; border-radius: 2px; background: #7a5a32; }
+/* The synthetic element hues are dark-adapted markers: the same meaning, measured
+   against the map surface they are drawn on (#152934) at 6.2–11:1. */
+.infrastructure-legend-marker { width: 11px; height: 11px; flex: 0 0 auto; background: #cfe0e8; }
+.infrastructure-legend-colegio { border-radius: 2px; background: #7fb2d8; }
+.infrastructure-legend-vivienda { border-radius: 50%; background: #8fc58a; }
+.infrastructure-legend-hospital { border-radius: 1px; background: #e59a8c; transform: rotate(45deg); }
+.infrastructure-legend-hidrante { background: #e0c478; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.infrastructure-legend-ruta { width: 18px; height: 3px; border-radius: 2px; background: #c9a06a; }
 .infrastructure-map-note { margin: 8px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
-.infrastructure-marker-colegio { fill: #356a8a; }
-.infrastructure-marker-vivienda { fill: #4f7d46; }
-.infrastructure-marker-hospital { fill: #9b4b3b; }
-.infrastructure-marker-hidrante { fill: #8a6a1f; }
-.infrastructure-route { fill: none; stroke: #7a5a32; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.infrastructure-marker-colegio { fill: #7fb2d8; }
+.infrastructure-marker-vivienda { fill: #8fc58a; }
+.infrastructure-marker-hospital { fill: #e59a8c; }
+.infrastructure-marker-hidrante { fill: #e0c478; }
+.infrastructure-route { fill: none; stroke: #c9a06a; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .infrastructure-table { min-width: 620px; }
 .infrastructure-table caption { padding: 0 0 8px; color: var(--muted); font-size: 9px; line-height: 1.55; text-align: left; }
 .infrastructure-table th, .infrastructure-table td { text-align: right; }
@@ -650,7 +683,7 @@ footer .icon { width: 13px; height: 13px; }
 .simulator-form .field label,
 .simulator-variable label,
 .simulator-variables legend {
-  color: var(--forest-700);
+  color: var(--accent);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .02em;
@@ -691,7 +724,7 @@ footer .icon { width: 13px; height: 13px; }
   display: grid;
   gap: 4px;
   padding: 9px 0;
-  border-top: 1px solid #e6eae4;
+  border-top: 1px solid var(--line-soft);
 }
 
 .simulator-variable:first-of-type {
@@ -756,12 +789,12 @@ footer .icon { width: 13px; height: 13px; }
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: #f8faf7;
+  background: var(--soft);
 }
 
 .simulator-outcome .eyebrow {
   margin: 0 0 6px;
-  color: var(--forest-700);
+  color: var(--accent);
 }
 
 .simulator-level {
@@ -796,7 +829,7 @@ footer .icon { width: 13px; height: 13px; }
    already do. */
 #simulator .neutral-tag {
   color: var(--ink);
-  background: #edf1f2;
+  background: var(--soft);
 }
 
 @media (max-width: 1000px) {
@@ -818,7 +851,6 @@ footer .icon { width: 13px; height: 13px; }
 }
 
 @media print {
-  body:has(#infrastructure) .sidebar,
   body:has(#infrastructure) .product-nav,
   body:has(#infrastructure) .topbar,
   body:has(#infrastructure) .update-bar,
@@ -832,6 +864,23 @@ footer .icon { width: 13px; height: 13px; }
   body:has(#infrastructure) .infrastructure-synthetic { display: flex; border: 2px solid #000; background: #fff; color: #000; }
   body:has(#infrastructure) .infrastructure-formula { border: 1px solid #000; background: #fff; color: #000; }
   body:has(#infrastructure) .infrastructure-map { break-inside: avoid; background: #fff; border-color: #000; }
+  /* The marker hues above are dark-adapted for the slate map surface, and this
+     block repaints that surface white: printed unchanged, the symbols measured
+     1.70:1 (hydrant) to 2.41:1 (route) on #ffffff, so a printed catalogue lost the
+     marks it exists to show. Print restates the same five symbols — and the default
+     legend swatch — in deeper versions of their own hues, 6.3:1 or better on white,
+     so the shapes stay readable and their meanings stay distinguishable on paper. */
+  body:has(#infrastructure) .infrastructure-legend-marker { background: #33414a; }
+  body:has(#infrastructure) .infrastructure-legend-colegio { background: #17527a; }
+  body:has(#infrastructure) .infrastructure-legend-vivienda { background: #2c6234; }
+  body:has(#infrastructure) .infrastructure-legend-hospital { background: #9c3a2a; }
+  body:has(#infrastructure) .infrastructure-legend-hidrante { background: #6b5100; }
+  body:has(#infrastructure) .infrastructure-legend-ruta { background: #6e4f22; }
+  body:has(#infrastructure) .infrastructure-marker-colegio { fill: #17527a; }
+  body:has(#infrastructure) .infrastructure-marker-vivienda { fill: #2c6234; }
+  body:has(#infrastructure) .infrastructure-marker-hospital { fill: #9c3a2a; }
+  body:has(#infrastructure) .infrastructure-marker-hidrante { fill: #6b5100; }
+  body:has(#infrastructure) .infrastructure-route { stroke: #6e4f22; }
   body:has(#infrastructure) .infrastructure-zone { break-inside: avoid; }
   body:has(#infrastructure) .infrastructure-table { min-width: 0; }
   body:has(#infrastructure) .table-wrap { overflow: visible; }
@@ -851,26 +900,25 @@ footer .icon { width: 13px; height: 13px; }
 .status-detail { white-space: normal; }
 .status-table { width: 100%; border-collapse: collapse; min-width: 560px; }
 .status-table caption { padding: 0 0 8px; color: var(--muted); font-size: 9px; line-height: 1.55; text-align: left; }
-.status-table th, .status-table td { padding: 9px 10px; border-bottom: 1px solid #eef1ee; font-size: 9px; text-align: left; vertical-align: top; }
-.status-table thead th { color: var(--forest-700); font-size: 8px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.status-table th, .status-table td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); font-size: 9px; text-align: left; vertical-align: top; }
+.status-table thead th { color: var(--accent); font-size: 8px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .status-table tbody th { min-width: 150px; font-weight: 700; }
 .status-table tbody th code { margin-left: 4px; color: var(--muted); font-size: 8px; font-weight: 500; }
 .status-table tbody td:last-child { color: var(--muted); line-height: 1.55; }
 .status-table tbody tr:last-child th, .status-table tbody tr:last-child td { border-bottom: 0; }
 .status-state { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; font-size: 8px; font-weight: 850; letter-spacing: .05em; white-space: nowrap; }
-/* The word is the state; the colour only reinforces it. Each pair keeps a
-   readable contrast on the light card. */
-.status-state-ready { color: #1f4a2a; background: #e7f2e4; border-color: #b8d5b0; }
-.status-state-degraded { color: #6d3410; background: #fdeee2; border-color: #e2b795; }
-.status-state-unknown { color: #4a3b13; background: #fbf4dc; border-color: #ddd0a0; }
-.status-state-unauthorized { color: #1f4055; background: #e6f0f6; border-color: #a9c8da; }
-.status-state-not_configured { color: #4c4c4c; background: #eff1f1; border-color: #cfd5d5; }
+/* The word is the state; the colour only reinforces it. Each pair is a dark-
+   adapted surface with a measured label (8.7–9.5:1). */
+.status-state-ready { color: #a8e6c0; background: #1d3a2e; border-color: #3f6a52; }
+.status-state-degraded { color: #f0c99a; background: #3a2c1f; border-color: #6d5236; }
+.status-state-unknown { color: #e8d9a6; background: #33301f; border-color: #5e5735; }
+.status-state-unauthorized { color: #b7d8ee; background: #1e3342; border-color: #3c5a70; }
+.status-state-not_configured { color: #d7dde2; background: #2b3238; border-color: #48555e; }
 
 /* Print-to-PDF without a library: the board is the kind of page that gets
    printed for a handover, so the shell chrome goes and the verdict, the table
    and the composed rows stay in black on white. */
 @media print {
-  body:has(#status) .sidebar,
   body:has(#status) .product-nav,
   body:has(#status) .topbar,
   body:has(#status) .update-bar,

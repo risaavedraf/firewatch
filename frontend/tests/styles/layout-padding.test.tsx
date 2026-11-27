@@ -129,65 +129,53 @@ function panelModifiers(): string[] {
   return [...modifiers].sort();
 }
 
-test('the shell and the sidebar fill the viewport below the product bar, so the sidebar paints no blank band (S1)', () => {
+test('the shell fills the viewport below the product bar and the workspace is its only column (S1/S7)', () => {
   // The retired demonstration strip was a 34 px band above the shell. It is no
   // longer rendered, so every offset that reserved its height is a hole.
   expect(appCss).not.toMatch(/100vh\s*-\s*34px/);
 
-  // T1 put the product bar above the shell; the shell and the sticky column
-  // reserve exactly that bar's declared height and nothing more.
+  // T1 put the product bar above the shell; the shell reserves exactly that bar's
+  // declared height and nothing more.
   const shell = baseRule('.app-shell');
   expect(declaration(shell, 'min-height')).toBe('calc(100vh - var(--product-nav-h, 48px))');
 
-  const sidebar = baseRule('.sidebar');
-  expect(declaration(sidebar, 'height')).toBe('calc(100vh - var(--product-nav-h, 48px))');
-  expect(declaration(sidebar, 'position')).toBe('sticky');
-  expect(declaration(sidebar, 'top')).toBe('var(--product-nav-h, 48px)');
+  // S7 removed the left column: the workspace is the shell's single column and
+  // takes the full width the column used to take away.
+  const workspace = baseRule('.main-area');
+  expect(declaration(workspace, 'flex')).toBe('1');
+  expect(declaration(workspace, 'min-width')).toBe('0');
+  expect(appCss).not.toMatch(/^\.sidebar\s*\{/m);
+  expect(appCss).not.toMatch(/^\.sidebar-bottom\s*\{/m);
+
+  // `main` is the wide content region of that column, not a narrow board beside a
+  // column.
+  expect(declaration(baseRule('main'), 'width')).toBe('min(1500px, 100%)');
 });
 
-// T8/C1 — the column stopped rendering a navigation list in T1: the destinations
-// moved into the product bar (`ProductNav`), which owns its own bounded, out-of-flow
-// panel. The column kept its viewport-bounded height and its overflow because the
-// brand, the workspace, the gateway card and the only sign-out control still live in
-// it, and it is now the single scroll owner of that space. The retired
-// `.sidebar nav` block — the old list's scroll region — has no consumer left, and a
-// rule with no consumer is not a harmless leftover here: it is the declaration the
-// source gate used to read as proof that the controls stay reachable. The comment it
-// carried said so. This test pins both halves: the live markup, and the absence of
-// the dead rule.
-test('the sidebar keeps its own scroll and declares no rule for the navigation it no longer renders (C1)', async () => {
-  const fetchStub = createFetchStub();
-  vi.stubGlobal('fetch', fetchStub.fetch);
-  vi.stubGlobal('crypto', createCryptoStub());
-  window.sessionStorage.clear();
-  resetSession();
+// S7 — the top bar is now the one compact chrome row of the shell. It used to be
+// 75 px tall above a 234 px column; it is now a wrapping 56 px bar that carries
+// the brand, the route, the territory and the session instead of adding rows.
+test('the shell header is one compact wrapping row, not a 75px band above a column (S7)', () => {
+  const topbar = baseRule('.topbar');
+  expect(declaration(topbar, 'min-height')).toBe('56px');
+  expect(declaration(topbar, 'padding')).toBe('8px 34px');
+  expect(declaration(topbar, 'flex-wrap')).toBe('wrap');
+  expect(declaration(topbar, 'min-width')).toBe('0');
 
-  const { container } = render(
-    <Shell route={routes[0]}>
-      <p>contenido</p>
-    </Shell>,
-  );
-  fetchStub.answer(`${gatewayOrigin}/health/ready`, null, 204);
-  await waitFor(() => expect(fetchStub.callsFor(`${gatewayOrigin}/health/ready`)).toHaveLength(1));
+  const lead = baseRule('.topbar-lead');
+  expect(declaration(lead, 'display')).toBe('flex');
+  expect(declaration(lead, 'align-items')).toBe('center');
 
-  const sidebar = container.querySelector('aside.sidebar');
-  expect(sidebar).not.toBeNull();
-  // A `<nav>` inside the column would be a second scroll owner over the same space.
-  expect(sidebar?.querySelector('nav')).toBeNull();
-  // …and no rule may declare a scroll region the DOM cannot produce. Before the
-  // cleanup the column carried `.sidebar nav` with its own `overflow-y`, `flex` and
-  // `min-height`, which is what this assertion is here to keep from returning.
-  expect(appCss).not.toMatch(/\.sidebar\s+nav\s*\{/);
+  const utils = baseRule('.topbar-utils');
+  expect(declaration(utils, 'display')).toBe('flex');
+  expect(declaration(utils, 'flex-wrap')).toBe('wrap');
+  expect(declaration(utils, 'min-width')).toBe('0');
 
-  // The scroll contract that survives is the column's own: sticky below the bar,
-  // bounded by the viewport minus that bar, scrolling inside itself.
-  const sidebarRule = baseRule('.sidebar');
-  expect(declaration(sidebarRule, 'overflow-y')).toBe('auto');
-  expect(declaration(sidebarRule, 'top')).toBe('var(--product-nav-h, 48px)');
-  expect(declaration(sidebarRule, 'height')).toBe('calc(100vh - var(--product-nav-h, 48px))');
+  // The 75 px band and its 34 px side padding belonged to the column layout.
+  expect(appCss).not.toMatch(/\.topbar\s*\{[^}]*min-height:\s*75px/);
 });
 
-test('the sidebar workspace block keeps the boxed rule set it was designed with (S2)', async () => {
+test('the brand and the territorial context keep their boxed rule set in the header (S2/S7)', async () => {
   const fetchStub = createFetchStub();
   vi.stubGlobal('fetch', fetchStub.fetch);
   vi.stubGlobal('crypto', createCryptoStub());
@@ -203,24 +191,30 @@ test('the sidebar workspace block keeps the boxed rule set it was designed with 
   await waitFor(() => expect(fetchStub.callsFor(`${gatewayOrigin}/health/ready`)).toHaveLength(1));
 
   // The markup and the rules are asserted together: one without the other is the
-  // defect this test exists for.
-  expect(container.querySelector('.workspace')).toBeInTheDocument();
-  expect(container.querySelector('.workspace-mark')).toBeInTheDocument();
+  // defect this test exists for. The column's `workspace` block is retired; its
+  // scope and selection live in the header chip.
+  const header = container.querySelector('header.topbar');
+  expect(header?.querySelector('.brand')).not.toBeNull();
+  expect(header?.querySelector('.zone-chip #zone-chip-name')).not.toBeNull();
+  expect(header?.textContent).toContain('Valparaíso · Ámbito regional');
+  expect(container.querySelector('.workspace')).toBeNull();
 
-  const workspace = baseRule('.workspace');
-  expect(declaration(workspace, 'display')).toBe('flex');
-  expect(declaration(workspace, 'align-items')).toBe('center');
-  expect(declaration(workspace, 'padding')).toBe('13px 10px');
-  expect(declaration(workspace, 'border')).toMatch(/^1px solid/);
-  expect(declaration(workspace, 'border-radius')).toBe('9px');
+  const zone = baseRule('.zone-chip');
+  expect(declaration(zone, 'display')).toBe('flex');
+  expect(declaration(zone, 'align-items')).toBe('center');
+  expect(declaration(zone, 'padding')).toBe('4px 9px');
+  expect(declaration(zone, 'border')).toBe('1px solid var(--line)');
+  expect(declaration(zone, 'border-radius')).toBe('8px');
 
-  const mark = baseRule('.workspace-mark');
-  expect(declaration(mark, 'border-radius')).toBe('7px');
-  expect(declaration(mark, 'background')).toBeTruthy();
+  const mark = baseRule('.brand-mark');
+  expect(declaration(mark, 'border-radius')).toBe('9px');
+  expect(declaration(mark, 'width')).toBe('32px');
+  expect(declaration(mark, 'background')).toBe('var(--accent)');
+  expect(declaration(mark, 'color')).toBe('var(--accent-ink)');
 
-  // The trailing map icon is pushed to the end of the row; without this it wraps
-  // onto its own line, which is how the block was reported.
-  expect(declaration(baseRule('.workspace > .icon'), 'margin-left')).toBe('auto');
+  // The retired column block keeps no rule.
+  expect(appCss).not.toMatch(/^\.workspace\s*\{/m);
+  expect(appCss).not.toMatch(/^\.workspace-mark\s*\{/m);
 });
 
 test('every panel a view renders declares its own padding (S3)', () => {

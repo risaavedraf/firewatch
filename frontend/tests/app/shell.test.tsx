@@ -227,14 +227,12 @@ test('the update bar states the real review state and never contradicts the avai
 // place, and T4 adds the executive panel's now that the route exists. Every href
 // still comes from `routes`.
 
-test('the product navigation is a horizontal bar above the shell, not a region inside the sidebar', () => {
+test('the product navigation is a horizontal bar above the shell, not a region inside it', () => {
   renderShell();
 
   const nav = screen.getByRole('navigation', { name: 'Navegación del producto FireWatch' });
   const shell = document.querySelector('.app-shell');
-  const sidebar = document.querySelector('aside.sidebar');
   expect(shell).not.toBeNull();
-  expect(sidebar).not.toBeNull();
 
   // Above and outside the workspace: the bar is a sibling that precedes the
   // shell, never a region inside the column and never inside `main`.
@@ -242,8 +240,119 @@ test('the product navigation is a horizontal bar above the shell, not a region i
   expect(nav.closest('aside')).toBeNull();
   expect(nav.closest('main')).toBeNull();
   expect(nav.closest('.app-shell')).toBeNull();
-  // The sidebar no longer owns a navigation region of its own.
-  expect(sidebar?.querySelector('nav')).toBeNull();
+});
+
+// ── S7 · the sidebar is gone ────────────────────────────────────────────────
+// «también me gustaría sacar la barra lateral para darle más espacio a las
+// cosas». The column is not collapsed or narrowed: it is removed, so the
+// workspace is the only column of `.app-shell` and `main` gets its width. Every
+// control the column held was moved into the top bar by the tests below, not
+// dropped with it.
+test('the shell renders no sidebar and the workspace owns the whole width (S7)', () => {
+  renderShell();
+
+  expect(document.querySelector('aside.sidebar')).toBeNull();
+  expect(document.querySelector('.sidebar')).toBeNull();
+  expect(document.querySelector('.sidebar-bottom')).toBeNull();
+  expect(document.querySelector('.workspace')).toBeNull();
+
+  const shell = document.querySelector('.app-shell');
+  expect(shell).not.toBeNull();
+  // One column, and it is the workspace: nothing is left to take width away.
+  expect([...(shell?.children ?? [])].map(child => child.className)).toEqual(['main-area']);
+
+  const main = document.getElementById('content');
+  expect(main?.tagName).toBe('MAIN');
+  expect(main?.parentElement?.className).toBe('main-area');
+  expect(shell?.contains(main as Node)).toBe(true);
+
+  // No stylesheet may keep a rule for a column the DOM no longer renders.
+  expect(appCss).not.toMatch(/\.sidebar\b/);
+});
+
+// ── S7 · the utility cluster in the top bar ─────────────────────────────────
+// The column's operational controls (brand, territorial scope, gateway
+// readiness with its refresh, the session state and the only sign-out control)
+// are preserved in the shell header — same ids, same live region, same labels.
+test('the shell header carries the brand, the territory, the gateway cluster and the single sign-out control (S7)', async () => {
+  renderShell();
+  await waitFor(() => expect(fetchStub.callsFor(READY_URL)).toHaveLength(1));
+  fetchStub.answer(READY_URL, null, 204);
+  await waitFor(() => expect(document.querySelector('.health-dot.ready')).not.toBeNull());
+
+  const header = document.querySelector('header.topbar') as HTMLElement;
+  expect(header).not.toBeNull();
+
+  // Brand mark, on the left of the bar.
+  expect(header.querySelector('.brand')?.textContent).toContain('FireWatch');
+  expect(header.querySelector('.brand')?.textContent).toContain('Prevención territorial');
+
+  // The active territorial context: the scope and the chip that names the zone.
+  expect(header.textContent).toContain('Valparaíso · Ámbito regional');
+  expect(header.querySelector('#zone-chip-name')).not.toBeNull();
+
+  // The gateway readiness indicator keeps its live region and its single control.
+  const status = header.querySelector('#readiness-status');
+  expect(status).not.toBeNull();
+  expect(status).toHaveAttribute('role', 'status');
+  expect(status).toHaveAttribute('aria-live', 'polite');
+  expect(status?.textContent).toMatch(/no acredita el pipeline/i);
+  const refresh = header.querySelector('#readiness-refresh');
+  expect(refresh).toBeInstanceOf(HTMLButtonElement);
+  expect(refresh).toHaveAccessibleName('Actualizar estado');
+
+  // The session state and the one sign-out control live here too, not in a menu.
+  expect(header.querySelector('#session-state')).toHaveTextContent('Sin conexión');
+  expect(header.querySelector('#session-detail')).toHaveTextContent('Token requerido para consultar');
+  expect(document.querySelectorAll('#logout')).toHaveLength(1);
+  expect(header.querySelectorAll('#logout')).toHaveLength(1);
+  expect(document.getElementById('logout')?.closest('.product-nav')).toBeNull();
+
+  // The header is the shell's banner, not a second navigation region.
+  expect(header.querySelector('nav')).toBeNull();
+  expect(document.querySelector('.product-nav')?.contains(header)).toBe(false);
+});
+
+// The tab order the utility cluster promises: the bar first (shortcuts and its
+// disclosure), then the gateway refresh, then the only sign-out control, then the
+// workspace. Nothing else may interrupt it, and a keyboard reader must reach
+// every one of those controls without opening the destinations menu.
+test('the top bar keeps the tab order skip link → navigation → gateway refresh → sign-out → workspace (S7)', async () => {
+  const user = userEvent.setup();
+  renderShell();
+  await waitFor(() => expect(fetchStub.callsFor(READY_URL)).toHaveLength(1));
+  fetchStub.answer(READY_URL, null, 204);
+
+  await signIn();
+  await waitFor(() => expect(document.getElementById('logout')).not.toHaveAttribute('hidden'));
+
+  const order: Element[] = [];
+  for (let step = 0; step < 40; step += 1) {
+    await user.tab();
+    const active = document.activeElement;
+    if (active === null || active === document.body) break;
+    order.push(active);
+  }
+
+  const at = (node: Element | null) => order.indexOf(node as Element);
+  const skip = screen.getByRole('link', { name: /saltar al contenido/i });
+  const firstShortcut = document.getElementById('nav-overview') as Element;
+  const disclosure = screen.getByRole('button', { name: /más destinos/i });
+  const refresh = document.getElementById('readiness-refresh') as Element;
+  const logout = document.getElementById('logout') as Element;
+  const reset = document.getElementById('reset-filters') as Element;
+
+  expect(order[0]).toBe(skip);
+  expect(at(firstShortcut)).toBeGreaterThan(at(skip));
+  expect(at(disclosure)).toBeGreaterThan(at(firstShortcut));
+  expect(at(refresh)).toBeGreaterThan(at(disclosure));
+  expect(at(logout)).toBeGreaterThan(at(refresh));
+  expect(at(reset)).toBeGreaterThan(at(logout));
+
+  // The refresh and the sign-out control are consecutive stops: no shell control
+  // sits between the bar and them, and neither is reachable only through the menu.
+  expect(at(logout) - at(refresh)).toBe(1);
+  expect(document.getElementById('logout')).not.toHaveAttribute('hidden');
 });
 
 test('the bar keeps four canvas shortcuts, every declared hash once, and names the current location', () => {
@@ -425,41 +534,37 @@ test('a grouped route change reveals its current entry, while a same-route re-re
   }
 });
 
-// Finding 1 — the sign-out control must remain visible without scrolling the
-// column. The T1 bar moved above the shell, so the column no longer yields space
-// to a navigation region; what still holds is the structure that keeps the
-// control out of any scrolling navigation and inside the column's bounded box.
-// jsdom has no layout engine: the geometry is measured in Chromium, the structure
+// Finding 1 — the sign-out control must remain visible without scrolling, and the
+// destinations menu must never be able to occlude it. T10 moved it into the top
+// bar: the panel is out of flow and belongs to a separate bar above the shell, so
+// an open menu cannot push the control down and a closed menu cannot cover it.
+// jsdom has no layout engine: the geometry is measured in a browser, the structure
 // and the declarations are pinned here.
-test('the sign-out control stays in the sidebar bottom block, outside the scrolling product bar', async () => {
+test('the sign-out control sits in the header, keeps a 36px target and is never inside the destinations menu (S7)', async () => {
   renderShell();
   await waitFor(() => expect(fetchStub.callsFor(READY_URL)).toHaveLength(1));
   fetchStub.answer(READY_URL, null, 204);
   await waitFor(() => expect(document.querySelector('.health-dot.ready')).not.toBeNull());
+  await signIn();
+  await waitFor(() => expect(document.getElementById('logout')).not.toHaveAttribute('hidden'));
 
-  const sidebar = document.querySelector('aside.sidebar');
-  const bottom = sidebar?.querySelector('.sidebar-bottom');
+  const header = document.querySelector('header.topbar');
   const logout = document.getElementById('logout');
   const nav = document.querySelector('.product-nav');
-  expect(sidebar).not.toBeNull();
-  expect(bottom).not.toBeNull();
-  expect(logout).not.toBeNull();
-  expect(nav).not.toBeNull();
-
-  // The control is part of the column's bottom block and not inside the bar.
-  expect(bottom?.contains(logout as Node)).toBe(true);
+  const menu = document.querySelector('.product-nav__panel');
+  expect(header?.contains(logout as Node)).toBe(true);
   expect(nav?.contains(logout as Node)).toBe(false);
-  expect(sidebar?.contains(nav as Node)).toBe(false);
+  expect(menu?.contains(logout as Node)).toBe(false);
 
-  // The column keeps its viewport-bounded height, offset by the bar, with its own
-  // overflow as the fallback; the 720px breakpoint keeps it automatic.
-  const sidebarRule = appCss.match(/^\.sidebar \{[^}]*\}/m);
-  expect(sidebarRule?.[0]).toMatch(/position:\s*sticky/);
-  expect(sidebarRule?.[0]).toMatch(/overflow-y:\s*(?:auto|scroll)/);
-  expect(sidebarRule?.[0]).toMatch(/height:\s*calc\(100vh[^;]*\)/);
-  expect(sidebarRule?.[0]).toMatch(/top:\s*var\(--product-nav-h/);
-  const smallViewport = appCss.match(/@media\s*\(max-width:\s*720px\)[\s\S]*?\.sidebar\s*\{[^}]*\}/);
-  expect(smallViewport?.[0]).toMatch(/height:\s*auto/);
+  // The control keeps a real target size on the header surface and the label is
+  // the readable ink of that surface.
+  const logoutRule = appCss.match(/^\.session-card button \{[^}]*\}/m)?.[0] ?? '';
+  expect(logoutRule).not.toBe('');
+  expect(Number.parseInt((logoutRule.match(/min-height:\s*(\d+)px/) ?? [])[1] ?? '0', 10)).toBeGreaterThanOrEqual(36);
+  expect(logoutRule).toMatch(/color:\s*var\(--ink\)/);
+
+  // The shared focus ring the control inherits is the global focus role.
+  expect(appCss).toMatch(/\[tabindex\]:focus-visible\s*\{[^}]*outline:\s*3px solid var\(--focus\)/);
 });
 
 // ── T4 correction · the reserved offset follows the real bar ────────────────

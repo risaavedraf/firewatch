@@ -3,7 +3,13 @@
    Additive only: the screen is built from the existing panel, table, chip and
    button primitives. These rules cover the parts the artboard defines that the
    rest of the application does not already own — the pager row, the level bands
-   and the per-row provenance label — without changing any global surface. */
+   and the per-row provenance label — without changing any global surface.
+
+   S8 — the level bands were painted with the light page's `#e7f0e6`/`#396246`
+   chip and two light-theme text literals; on the slate page those read as
+   unreadable islands (2.18:1 and 2.36:1 measured). Each band now borrows the
+   risk role that already names it, so a chip, a badge and the map cannot drift,
+   and the empty card is the raised role with a dashed `--edge-strong` boundary. */
 
 #notifications .notification-controls {
   align-items: flex-end;
@@ -24,7 +30,14 @@
 }
 
 #notifications .status-copy:focus-visible {
-  outline: 3px solid #cf7d4f;
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The one control this sheet owns beyond the pager: a filter select that answers
+   the keyboard with the global ring instead of the browser default. */
+#notifications .notification-controls select:focus-visible {
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -68,19 +81,21 @@
   letter-spacing: 0.04em;
 }
 
+/* The word is the level; the colour only reinforces it. Each pair is the risk
+   role's own text-on-surface pair: bajo 8.83:1, medio 8.14:1, alto 6.48:1. */
 .notification-level-bajo {
-  background: #e7f0e6;
-  color: #396246;
+  background: var(--level-low-surface);
+  color: var(--level-low-text);
 }
 
 .notification-level-medio {
   background: var(--gold-soft);
-  color: #7f641e;
+  color: var(--gold);
 }
 
 .notification-level-alto {
   background: var(--terracotta-soft);
-  color: #9c472f;
+  color: var(--terracotta);
 }
 
 .notification-demo,
@@ -90,7 +105,7 @@
 }
 
 .notification-demo {
-  color: #755a22;
+  color: var(--gold);
 }
 
 .notification-provenance {
@@ -106,10 +121,15 @@
   justify-items: start;
   gap: 8px;
   padding: 24px 22px 26px;
-  border: 1px dashed var(--line);
-  border-radius: 9px;
-  background: #f8faf7;
+  border: 1px dashed var(--edge-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
   text-align: left;
+  transition: border-color .15s ease;
+}
+
+#notifications .notification-empty:hover {
+  border-color: var(--accent);
 }
 
 #notifications .notification-empty-mark {
@@ -118,9 +138,9 @@
   width: 58px;
   height: 58px;
   margin-bottom: 2px;
-  border: 1px dashed #c8d2c6;
+  border: 1px dashed var(--edge-strong);
   border-radius: 50%;
-  color: var(--forest-700);
+  color: var(--accent);
 }
 
 #notifications .notification-empty-mark svg {
@@ -130,6 +150,7 @@
 
 #notifications .notification-empty .eyebrow {
   margin: 0;
+  color: var(--accent);
 }
 
 #notifications .notification-empty h3 {
@@ -158,7 +179,7 @@
 }
 
 #notifications .notification-empty-points code {
-  color: var(--forest-700);
+  color: var(--accent);
   font-size: 10px;
 }
 
@@ -181,5 +202,12 @@
 
   .notification-page-label {
     text-align: center;
+  }
+}
+
+/* The empty card's hover is feedback only, so it is removable. */
+@media (prefers-reduced-motion: reduce) {
+  #notifications .notification-empty {
+    transition: none;
   }
 }

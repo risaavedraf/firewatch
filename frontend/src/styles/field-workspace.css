@@ -12,12 +12,16 @@
  * browser BEFORE `app.css` in the bundle, and an unscoped selector would lose to
  * the shipped rules on equal specificity instead of adjusting them.
  *
- * No new palette and no new scale. Colours are the declared tokens; the focus
- * ring keeps the shipped `#cf7d4f`, the empty surface keeps the shipped `#f8faf7`,
- * the refusal tone uses `--terracotta-soft`'s family (`#fdf6ef` surface, `#e0c9b6`
- * border, `#9c472f` eyebrow) and the dashed mark reuses the notification card's
- * `#c8d2c6`. Type stays in the in-use sizes (8, 9, 10, 11, 13px) and spacing in
- * the 4px-derived values already in use.
+ * No new palette and no new scale. Colours are the declared tokens. S8 — «los
+ * nuevos colores globalres» — retired the light islands this sheet was drawn with:
+ * the empty card painted `#f8faf7`, where `--muted` measures 1.64:1 once the page
+ * turned slate, and the refusal card painted `#fdf6ef` under the old `#9c472f`
+ * eyebrow. Both are dark now: the empty card is the shared `--soft` card with a
+ * dashed `--edge` boundary, and the refusal keeps a coral-slate surface of its own
+ * (`#2e1c1a` under `#ffd0c4`, 11.6:1) with a `#d97962` boundary (5.29:1) so it is
+ * still told apart from an empty period without relying on colour alone. Type stays
+ * in the in-use sizes (8, 9, 10, 11, 13px) and spacing in the 4px-derived values
+ * already in use.
  *
  * Composition, not decoration: the board's two-column workbench, its identity
  * strip on the selected action, its grouped alta, its before/after pair and its
@@ -42,9 +46,9 @@
   gap: 4px;
   margin: 0;
   padding: 14px 16px 16px;
-  border: 1px dashed #c8d2c6;
+  border: 1px dashed var(--edge);
   border-radius: 9px;
-  background: #f8faf7;
+  background: var(--soft);
   color: var(--muted);
   font-size: 10px;
   line-height: 1.6;
@@ -55,7 +59,7 @@
 #simulator .field-state .eyebrow,
 #observations .field-state .eyebrow {
   margin: 0;
-  color: var(--forest-700);
+  color: var(--accent);
 }
 
 #actions .field-state > strong,
@@ -89,20 +93,23 @@
 }
 
 /* A refusal is not an empty period: the surface says which of the two it is, and
-   the words inside say it again — the dashed mark is never the only difference. */
+   the words inside say it again — the dashed mark is never the only difference.
+   Measured: `#ffd0c4` on `#2e1c1a` 11.62:1, the `#d97962` boundary on that surface
+   5.29:1, and the `--ink` title 11.77:1. */
 #actions .field-state-error,
 #simulator .field-state-error,
 #observations .field-state-error {
   border-style: solid;
-  border-color: #e0c9b6;
-  background: #fdf6ef;
+  border-color: #d97962;
+  background: #2e1c1a;
+  color: #ffd0c4;
 }
 
 /* The filtered queue carries the only control a card holds (`Limpiar filtros`).
-   The shipped focus ring measures 3.11:1 on `--paper` and 2.99:1 on the `#f8faf7`
-   surface, so this tone keeps the paper fill and separates itself with the dashed
-   border: the ring a keyboard user relies on stays above the 3:1 non-text target.
-   The error tone carries no control, which is why it can keep its tint. */
+   The shipped terracotta ring measures 3.11:1 on `--paper` and 2.99:1 on the old
+   `#f8faf7` surface, so this card keeps the paper fill — the one surface the ring
+   was chosen against — and separates itself with the dashed boundary instead. The
+   error tone carries no control, which is why it can keep its own tint. */
 #actions .field-state-filtered {
   background: var(--paper);
 }
@@ -110,7 +117,7 @@
 #actions .field-state-error .eyebrow,
 #simulator .field-state-error .eyebrow,
 #observations .field-state-error .eyebrow {
-  color: #9c472f;
+  color: #ffd0c4;
 }
 
 /* ── The actions workbench (06) ───────────────────────────────────────────── */
@@ -279,7 +286,7 @@
 
 #actions .actions-fieldset legend {
   padding: 0 4px;
-  color: var(--forest-700);
+  color: var(--accent);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .06em;
@@ -332,7 +339,7 @@
   padding: 1px 5px;
   border-radius: 4px;
   background: var(--soft);
-  color: var(--forest-700);
+  color: var(--accent);
   font-size: 8px;
   font-weight: 850;
   letter-spacing: .05em;
@@ -346,7 +353,9 @@
 /* The shipped `:focus-visible` rule lists `input`, `select`, `a` and `[tabindex]`
    but not `textarea`, so Chromium paints its own 1px ring on the three textareas
    these screens carry (evidence criterion, evidence references, observation
-   description). They get the same 3px token ring as every other control here. */
+   description). They get the page's 3px ring here. The colour is the shipped
+   terracotta literal on purpose: `tests/a11y/actions-accessibility.test.tsx` pins
+   it, and it measures 5.16:1 on `--paper` — above the 3:1 non-text minimum. */
 #actions textarea:focus-visible,
 #simulator textarea:focus-visible,
 #observations textarea:focus-visible {
@@ -393,10 +402,9 @@
 /* The queue is a seven-column table, and a table squeezed under its own
    min-content shows a horizontal scrollbar on the primary surface. Board 06's
    queue is a card list, which is why it can afford two columns from 1000px; the
-   production table cannot. The pair therefore stacks below 1280px, where the
-   list keeps its full width exactly as it shipped, and only the wide desktop
-   puts the selected action beside the queue. */
-@media (max-width: 1279px) {
+   production table cannot. S7 removed the 234 px column, so the pair now fits
+   about 100 px earlier than it did and the workbench opens at 1180 px. */
+@media (max-width: 1179px) {
   #actions .actions-workbench {
     grid-template-columns: minmax(0, 1fr);
   }

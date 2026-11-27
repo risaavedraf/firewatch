@@ -249,15 +249,16 @@ test('the palette pairs painted by the actions view meet WCAG AA (4.5:1)', () =>
   const ink = palette.get('ink') as string;
   const soft = palette.get('soft') as string;
   const forest = palette.get('forest-700') as string;
-  // The base `.neutral-tag`/`.chip` colours are not AA at their 8–10 px sizes,
-  // so the actions view overrides them; the overrides are asserted below and
-  // their pairs are measured here.
-  const tagBackground = '#edf1f2';
+  // The base `.neutral-tag`/`.chip` colours are painted on the shared `--soft`
+  // role, so that is the surface their 8–10 px text is measured against. T10
+  // moved them off the light `#edf1f2` literal, which no longer exists.
+  const tagBackground = soft;
   // `canvas` and the table-header surface are real painted backgrounds that the
   // measured browser check flagged (4.44 and 4.39 with the previous `--muted`),
-  // and the footer carried its own literal instead of the token.
+  // and the footer carried its own literal instead of the token. The table header
+  // reads `--soft` since T10.
   const canvas = palette.get('canvas') as string;
-  const tableHead = '#f3f4ed';
+  const tableHead = soft;
 
   const pairs: ReadonlyArray<[string, string, string]> = [
     ['body text', ink, paper],

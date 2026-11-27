@@ -12,11 +12,13 @@
  * reaches the browser BEFORE `app.css` in the bundle, and an unscoped selector
  * would lose to the shipped rules on equal specificity instead of replacing them.
  *
- * No new palette and no new scale. Colours are the declared tokens; the focus
- * ring keeps the shipped `#cf7d4f`, the empty card keeps the shipped `#f8faf7`
- * surface and the dashed mark reuses the notification card's `#c8d2c6`. Type
- * stays in the in-use sizes (9, 10, 11, 15, 16px) and spacing in the 4px-derived
- * values already in use.
+ * No new palette and no new scale. Colours are the declared tokens. S8 retired the
+ * empty card's `#f8faf7` surface: it was the island where `--ink` measured 1.07:1
+ * and `--muted` 1.64:1 once the page turned slate. The card is now the raised
+ * role with a dashed `--edge-strong` boundary (3.27:1 on raised), and the row
+ * separators read `--line-soft` instead of the light `#eef1ee`. Type stays in the
+ * in-use sizes (9, 10, 11, 15, 16px) and spacing in the 4px-derived values
+ * already in use.
  *
  * The audit of what the canvas carries that the product does not is in
  * `frontend/VISUAL-BASELINE.md`, section "History, export and model data (T5)". */
@@ -159,9 +161,14 @@
   gap: 6px;
   padding: 20px 20px 22px;
   margin: 2px 0 6px;
-  border: 1px dashed #c8d2c6;
-  border-radius: 9px;
-  background: #f8faf7;
+  border: 1px dashed var(--edge-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  transition: border-color .15s ease, background .15s ease;
+}
+
+#history .history-empty-card:hover {
+  border-color: var(--accent);
 }
 
 #history .history-empty-card strong {
@@ -184,6 +191,11 @@
   min-height: 34px;
 }
 
+#history .history-empty-card .secondary-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
 /* ── The every-zone series (05) ───────────────────────────────────────────── */
 
 /* One block per zone, one row per published interval, each interval declaring
@@ -195,7 +207,7 @@
 
 #history .history-series-zone-head {
   padding-bottom: 6px;
-  border-bottom: 1px solid #eef1ee;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 #history .history-bucket {
@@ -348,7 +360,7 @@
 }
 
 #overview .model-panel .model-scope code {
-  color: var(--forest-700);
+  color: var(--accent);
   font-size: 9px;
 }
 
@@ -357,5 +369,12 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
+  }
+}
+
+/* The card's hover is feedback only, so it is removable. */
+@media (prefers-reduced-motion: reduce) {
+  #history .history-empty-card {
+    transition: none;
   }
 }
