@@ -160,37 +160,141 @@ for (const [name, source] of sources) {
   assert.doesNotMatch(source, /@import\s+(?:url\()?["']?(?:https?:|\/\/)/i, `no remote stylesheet import: ${name}`);
 }
 
-// ── 7. The sidebar must keep the scroll that keeps its controls visible ─────
+// ── 7. The shell keeps the offset and the scroll that keep its controls visible ─
 // This is the one layout property a static gate can honestly protect. The column
-// is a fixed-height sticky box whose content is taller than the box at common
-// laptop heights. The column keeping its own overflow is necessary but not
-// sufficient: scrolling the whole column is exactly what pushed the session card
-// with the only sign-out control below the fold. The navigation is the region
-// that yields the space, so it must carry the internal scroll while the fixed
-// bottom block stays inside the visible box. Geometry still needs a browser: this
-// rule cannot tell whether the controls fit, only that the declarations which
-// keep the reader able to reach them are still there.
+// is a viewport-bounded sticky box whose content is taller than the box at common
+// laptop heights, and it still holds the brand, the workspace, the gateway card
+// and the only sign-out control. The column keeping its own overflow is necessary
+// but not sufficient: scrolling the whole column is exactly what pushed the
+// session card below the fold. The bound is the viewport minus the sticky product
+// bar the column sits below, so the two offsets must agree.
+//
+// T8 retired the `.sidebar nav` assertion this section used to carry: T1 moved the
+// destinations into `ProductNav`, the column stopped rendering a list, and the
+// rule had no consumer. The equivalent active contract is the bar and its menu:
+// the bar stays sticky at the page's zero offset and reserves its declared height,
+// and the grouped menu stays out of flow — so opening it cannot push the shell,
+// the column or the sign-out control down — bounded to the viewport and scrolling
+// inside itself. Geometry still needs a browser: this rule cannot tell whether
+// the controls fit, only that the declarations which keep the reader able to
+// reach them are still there.
 const styles = sources.get(path.join('src', 'styles', 'app.css'));
 assert.ok(styles, 'src/styles/app.css must exist');
-const sidebarRule = styles.match(/^\s*\.sidebar\s*\{[^}]*\}/m);
+const productNavStyles = sources.get(path.join('src', 'styles', 'product-nav.css'));
+assert.ok(productNavStyles, 'src/styles/product-nav.css must exist');
+
+// One declaration, read at its own boundaries: comments are removed the way a CSS
+// parser removes them, the property name is compared whole, and the value ends at
+// the `;` that closes it. Whitespace runs are collapsed. Nothing else is
+// interpreted: these declarations are intentional contracts compared exactly, not
+// a grammar. A substring or token match is how a gate stops guarding anything —
+// `/top: 0/` accepts `top: 0.5rem`, a zero-with-a-suffix pattern accepts
+// `top: 0foo`, and a viewport-token search accepts
+// `min(9999px, 9999px /* 70dvh */)`. When the design changes one of these values,
+// this guard is updated in the same deliberate change.
+function declarationValue(rule, property) {
+  const body = rule
+    .slice(rule.indexOf('{') + 1, rule.lastIndexOf('}'))
+    .replace(/\/\*[\s\S]*?\*\//g, ' ');
+  for (const part of body.split(';')) {
+    const colon = part.indexOf(':');
+    if (colon !== -1 && part.slice(0, colon).trim() === property) {
+      return part.slice(colon + 1).replace(/\s+/g, ' ').trim();
+    }
+  }
+  return null;
+}
+
+function requiredDeclaration(rule, property, what) {
+  const value = declarationValue(rule, property);
+  assert.ok(value !== null, `${what} must declare ${property}`);
+  return value;
+}
+
+const sidebarRule = styles.match(/^\.sidebar\s*\{([^}]*)\}/m);
 assert.ok(sidebarRule, 'the .sidebar rule must exist');
-assert.match(sidebarRule[0], /position:\s*sticky/, 'the sticky column this rule protects is gone');
-assert.match(sidebarRule[0], /overflow-y:\s*(?:auto|scroll)/, 'the sidebar must declare its own vertical scroll');
-// The bound is the viewport itself. It used to be `calc(100vh - 34px)`, the
-// height of the demonstration strip the shell still sat below; the strip is no
-// longer rendered, so that offset only left a blank band under the column.
-assert.match(
-  sidebarRule[0],
-  /height:\s*(?:100vh|calc\(100vh[^;]*\))/,
-  'the sidebar must keep its height bounded by the viewport, which is what the scroll is for',
+assert.equal(
+  requiredDeclaration(sidebarRule[0], 'position', 'the column'),
+  'sticky',
+  'the sticky column this rule protects is gone',
 );
-const sidebarNavRule = styles.match(/^\s*\.sidebar nav\s*\{[^}]*\}/m);
-assert.ok(sidebarNavRule, 'the .sidebar nav rule must exist');
-assert.match(sidebarNavRule[0], /overflow-y:\s*(?:auto|scroll)/, 'the navigation must declare its own vertical scroll');
-assert.match(sidebarNavRule[0], /flex:\s*1 1 auto/, 'the navigation must be the region that yields height');
-assert.match(sidebarNavRule[0], /min-height:\s*0/, 'the navigation must be allowed to shrink below its content');
-// The mobile breakpoint must keep dropping the fixed height: that is what makes
-// the scroll declaration harmless at small widths.
+assert.match(
+  requiredDeclaration(sidebarRule[0], 'top', 'the column'),
+  /^var\(--product-nav-h(?:\s*,|\))/,
+  'the column must stay pinned below the sticky bar instead of sliding under it',
+);
+assert.match(
+  requiredDeclaration(sidebarRule[0], 'overflow-y', 'the column'),
+  /^(?:auto|scroll)$/,
+  'the sidebar must declare its own vertical scroll',
+);
+// The bound is the viewport minus the bar. The shell reserved the demonstration
+// strip's height before the strip stopped being rendered, and a column that
+// subtracts nothing extends under the sticky bar and loses its first control.
+assert.match(
+  requiredDeclaration(sidebarRule[0], 'height', 'the column'),
+  /^calc\(\s*100vh\s*-\s*var\(--product-nav-h/,
+  'the sidebar must keep its height bounded by the viewport minus the bar, which is what the scroll is for',
+);
+
+const productNavRule = productNavStyles.match(/^\.product-nav\s*\{([^}]*)\}/m);
+assert.ok(productNavRule, 'the .product-nav rule must exist');
+assert.equal(
+  requiredDeclaration(productNavRule[0], 'position', 'the product bar'),
+  'sticky',
+  'the product bar must stay sticky',
+);
+// The bar has to sit exactly on the viewport edge; the shell subtracts the bar's
+// full height from `100vh`. Only the two accepted spellings of zero are values — a
+// zero-prefixed token such as `0foo` is not one.
+const barTop = requiredDeclaration(productNavRule[0], 'top', 'the product bar');
+assert.ok(
+  barTop === '0' || barTop === '0px',
+  'the product bar must declare exactly `top: 0` or `top: 0px`; any other value is a different offset',
+);
+assert.match(
+  requiredDeclaration(productNavRule[0], 'min-height', 'the product bar'),
+  /^var\(--product-nav-h/,
+  'the bar must reserve the height the shell and the column subtract',
+);
+
+const menuRule = productNavStyles.match(/^\.product-nav__panel\s*\{([^}]*)\}/m);
+assert.ok(menuRule, 'the .product-nav__panel rule must exist');
+assert.equal(
+  requiredDeclaration(menuRule[0], 'position', 'the grouped menu'),
+  'absolute',
+  'the grouped menu must stay out of flow so it cannot push the shell',
+);
+// `position` is checked before the bound so a moved panel fails on its own
+// invariant; the bound itself is the exact intended value, comments removed. A
+// value that merely contains `dvh` — including one hidden in a comment — is not
+// the bound, and a value that ignores the viewport entirely is not either.
+assert.equal(
+  requiredDeclaration(menuRule[0], 'max-height', 'the grouped menu'),
+  'min(70dvh, 520px)',
+  'the grouped menu max-height must be exactly `min(70dvh, 520px)`; a different design updates this guard with it',
+);
+assert.match(
+  requiredDeclaration(menuRule[0], 'overflow-y', 'the grouped menu'),
+  /^(?:auto|scroll)$/,
+  'the bounded menu must scroll inside itself',
+);
+
+// The 720px override is the most load-bearing branch at small widths: the bar is
+// the only fixed vertical offset there and the panel spans nearly the full width,
+// so the same bound is read from the breakpoint itself.
+const smallScreenRules = productNavStyles.match(/@media\s*\(max-width:\s*720px\)[\s\S]*?\n\}/)?.[0];
+assert.ok(smallScreenRules, 'the 720px product-navigation breakpoint must exist');
+const mobileMenuRule = smallScreenRules.match(/\.product-nav__panel\s*\{([^}]*)\}/);
+assert.ok(mobileMenuRule, 'the 720px breakpoint must keep its .product-nav__panel override');
+assert.equal(
+  requiredDeclaration(mobileMenuRule[0], 'max-height', 'the 720px menu'),
+  'min(72dvh, 480px)',
+  'the 720px menu max-height must be exactly `min(72dvh, 480px)`; a different design updates this guard with it',
+);
+
+// The mobile breakpoint must keep dropping the fixed sidebar height: that is what
+// makes the column's scroll declaration harmless at small widths.
 assert.match(
   styles,
   /@media\s*\(max-width:\s*720px\)[\s\S]*?\.sidebar\s*\{[^}]*height:\s*auto/,
@@ -198,5 +302,5 @@ assert.match(
 );
 
 console.log(
-  `PASS: ${sources.size} shipped source files checked. The honesty statement is present (${required.length} required statements), no fixture, frozen clock, invented identity or alias ships, all twelve consumed routes and both external origins are present, no client-side role guard exists, tokens are never persisted, no secret is bundled, the sidebar keeps its bounded height with the navigation carrying the internal scroll, and no external asset or inline handler is served.`,
+  `PASS: ${sources.size} shipped source files checked. The honesty statement is present (${required.length} required statements), no fixture, frozen clock, invented identity or alias ships, all twelve consumed routes and both external origins are present, no client-side role guard exists, tokens are never persisted, no secret is bundled, the sidebar keeps its viewport-bounded height below the sticky product bar with the internal scroll that reveals its controls, the bar declares an exact zero offset and reserves its declared height, and the grouped menu stays out of flow with the exact intended viewport bound in both the base rule and the 720px override, and no external asset or inline handler is served.`,
 );

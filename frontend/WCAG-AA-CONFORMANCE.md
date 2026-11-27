@@ -330,3 +330,57 @@ reader or real assistive technology ran for this change, and no live authenticat
 used. Only 1440×900, 1024×768 and 390×844 were sampled. Long real content, hover/active/print surfaces of the new
 blocks and landscape phones were not exercised. **1.3.4 Orientation**, **1.4.12 Text Spacing** and **1.4.13 Content
 on Hover or Focus** are unchanged by this presentation-only change and were not re-run.
+
+## T8 evidence — integrated proof and the retired sidebar rule (2026-11-27)
+
+T8 removes the dead `.sidebar nav` rule from the shared stylesheet, replaces the source-gate assertion that read it
+with the active product-bar/menu contract, and re-measures the whole built application. The evidence below is
+scoped to the shell and the five read screens it exercises; it does not restate or replace earlier per-criterion
+measurements and is not a conformance claim. Environment: isolated **Chromium 148.0.7778.96** driving the real
+built `dist/` through the shipped code path, with `window.fetch` replaced by a synthetic fixture table and the
+identity provider's document navigation replaced by a 302 that echoes the app's own `state` and `redirect_uri`. No
+live gateway, Keycloak, credential or backend write. Evidence: ignored `frontend/tmp/t8-evidence/` (`report.json`,
+`preserve.json`, 25 screenshots). The probe, fixture server and fixture table were run from OS-temp scratch
+(`fw-t8-probe/`) because `eslint .` lints the whole project, and the before tree (`git archive 8d1951e`) was
+extracted and built there too (`fw-t8-base-8d1951e/`), not in a worktree. OS temp is ephemeral; the recorded
+artifacts are the durable evidence. The matrix was not repeated for the gate/documentation correction, which
+changes no runtime file.
+
+60 samples per tree (15 hashes × 1440×900, 1024×768, 390×844, 320×800): 0 console errors, 0 page errors, 0 failed
+requests, 0 px page overflow, 0 unmatched fixture calls, and **0 structural or geometric differences against
+`8d1951e`**. The served CSS is byte-identical to the before asset once the removed rule is stripped.
+
+| Criterion | Measurement | Result |
+| --- | --- | --- |
+| 1.3.1 Info and Relationships | The shell keeps one `<nav>` landmark (`nav.product-nav`, `aria-label="Navegación del producto FireWatch"`), one `<aside>` column with no list inside it, one `<main id="content">` and one `contentinfo`; the 15-view id set is identical to `8d1951e` in all 60 samples. Removing a CSS rule adds or renames no element and no ARIA attribute | Meets (DOM + sampled) |
+| 1.4.3 Contrast (Minimum) | No colour declaration changed. The bar's labels, the panel's labels and the two focus rings were already measured (`#d7aa73` 5.66:1 on the bar and 5.17:1 on the panel; `#cf7d4f` 3.11:1 on paper); the dead rule declared no colour | Not re-measured (unchanged by this task) |
+| 1.4.10 Reflow | `documentElement.scrollWidth − innerWidth === 0` in all 60 samples at 1440, 1024, 390 and 320 px, on every one of the 15 hashes, in both trees. The 320 px bar wraps to `89 px` and the column starts below it; the menu stays inside the viewport (`92–572` at 320×800). The 640×450 CSS-px sample (the layout of a 1280×900 window at 200 % browser zoom) has page overflow `0` on five screens | Meets (sampled) |
+| 1.4.11 Non-text Contrast | No boundary, icon or focus indicator changed: the removed rule had no rendered consumer, and the bar, panel, chip and control boundaries keep their measured values | Not re-measured (unchanged by this task) |
+| 1.4.4 Resize Text | The change declares no `font-size` and no viewport-relative text. 200 % **text** resize was not exercised; the 640×450 reflow substitute above is a layout sample, not a text-resize pass | Not measured |
+| 2.1.1 Keyboard | First Tab is `Saltar al contenido`; Enter moves focus to `main#content` without changing the hash. Tab reaches the four shortcuts and `Más destinos`; Enter opens the panel, Tab reaches its 11 destinations, Escape closes it and returns focus to the button. `#logout` is reachable, enabled, `tabIndex 0`, inside the viewport and hit-testable at all four viewports | Meets (measured) |
+| 2.4.3 Focus Order | Visual and DOM order agree: skip link → bar shortcuts → disclosure → column → view. Back returns to `#overview` with the panel closed; Forward returns to `#status` and reveals the current destination inside the panel. The order matched `8d1951e` member by member | Meets (measured) |
+| 2.4.7 Focus Visible | Every recorded stop except the document body painted a solid `3px` ring: `rgb(207, 125, 79)` on paper and for `#logout`, `rgb(215, 170, 115)` in the product bar, and `rgb(167, 77, 52)` on the skip link and canvas controls (the terracotta override). No stop in any of the four journeys was unringed | Meets (measured) |
+| 2.4.11 Focus Not Obscured (AA, WCAG 2.2) | **Closed menu:** `#logout` is inside the viewport and hit-testable at all four viewports. **Open menu:** the panel is out of flow, so opening it moves neither the shell nor the column (`48 → 48` at 1440/1024/390, `89 → 89` at 320), and Escape closes it and returns focus to the disclosure. But non-movement is not non-occlusion: the measured panel box overlaps the sign-out control at 320 and 390 — panel `y 51–531` at 390 (`x 8–382` from `right: 8px; width: calc(100% - 16px)`) against `#logout` at `x 300–368, y 246–271`, and panel `y 92–572`, `x 8–312` at 320 against `x 230–298, y 287–312`. At 1440/1024 the panel's `y 51–376` does not reach the logout row | Partly measured — closed state meets; open overlay at 320/390 not established |
+| 2.5.8 Target Size (Minimum) | No control changed. The bar's five controls keep `min-height: 40px`; the panel rows keep `32px`; `#logout` measured `39 px` tall at 1440 and `25.5 px` at 390/320, above the 24 px absolute minimum | Meets the absolute minimum; 44 px not met for the shipped scale |
+| 4.1.2 Name, Role, Value | No ARIA attribute was added, removed or renamed. The disclosure keeps `aria-expanded`/`aria-controls`/`aria-current`; the skip link keeps its link role and name; the four keyboard journeys and the back/forward sequence change neither | Meets (DOM + measured) |
+| 4.1.3 Status Messages | The live regions are unchanged (`#readiness-status`, `.product-nav__where`, `#history-state`, `#notifications-status`, `#audit-status` …); 24 fixture calls were answered with no duplicate announcement path added by this change | Meets (DOM) |
+
+**Test evidence.** One layout test was added (`tests/styles/layout-padding.test.tsx`): it pins that the column renders
+no `<nav>`, that `.sidebar nav` is gone from the shipped stylesheet, and that the column keeps `overflow-y: auto`,
+the bar offset and the viewport-bounded height. RED before the cleanup: `1 failed | 4 passed (5)` in that file,
+failing only on the dead-rule assertion. GREEN after: `4 files / 46 passed (46)` in the required focused command;
+`npm run verify` exit 0 with `57` files / `796` tests and the source gate over `78` shipped files. No existing
+assertion was weakened or removed. The gate's §7 was then hardened and proven by mutation on isolated copies: it
+now removes comments, collapses whitespace and compares exact intended values (`top: 0`/`0px`,
+`min(70dvh, 520px)`, and `min(72dvh, 480px)` at `≤720px`). The shipped declarations pass; `top: 0.5rem` and a
+desktop or mobile `max-height: 9999px` fail their own invariants; and the values the previous guard accepted by
+token matching — `top: 0foo` and `min(9999px, 9999px /* 70dvh */)` in either rule — now fail too. Each mutation ran
+on its own copy, so no tracked CSS was written. That correction edits only `scripts/check.mjs` and documentation; no
+runtime file changed, so the measurements above remain current and the browser matrix was not repeated.
+
+**Not measured for T8.** No axe scan (`@axe-core/*` is not installed and installing it was out of scope), no
+text-spacing override, no browser-zoom control, no virtual screen reader or real assistive technology, no live
+gateway/Keycloak session and no real token. Signed-out access is the fixture's gate, not a live realm
+configuration. Landscape phones, 768 px and 1280 px were not sampled. **1.3.4 Orientation**, **1.4.12 Text
+Spacing**, **1.4.13 Content on Hover or Focus**, forced colors and print were not re-run: this is a
+presentation-only removal in a rule with no rendered consumer.

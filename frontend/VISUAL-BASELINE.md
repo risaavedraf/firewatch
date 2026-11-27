@@ -204,7 +204,16 @@ These ratios use WCAG relative luminance for opaque sRGB pairs. Compare before r
 
 The panel is opaque instead of translucent: it overlays the light workspace, so its labels are measured against the declared `#1e4241` rather than against whatever happens to be behind it. Layout: `.app-shell` and `.sidebar` reserve `calc(100vh - var(--product-nav-h, 48px))`, and the sidebar sticks at `top: var(--product-nav-h, 48px)`. The `:root` value is a `48px` fallback: `ProductNav` publishes the bar's measured height into `--product-nav-h` on `body`, so a wrapped bar reserves the second row instead of leaving content under it, while the bar's own `min-height` stays `48px` and can return to one row (T4 correction). At `≤720px` the sidebar becomes static and the panel narrows to `calc(100% - 16px)`; at `≤480px` the bar wraps instead of scrolling horizontally — with the T4 shortcuts that is two rows at 320, 340 and 360 px and one row at 390 px (measured).
 
-**Known follow-up.** `scripts/check.mjs` still asserts the old `.sidebar nav` declaration set, and that script is outside this unit's edit surface. The rule remains in `app.css` with no rendered consumer; the gate and the rule should be retired together in a follow-up.
+**Retired in T8.** The `.sidebar nav` rule was the last thing in `app.css` with no
+consumer, and its only reader was a source-gate assertion. T8 removed the rule and
+replaced the assertion with the active contract it was standing in for: the column
+keeps its viewport-bounded height below the sticky bar, the bar stays sticky at the
+page's zero offset and reserves the height the shell and the column subtract, and
+the grouped menu stays out of flow, bounded to the viewport and scrollable inside
+itself (`scripts/check.mjs` §7). The served stylesheet is byte-identical to the
+previous build except that one rule, and the layout test pins both the live
+markup — the sidebar renders no `<nav>` — and the rule's absence. Measurements:
+[visual audit](VISUAL-AUDIT.md#t8--integrated-proof-and-the-retired-sidebar-rule-2026-11-27).
 
 ## Aerial workspace (T2)
 

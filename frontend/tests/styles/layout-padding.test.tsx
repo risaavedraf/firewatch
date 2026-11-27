@@ -145,6 +145,48 @@ test('the shell and the sidebar fill the viewport below the product bar, so the 
   expect(declaration(sidebar, 'top')).toBe('var(--product-nav-h, 48px)');
 });
 
+// T8/C1 — the column stopped rendering a navigation list in T1: the destinations
+// moved into the product bar (`ProductNav`), which owns its own bounded, out-of-flow
+// panel. The column kept its viewport-bounded height and its overflow because the
+// brand, the workspace, the gateway card and the only sign-out control still live in
+// it, and it is now the single scroll owner of that space. The retired
+// `.sidebar nav` block — the old list's scroll region — has no consumer left, and a
+// rule with no consumer is not a harmless leftover here: it is the declaration the
+// source gate used to read as proof that the controls stay reachable. The comment it
+// carried said so. This test pins both halves: the live markup, and the absence of
+// the dead rule.
+test('the sidebar keeps its own scroll and declares no rule for the navigation it no longer renders (C1)', async () => {
+  const fetchStub = createFetchStub();
+  vi.stubGlobal('fetch', fetchStub.fetch);
+  vi.stubGlobal('crypto', createCryptoStub());
+  window.sessionStorage.clear();
+  resetSession();
+
+  const { container } = render(
+    <Shell route={routes[0]}>
+      <p>contenido</p>
+    </Shell>,
+  );
+  fetchStub.answer(`${gatewayOrigin}/health/ready`, null, 204);
+  await waitFor(() => expect(fetchStub.callsFor(`${gatewayOrigin}/health/ready`)).toHaveLength(1));
+
+  const sidebar = container.querySelector('aside.sidebar');
+  expect(sidebar).not.toBeNull();
+  // A `<nav>` inside the column would be a second scroll owner over the same space.
+  expect(sidebar?.querySelector('nav')).toBeNull();
+  // …and no rule may declare a scroll region the DOM cannot produce. Before the
+  // cleanup the column carried `.sidebar nav` with its own `overflow-y`, `flex` and
+  // `min-height`, which is what this assertion is here to keep from returning.
+  expect(appCss).not.toMatch(/\.sidebar\s+nav\s*\{/);
+
+  // The scroll contract that survives is the column's own: sticky below the bar,
+  // bounded by the viewport minus that bar, scrolling inside itself.
+  const sidebarRule = baseRule('.sidebar');
+  expect(declaration(sidebarRule, 'overflow-y')).toBe('auto');
+  expect(declaration(sidebarRule, 'top')).toBe('var(--product-nav-h, 48px)');
+  expect(declaration(sidebarRule, 'height')).toBe('calc(100vh - var(--product-nav-h, 48px))');
+});
+
 test('the sidebar workspace block keeps the boxed rule set it was designed with (S2)', async () => {
   const fetchStub = createFetchStub();
   vi.stubGlobal('fetch', fetchStub.fetch);

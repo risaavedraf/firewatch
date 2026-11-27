@@ -69,16 +69,12 @@ code { font-size: 11px; }
 /* The column's chrome — the brand, the workspace, the Gateway card and the
    session card that holds the only sign-out control — has to stay on screen at
    the laptop heights this page is used at. T1 moved the navigation out of the
-   column into the bar above the shell, so the column no longer yields space to
-   it; it keeps its own viewport-bounded height and overflow as the fallback, and
-   the bottom block is pinned with `margin-top: auto`.
-
-   The selector below is intentionally retained: `scripts/check.mjs` still
-   asserts this declaration set as part of the sidebar scroll contract, and that
-   script is outside this unit's edit surface. It has no rendered consumer since
-   the product bar replaced the sidebar list; retiring both together is a
-   follow-up. */
-.sidebar nav { display: grid; gap: 3px; flex: 1 1 auto; min-height: 0; align-content: start; overflow-y: auto; }
+   column into the bar above the shell, so the column no longer yields space to a
+   list; it keeps its own viewport-bounded height and overflow, and the bottom
+   block is pinned with `margin-top: auto`. The old `.sidebar nav` scroll block
+   went with the list it belonged to (T8): its only reader was a source-gate
+   assertion, and that assertion now guards the live bar and its menu in
+   `product-nav.css` instead. */
 .sidebar-bottom { margin-top: auto; padding: 28px 4px 0; font-size: 10px; color: #bdd0c3; }
 .health-card { margin-bottom: 15px; padding: 13px; border: 1px solid #41625b; border-radius: 9px; background: rgb(255 255 255 / 3%); }
 .health-head { display: flex; align-items: center; justify-content: space-between; color: #e7faf5; font-size: 11px; }

@@ -1049,3 +1049,156 @@ active and print surfaces of the new blocks were not re-measured (they declare t
 no dark mode, so none was checked. The register's legend was moved below the table after measurement showed a
 horizontal scrollbar beside it at 1440; the 1024 audit table still scrolls internally (`730/833`) inside its named,
 focusable region.
+
+## T8 — integrated proof and the retired sidebar rule (2026-11-27)
+
+T8 closes the migration with a whole-app proof and the one carry-forward cleanup C1 authorised: the
+`.sidebar nav` rule in [`src/styles/app.css`](src/styles/app.css), whose only reader was a source-gate
+assertion, is removed, and the gate now asserts the live contract instead (§7 of
+[`scripts/check.mjs`](scripts/check.mjs)): the column keeps `position: sticky`, `top:
+var(--product-nav-h, 48px)`, `height: calc(100vh - var(--product-nav-h, 48px))` and its own `overflow-y`;
+`.product-nav` stays `sticky` at `top: 0` with `min-height: var(--product-nav-h…)`; and
+`.product-nav__panel` stays `position: absolute`, `max-height: min(70dvh, 520px)` and `overflow-y: auto`.
+The 720 px rule that releases the column's fixed height is unchanged. No route, view, session, API, store or
+dependency changed. The gate reads each declaration at its own boundary, removes comments the way CSS
+parsers do, collapses whitespace, and then compares **exact intended values**: `top: 0` (or strictly `0px`)
+for the bar, `min(70dvh, 520px)` for the base menu rule and `min(72dvh, 480px)` inside the
+`max-width: 720px` override. It accepts no grammar: `0.5rem`, `0foo` or a `dvh` token hidden in a comment is a
+different value, and a design change to any of them updates the guard deliberately in the same change.
+
+**The served stylesheet is the same bytes minus that rule.** The before build (`8d1951e`) and the after build
+produce `84,017` and `83,924` bytes of CSS; removing
+`.sidebar nav{flex:auto;align-content:start;gap:3px;min-height:0;display:grid;overflow-y:auto}` from the before
+asset makes the two files byte-identical. That rule never matched rendered markup: `Shell` renders no `<nav>`
+inside `aside.sidebar`, and the only navigation is `nav.product-nav`. The layout test now pins both halves — the
+markup and the rule's absence.
+
+**Environment.** An isolated **Chromium 148.0.7778.96** (the locally present Playwright-managed `chromium-1223`
+headless shell, driven from the npx cache; nothing installed) against the **real built application**
+(`npm run build:local`, `dist/`) served by a fixture server on loopback **:4199** (after) and **:4198** (base),
+with the shipped Content-Security-Policy. The only substitution is `window.fetch`, installed before any app module
+runs and answered from a synthetic fixture table (the token endpoint and 20 gateway route entries); the identity
+provider's document navigation is intercepted with a **302 that echoes the app's own `state` and `redirect_uri`**.
+No live gateway, Keycloak, credential, cookie, backend write, external network or install; the user's `:4173`
+listener was not touched. Evidence is ignored repo scratch `frontend/tmp/t8-evidence/` (`report.json`,
+`preserve.json`, 25 screenshots). The probe, fixture server and fixture table were run from an OS-temp copy
+(`fw-t8-probe/`) because `eslint .` lints everything inside the project, and the `8d1951e` tree was extracted and
+built there too (`fw-t8-base-8d1951e/`) rather than in a worktree or a second `tsconfig.json` under `frontend/`.
+OS temp is ephemeral; the artifacts above are the durable evidence. The invocation used was
+`node "<OS temp>/fw-t8-probe/t8-probe.mjs" dist "<OS temp>/fw-t8-base-8d1951e/frontend/dist" tmp/t8-evidence`.
+The matrix was not repeated for the gate/documentation correction: no runtime file changed, so these measurements
+still describe the product.
+
+**Samples.** 15 hashes × 4 viewports = **60 samples per tree**, 120 total: `1440×900`, `1024×768`, `390×844`
+and `320×800`. **0 console errors, 0 uncaught page errors, 0 failed requests and 0 px page-level horizontal
+overflow in all 60** after samples (base tree: same). Every sample rendered its own view: 41–343 content nodes,
+one `aria-current="page"` destination, and identical control/tab-stop counts in both trees. The fixture answered
+every call the sessions made: 24 calls and **0 unmatched paths** per viewport, one token exchange each.
+
+| Shell measurement (after, `#overview`) | 1440×900 | 1024×768 | 390×844 | 320×800 |
+| --- | --- | --- | --- | --- |
+| `.product-nav` box | `1440×48` at `y=0` | `1024×48` at `y=0` | `390×48` at `y=0` | `320×89` at `y=0` (wrapped) |
+| `.sidebar` box / computed | `234×852` at `y=48`, `sticky` | `208×720` at `y=48`, `sticky` | `390×234.5` at `y=48`, `static` | `320×234.5` at `y=89`, `static` |
+| `#logout` | `838–877`, fully visible | `706–745`, fully visible | `246–271`, fully visible | `287–312`, fully visible |
+| document `scrollWidth` / `innerWidth` | `1440/1440` | `1024/1024` | `390/390` | `320/320` |
+
+The 320 px sample shows the offset contract doing its job: the bar wraps to `89 px`, `ProductNav` publishes the
+measured height, and the static column starts at `89 px` instead of under the bar.
+
+### PRESERVE — differential against `8d1951e`
+
+The same 60 samples ran against the base tree. Compared per sample: id set, control counts, tab stops, content
+node count, route hash, document title, live-region ids, page overflow and the `.product-nav`, `.sidebar` and
+`main` boxes to 0.1 px. **Differences: 0.** The four keyboard journeys (below) also matched member by member:
+skip-link result, menu control and box, 11 panel rows, `#logout` geometry, sign-out result and the
+back/forward hash states.
+
+### Integrated journeys (measured, all four viewports)
+
+- **Signed out.** `/`, `#audit` with no session renders only the AUTH gate (`auth-page` present, no `.app-shell`,
+  no sidebar, `Sin sesión` chip); `sessionStorage` is empty. The primary action (`Continuar con Keycloak`,
+  `#login`) navigates to the identity provider with `client_id=firewatch-demo`, `response_type=code`,
+  `scope=openid`, `code_challenge_method=S256`, a `state`, a `code_challenge` and
+  `redirect_uri=http://localhost:4199/` — the registered spelling class. The
+  intercepted 302 returns the callback, the token exchange runs through the stubbed transport, the page returns
+  signed in (`Sesión conectada`), and the PKCE transaction is removed.
+- **Skip link and focus.** Tab focuses `Saltar al contenido` first, with `solid 3px rgb(167, 77, 52)` — the
+  terracotta `:focus-visible` override the skip link shares with the canvas controls, not the paper ring; Enter
+  moves focus to `main#content` and leaves `#overview` in the address bar.
+- **Product menu.** **Más destinos** is reached by Tab (focus ring `solid 3px rgb(215, 170, 115)` = the bar's
+  `#d7aa73`); Enter opens the panel (`aria-expanded="true"`) with 11 destinations, `position: absolute`, fully
+  inside the viewport (`51–376`, `51–376`, `51–531`, `92–572`), scrollable inside itself at 390 and 320 px, and
+  **the shell and column tops do not move** (`48 → 48` at 1440/1024/390, `89 → 89` at 320). Escape closes it and
+  returns focus to the button. Tab reaches the grouped destinations; Enter on `Estado de servicios` changes the
+  hash, closes the panel and marks `aria-current`. Back returns to `#overview` (panel closed); Forward returns to
+  `#status` and reveals the current destination in the panel.
+- **Overlay geometry while open.** Out of flow means the page does not move; it does not mean the panel cannot
+  cover a control. The measured panel box overlaps the sign-out control at the two phone widths: at 390×844 the
+  panel occupies `y 51–531` and the `≤720px` rule paints it `right: 8px; width: calc(100% - 16px)` (x 8–382),
+  while `#logout` is at `x 300–368, y 246–271`; at 320×800 the panel is `y 92–572`, x 8–312, and `#logout` is at
+  `x 230–298, y 287–312`. With the overlay open at those widths the sign-out control is geometrically covered.
+  Escape closes the panel and returns focus to the disclosure; the hit-test recorded above is the closed state.
+  No occlusion compensation (scroll-into-view, z-index, a focus guard) was added or measured.
+- **Sign-out control.** Present, enabled, `tabIndex 0`, inside the viewport and hit-testable at all four
+  viewports; Tab reaches it and paints `solid 3px rgb(207, 125, 79)`. Activating it runs the shipped RP-initiated
+  logout URL (`client_id`, `id_token_hint`, `post_logout_redirect_uri`) and lands back on the gate.
+- **Read journeys.** History renders the two fixture rows; typing a nonmatching query empties the table (`0`) with
+  the shipped filtered copy, and clearing it restores both rows (identical at 1440 and 390; the 390 table keeps
+  its named, focusable scroll region `330/560`). Notifications render 2 alerts with `Mostrando la página 1`;
+  Audit renders 3 rows with badge `LEÍDO` and count `3`; Overview paints all 3 map comunas and the published batch
+  as `ALTO` with its factors, rationale and policy.
+
+**Text scale.** No browser-zoom or text-spacing control exists in this headless build without installing tooling,
+so neither was run. What was sampled is the layout a `1280×900` window presents at 200 % browser zoom — a
+**`640×450` CSS-px viewport** — on `#overview`, `#history`, `#status`, `#audit` and `#pending`: page overflow `0`
+in all five, tab-stop counts unchanged. That is a reflow sample, **not** a text-resize or zoom pass.
+
+**Automated.** RED before the cleanup: the new layout assertion failed alone — `1 failed | 4 passed (5)` in
+`tests/styles/layout-padding.test.tsx`, on the dead-rule pattern — while its live markup and scroll assertions
+passed. GREEN after: the required focused command runs `4 files / 46 passed (46)`.
+`npm run check` passes over `78` shipped files with the new bar/menu assertions. `npm run verify` passes lint,
+typecheck, `57` files / `796` tests, the source gate, the local build and the loopback smoke (exit 0).
+`git diff --check` is clean.
+
+**Gate hardening, proven by mutation.** Both verifier corrections were proven against isolated copies (the shipped
+`src/**` and `index.html` copied to OS temp; one mutation per copy; the working tree never touched), running the
+previous gate and the current gate over the same input. *First round:* shipped desktop + mobile `PASS` in both;
+bar `top: 0` → `top: 0.5rem` passed the previous gate (`/top:\s*0/` matched the substring) and fails now; desktop and
+mobile `max-height` → `9999px` passed the previous gate (it never read the 720 px override) and fail now.
+*Second round:* the then-current gate accepted `top: 0foo` (a zero-prefix pattern) and
+`min(9999px, 9999px /* 70dvh */)` in both the desktop and the 720 px rules (a token search found `dvh` inside the
+comment); the current exact-value guard rejects all three, each on its own invariant, while the unchanged
+declarations still `PASS`. `npm run check` on the real tree is `PASS`.
+
+**Runtime unchanged.** This correction edits only `scripts/check.mjs` and the T8/VISUAL/WCAG prose. The product
+stylesheet, views, routes, auth, data and every other gate section are untouched, so the recorded matrix and the
+`8d1951e` PRESERVE differential remain the product's evidence; the browser run was not repeated.
+
+### Not measured for T8
+
+No axe scan: `@axe-core/*` is not installed and installing it was out of scope. No real browser-zoom control, no
+text-spacing override, no print or forced-colors pass, no virtual screen reader and no real assistive technology.
+The fixture carries the real built bundle, the real shell, router, views and session module, but not a live
+authenticated gateway, a live Keycloak or a real token; the round trip is the shipped code against local stubs and
+a 302 standing in for the provider's document. Signed-out access is that fixture gate, not a live realm
+configuration. Screenshots are Chromium 148 only; `1440`, `1024`, `390` and `320` were sampled, and landscape
+phones, `768` and `1280` were not. Hover, active and print surfaces of the shell were not re-measured (no rule that
+paints them changed).
+
+### Board to production, and what stayed out
+
+| Boards | Landed in | State |
+| --- | --- | --- |
+| 01 vista aérea, 04 cobertura territorial, 21 lecturas por sector | `#overview`, `#infrastructure` | real map, catalogue and published batch |
+| 05 historial, 12 exportación CSV, 20 datos del modelo | `#history` (+ export block), `#overview` model panel | real reads, exact served CSV bytes, public metadata only |
+| 06 acciones, 10 simulación, 11 observaciones | `#actions`, `#simulator`, `#observations` | real list/detail/alta, rule application, observations |
+| 07 panel ejecutivo, 08 comparador, 09 notificaciones | `#executive`, `#compare`, `#notifications` | real server summary, real catalogue comparator, stored alerts |
+| 14 acceso, 15 fuentes, 16 procesamiento, 17 sesión, 18 registro, 19 no implementado | AUTH gate, `#sources`, `#jobs`, `#session`, `#audit`, `#pending` | real states and refusals, stated absences |
+| 02 vista regional, 03 acciones en el mapa, 13 ficha de zona | — | **out of scope:** no route or served capability; no PDF/ficha or map action was invented |
+
+**Out of scope, deliberately.** Every prototype-only affordance stayed in the boards: mock sectors and coordinates,
+the camera poses, the cutoff slider, the illustrative queue and job controls (publish/advance/reevaluate), the
+simulated Keycloak opener and illustrative sessions, the role picker, the PDF zone sheet, per-event detail
+selection, the record "incorporate" action, the theme toggle and the prototype links. No endpoint was invented,
+no registration or operations capability was faked, and no board value was copied into the product. Every state
+the product shows is one the server answered, or an explicit statement that it could not be answered.
