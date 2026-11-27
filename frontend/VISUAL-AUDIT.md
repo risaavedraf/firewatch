@@ -579,3 +579,164 @@ The reserved value is the effective `--product-nav-h` an element inherits; the c
 ### Limits of this correction
 
 The nav measurement used the real components in an isolated local fixture, not the live authenticated application, and the fixture catalogue is four synthetic communes rather than a real region; the drill-through target was the second commune, which is tall enough to be scrolled under the bar. The narrow widths measured are 320, 340, 360, 390 and 1440 CSS px; 375, 414 and zoom-driven widths were not sampled. The keyboard pass covers the bar and the first stops after it, not the whole commune rail. No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for this correction.
+
+## T5 — history, export and model data (2026-11-26)
+
+T5 ports boards 05 (historial de lotes), 12 (exportación CSV) and 20 (datos del modelo) into the routes the
+product has: the history panel and its real CSV delivery in `#history`, and board 20's status-first hierarchy in
+the model panel `#overview` already renders. No route, backend, auth, shared store, domain contract or `app.css`
+rule changed. The new stylesheet is [`src/styles/history-workspace.css`](src/styles/history-workspace.css), every
+selector scoped to `#history` or `#overview .model-panel`.
+
+**Environment.** An isolated **Chromium** headless shell (the locally present Playwright
+`chromium_headless_shell-1223` build) driven over CDP against `file://` fixtures. Each fixture is the **real
+component output**: a temporary jsdom harness rendered `HistoryView` and `OverviewView` with the same stubbed
+`fetch` the shipped suites use, and wrote the markup beside the real stylesheets. The *before* pair is the base
+tree (`8e8324c`, checked out detached under the ignored `tmp/` and redirected a snapshot of the base stylesheets),
+so base markup runs against base CSS; the *after* pair is this working tree. Same states, same data. No network,
+gateway, Keycloak, credential or backend state; nothing installed. Evidence: `tmp/t5/{before,after}/` (`*.html`,
+`csv.json`), `tmp/t5/measure.json`, `tmp/t5/keyboard.json`, `tmp/t5/columns.json` and `tmp/t5/shots/`. The base
+worktree and the junctions that let it resolve `node_modules` are ignored scratch and are named under "Limits".
+
+### Composition, before and after
+
+Boxes are the rendered `getBoundingClientRect` of the element named, in CSS px. Left column is `8e8324c`, right
+column is this change, populated state with the same two served batches.
+
+| Element / viewport | Before | After |
+| --- | --- | --- |
+| History head 1440 | title `165.7×36` at `y=47.5`, no lede | title `438.8×36` at `y=47.5`, lede `438.8×34.1` at `y=87.5`, count badge at the right |
+| History panel 1440 | `1372×427.9` at `y=100.5`, no named head | `1372×667.8` at `y=138.6`; panel head `Lotes publicados de la zona` (`15px/650`, `248.3×22.5`), scope tag `POR ZONA` |
+| Rows table 1440 | `1334×116.5`, 3 columns | `1334×116.5`, 5 columns |
+| Delivery block 1440 | `1334×74` (button + note + status) | `1334×255.4` at `y=532`: head, 4 fact rows (capped at `640`), action row with hint, note, status |
+| History panel 390 | `360×538.5` at `y=122` | `360×846.7` at `y=161.1`; table region `330` client / `576` scroll |
+| Delivery block 390 | `330×142.6` | `330×392.3` |
+| Empty state 1440 | status block `1334×74`, no card | card `1334×129` (`history-empty-card`, dashed `#c8d2c6` on `#f8faf7`) |
+| Empty state 390 | `330×104` | card `330×153` |
+| Unavailable 1440 | status block `1334×47` | status line `1334×38` with the shipped `risk-error` colour, no card (a refusal is not an empty period) |
+| Every-zone series 1440 | panel `423.8`, list `1334×103` | panel `490.3`, list `1334×112`, level marks in words |
+| Model panel 1440 | `1372×281.7`; heading inset at `x=75`, `y=3354.2` | `1372×407.6`; heading at `x=53`, `y=3334.2`; scope block `463.6×108.4` naming the one read and what the panel does not claim |
+| Model panel 390 | `360×360` | `360×515.9`; scope block `330×108.4` |
+
+### PRESERVE — differential against the baseline
+
+The same probe ran against both trees at 1440, 1280, 1024, 390, 360 and 320 px.
+
+- **Identifiers.** The populated page keeps all 12 shipped history identifiers (`history`, `history-title`,
+  `history-count`, `history-scope`, `history-query`, `history-status-filter`, `history-visible-count`,
+  `history-state`, `history-rows`, `history-csv-download`, `history-csv-note`, `history-csv-status`). Three are
+  added (`history-scope-tag`, `history-export-title`, `history-csv-absence`); none is removed or renamed.
+  `#overview` keeps `model-panel`, `model-panel-title`, `model-synthetic`, `model-status`,
+  `model-active-version`, `model-batch-version` and `model-panel-note` with the same values (`academic-rule-v1`,
+  `NO DECLARADO`, `Sin consultar`).
+- **Controls.** Populated desktop and mobile: 0 links, 1 button, 2 selects, 1 search input — identical counts.
+  The empty state still hides the table and the filter bar through the shipped `has-rows` rule while the export
+  stays enabled.
+- **Keyboard.** At 390 and 320 the Tab sequence is identical in both builds: `#history-scope` →
+  `#history-query` → `#history-status-filter` → the table region (`role="region"`,
+  `aria-label="Historial de lotes de la zona"`, `tabindex="0"`) → `#history-csv-download`. Every stop painted
+  `outline: 3px solid rgb(207, 125, 79)`; the download button is `33px` before and `34px` after.
+- **Reflow.** `document.documentElement.scrollWidth === window.innerWidth` at all six widths in both builds. No
+  page-level horizontal scroll is introduced.
+- **States.** The empty, unavailable and export messages are byte-identical before and after; the export's
+  `aria-describedby` still points at `history-csv-note`, and the copy the suites pin
+  (`sin aplicar la búsqueda ni el filtro de estado`, `no se recodifica`) is unchanged.
+
+### The narrow internal scroll, explained
+
+The five columns do not fit a phone, and the table does not shrink them. Measured at 390 px:
+
+| Metric | Before | After |
+| --- | --- | --- |
+| Table width | `330` (3 columns: 156 / 93 / 81) | `576` (Solicitado 127, Publicado 127, Nivel 181, Estado 76, Lote 66) |
+| Region client / scroll width | `330 / 330` | `330 / 576` (`246` px of internal scroll) |
+| Region internal scroll at 360 / 320 | `0` / `9` px | `276` / `316` px |
+| Page scroll width vs viewport | equal | equal |
+
+The width is intrinsic, not a declared preference: with the table's `min-width: 560px` removed in the browser the
+table still lays out at `576` px, because two ISO 8601 instants (unbreakable, and printed exactly as served) plus
+the longest domain level label (`INFORMACIÓN INSUFICIENTE`, 181 px) are each wider than a phone column. The
+alternatives were dropping a served fact or truncating an instant, and both would hide data the board exists to
+show. Instead the table keeps the shipped `.table-wrap`: a named, focusable scroll region, the fourth Tab stop,
+which responds to the arrow keys — six `ArrowRight` presses moved it `79px` at 390 and 320 while
+`window.scrollX` stayed `0` and the page never overflowed. `Lote` wraps inside its cell; no column is hidden at any
+measured width.
+
+### Export identity — the served document, not a preview
+
+The fixture serves the real frozen header plus two rows, one with a CRLF inside a quoted cell, and captures the
+save at the browser seams.
+
+| Check | Result |
+| --- | --- |
+| Request | `GET http://localhost:8080/v1/risk/history.csv?zone_id=05102` — the only parameter is the selection |
+| Served document | `463` bytes, header + 2 rows |
+| Saved bytes | `463` bytes, byte-for-byte equal to the served text; the quoted `"primera\r\nsegunda"` survives |
+| Saved file name | `risk-history-05102.csv` (before and after) |
+| Displayed file name | `risk-history-05102.csv` — the panel names the name the save really uses; the baseline displayed none |
+| Preview artefacts | 0 tables and 0 `<pre>` blocks inside the delivery block (before and after); exactly 1 download button |
+| Status copy | `Descarga iniciada: risk-history-05102.csv — las mismas filas que la API devuelve para la zona.` unchanged |
+
+### Contrast (rendered computed styles, Chromium)
+
+Ratios computed in the page from each element's `color` and its nearest opaque painted background.
+
+| Pair | Ratio | Read |
+| --- | --- | --- |
+| View title `--ink` on `--canvas`, 24px/600 | 10.93:1 | Meets |
+| Lede `--muted` on `--canvas`, 11px/400 | 5.07:1 | Meets |
+| Panel heading `--ink` on `--paper`, 15px/650 | 11.85:1 | Meets |
+| Scope tag `--muted` on `#edf1f2`, 8px/850 | 4.87:1 | Meets (shipped neutral-tag pair) |
+| Toolbar label `--muted` on `--paper`, 9px/800 | 5.49:1 | Meets |
+| Table header `--muted` on `#f3f4ed`, 9px/550 | 5.01:1 | Meets |
+| Level mark `--ink` on `--paper`, 10px/700 | 11.85:1 | Meets (the level is a word; the dot is decorative) |
+| Delivery title `--ink` on `--paper`, 13px/650 | 11.85:1 | Meets |
+| Fact label `--muted` on `--paper`, 9px/400 | 5.49:1 | Meets |
+| Fact value `--ink` on `--paper`, 9px/700 | 11.85:1 | Meets |
+| Delivery hint and note `--muted` on `--paper`, 9px/400 | 5.49:1 | Meets |
+| Delivery status `--muted` on `--paper`, 10px/400 | 5.49:1 | Meets |
+| Empty title `--ink` on `#f8faf7`, 15px/650 | 11.39:1 | Meets |
+| Empty copy and status `--muted` on `#f8faf7`, 10px/400 | 5.28:1 | Meets |
+| Model scope title `--ink` on `--paper`, 11px/800 | 11.85:1 | Meets |
+| Model scope item `--muted` on `--paper`, 10px/400 | 5.49:1 | Meets |
+| Model fact label / value, 9px | 5.49:1 / 11.85:1 | Meets |
+| Focus ring `#cf7d4f` on `--paper`, 3px | 3.11:1 | Meets non-text 3:1 |
+
+The level dots are `aria-hidden` decoration and repeat a label that is already text, so no meaning depends on
+their colour; their fills are the shipped `--level-*-line` tokens.
+
+### States
+
+| Screen | State | Result |
+| --- | --- | --- |
+| `#history` zone | populated (2 rows, `alto` + `desconocido`) | panel head + scope tag, 5 served columns, level words, delivery block; 1 history read |
+| `#history` zone | empty (`[]`) | card states absence is not a low level; table and filter bar hidden by `has-rows`; export remains enabled and states the header-only outcome |
+| `#history` zone | unavailable (503) | shipped terracotta status line, no rows, no invented level; delivery block still names the document |
+| `#history` zone | export saved | served bytes saved under the real name; status names the file |
+| `#history` all zones | series (2 intervals, 1 zone) | scope head `TODAS LAS ZONAS`, window list, interval rows with level words and provenance |
+| `#overview` | model panel | heading, status, two version facts, scope block; no table, no inventory, no mock row |
+
+Filter-hidden, filter-restore, retry, sign-out and header-only download states are covered by the DOM suites and
+were not screenshotted.
+
+### Automated
+
+The obsolete three-column snapshot in `tests/a11y/table-scroll-regions.test.tsx` was replaced with an ordered
+assertion of the visible header names (`Solicitado, Publicado, Nivel, Estado, Lote`) scoped to the history table;
+the named-region, wrapper, tabindex, hidden-until-rows and row-count assertions and every other test in that file
+are untouched. RED with the five-column table and the old count: that test failed (`expected 3, got 5`) and the
+full suite reported `57` files / `1 failed | 772 passed (773)`. GREEN with the name assertion:
+`tests/a11y/table-scroll-regions.test.tsx` `6 passed (6)`; the original six focused suites plus it,
+`7 files / 151 passed (151)`; `npm run verify` on the final tree passed lint, typecheck,
+`57` files / `773` tests, the source gate over `74` shipped files, the local build and the loopback smoke
+(exit 0).
+
+### Not measured for T5
+
+No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for
+this change. The workspace was not opened with a live authenticated session: the fixtures carry the real
+components' markup but not the shell, the gate or a real token, and the catalogue is one synthetic feature. Hover,
+active and disabled surfaces of the new blocks were not re-measured (their declared pairs are the shipped ones),
+and the history table's reflow was sampled at 1440/1280/1024/390/360/320 only. The table's internal scroll is
+described above but the touch-drag gesture itself was not exercised. Long real data — many zones in the series, a
+100-row history, a 64-character zone id — was not rendered. Print preview was not produced.

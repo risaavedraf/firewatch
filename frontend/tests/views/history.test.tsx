@@ -1415,3 +1415,197 @@ test('the series client refuses a body the view cannot use (T1)', async () => {
   expect(outcome.failure.kind).toBe('malformed');
   expect(outcome.failure.reason).toBe('invalid_shape');
 });
+
+// ── T5 — the history, export and model-data boards ──────────────────────────
+// Board 05 (historial de lotes), board 12 (exportación CSV) and board 20 (datos
+// del modelo) were migrated into the views the product really has. The board's
+// own scope is narrower than the canvas: this page reads one zone's history or
+// the every-zone series, exports the SERVED document and states the model
+// metadata the registry publishes. Nothing below is a preview, a fabricated row
+// or a control the service cannot back.
+
+function panelHeading(): HTMLElement {
+  const node = document.querySelector('#history .panel-heading-title');
+  if (node === null) throw new Error('the history panel has no heading');
+  return node as HTMLElement;
+}
+
+function scopeTag(): HTMLElement {
+  const node = document.getElementById('history-scope-tag');
+  if (node === null) throw new Error('the history panel does not name its scope');
+  return node;
+}
+
+function headerLabels(): string[] {
+  return [...document.querySelectorAll('#history thead th')].map(cell => (cell.textContent ?? '').trim());
+}
+
+function cellText(row: Element): string[] {
+  return [...row.children].map(cell => (cell.textContent ?? '').trim());
+}
+
+// Board 05 puts the batch, its publication instant and its level beside the
+// request. Production keeps the rows the API returned and reuses them: the level
+// is the one the batch stated, the publication instant is the served
+// `published_at`, and the mark is a word first — the dot only repeats it.
+test('the zone history adopts the board composition over the real served rows (T5)', async () => {
+  const { fetchStub } = await connect();
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, [
+    batch('lote-uno', {
+      requested_at: '2026-01-01T00:00:00Z',
+      published_at: '2026-01-01T00:10:00Z',
+      data_status: 'sufficient',
+      risk_level: 'alto',
+    }),
+    batch('lote-dos', {
+      requested_at: '2026-02-02T00:00:00Z',
+      published_at: '2026-02-02T00:10:00Z',
+      data_status: 'insufficient',
+      risk_level: 'desconocido',
+    }),
+  ]);
+  await waitFor(() => expect(count()).toBe('2'));
+
+  // The panel names the scope it is showing and keeps the view's only h2 above it.
+  expect(screen.getByRole('heading', { level: 2, name: 'Historial de lotes' })).toHaveAttribute(
+    'id',
+    'history-title',
+  );
+  expect(panelHeading()).toHaveTextContent('Lotes publicados de la zona');
+  expect(scopeTag()).toHaveTextContent('POR ZONA');
+
+  // Board 05's columns, read from the row the API served: the request instant,
+  // the publication instant and the level are three different facts.
+  expect(headerLabels()).toEqual(['Solicitado', 'Publicado', 'Nivel', 'Estado', 'Lote']);
+  const rows = [...tbody().children];
+  expect(cellText(rows[0])).toEqual([
+    '2026-01-01T00:00:00Z',
+    '2026-01-01T00:10:00Z',
+    'ALTO',
+    'sufficient',
+    'lote-uno',
+  ]);
+  expect(cellText(rows[1])).toEqual([
+    '2026-02-02T00:00:00Z',
+    '2026-02-02T00:10:00Z',
+    'INFORMACIÓN INSUFICIENTE',
+    'insufficient',
+    'lote-dos',
+  ]);
+
+  // The level is never colour alone: the mark carries the label as text and its
+  // dot is decoration.
+  const mark = rows[0].querySelector('.history-level');
+  expect(mark).not.toBeNull();
+  expect(mark).toHaveTextContent('ALTO');
+  expect(rows[0].querySelector('.history-level-dot')).toHaveAttribute('aria-hidden', 'true');
+
+  // Nothing is reformatted: the instants are the served strings, not a locale.
+  expect(rows[0].textContent).toContain('2026-01-01T00:10:00Z');
+
+  // An unclassified value is stated as unclassified instead of being remapped:
+  // the fourth honest level keeps its own tone and its own label.
+  expect(rows[1].querySelector('.history-level')).toHaveClass('history-level-unknown');
+});
+
+// The row contract carries `published_at` as optional, so a row that omits it
+// states the omission in place instead of inheriting the request instant.
+test('a row without a publication instant states it instead of inventing one (T5)', async () => {
+  const { fetchStub } = await connect();
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, [batch('lote-sin-fecha', { requested_at: '2026-01-01T00:00:00Z' })]);
+  await waitFor(() => expect(count()).toBe('1'));
+
+  const [row] = [...tbody().children];
+  expect(cellText(row)[1]).toBe('No informado');
+  expect(cellText(row)[0]).toBe('2026-01-01T00:00:00Z');
+});
+
+// Board 12 previews a file the prototype could not produce. The product produces
+// it, so the panel names the document the control actually reads and saves: the
+// route, the zone scope and the local file name the save uses. The board's
+// sample table, its proposed columns and its raw CSV block are deliberately
+// absent — they would be a fabricated preview beside a real download.
+test('the export block names the served document instead of previewing one (T5)', async () => {
+  const { fetchStub } = await connect();
+  const csv = serveCsv(fetchStub);
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, [batch('lote-uno')]);
+  await waitFor(() => expect(count()).toBe('1'));
+
+  const block = document.querySelector('#history .history-export') as HTMLElement | null;
+  expect(block, 'the export block is missing').not.toBeNull();
+  if (block === null) return;
+  expect(block.querySelector('#history-export-title')?.textContent).toBe('Descarga del historial de la zona');
+  expect(block).toHaveTextContent('/v1/risk/history.csv');
+  expect(block).toHaveTextContent('risk-history-05102.csv');
+  expect(block).toHaveTextContent(`La zona ${ZONE}, sin la búsqueda ni el filtro de estado de la tabla`);
+  // The board's copy about absence applies to the real document: a zone with no
+  // history exports the header alone, which is not a level and not a low risk.
+  expect(block).toHaveTextContent(/La ausencia de datos no es un nivel/i);
+  expect(block).toHaveTextContent(/encabezado/i);
+
+  // No fabricated preview and no second download control.
+  expect(block.querySelector('table')).toBeNull();
+  expect(block.querySelector('pre')).toBeNull();
+  expect(block.querySelectorAll('button')).toHaveLength(1);
+  expect(csv.calls).toHaveLength(0);
+});
+
+// Board 05's all-zones scope is a scenario in the canvas; production has the real
+// additive series. The composition follows the board's reading — one block per
+// zone, one row per published interval, the level in words — over exactly the
+// intervals the API served.
+test('the all-zones series names its scope and marks every served level in words (T5)', async () => {
+  const series = await openAllZones();
+
+  series.answer([
+    zoneSeries('05101', [
+      bucket({ risk_level: 'alto' }),
+      bucket({ bucket_start: '2026-11-21T03:00:00Z', risk_level: 'desconocido', batch_id: 'lote-dos' }),
+    ]),
+  ]);
+  await waitFor(() => expect(count()).toBe('1'));
+
+  expect(panelHeading()).toHaveTextContent('Lotes publicados por zona');
+  expect(scopeTag()).toHaveTextContent('TODAS LAS ZONAS');
+
+  const marks = [...document.querySelectorAll('#history-series .history-level')].map(
+    node => (node.textContent ?? '').trim(),
+  );
+  expect(marks).toEqual(['ALTO', 'INFORMACIÓN INSUFICIENTE']);
+  // The provenance the interval declares travels with it, unchanged.
+  expect(seriesList()).toHaveTextContent('lote lote-dos');
+  expect(seriesList()).toHaveTextContent('modelo academic-rule-v1');
+  expect(seriesRange()).toHaveTextContent('Días (día civil de America/Santiago)');
+});
+
+// The board's empty state is a card that explains the absence. Production states
+// the same absence (never a level) and keeps the real export reachable, because a
+// header-only document is a valid answer.
+test('an empty zone shows the board card and keeps the real export available (T5)', async () => {
+  const { fetchStub } = await connect();
+  serveCsv(fetchStub);
+  selectZone(ZONE);
+  render(<HistoryView />);
+  await flush();
+
+  fetchStub.answer(HISTORY_URL, []);
+  await waitFor(() => expect(count()).toBe('0'));
+
+  expect(state()).toHaveClass('history-empty-card');
+  expect(state()).toHaveTextContent('Esta zona no tiene lotes ni evaluación al corte.');
+  expect(state()).toHaveTextContent('La ausencia de datos no es un nivel bajo.');
+  expect(downloadButton()).toBeEnabled();
+  expect(document.querySelector('#history .history-export')).not.toBeNull();
+});

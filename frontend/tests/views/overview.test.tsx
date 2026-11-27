@@ -1620,3 +1620,53 @@ test('without a session the workstation states the connection requirement instea
   expect(textOf('aerial-request-state')).toMatch(/Conecta un token autorizado para solicitar y seguir un lote/);
   expect(document.querySelectorAll('#overview .aerial-rail a')).toHaveLength(4);
 });
+
+// ── T5 — the model-data board (20) ──────────────────────────────────────────
+// Board 20 documents a model the service cannot yet describe: seven variables,
+// units, sources and mismatches. None of that is served metadata, so the port
+// keeps the board's hierarchy — status first, then the scope, then what the
+// screen does not claim — over the two version facts this view already reads.
+// No inventory is invented, no model row is mocked and no score is shown.
+test('the model panel states its scope over the real registry facts only (T5)', async () => {
+  await openSignedIn();
+
+  fetchStub.answer(MODELS_URL, {
+    models: [
+      {
+        version: 'academic-rule-v1',
+        kind: 'rule',
+        params_hash: 'e17aaa5600eb67c9a91340e90057aec100f4e80ef0895662f373cffee66564c7',
+        approved_at: null,
+        metrics: { official: false },
+        active: true,
+      },
+      { version: 'demo-fixture-v1', kind: 'placeholder', params_hash: null, approved_at: null, metrics: { synthetic: true }, active: false },
+    ],
+  });
+  await settle();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', batch('05101', 'b', 'j', { model_version: 'academic-rule-v1' }), 200, []);
+
+  // The status-first hierarchy is unchanged: the heading keeps its name and the
+  // registry values keep their identifiers.
+  expect(screen.getByRole('heading', { name: 'Versión de modelo activa' })).toBeInTheDocument();
+  expect(textOf('model-active-version')).toBe('academic-rule-v1');
+  expect(textOf('model-batch-version')).toBe('academic-rule-v1');
+  expect(textOf('model-synthetic')).toBe('NO DECLARADO');
+
+  const scope = document.getElementById('model-scope');
+  expect(scope, 'the model panel does not state its scope').not.toBeNull();
+  if (scope === null) return;
+  // What the screen reads, in the board's "qué sí y qué no hace" shape.
+  expect(scope).toHaveTextContent('/v1/models');
+  expect(scope).toHaveTextContent(/no enumera variables, unidades ni métricas/i);
+  expect(scope).toHaveTextContent(/no ejecuta la regla/i);
+  expect(scope).toHaveTextContent(/no escribe nada/i);
+
+  // Board 20's inventory, sources and mismatch tables are NOT here: the service
+  // publishes no such metadata, and a fixture would be an invented contract.
+  const panel = document.getElementById('model-panel') as HTMLElement;
+  expect(panel.querySelector('table')).toBeNull();
+  expect(panel).not.toHaveTextContent(/temp_max|humidity_rel|precip_sum|radiation_sol/);
+  expect(panel).not.toHaveTextContent(/CONAF|Dataverse|ERA5|NASA POWER/);
+});

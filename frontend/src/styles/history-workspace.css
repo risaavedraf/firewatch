@@ -1,0 +1,361 @@
+/* FireWatch · history, export and model-data port (T5).
+ *
+ * The three screens come from the approved canvas: board 05 (historial de lotes),
+ * board 12 (exportación CSV) and board 20 (datos del modelo). They are not three
+ * new routes. The history panel and its real CSV download keep living in
+ * `#history`, and board 20's hierarchy lands in the model panel `#overview`
+ * already renders, because the product has no model-data route and the service
+ * publishes no variable inventory to fill one.
+ *
+ * Every selector below is scoped to `#history` or to `#overview .model-panel`.
+ * That scope is load-bearing twice over: the file is imported by the views, so it
+ * reaches the browser BEFORE `app.css` in the bundle, and an unscoped selector
+ * would lose to the shipped rules on equal specificity instead of replacing them.
+ *
+ * No new palette and no new scale. Colours are the declared tokens; the focus
+ * ring keeps the shipped `#cf7d4f`, the empty card keeps the shipped `#f8faf7`
+ * surface and the dashed mark reuses the notification card's `#c8d2c6`. Type
+ * stays in the in-use sizes (9, 10, 11, 15, 16px) and spacing in the 4px-derived
+ * values already in use.
+ *
+ * The audit of what the canvas carries that the product does not is in
+ * `frontend/VISUAL-BASELINE.md`, section "History, export and model data (T5)". */
+
+/* ── The view head (05) ───────────────────────────────────────────────────── */
+
+/* The board opens with a lede under the title and its counts at the right. The
+   production intro row keeps that arrangement, and the lede stays inside a
+   readable measure instead of running the full width of a wide screen. */
+#history .history-head {
+  align-items: flex-start;
+}
+
+#history .history-head-intro {
+  max-width: 78ch;
+}
+
+#history .history-head-intro .subheading {
+  max-width: 74ch;
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* On a phone the title and its badge cannot share a row without squeezing both,
+   so the head stacks and the badge sits under the lede. */
+@media (max-width: 560px) {
+  #history .history-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
+
+/* ── The panel head (05) ──────────────────────────────────────────────────── */
+
+/* The panel modifier carries 18px of its own padding, so the primitive's
+   heading padding would inset the title from the body it labels. The history
+   panel keeps the primitive's heading rhythm and drops only its side padding,
+   exactly as the decision panels already do. */
+#history .history-panel > .panel-heading {
+  padding: 0 0 12px;
+}
+
+#history .history-panel > .panel-heading .neutral-tag {
+  flex: none;
+}
+
+/* The scope and granularity controls own their row. The board draws that row as
+   a toolbar with labelled fields; the production selects keep their shipped
+   accessible names and gain the label treatment the board gives them. */
+#history .history-scope-bar {
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+
+#history .history-scope-bar .filter-label,
+#history .filter-bar .filter-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#history .history-scope-bar select {
+  min-width: 156px;
+  font-size: 11px;
+}
+
+#history .filter-bar {
+  padding-bottom: 12px;
+}
+
+/* ── The rows table (05) ──────────────────────────────────────────────────── */
+
+/* Five columns of served instants and identifiers do not fit a phone. The table
+   keeps its shipped `overflow: auto` scroll region — a focusable, named region —
+   instead of shrinking the instants until they are unreadable, and the min-width
+   states the width at which all five columns are legible. */
+#history .history-panel table {
+  min-width: 560px;
+}
+
+/* The level mark board 05 puts beside every published batch. The word is the
+   claim and stays `--ink`; the dot repeats the level with the shipped level
+   tokens and is decorative. An unclassified value keeps its own label and its
+   own neutral mark instead of borrowing a severity. */
+.history-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.history-level-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--level-neutral-line);
+}
+
+.history-level-high .history-level-dot {
+  background: var(--level-high-line);
+}
+
+.history-level-medium .history-level-dot {
+  background: var(--level-medium-line);
+}
+
+.history-level-low .history-level-dot {
+  background: var(--level-low-line);
+}
+
+.history-level-unknown .history-level-dot {
+  background: var(--level-unknown-line);
+}
+
+/* ── States (05) ──────────────────────────────────────────────────────────── */
+
+/* The status line is a sentence, not a centred placeholder: the board puts it
+   above the table and to the left of it. */
+#history .empty-state {
+  padding: 10px 2px 12px;
+  text-align: left;
+  line-height: 1.6;
+}
+
+/* A zone with no row at all, and a table emptied by its own filters, are the two
+   states the board explains in a card. The copy is unchanged; only its shape is
+   the board's: eyebrow-free title, the two sentences that keep absence and low
+   risk apart, and the control that gives the period back. */
+#history .history-empty-card {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 20px 20px 22px;
+  margin: 2px 0 6px;
+  border: 1px dashed #c8d2c6;
+  border-radius: 9px;
+  background: #f8faf7;
+}
+
+#history .history-empty-card strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+
+#history .history-empty-card p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+#history .history-empty-card .secondary-button {
+  margin-top: 4px;
+  min-height: 34px;
+}
+
+/* ── The every-zone series (05) ───────────────────────────────────────────── */
+
+/* One block per zone, one row per published interval, each interval declaring
+   its own start. The block is a surface because it groups a variable number of
+   rows; the interval itself stays a plain row with no nested card. */
+#history .history-series-zone {
+  padding: 13px 15px 9px;
+}
+
+#history .history-series-zone-head {
+  padding-bottom: 6px;
+  border-bottom: 1px solid #eef1ee;
+}
+
+#history .history-bucket {
+  padding: 7px 0;
+  row-gap: 4px;
+}
+
+#history .history-bucket-start {
+  min-width: 168px;
+}
+
+#history .history-bucket-provenance {
+  line-height: 1.5;
+}
+
+/* ── The export block (12) ────────────────────────────────────────────────── */
+
+/* The board is a standalone screen whose preview could not produce a file. The
+   product produces one, so the block sits inside the history panel and names the
+   document the control reads: route, zone scope, local file name and the
+   provenance each row declares. It is a grid instead of the shipped flex row
+   because the facts need a column of their own, and the id scope makes the
+   declaration win over the shipped rule regardless of bundle order. */
+#history .history-export {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+}
+
+#history .history-export-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#history .history-export-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+
+#history .history-export-head .eyebrow {
+  margin-bottom: 3px;
+}
+
+#history .history-export-head .neutral-tag {
+  flex: none;
+}
+
+/* The facts keep their label/value pairing inside a readable measure: a
+   right-aligned value 1300px away from its label is a row a reader has to
+   scan twice. The cap is the board's reading width, not a new grid. */
+#history .history-export .data-list {
+  max-width: 640px;
+  margin: 0;
+}
+
+#history .history-export .data-list dd code {
+  font-size: 9px;
+}
+
+#history .history-export-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+#history .history-export-actions .secondary-button {
+  min-height: 34px;
+}
+
+#history .history-export-hint {
+  flex: 1 1 320px;
+  min-width: 200px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+#history .history-export .panel-note {
+  margin: 0;
+}
+
+#history .history-export .status-copy {
+  min-height: 0;
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  #history .history-export-head {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #history .history-bucket-start {
+    min-width: 0;
+  }
+}
+
+/* ── The model panel (20) ─────────────────────────────────────────────────── */
+
+/* Board 20 is a documentation screen: status first, then the scope of the screen,
+   then what the service does and does not publish. The product has no model-data
+   route and the registry serves no inventory, so the port keeps that hierarchy
+   over the two version facts `#overview` already reads and states the limits in
+   the panel's own words. No table, no row and no score is drawn here.
+ *
+ * The heading drops the primitive's side padding for the same reason the history
+ * panel does: `model-panel` already carries the panel's own padding, and the
+ * title has to align with the body it labels. */
+#overview .model-panel > .panel-heading {
+  padding: 0 0 12px;
+}
+
+#overview .model-panel .model-scope {
+  margin: 4px 0 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+#overview .model-panel .model-scope h4 {
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#overview .model-panel .model-scope ul {
+  display: grid;
+  gap: 6px;
+  max-width: 86ch;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+#overview .model-panel .model-scope strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+#overview .model-panel .model-scope code {
+  color: var(--forest-700);
+  font-size: 9px;
+}
+
+@media (max-width: 560px) {
+  #overview .model-panel > .panel-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}

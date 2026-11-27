@@ -41,6 +41,7 @@ import { useExecutiveSummary } from '../components/executive/useExecutiveSummary
 import { AerialWorkstation } from '../components/territory/AerialWorkstation';
 import { DataList, Metric, PanelHeading, StatusCopy, UnimplementedNote } from '../components/ui';
 import '../styles/aerial-workspace.css';
+import '../styles/history-workspace.css';
 import {
   batches,
   history,
@@ -862,6 +863,13 @@ export function OverviewView() {
           }
         />
         <StatusCopy id="model-status">{modelStatusText}</StatusCopy>
+        {/*
+          T5 — board 20 states the status first, then the scope of the screen,
+          then what it does not publish. The registry serves two version facts and
+          a synthetic mark; it serves no variable inventory, no units, no metrics
+          and no source table, so those are named as absent instead of drawn. The
+          two rows and their identifiers are the shipped ones.
+        */}
         <dl className="data-list compact">
           <div>
             <dt>Versión activa (registro)</dt>
@@ -874,6 +882,23 @@ export function OverviewView() {
             <dd id="model-batch-version">{batchField(batchData?.model_version)}</dd>
           </div>
         </dl>
+        <div className="model-scope">
+          <h4>Qué sí y qué no hace esta ficha</h4>
+          <ul id="model-scope">
+            <li>
+              <strong>Una lectura:</strong> el registro de modelos por <code>/v1/models</code>; la versión del lote llega
+              con el lote publicado que esta página ya leyó.
+            </li>
+            <li>
+              <strong>Ninguna métrica:</strong> no enumera variables, unidades ni métricas del modelo, y no ejecuta la
+              regla ni reproduce su cálculo.
+            </li>
+            <li>
+              <strong>Ningún dato simulado:</strong> no escribe nada, no publica un lote y no presenta una versión como
+              la que clasificó un lote que no la nombra.
+            </li>
+          </ul>
+        </div>
         <p className="panel-note" id="model-panel-note">
           La marca sintética se reproduce tal como el servicio la declara. Una versión sin marca declarada se muestra
           como no declarada; la página no la supone no sintética. La fila del registro es la versión que el registro

@@ -286,6 +286,75 @@ T4 ports the three decision boards — [`07-panel-ejecutivo.html`](../design/fir
 
 **Verifier correction.** The limits band's D-B statement now reads `Definición acordada · D-B` in both consumers, because `odd/tasks/pm-01-executive-panel.md` records the definition as resolved and the server applies it; the rule and its explanation are unchanged. The notification empty card is state-dependent: a first empty page states the register is empty, and a later cursor page states that this page is empty and offers `Anterior`. Both are pinned by public DOM tests. The narrow bar reflow and its measured offset are recorded in the [visual audit](VISUAL-AUDIT.md#t4-correction--verifier-blockers-2026-11-26).
 
+## History, export and model data (T5)
+
+T5 ports the board set's traceability, delivery and model-data screens —
+[`05-historial-de-lotes.html`](../design/firewatch-v1-vuelo/05-historial-de-lotes.html),
+[`12-exportacion-csv.html`](../design/firewatch-v1-vuelo/12-exportacion-csv.html) and
+[`20-datos-del-modelo.html`](../design/firewatch-v1-vuelo/20-datos-del-modelo.html) — into the routes the
+product has. No route was added: the history board and its real CSV delivery live in `#history`, and board 20's
+status-first hierarchy lands in the model panel `#overview` already renders. The new stylesheet is
+[`src/styles/history-workspace.css`](src/styles/history-workspace.css) and its selectors are all scoped to
+`#history` or `#overview .model-panel`. The level mark is
+[`src/components/history/HistoryLevelMark.tsx`](src/components/history/HistoryLevelMark.tsx), which reuses the
+domain's `levelLabel` and the shipped `--level-*` tokens.
+
+**No new palette and no new scale.** The file declares colors only through the existing tokens (`--paper`,
+`--line`, `--muted`, `--ink`, `--soft`, `--forest-700`, `--level-*-line`) plus the shipped focus-ring literal
+`#cf7d4f`, the shipped empty-card surface `#f8faf7` and the `#c8d2c6` dashed mark the notification card already
+uses. Type stays in the in-use sizes (`9`, `10`, `11`, `13`, `15` px) and spacing in the values already in use.
+
+| Selector | Role | Declared values |
+| --- | --- | --- |
+| `#history .history-head` / `.history-head-intro` | View head (05) | `align-items: flex-start`; intro measure `78ch`, lede `74ch` at `11px/1.55`; count badge stays the shipped `.count-badge` |
+| `#history .history-panel > .panel-heading` | Panel head (05) | `padding: 0 0 12px`: the panel modifier already carries 18 px of padding, so the title aligns with the body instead of being inset by the primitive's `20px 22px 17px` |
+| `#history .history-scope-bar` | Toolbar (05) | bottom `1px solid --line`, `12px` padding below, `12px` margin below |
+| `#history .history-scope-bar .filter-label`, `#history .filter-bar .filter-label` | Field labels | `9px/800`, tracking `.06em`, uppercase, `--muted` (the board's toolbar label treatment) |
+| `#history .history-scope-bar select` | Scope / granularity | `min-width: 156px`, `11px` — the shipped select styling |
+| `#history .history-panel table` | Rows table (05) | `min-width: 560px` inside the shipped `.table-wrap` scroll region |
+| `.history-level` / `.history-level-dot` | Level mark (05) | `10px/700`, `--ink`, `gap: 6px`; dot `6px` with `--level-high-line`, `--level-medium-line`, `--level-low-line`, `--level-unknown-line`, `--level-neutral-line`; the word is the claim, the dot is decorative |
+| `#history .empty-state` | Status line (05) | `10px 2px 12px`, left aligned, `line-height: 1.6` |
+| `#history .history-empty-card` | Empty card (05) | grid, `justify-items: start`, `gap: 6px`, `20px 20px 22px`, dashed `1px #c8d2c6`, radius `9px`, `#f8faf7`; `strong` `15px/650 --ink`; copy `10px/1.65 --muted`, `68ch`; the reset keeps `34px` |
+| `#history .history-series-zone` / `.history-bucket` | Every-zone series (05) | block `13px 15px 9px`; head bottom border `#eef1ee`; interval rows `7px 0`, start column `min-width: 168px` (released at `≤560px`) |
+| `#history .history-export` | Delivery block (12) | `display: grid`, `gap: 10px`, `margin-top: 18px`, top border from the shipped rule |
+| `#history .history-export-title` | Delivery title | `13px/650`, tracking `-.2px`, `--ink` |
+| `#history .history-export .data-list` | Document facts | `max-width: 640px` so each label stays near its value; `dd code` `9px` |
+| `#history .history-export-actions` / `.history-export-hint` | Download row | flex wrap, `gap: 8px 14px`; button `min-height: 34px`; hint `9px/1.6 --muted` |
+| `#overview .model-panel > .panel-heading` | Model panel head (20) | `padding: 0 0 12px`, same alignment as the history panel |
+| `#overview .model-panel .model-scope` | Scope block (20) | top `1px solid --line`, `12px` padding above, `10px` margin below |
+| `#overview .model-panel .model-scope h4` | Scope title | `11px/800`, tracking `.04em`, uppercase, `--ink` |
+| `#overview .model-panel .model-scope ul` | Scope items | `10px/1.6 --muted`, `86ch`, `strong` in `--ink`, `code` in `--forest-700` |
+
+**Breakpoints.** `560px` stacks the history head (title, lede, count), the delivery head and the model-panel head,
+and releases the interval start column; the two `560px` blocks are the only responsive rules in the file.
+
+**The rows table keeps five served columns.** `Solicitado`, `Publicado`, `Nivel`, `Estado` and `Lote` are five
+different facts of the row `/v1/risk/history` returns, and the level is the domain's own label
+(`levelLabel`), never a colour-only mark. Both instants are printed exactly as served — no locale, no rounding —
+because that granularity is the contract's. At phone width the five columns do not fit, so the table keeps the
+shipped `.table-wrap` scroll region instead of dropping or truncating a column; the page itself never scrolls
+horizontally (measured in the [audit](VISUAL-AUDIT.md#t5--history-export-and-model-data-2026-11-26)).
+
+**The export block is not a preview.** Board 12 illustrates a document its prototype could not produce. The
+product produces it: `/v1/risk/history.csv` is read for the selected zone and the served bytes are saved under
+`risk-history-<zona>.csv`. The block therefore names the real route, the exact zone scope (`sin la búsqueda ni el
+filtro de estado de la tabla`), the file name `saveHistoryCsv` really uses and the per-row provenance; it renders
+no sample table, no proposed column list and no raw CSV text. A zone with no history is stated as an export of
+the header alone, never as a level under test.
+
+**What board 20 carries that the product does not.** The board documents seven variables with units, source
+groups, three contract mismatches and the historical-access situation. The registry serves none of that as
+metadata: `GET /v1/models` returns version rows with `kind`, `params_hash`, `approved_at`, `metrics` and `active`,
+and `domain/model.ts` reads only the one active version and its declared synthetic mark. The model panel therefore
+keeps the board's status-first hierarchy — heading, status sentence, the two version facts, then
+`Qué sí y qué no hace esta ficha` — and names the absence instead of drawing an inventory, a source table or a
+fixture row. No score, no operational claim and no control was added.
+
+**Also left out, deliberately.** Board 05's shared cutoff, its `Relación con el corte` column, its batch timeline
+and its period/zone selects have no served equivalent (the zone comes from the shell, the read window is the
+route's own 100-row window, and no cutoff concept exists), so they are absent rather than simulated. The board's
+task links were not ported either: the history panel changes no route.
+
 ## What still needs a browser
 
 - Resolve inherited backgrounds, disabled and focus states, and route-specific overrides in the rendered views. For example, Actions already overrides some chip and tag colors, so their base ratios do not describe every view.

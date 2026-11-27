@@ -315,5 +315,12 @@ test('the history table is a named scroll region and keeps the hidden-until-rows
   scrollRegionOf(tableIn('#history-rows'), NAMES.history);
   expectAllWrappersNamed(1);
   expect(document.querySelectorAll('#history-rows tr')).toHaveLength(1);
-  expect(document.querySelectorAll('#history thead th')).toHaveLength(3);
+  // The five visible columns of the migrated board 05 table, in order. The
+  // assertion names them instead of counting them: a column that changes place
+  // or label is a change to what the reader is told, and the served fields behind
+  // them (request instant, publication instant, level, data status, batch id) are
+  // five different facts.
+  const historyTable = tableIn('#history-rows') as HTMLTableElement;
+  const headers = [...historyTable.querySelectorAll('thead th')].map(cell => (cell.textContent ?? '').trim());
+  expect(headers).toEqual(['Solicitado', 'Publicado', 'Nivel', 'Estado', 'Lote']);
 });

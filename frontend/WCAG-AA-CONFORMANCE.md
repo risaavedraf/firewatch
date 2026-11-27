@@ -192,6 +192,45 @@ T4 adds the `#executive` route with the bar's fourth shortcut and recomposes `#c
 
 **Not measured for T4.** No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for this change, and the workspace was not opened with a live authenticated session: the composition fixtures carry the real components' markup but not the shell, the gate or a real token (the verifier correction below adds a shell-level fixture that runs the real gate against a local token fixture; no identity provider or gateway was contacted). **1.4.4** is unchanged (the type scale is still absolute and this change adds `font-size` declarations in absolute units). The shell's link targets and the map's fill contrast are untouched by this task. The executive panel was not rendered with a long real critical-zone list, and the notification table's own scroll region at 390 px is unchanged rather than fixed here.
 
+## T5 evidence — history, export and model data (2026-11-26)
+
+T5 ports boards 05/12/20 into `#history` and the model panel `#overview` already renders. The evidence below is
+scoped to those two screens and does not restate or replace earlier per-criterion measurements; it is not a
+conformance claim. Environment: isolated Chromium headless shell against `file://` fixtures rendered from the real
+components, base tree (`8e8324c`) and working tree, same stubbed data; no network, credential, gateway or backend.
+Evidence: `tmp/t5/{before,after}/`, `measure.json`, `keyboard.json`, `columns.json`, `csv.json`, `shots/`.
+
+| Criterion | Measurement | Result |
+| --- | --- | --- |
+| 1.3.1 Info and Relationships | The rows stay a real `<table>` inside the shipped named scroll region (`role="region"`, `aria-label="Historial de lotes de la zona"`, `tabindex="0"`), with five `<th>` and the `#history-rows` tbody. The panel is an `article` whose heading (now `h3` under the view's only `h2`) names it; the delivery block is a `<section aria-labelledby="history-export-title">` with a `<dl>` of facts; the level is text (`levelLabel`) inside a `span`, the dot `aria-hidden`. The model panel keeps its `article`, `h3` heading and `<dl>`, and the scope block is an `h4` + `ul`. No id, landmark or ARIA attribute was renamed (12 shipped ids kept, 3 added) | Meets (DOM + sampled) |
+| 1.3.2 Meaningful Sequence | DOM order is head → panel heading → scope toolbar → search/filter → status line → table → delivery block; the 390 px CSS only stacks the head and the delivery head, it never reorders. The series branch keeps state → window facts → per-zone list → note | Meets (sampled) |
+| 1.4.1 Use of Color | Every level is a written label (`BAJO`/`MEDIO`/`ALTO`/`INFORMACIÓN INSUFICIENTE`/`SIN CLASIFICAR`) with a decorative dot; a reader without colour still gets the level. The synthetic mark stays the word `Dato sintético` / `Sin marca sintética`. The empty card states absence in text, not by tint | Meets (measured + DOM) |
+| 1.4.3 Contrast (Minimum) | Rendered computed pairs at 1440: panel heading 11.85:1, scope tag 4.87:1 (the shipped neutral-tag pair), toolbar label 5.49:1, table header 5.01:1, level mark 11.85:1, delivery title 11.85:1, fact label 5.49:1, fact value 11.85:1, hint/note/status 5.49:1, empty title 11.39:1, empty copy 5.28:1, model scope title 11.85:1, scope item 5.49:1, view title 10.93:1, lede 5.07:1. Lowest measured pair **4.87:1** | Meets |
+| 1.4.11 Non-text Contrast | The painted focus ring `3px solid rgb(207, 125, 79)` on `--paper` measures **3.11:1** on every stop; the level dots are `aria-hidden` decoration repeating a text label, so nothing depends on their fill | Meets for the focus indicator |
+| 1.4.10 Reflow | `document.documentElement.scrollWidth === window.innerWidth` at 1440, 1280, 1024, 390, 360 and 320 px, before and after. The five-column table does not fit a phone and keeps its own **one-direction** scroll region (390 px: `330` client / `576` scroll, 246 px internal; 360: 276 px; 320: 316 px). Tables are the explicit exception 1.4.10 allows; no page-level horizontal scrolling is introduced, and the width is intrinsic (removing the declared `min-width` still lays the table out at 576 px) | Meets (sampled) |
+| 2.1.1 Keyboard | Tab order at 390 and 320 is unchanged: `#history-scope` → `#history-query` → `#history-status-filter` → the named table region (4th stop in both builds) → `#history-csv-download`. Six `ArrowRight` presses moved the region `79px` at both widths while `window.scrollX` stayed `0`. No `tabindex` above `0` was added | Meets (sampled) |
+| 2.4.3 Focus Order | The sequence is identical to the baseline; the new delivery block adds no stop before the table and its single button keeps the existing position after the region. Every stop painted a `3px` ring | Meets (sampled) |
+| 2.4.11 Focus Not Obscured (AA, WCAG 2.2) | The fixtures do not include the sticky product bar, so this was **not re-measured**; the view adds no fixed or sticky element of its own and the delivery block sits below the table in normal flow | Not measured (unchanged by this task) |
+| 2.5.8 Target Size (Minimum) | New control: `Descargar CSV` `34px` high × `92px` (shipped secondary-button scale, above the 24 px minimum, below the 44 px recommendation); the table region is `117px` tall; the shipped selects are `37px`, the search input `38px`. No new small icon target was added | Meets the absolute minimum; 44 px not met for the shipped button scale |
+| 3.2.5 Change on Request | The scope and granularity selects change the read inside the view (pre-existing behaviour); the export runs only on click; no link or control changes the route | Meets (source + DOM) |
+| 4.1.2 Name, Role, Value | The selects keep their visible labels and accessible names; the download button keeps `aria-describedby="history-csv-note"` and its name; the region keeps its name; the delivery `<dl>` is read as a description list; no new widget or pressed state was invented | Meets (DOM) |
+| 4.1.3 Status Messages | `#history-visible-count`, the series `#history-state` and `#history-csv-status` remain `role="status" aria-live="polite"`; the delivery block adds no second live region and reuses the existing export status for the saved/failed states | Meets (DOM) |
+
+**The a11y test adaptation is not waived evidence.** `tests/a11y/table-scroll-regions.test.tsx` used to snapshot
+the legacy three-column table (`toHaveLength(3)`). With five served columns it was replaced by an ordered assertion
+of the visible header names (`Solicitado, Publicado, Nivel, Estado, Lote`) scoped to the history table. The named
+scroll region, wrapper class, `tabindex`, `role`, `aria-label`, hidden-until-rows state and row count are unchanged
+and still asserted; no other test in the file was touched. RED with the five-column table and the old count: the
+test failed (`expected 3, got 5`), full suite `57` files / `1 failed | 772 passed (773)`. GREEN after: that suite
+`6 passed (6)`; the six focused suites plus it `7 files / 151 passed (151)`; `npm run verify` exit 0 with
+`57` files / `773` tests.
+
+**Not measured for T5.** No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real
+assistive technology ran for this change; no live authenticated session was used. **1.4.4** is unchanged and not
+improved: the change adds `font-size` declarations in absolute `px`, as the rest of the scale does. Hover, active,
+disabled and print states were not re-measured. The table's touch-drag scrolling was not exercised, and long real
+content (a 100-row history, many series zones, a 64-character zone id) was not rendered.
+
 ## Open findings from the reader pass
 
 Three defects were found by reading the live accessibility tree, not by automated rules:
