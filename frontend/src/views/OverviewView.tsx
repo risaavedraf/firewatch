@@ -56,10 +56,12 @@ import {
   computeFactorBars,
   evaluateActiveModel,
   evaluateValidity,
+  generateZonePdf,
   latestOutcome,
   levelLabel,
   presentBatch,
   validityLabel,
+  zonePdfFilename,
   type ActiveModel,
   type BatchPresentation,
   type FactorBar,
@@ -378,6 +380,31 @@ function batchResultText(batch: BatchState, presentation: BatchPresentation | nu
   }
 }
 
+// PM-14 — la ficha se compone en el navegador y se guarda por las mismas dos
+// costuras que la exportación del historial: el Blob que recibe `createObjectURL`
+// y el ancla con `download`. Nada sale del cliente, no hay petición y no hay
+// navegación.
+const PDF_REVOKE_DELAY_MS = 40;
+
+function saveZonePdf(bytes: Uint8Array, filename: string): void {
+  const copy = new Uint8Array(bytes.length);
+  copy.set(bytes);
+  const blob = new Blob([copy], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = 'noopener';
+  anchor.hidden = true;
+  document.body.append(anchor);
+  try {
+    anchor.click();
+  } finally {
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), PDF_REVOKE_DELAY_MS);
+  }
+}
+
 export function OverviewView() {
   const session = useSessionState();
   const selectedZone = useSelectedZone();
@@ -395,6 +422,9 @@ export function OverviewView() {
   // is a stated outcome inside the panel, never zeros.
   const executiveState = useExecutiveSummary(signedIn);
   const [sessionClosed, setSessionClosed] = useState(false);
+  // PM-14 — el resultado de la única acción de la ficha. Vive en la región viva de
+  // la tarjeta, así que un lector de pantalla escucha el guardado o su fallo.
+  const [fichaStatus, setFichaStatus] = useState('');
   // Whether a real session was ever established. It separates "never connected"
   // (the count is still unknown, `—`) from "the session was closed" (the count
   // is explicitly uninformed), which the retired page distinguished the same way.
@@ -643,6 +673,31 @@ export function OverviewView() {
   const recommendationStateText = recommendationStatus(currentBatch, session, recommendationPlan);
   const recommendationBadge = recommendationPlan === null ? risk.pill : recommendationPlan.levelLabel;
 
+  // PM-14 — la ficha por zona. Se habilita solo cuando hay algo verdadero que
+  // describir: una zona seleccionada y un lote publicado. El generador repite el
+  // mismo guardián fail-closed de la tarjeta, así que un lote que esta página
+  // rechaza se exporta como `SIN CLASIFICAR` con sus omisiones nombradas, nunca
+  // como una severidad que la tarjeta se niega a mostrar.
+  const fichaBlocked = selectedZone === '' || batchData === null;
+  const downloadFicha = (): void => {
+    if (fichaBlocked) return;
+    // La identidad sale de la comuna cargada; si el catálogo aún no la tiene, el
+    // código seleccionado sigue nombrando la zona, que es lo único que se sabe.
+    const zone = selectedFeature !== null ? selectedFeature.properties : { code: selectedZone };
+    const filename = zonePdfFilename(zone.code ?? selectedZone);
+    try {
+      saveZonePdf(
+        generateZonePdf({ zone, batch: batchData, geometry: selectedFeature?.geometry ?? null }),
+        filename,
+      );
+      setFichaStatus(`${filename} guardado con la ficha de la zona seleccionada.`);
+    } catch {
+      // Un navegador que rechaza el guardado es un resultado declarado, nunca un
+      // éxito vacío.
+      setFichaStatus('No fue posible guardar la ficha PDF en este navegador.');
+    }
+  };
+
   const originText = batchData === null ? 'Sin consultar' : batchData.demo === true ? DEMO_ORIGIN : DISCREPANT_ORIGIN;
   const noticeText =
     batchData === null
@@ -798,6 +853,26 @@ export function OverviewView() {
               { label: 'Identificador', value: <span id="batch-id">{batchField(batchData?.id)}</span> },
             ]}
           />
+          <h4>Ficha PDF</h4>
+          <div className="ficha-pdf">
+            <button
+              id="zone-pdf-download"
+              className="secondary-button"
+              type="button"
+              disabled={fichaBlocked}
+              aria-describedby="zone-pdf-note"
+              onClick={downloadFicha}
+            >
+              Descargar ficha PDF
+            </button>
+            <p className="panel-note" id="zone-pdf-note">
+              La ficha PDF se compone en este navegador con el último lote, la geometría de la comuna y las
+              recomendaciones que esta página ya muestra: incluye el nivel de riesgo, «Cómo lo calculó la regla», el mapa
+              vectorial, la fecha y, cuando la fuente lo declara, la marca de datos sintéticos. No consulta la API, no
+              crea acciones y no envía nada a ningún servicio.
+            </p>
+          </div>
+          <StatusCopy id="zone-pdf-status">{fichaStatus}</StatusCopy>
           <UnimplementedNote>
             Cobertura por sector: la API no publica lecturas ni un porcentaje de cobertura por sector. Su unidad es la
             comuna (código CUT), así que esta ficha no muestra un porcentaje de cobertura.

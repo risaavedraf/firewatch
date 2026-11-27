@@ -503,6 +503,32 @@
 
 #overview .aerial-links a:hover { color: var(--ink); }
 
+/* PM-14 — la ficha PDF. El control es un botón nativo de la tarjeta del lote: su
+   alto de 36 px es un objetivo real y el foco usa el anillo global. El texto se
+   declara en `rem`, no en `px`, para no sumar una unidad absoluta a la escala
+   tipográfica de `V1-D-04`; la nota comparte la fila cuando el ancho lo permite. */
+#overview .ficha-pdf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+#overview .ficha-pdf button {
+  min-height: 36px;
+  border: 1px solid var(--edge-strong);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+#overview .ficha-pdf button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+#overview .ficha-pdf button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+#overview .ficha-pdf .panel-note { flex: 1 1 22rem; margin: 0; }
+
 #overview .aerial-readings { display: grid; gap: 6px; margin: 0; }
 #overview .aerial-readings > div { display: flex; justify-content: space-between; gap: 12px; }
 #overview .aerial-readings dt { color: var(--muted); font-size: 11px; }
