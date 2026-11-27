@@ -133,3 +133,65 @@ export function evaluateCycle(payload: unknown, nowMs: number): CycleFreshness {
     } · Fuentes: ${entries.length}.${lastError === '' ? '' : ` Último error: ${lastError}.`}`,
   };
 }
+
+// ── The manual publication's outcome (V1-P-06) ───────────────────────────
+//
+// `POST /v1/risk/cycle/run` answers one `CycleRunResult`: the source it ran on, the
+// window, whether the cycle completed and one entry per configured zone. The view
+// may state only what that answer carries, so the sentence is decided here, once.
+//
+// `complete` is the service's own verdict and `published` is per zone, so the two
+// are kept apart: an incomplete cycle names every zone that failed with the reason
+// the service gave, and a failure that arrived without one is stated as such
+// rather than given an invented cause. Nothing here rounds "no publicó todo" into
+// "publicó".
+
+export interface CycleZoneOutcome {
+  readonly zoneId: string;
+  readonly error: string;
+}
+
+export interface CycleRunSummary {
+  readonly complete: boolean;
+  readonly zoneCount: number;
+  readonly published: number;
+  /** Only the zones that did NOT publish, in the order the service listed them. */
+  readonly failed: readonly CycleZoneOutcome[];
+  readonly label: string;
+}
+
+// The shape the transport already validated. It is declared structurally so this
+// module stays transport-free: `CycleRunResult` in `core/api.ts` satisfies it
+// without the domain importing the data layer.
+export interface CycleRunInput {
+  readonly complete: boolean;
+  readonly zones: readonly { readonly zone_id: string; readonly published: boolean; readonly error?: string }[];
+}
+
+export function summariseCycleRun(run: CycleRunInput): CycleRunSummary {
+  const zones = [...run.zones];
+  const published = zones.filter(zone => zone.published).length;
+  const failed: CycleZoneOutcome[] = zones
+    .filter(zone => !zone.published)
+    .map(zone => ({
+      zoneId: zone.zone_id,
+      error: typeof zone.error === 'string' && zone.error !== '' ? zone.error : 'sin motivo informado',
+    }));
+
+  const publishedCopy =
+    published === 0
+      ? 'no se publicó ninguna zona'
+      : `${published} ${published === 1 ? 'zona publicada' : 'zonas publicadas'}`;
+  const failedCopy =
+    failed.length === 0
+      ? ''
+      : ` · falló ${failed.map(zone => `${zone.zoneId} (${zone.error})`).join(', ')}`;
+
+  return {
+    complete: run.complete,
+    zoneCount: zones.length,
+    published,
+    failed,
+    label: `${run.complete ? 'Ciclo completo' : 'Ciclo incompleto'} · ${publishedCopy}${failedCopy}.`,
+  };
+}

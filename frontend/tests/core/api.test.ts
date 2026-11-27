@@ -3,6 +3,7 @@ import {
   audit,
   batches,
   createJob,
+  cycleRun,
   history,
   job,
   jobsStatus,
@@ -582,6 +583,191 @@ test('the aggregate read maps 403, 503 and 401 to their own outcomes', async () 
   const rejected = batches();
   await flush();
   fetchStub.answer(`${gatewayOrigin}/v1/risk/batches`, { code: 'unauthorized' }, 401, 'req-401');
+  expect(expectFailure(await rejected)).toEqual({
+    kind: 'unauthorized',
+    reason: 'unauthorized',
+    status: 401,
+    requestId: 'req-401',
+  });
+  expect(getSessionSnapshot()).toEqual({ status: 'signed-out', roles: null, reason: 'rejected' });
+});
+
+// V1-P-06 — the manual publication. `POST /v1/risk/cycle/run` declares no body at
+// all: the operator is the verified token subject, so a body that names one is
+// refused with 400 before anything runs. The transport therefore sends none, and
+// keeps 401, 403 and 503 as three different outcomes instead of flattening a
+// refusal into "the service is down".
+test('cycleRun posts no body and reads the cycle result the service answers', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const run = cycleRun();
+  await flush();
+  const calls = fetchStub.callsFor(`${gatewayOrigin}/v1/risk/cycle/run`);
+  expect(calls).toHaveLength(1);
+  expect(calls[0].init.method).toBe('POST');
+  expect(calls[0].init.body).toBeUndefined();
+  expect((calls[0].init.headers as Record<string, string>)['Content-Type']).toBeUndefined();
+
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/cycle/run`, {
+    source_id: 'fixture-sample',
+    started_at: '2026-11-27T10:00:00Z',
+    finished_at: '2026-11-27T10:00:01Z',
+    complete: true,
+    zones: [{ zone_id: '05101', published: true }],
+  });
+  const outcome = await run;
+  if (!outcome.ok) throw new Error(`expected a cycle result, got ${outcome.failure.reason}`);
+  expect(outcome.data.complete).toBe(true);
+  expect(outcome.data.zones).toEqual([{ zone_id: '05101', published: true }]);
+});
+
+test('cycleRun fails closed on an unusable result instead of reporting a publication', async () => {
+  const { fetchStub } = await connectedSession();
+
+  for (const body of [
+    {},
+    { complete: true },
+    { complete: 'true', zones: [] },
+    { complete: true, zones: [{ published: true }] },
+    { complete: true, zones: [{ zone_id: '05101', published: 'yes' }] },
+    [],
+  ]) {
+    const run = cycleRun();
+    await flush();
+    fetchStub.answer(`${gatewayOrigin}/v1/risk/cycle/run`, body);
+    const failure = expectFailure(await run);
+    expect(failure.kind, JSON.stringify(body)).toBe('malformed');
+    expect(failure.reason, JSON.stringify(body)).toBe('invalid_shape');
+  }
+});
+
+test('cycleRun refuses a result whose completeness contradicts its zones', async () => {
+  const { fetchStub } = await connectedSession();
+
+  // `cycle.Runner` starts RunResult.Complete at true and sets it to false exactly
+  // when a zone fails, so the Go invariant is a biconditional: complete is true IF
+  // AND ONLY IF every zone published and carries no error. A payload that states
+  // otherwise contradicts itself, and the page must not claim a publication from
+  // it — a "complete" cycle with a failed zone and an "incomplete" cycle with no
+  // failure are both unusable.
+  const envelope = { source_id: 'fixture-sample', started_at: '2026-11-27T10:00:00Z', finished_at: '2026-11-27T10:00:01Z' };
+  for (const body of [
+    // complete = true with a zone that did not publish.
+    { ...envelope, complete: true, zones: [{ zone_id: '05101', published: false }] },
+    { ...envelope, complete: true, zones: [{ zone_id: '05101', published: false, error: 'validation_failed' }] },
+    // a published zone that nevertheless reports an error is a failed zone too.
+    { ...envelope, complete: true, zones: [{ zone_id: '05101', published: true, error: 'late_error' }] },
+    { ...envelope, complete: true, zones: [{ zone_id: '05101', published: true }, { zone_id: '05102', published: false }] },
+    // complete = false with every zone published, including no zone at all.
+    { ...envelope, complete: false, zones: [{ zone_id: '05101', published: true }] },
+    { ...envelope, complete: false, zones: [] },
+  ]) {
+    const run = cycleRun();
+    await flush();
+    fetchStub.answer(`${gatewayOrigin}/v1/risk/cycle/run`, body);
+    const failure = expectFailure(await run);
+    expect(failure.kind, JSON.stringify(body)).toBe('malformed');
+    expect(failure.reason, JSON.stringify(body)).toBe('invalid_shape');
+  }
+});
+
+test('cycleRun accepts the two combinations the Go invariant allows', async () => {
+  const { fetchStub } = await connectedSession();
+  const envelope = { source_id: 'fixture-sample', started_at: '2026-11-27T10:00:00Z', finished_at: '2026-11-27T10:00:01Z' };
+
+  // complete = true and nothing failed, including a cycle with no configured zone.
+  for (const body of [
+    { ...envelope, complete: true, zones: [{ zone_id: '05101', published: true }, { zone_id: '05102', published: true }] },
+    { ...envelope, complete: true, zones: [] },
+    // complete = false and at least one zone failed.
+    { ...envelope, complete: false, zones: [{ zone_id: '05101', published: true }, { zone_id: '05102', published: false, error: 'validation_failed' }] },
+    { ...envelope, complete: false, zones: [{ zone_id: '05101', published: false }] },
+  ]) {
+    const run = cycleRun();
+    await flush();
+    fetchStub.answer(`${gatewayOrigin}/v1/risk/cycle/run`, body);
+    const outcome = await run;
+    if (!outcome.ok) throw new Error(`expected a concrete answer for ${JSON.stringify(body)}, got ${outcome.failure.reason}`);
+    expect(outcome.data.complete, JSON.stringify(body)).toBe(body.complete);
+  }
+});
+
+test('the batch provenance is a typed BatchCore member the boundary validates', async () => {
+  const { fetchStub } = await connectedSession();
+
+  // `BatchCore` declares `evaluation_trigger` (scheduler | manual) and
+  // `evaluated_by`, so the shared API type carries them and the view reads a typed
+  // member instead of casting a record. The wire is still not a runtime guarantee:
+  // a member of the wrong type is a contract violation and fails closed.
+  const read = latest('05101');
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/latest?zone_id=05101`, {
+    ...batch(),
+    evaluation_trigger: 'manual',
+    evaluated_by: 'operator-ana',
+  });
+  const outcome = await read;
+  if (!outcome.ok || outcome.data === null) throw new Error('expected a published batch with provenance');
+  expect(outcome.data.evaluation_trigger).toBe('manual');
+  expect(outcome.data.evaluated_by).toBe('operator-ana');
+
+  // A scheduled evaluation records no actor: null and absent are both accepted.
+  const scheduled = latest('05101');
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/latest?zone_id=05101`, {
+    ...batch(),
+    evaluation_trigger: 'scheduler',
+    evaluated_by: null,
+  });
+  const scheduledOutcome = await scheduled;
+  if (!scheduledOutcome.ok || scheduledOutcome.data === null) throw new Error('expected a scheduled batch');
+  expect(scheduledOutcome.data.evaluation_trigger).toBe('scheduler');
+  expect(scheduledOutcome.data.evaluated_by).toBeNull();
+
+  for (const overrides of [
+    { evaluation_trigger: 5 },
+    { evaluation_trigger: true },
+    { evaluated_by: 5 },
+    { evaluated_by: {} },
+    { evaluation_trigger: 'manual', evaluated_by: ['operator-ana'] },
+  ]) {
+    const malformed = latest('05101');
+    await flush();
+    fetchStub.answer(`${gatewayOrigin}/v1/risk/latest?zone_id=05101`, { ...batch(), ...overrides });
+    const failure = expectFailure(await malformed);
+    expect(failure.kind, JSON.stringify(overrides)).toBe('malformed');
+    expect(failure.reason, JSON.stringify(overrides)).toBe('invalid_shape');
+  }
+});
+
+test('cycleRun keeps 401, 403 and 503 as three distinct answers', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const denied = cycleRun();
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/cycle/run`, { code: 'forbidden' }, 403, 'req-403');
+  expect(expectFailure(await denied)).toEqual({
+    kind: 'forbidden',
+    reason: 'forbidden',
+    status: 403,
+    requestId: 'req-403',
+  });
+  expect(getSessionSnapshot().status).toBe('signed-in');
+
+  const unavailable = cycleRun();
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/cycle/run`, { code: 'cycle_unavailable' }, 503, 'req-503');
+  expect(expectFailure(await unavailable)).toEqual({
+    kind: 'unavailable',
+    reason: 'cycle_unavailable',
+    status: 503,
+    requestId: 'req-503',
+  });
+  expect(getSessionSnapshot().status).toBe('signed-in');
+
+  const rejected = cycleRun();
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/cycle/run`, { code: 'unauthorized' }, 401, 'req-401');
   expect(expectFailure(await rejected)).toEqual({
     kind: 'unauthorized',
     reason: 'unauthorized',

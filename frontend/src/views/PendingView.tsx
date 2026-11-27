@@ -31,6 +31,15 @@ export type UnimplementedCapability = {
 // and `#history` renders that series. A retired entry is not kept here as a
 // "recently fixed" note: an absence list that also lists what exists is no longer
 // a statement of what the page cannot do.
+//
+// V1-P-06 retired «Publicar lote, avance manual y reevaluación»: the three G6
+// actions exist as authenticated endpoints with a role gate — `POST
+// /v1/risk/cycle/run` (admin-only manual publication, offered by `#jobs`),
+// `POST /v1/prevention/actions/{id}/transitions` and `POST
+// /v1/prevention/actions/{id}/reassessments` (both in `#actions`) — and one test
+// covers the role rejection of each together with the state it leaves published.
+// The entry declared the opposite, so it leaves the inventory and the count is
+// the four rows that remain.
 // eslint-disable-next-line react-refresh/only-export-components
 export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
   {
@@ -56,12 +65,6 @@ export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
     reason:
       'GET /v1/risk/sources publica la procedencia y la integridad reales; no existe un catálogo de hallazgos de calidad. Las acciones preventivas viven ahora en su propia vista (#actions).',
     location: 'Fuentes y procedencia',
-  },
-  {
-    capability: 'Publicar lote, avance manual y reevaluación',
-    reason:
-      'No existe endpoint: el servidor decide y publica por su cuenta; la página solo solicita el trabajo y lee el resultado.',
-    location: 'Procesamiento asíncrono',
   },
 ];
 

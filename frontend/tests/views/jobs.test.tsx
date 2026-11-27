@@ -1,8 +1,8 @@
 import { act, fireEvent, render } from '@testing-library/react';
 
-import { clearZoneState, getJobProgress, selectZone } from '../../src/app/store';
+import { clearZoneState, getJobProgress, getZoneLevels, selectZone } from '../../src/app/store';
 import { gatewayOrigin, issuer, pkceTransactionKey, timing } from '../../src/config';
-import { completeLogin, resetSession } from '../../src/core/session';
+import { completeLogin, getSessionSnapshot, resetSession } from '../../src/core/session';
 import { JobsView } from '../../src/views/JobsView';
 
 import { createCryptoStub, createFetchStub, flush, jwt } from '../core/harness';
@@ -17,6 +17,7 @@ import { createCryptoStub, createFetchStub, flush, jwt } from '../core/harness';
 const JOBS_URL = `${gatewayOrigin}/v1/jobs`;
 const JOB_URL = `${gatewayOrigin}/v1/jobs/job`;
 const SCENARIOS_URL = `${gatewayOrigin}/v1/risk/synthetic-scenarios`;
+const CYCLE_URL = `${gatewayOrigin}/v1/risk/cycle/run`;
 const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
 
 function latestUrl(zone: string): string {
@@ -27,7 +28,7 @@ function historyUrl(zone: string): string {
   return `${gatewayOrigin}/v1/risk/history?zone_id=${zone}`;
 }
 
-function batch(zone = '05101', id = 'batch', jobId = 'job') {
+function batch(zone = '05101', id = 'batch', jobId = 'job', provenance: Record<string, unknown> = {}) {
   return {
     zone_id: zone,
     id,
@@ -38,6 +39,20 @@ function batch(zone = '05101', id = 'batch', jobId = 'job') {
     rationale: 'Regla académica',
     policy: { policy_id: 'academic-rule-v1', params_hash: 'hash', parameters: { weight: '0.2' } },
     notice: 'Sintético',
+    ...provenance,
+  };
+}
+
+// One published zone, as `POST /v1/risk/cycle/run` serves it.
+function cycleResult(published = true) {
+  return {
+    source_id: 'fixture-sample',
+    started_at: '2026-11-27T10:00:00Z',
+    finished_at: '2026-11-27T10:00:01Z',
+    complete: published,
+    zones: [
+      published ? { zone_id: '05101', published: true } : { zone_id: '05101', published: false, error: 'validation_failed' },
+    ],
   };
 }
 
@@ -149,10 +164,17 @@ test('the section keeps its identity, the admin-only statement and the unimpleme
   expect(section).toHaveTextContent(/ACCIÓN ADMINISTRATIVA/);
   expect(section).toHaveTextContent(/requiere permisos de administrador/);
 
-  // The "not implemented" declaration stays inside the view: publishing,
-  // manual advance and re-evaluation have no endpoint.
-  expect(section).toHaveTextContent(/Publicar lote/i);
-  expect(section).toHaveTextContent(/NO IMPLEMENTADO/i);
+  // V1-P-06 — the obsolete absence is retired. The manual publication exists as
+  // `POST /v1/risk/cycle/run`, so the view offers it as a real control, states its
+  // administrative gate and points manual advance and re-evaluation at `#actions`,
+  // where they really live. It no longer declares any of the three missing.
+  expect(document.getElementById('publish-batch')).not.toBeNull();
+  expect(document.getElementById('cycle-status')).not.toBeNull();
+  expect(document.getElementById('batch-provenance')).not.toBeNull();
+  expect(section).not.toHaveTextContent(/NO IMPLEMENTADO/i);
+  expect(section).not.toHaveTextContent(/no existen? como endpoint/i);
+  expect(section).toHaveTextContent(/#actions/);
+  expect(element('cycle-note')).toHaveTextContent(/requiere admin/i);
 });
 
 test('requesting a batch posts the selected zone with a fresh idempotency key per creation', async () => {
@@ -518,4 +540,148 @@ test('the flow panel states the real server sequence and offers no simulated act
   // outside it.
   expect(flow?.querySelectorAll('button, a, input, select')).toHaveLength(0);
   expect(flow?.querySelector('#create-job')).toBeNull();
+});
+
+// ── V1-P-06 — manual publication, its provenance and its refusals ─────────
+// The three G6 actions now exist as authenticated endpoints with a role gate.
+// This view offers the one that belongs to it — publishing a batch now — and
+// shows the provenance the publication records, instead of claiming that no
+// endpoint exists. The route takes no body: the actor is the verified token
+// subject, so the page must never send one.
+test('manual publication posts an empty body and reports the cycle it ran', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('publish-batch'));
+  await flush();
+
+  const calls = fetchStub.callsFor(CYCLE_URL);
+  expect(calls).toHaveLength(1);
+  expect(calls[0].init.method).toBe('POST');
+  // No body and no client-supplied actor: the server reads the operator from the
+  // verified token and refuses any body that names one.
+  expect(calls[0].init.body).toBeUndefined();
+  expect(Object.keys((calls[0].init.headers ?? {}) as Record<string, string>)).not.toContain('Idempotency-Key');
+
+  await answer(CYCLE_URL, cycleResult());
+
+  expect(element('cycle-status')).toHaveTextContent(/completo/i);
+  expect(element('cycle-status')).toHaveTextContent(/1 zona publicada/i);
+  expect(element<HTMLButtonElement>('publish-batch')).not.toBeDisabled();
+});
+
+test('a published batch shows the provenance the evaluation recorded', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('publish-batch'));
+  await flush();
+  await answer(CYCLE_URL, cycleResult());
+
+  // The page re-reads the selected zone's last batch, which is what the risk
+  // views paint, and states who produced it.
+  expect(fetchStub.callsFor(latestUrl('05101'))).toHaveLength(1);
+  await answer(latestUrl('05101'), batch('05101', 'batch-cycle', 'job-cycle', {
+    evaluation_trigger: 'manual',
+    evaluated_by: 'operator-ana',
+  }));
+
+  const provenance = element('batch-provenance');
+  expect(provenance).toHaveTextContent(/manual/i);
+  expect(provenance).toHaveTextContent('operator-ana');
+  expect(provenance).toHaveTextContent(/batch-cycle/);
+  expect(getZoneLevels().get('05101')).toBe('alto');
+});
+
+test('a scheduled batch states that nobody requested the evaluation', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('publish-batch'));
+  await flush();
+  await answer(CYCLE_URL, cycleResult());
+  await answer(latestUrl('05101'), batch('05101', 'batch-auto', 'job-auto', {
+    evaluation_trigger: 'scheduler',
+    evaluated_by: null,
+  }));
+
+  const provenance = element('batch-provenance');
+  expect(provenance).toHaveTextContent(/programada/);
+  // A scheduled run has no actor, and the panel says so instead of inventing one.
+  expect(provenance).toHaveTextContent(/sin operador|nadie la solicitó/i);
+});
+
+test('a viewer is refused with the role message and no publication is claimed', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('publish-batch'));
+  await flush();
+  await answer(CYCLE_URL, { code: 'forbidden' }, 403);
+
+  expect(element('cycle-status')).toHaveTextContent(/denegó el permiso para publicar el lote ahora \(403\)/);
+  expect(element('cycle-status')).toHaveTextContent(/viewer/);
+  // Nothing was published, so nothing is read back and nothing is claimed.
+  expect(fetchStub.callsFor(latestUrl('05101'))).toHaveLength(0);
+  expect(element<HTMLButtonElement>('publish-batch')).not.toBeDisabled();
+});
+
+test('an unauthenticated answer closes the session instead of reporting a publication', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('publish-batch'));
+  await flush();
+  await answer(CYCLE_URL, { code: 'unauthorized' }, 401);
+
+  // 401 is not a 403: the token was refused, so the session closes and the view
+  // states the rejection rather than a permission decision.
+  expect(getSessionSnapshot().status).toBe('signed-out');
+  expect(element('cycle-status')).toHaveTextContent(/rechazó el token \(401\)/);
+  expect(element<HTMLButtonElement>('publish-batch')).toBeDisabled();
+  expect(fetchStub.callsFor(latestUrl('05101'))).toHaveLength(0);
+});
+
+test('a gateway with no cycle configured states the 503 instead of an empty publication', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('publish-batch'));
+  await flush();
+  await answer(CYCLE_URL, { code: 'cycle_unavailable' }, 503);
+
+  expect(element('cycle-status')).toHaveTextContent(/cycle_unavailable/);
+  expect(element('cycle-status')).toHaveTextContent(/503/);
+  expect(element('cycle-status')).not.toHaveTextContent(/publicado/i);
+  expect(fetchStub.callsFor(latestUrl('05101'))).toHaveLength(0);
+});
+
+test('an incomplete cycle names the zones that failed and still reads the selected one back', async () => {
+  await connect();
+  await mount();
+  await serveCatalogue();
+
+  fireEvent.click(element('publish-batch'));
+  await flush();
+  await answer(CYCLE_URL, cycleResult(false));
+
+  expect(element('cycle-status')).toHaveTextContent(/incompleto/i);
+  expect(element('cycle-status')).toHaveTextContent('05101');
+  expect(element('cycle-status')).toHaveTextContent('validation_failed');
+});
+
+test('the manual publication is unavailable without a session', async () => {
+  await mount();
+  await flush();
+
+  const button = element<HTMLButtonElement>('publish-batch');
+  expect(button).toBeDisabled();
+  expect(element('cycle-status')).toHaveTextContent(/conecta un token autorizado/i);
+  expect(fetchStub.callsFor(CYCLE_URL)).toHaveLength(0);
 });

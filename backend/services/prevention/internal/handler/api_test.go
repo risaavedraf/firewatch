@@ -347,6 +347,78 @@ func TestTransitionRouteMatchesTheFrozenContract(t *testing.T) {
 	}
 }
 
+// V1-P-06 (S1-S2): the manual advance is one of the three G6 actions, and the
+// criterion asks for one test that covers the role rejection AND the state the
+// accepted call leaves. 401 and 403 are answered before the store is reached — the
+// action keeps its status and no history row is appended — while the admin's 200
+// is the transition really applied: the new status, exactly one history row, and
+// the verified token subject as its actor.
+func TestTransitionRoleGateAndResultingState(t *testing.T) {
+	for _, tc := range []struct {
+		name, role string
+		want       int
+	}{
+		{"unauthenticated is refused", "", http.StatusUnauthorized},
+		{"viewer is refused", "viewer", http.StatusForbidden},
+		{"admin advances the action", "admin", http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &matrixStore{status: state.Propuesta, action: repository.Action{ID: fixedActionID, Status: string(state.Propuesta)}}
+			h, signer := app(t, store)
+			w := requestWith(t, h, http.MethodPost,
+				"/v1/prevention/actions/"+fixedActionID+"/transitions",
+				bearerFor(t, signer, tc.role),
+				`{"to":"asignada","note":"turno noche"}`)
+
+			if w.Code != tc.want {
+				t.Fatalf("answered %d, want %d: %s", w.Code, tc.want, w.Body.String())
+			}
+			if tc.want != http.StatusOK {
+				// State unchanged: nothing reached storage, so the action is exactly
+				// where it was and no history row claims otherwise.
+				if store.transitions != 0 {
+					t.Errorf("a refused request reached storage %d times", store.transitions)
+				}
+				if store.status != state.Propuesta {
+					t.Errorf("a refused request changed the status to %q", store.status)
+				}
+				if len(store.history) != 0 {
+					t.Errorf("a refused request appended history: %+v", store.history)
+				}
+				return
+			}
+			if store.transitions != 1 {
+				t.Fatalf("the route called the store's transition %d times, want 1", store.transitions)
+			}
+			if store.status != state.Asignada {
+				t.Errorf("status %q after the transition, want asignada", store.status)
+			}
+			if store.note != "turno noche" {
+				t.Errorf("note %q must reach storage", store.note)
+			}
+			if len(store.history) != 1 {
+				t.Fatalf("the applied transition appended %d history rows, want 1: %+v", len(store.history), store.history)
+			}
+			entry := store.history[0]
+			if entry.FromStatus != string(state.Propuesta) || entry.ToStatus != string(state.Asignada) {
+				t.Errorf("history recorded %s -> %s", entry.FromStatus, entry.ToStatus)
+			}
+			if entry.ActorSub != "operator-1" {
+				t.Errorf("history actor %q, want the verified token subject", entry.ActorSub)
+			}
+			var got struct {
+				Status string `json:"status"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if got.Status != string(state.Asignada) {
+				t.Errorf("response status %q, want asignada", got.Status)
+			}
+		})
+	}
+}
+
 func TestTransitionRouteRejectsUnknownTargetStateWithoutCallingTheStore(t *testing.T) {
 	for _, target := range []string{"", "PENDIENTE", "pending", "en curso", "asignada "} {
 		t.Run(target, func(t *testing.T) {

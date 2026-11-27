@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { latestOutcome, presentBatch } from '../../src/domain/batch';
+import { batchProvenance, latestOutcome, presentBatch } from '../../src/domain/batch';
 
 function validBatch(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -91,5 +91,56 @@ describe('fail-closed batch acceptance', () => {
     expect(latestOutcome(403)).toBe('forbidden');
     expect(latestOutcome(500)).toBe('error');
     expect(latestOutcome(404)).toBe('no-published-batch');
+  });
+});
+
+// V1-P-06 — the provenance of the evaluation that produced a batch. `BatchCore`
+// declares `evaluation_trigger` (`scheduler` or `manual`) and `evaluated_by`: the
+// verified token subject of the operator who asked for a manual evaluation, and
+// null for a scheduled one, because a run nobody requested has no actor. The page
+// shows what the payload proves and says "no informada" for anything else — it
+// never upgrades a missing or contradictory provenance into a manual publication.
+describe('evaluation provenance on a published batch', () => {
+  test('a manual evaluation names the operator the token carried', () => {
+    const provenance = batchProvenance(validBatch({ evaluation_trigger: 'manual', evaluated_by: 'operator-ana' }));
+    expect(provenance.reported).toBe(true);
+    expect(provenance.trigger).toBe('manual');
+    expect(provenance.actor).toBe('operator-ana');
+    expect(provenance.label).toContain('manual');
+    expect(provenance.label).toContain('operator-ana');
+  });
+
+  test('a scheduled evaluation says nobody requested it, instead of inventing an actor', () => {
+    const provenance = batchProvenance(validBatch({ evaluation_trigger: 'scheduler', evaluated_by: null }));
+    expect(provenance.reported).toBe(true);
+    expect(provenance.trigger).toBe('scheduler');
+    expect(provenance.actor).toBe('');
+    expect(provenance.label).toContain('programada');
+    expect(provenance.label).toContain('nadie la solicitó');
+  });
+
+  test('a missing, unknown or contradictory provenance is reported as not informed', () => {
+    for (const overrides of [
+      {},
+      { evaluation_trigger: 'MANUAL' },
+      { evaluation_trigger: 'cron' },
+      { evaluation_trigger: 'manual' },
+      { evaluation_trigger: 'manual', evaluated_by: '' },
+      { evaluation_trigger: 'manual', evaluated_by: 7 },
+      // A scheduled run has no actor, so an actor there contradicts the contract.
+      { evaluation_trigger: 'scheduler', evaluated_by: 'operator-ana' },
+    ]) {
+      const provenance = batchProvenance(validBatch(overrides));
+      expect(provenance.reported, JSON.stringify(overrides)).toBe(false);
+      expect(provenance.trigger, JSON.stringify(overrides)).toBe('');
+      expect(provenance.actor, JSON.stringify(overrides)).toBe('');
+      expect(provenance.label).toContain('no informada');
+    }
+  });
+
+  test('something that is not a batch reports no provenance at all', () => {
+    for (const batch of [null, undefined, 5, 'batch', []]) {
+      expect(batchProvenance(batch).reported).toBe(false);
+    }
   });
 });
