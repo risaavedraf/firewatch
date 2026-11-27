@@ -51,7 +51,7 @@
 
 .notification-page-label {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
 }
 
@@ -76,7 +76,7 @@
   border-radius: 4px;
   background: var(--soft);
   color: var(--ink);
-  font-size: 8px;
+  font-size: 0.5rem;
   font-weight: 850;
   letter-spacing: 0.04em;
 }
@@ -100,7 +100,7 @@
 
 .notification-demo,
 .notification-provenance {
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
 }
 
@@ -155,7 +155,7 @@
 
 #notifications .notification-empty h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   letter-spacing: -0.4px;
 }
 
@@ -163,7 +163,7 @@
   max-width: 68ch;
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.65;
 }
 
@@ -174,13 +174,13 @@
   margin: 2px 0 0;
   padding-left: 16px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.65;
 }
 
 #notifications .notification-empty-points code {
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 
 @media (max-width: 720px) {

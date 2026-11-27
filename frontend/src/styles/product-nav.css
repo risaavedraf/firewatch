@@ -51,7 +51,7 @@
   border-bottom: 1px solid var(--line);
   background: var(--paper);
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.3;
 }
 
@@ -102,7 +102,7 @@
   border-radius: 7px;
   background: transparent;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 650;
   white-space: nowrap;
   cursor: pointer;
@@ -121,7 +121,7 @@
 }
 
 .product-nav__chevron {
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1;
   transition: transform 0.15s;
 }
@@ -155,7 +155,7 @@
 .product-nav__panel-title {
   margin: 0 0 10px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 1.4px;
   text-transform: uppercase;
@@ -170,7 +170,7 @@
 .product-nav__group-title {
   margin: 0 0 4px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 1.4px;
   text-transform: uppercase;
@@ -191,7 +191,7 @@
   padding: 3px 8px;
   border-radius: 5px;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.35;
   text-decoration: none;
@@ -216,7 +216,7 @@
   padding-top: 8px;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.5;
 }
 
@@ -225,7 +225,7 @@
   margin: 0 0 0 auto;
   overflow: hidden;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -233,7 +233,7 @@
 .product-nav__where-label {
   margin-right: 6px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 1.2px;
   text-transform: uppercase;

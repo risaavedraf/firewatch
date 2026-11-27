@@ -50,7 +50,7 @@
   border-radius: 9px;
   background: var(--soft);
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.6;
   text-align: left;
 }
@@ -66,7 +66,7 @@
 #simulator .field-state > strong,
 #observations .field-state > strong {
   color: var(--ink);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 650;
   letter-spacing: -.2px;
   line-height: 1.35;
@@ -169,7 +169,7 @@
 #actions .actions-lede {
   max-width: 76ch;
   margin: 0 0 10px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.6;
 }
 
@@ -195,12 +195,12 @@
   gap: 8px 12px;
   margin: 2px 0 10px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 
 #actions .actions-detail-code {
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 650;
   overflow-wrap: anywhere;
 }
@@ -222,7 +222,7 @@
   display: block;
   margin: 0 0 3px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -231,7 +231,7 @@
 #actions .actions-description-text {
   margin: 0;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -255,7 +255,7 @@
 
 #actions #action-detail-fields dt {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -264,7 +264,7 @@
 #actions #action-detail-fields dd {
   max-width: none;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 650;
   text-align: left;
 }
@@ -287,7 +287,7 @@
 #actions .actions-fieldset legend {
   padding: 0 4px;
   color: var(--accent);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -340,7 +340,7 @@
   border-radius: 4px;
   background: var(--soft);
   color: var(--accent);
-  font-size: 8px;
+  font-size: 0.5rem;
   font-weight: 850;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -377,7 +377,7 @@
   border-radius: 5px;
   background: var(--soft);
   color: var(--ink);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -385,7 +385,7 @@
 
 #observations .observation-zone strong {
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 650;
 }
 

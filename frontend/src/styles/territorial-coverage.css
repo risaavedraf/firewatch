@@ -46,7 +46,7 @@
    no el `h3` global: la etapa es el encabezado de una región, no una nota. */
 #infrastructure .coverage-stage-head h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 650;
   letter-spacing: -.3px;
 }
@@ -55,7 +55,7 @@
   max-width: 78ch;
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.6;
 }
 
@@ -129,7 +129,7 @@
 
 #infrastructure .coverage-rail-head h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: -.2px;
 }
@@ -137,7 +137,7 @@
 #infrastructure .coverage-rail-note {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.55;
 }
 
@@ -192,14 +192,14 @@
 
 #infrastructure .coverage-zone {
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
 #infrastructure .coverage-figure {
   color: var(--accent);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: .03em;
   white-space: nowrap;
@@ -223,7 +223,7 @@
 
 #infrastructure .coverage-entry-types {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -232,7 +232,7 @@
 #infrastructure .infrastructure-zone-coverage {
   margin: 0 0 6px;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
   line-height: 1.55;
 }
@@ -262,7 +262,7 @@
 
 #infrastructure .coverage-note h3 {
   margin: 0 0 9px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: -.2px;
 }
@@ -281,14 +281,14 @@
 
 #infrastructure .coverage-reading dt {
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 800;
 }
 
 #infrastructure .coverage-reading dd {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.55;
 }
 
@@ -305,7 +305,7 @@
   align-items: center;
   min-height: 36px;
   color: var(--accent);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.4;
   text-decoration: underline;
@@ -320,7 +320,7 @@
   display: block;
   margin-top: -2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.5;
 }
 

@@ -333,12 +333,18 @@ test('the 3D stage paints a deep coastal scene, never a pale flat map (T12)', ()
     expect(aerialRulesSource.toLowerCase(), `the route must not paint ${pale}`).not.toContain(pale);
   }
 
-  // The unread comuna keeps a dark slate boundary and lets the relief through
-  // instead of a light grey plate at full opacity.
+  // The unread comuna keeps a dark slate boundary and paints its plate at the
+  // strength the 3:1 minimum requires instead of a translucent wash: the old
+  // `fill-opacity: .34` let the illustrative relief through but measured 1.62:1 on
+  // `--canvas` against the 3:1 SC 1.4.11 minimum, so the plate is now the measured
+  // token fill (4.76 · 4.03 · 3.47 over canvas, water and the inset gradient). The
+  // measured contract lives in `tests/a11y/wcag-conformance.test.ts`; what this
+  // pins is that the outline stays the system boundary and that no dimming comes
+  // back under the threshold.
   const neutral = viewRules().find(rule => rule.selector === '#overview .map-3d .zone-neutral');
   expect(neutral, 'the 3D neutral comuna rule is missing').toBeDefined();
   expect(colour(declaredIn(neutral!, 'stroke'))).toBe(token('edge-strong'));
-  expect(Number.parseFloat(declaredIn(neutral!, 'fill-opacity') ?? '1')).toBeLessThan(0.5);
+  expect(Number.parseFloat(declaredIn(neutral!, 'fill-opacity') ?? '1')).toBeGreaterThanOrEqual(0.88);
 
   const selected = viewRules().find(rule => rule.selector === '#overview .map-3d .zone-selected');
   expect(selected, 'the 3D selection outline is missing').toBeDefined();
