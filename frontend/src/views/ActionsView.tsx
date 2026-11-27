@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } fro
 
 import { idleCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
+import { FieldStateCard } from '../components/field-work/FieldStateCard';
 import { PanelHeading, StatusCopy, TableWrap } from '../components/ui';
 import { timing } from '../config';
 import {
@@ -39,6 +40,7 @@ import {
   transitionAffordances,
 } from '../domain';
 import type { PreventiveAction, PreventiveActionDetail, Scenario } from '../types/api';
+import '../styles/field-workspace.css';
 
 // S3 / T12 — the preventive-action view, built against the frozen contract in
 // `odd/tasks/presentation-client-ready.md` §«Contrato congelado de prevention».
@@ -612,8 +614,14 @@ export function ActionsView() {
     setApplied({ communityCode: '', status: '' });
   }
 
-  const filteredToNothing =
-    list.phase === 'read' && list.actions.length === 0 && (applied.communityCode !== '' || applied.status !== '');
+  const filtersApplied = applied.communityCode !== '' || applied.status !== '';
+  const filteredToNothing = list.phase === 'read' && list.actions.length === 0 && filtersApplied;
+  // Three different facts reach this panel with an empty table: a read that
+  // returned no row, a filter that matched none, and a read that failed. The
+  // designed card is chosen from the state, and the filtered one keeps the reset
+  // because the filter is what would change the answer.
+  const emptyRead = list.phase === 'read' && list.actions.length === 0 && !filtersApplied;
+  const listRefused = list.phase === 'denied' || list.phase === 'unavailable';
 
   function openDetail(id: string): void {
     setNotice('');
@@ -908,6 +916,7 @@ export function ActionsView() {
 
   return (
     <section className="view" id="actions" data-view="actions" aria-labelledby="actions-title">
+      <div className="actions-workbench">
       <article className="panel actions-panel">
         <PanelHeading
           eyebrow="PREVENCIÓN"
@@ -915,11 +924,27 @@ export function ActionsView() {
           titleId="actions-title"
           level={2}
           badge={
-            <span className="neutral-tag" id="actions-badge">
-              {signedIn ? list.badge : 'SIN CONSULTAR'}
-            </span>
+            <div className="actions-head-badges">
+              <span className="neutral-tag" id="actions-badge">
+                {signedIn ? list.badge : 'SIN CONSULTAR'}
+              </span>
+              {/* The count only exists once a response does: a number before the
+                  read would describe nothing. It repeats the rows the service
+                  returned, with the noun, because a bare number has no subject. */}
+              {list.phase === 'read' ? (
+                <span className="count-badge" id="actions-count">
+                  {`${list.actions.length} ${list.actions.length === 1 ? 'acción' : 'acciones'}`}
+                </span>
+              ) : null}
+            </div>
           }
         />
+        {/* Board 06 opens the screen by stating its scope. The sentence only
+            names what every control below already does. */}
+        <p className="subheading actions-lede" id="actions-lede">
+          Una acción a la vez: la lista y el detalle los sirve el servicio, y el alta, la transición, la evidencia y la
+          reevaluación son escrituras que el servidor decide y registra.
+        </p>
         <p
           id="actions-status"
           className={list.phase === 'read' ? 'status-copy risk-good' : 'status-copy'}
@@ -940,7 +965,10 @@ export function ActionsView() {
           realm cuando la sesión puede leerlo; el texto libre heredado se muestra tal como lo guardó el servicio.
         </p>
 
-        <form className="filter-bar actions-filters" onSubmit={applyFilters}>
+        <p className="eyebrow actions-filters-label" id="actions-filters-label">
+          Filtros de la cola
+        </p>
+        <form className="filter-bar actions-filters" aria-labelledby="actions-filters-label" onSubmit={applyFilters}>
           <label className="filter-label" htmlFor="actions-community-filter">
             Comunidad (CUT)
             <input
@@ -985,22 +1013,60 @@ export function ActionsView() {
         </form>
 
         {filteredToNothing ? (
-          <div id="actions-filter-empty" className="empty-state">
-            <strong>No hay acciones que coincidan con este filtro.</strong>
+          <FieldStateCard
+            id="actions-filter-empty"
+            tone="filtered"
+            eyebrow="FILTRO SIN RESULTADOS"
+            title="No hay acciones que coincidan con este filtro."
+            action={
+              <button
+                id="actions-clear-filters"
+                className="secondary-button"
+                type="button"
+                disabled={!signedIn || writePending}
+                onClick={clearFilters}
+              >
+                Limpiar filtros
+              </button>
+            }
+          >
             <p>Quita los filtros para consultar la lista completa del servicio.</p>
-            <button
-              id="actions-clear-filters"
-              className="secondary-button"
-              type="button"
-              disabled={!signedIn || writePending}
-              onClick={clearFilters}
-            >
-              Limpiar filtros
-            </button>
-          </div>
+          </FieldStateCard>
         ) : null}
 
-        <TableWrap label="Listado de acciones preventivas">
+        {emptyRead ? (
+          <FieldStateCard
+            id="actions-empty"
+            eyebrow="LISTA VACÍA · RESPUESTA DEL SERVICIO"
+            title="El servicio no devolvió acciones preventivas."
+          >
+            <p>
+              La lectura de <code>/v1/prevention/actions</code> se completó sin filas. La tabla no se rellena con
+              ejemplos: el alta crea la primera acción real y la lista se vuelve a leer del servicio.
+            </p>
+          </FieldStateCard>
+        ) : null}
+
+        {listRefused ? (
+          <FieldStateCard
+            id="actions-state"
+            tone="error"
+            eyebrow={list.phase === 'denied' ? 'SIN PERMISO' : 'NO DISPONIBLE'}
+            title={
+              list.phase === 'denied'
+                ? 'El servidor denegó la lectura de la lista.'
+                : 'La lista de acciones no está disponible.'
+            }
+          >
+            <p>
+              {list.phase === 'denied'
+                ? 'El detalle técnico queda en la línea de estado de arriba, con el estado HTTP y el request_id cuando el servidor lo envía. Solicita acceso a un administrador antes de reintentar; la página no concede el permiso.'
+                : 'El detalle técnico queda en la línea de estado de arriba, con el estado HTTP y el request_id cuando el servidor lo envía. «Actualizar lista» vuelve a intentarlo; la tabla no se rellena con filas locales.'}
+            </p>
+          </FieldStateCard>
+        ) : null}
+
+        <TableWrap label="Listado de acciones preventivas" hidden={list.actions.length === 0}>
           <table id="actions-table">
             <caption className="sr-only">Acciones preventivas devueltas por el servicio</caption>
             <thead>
@@ -1054,18 +1120,35 @@ export function ActionsView() {
             level={2}
           />
           <StatusCopy id="action-detail-status">{detailMessage}</StatusCopy>
-          <dl className="data-list compact" id="action-detail-fields">
-            <div>
-              <dt>Identificador</dt>
-              <dd>{selected !== null ? selected.id : 'No disponible'}</dd>
+          {/* Board 06's detail opens with the action's identity — its state, its
+              identifier and its deadline — before the facts. The three values
+              are the same ones the list row and the response carry; the strip
+              states them once, which is why the list below no longer repeats
+              them. */}
+          {selected !== null ? (
+            <p className="actions-detail-id" id="action-detail-statusline">
+              <span className="chip" data-status={selected.status}>
+                <span className="chip-dot" aria-hidden="true" />
+                {actionStatusLabel(selected.status)}
+              </span>
+              <code className="actions-detail-code" id="action-detail-code">
+                {selected.id}
+              </code>
+              <span className="actions-detail-due" id="action-detail-due">
+                Vence <strong>{field(selected.due_date)}</strong>
+              </span>
+            </p>
+          ) : null}
+          {selected !== null ? (
+            <div className="actions-description" id="action-detail-description">
+              <p className="actions-description-label">Descripción</p>
+              <p className="actions-description-text">{field(selected.description)}</p>
             </div>
+          ) : null}
+          <dl className="data-list compact" id="action-detail-fields">
             <div>
               <dt>Comunidad (CUT)</dt>
               <dd>{selected !== null ? selected.community_code : 'No disponible'}</dd>
-            </div>
-            <div>
-              <dt>Estado</dt>
-              <dd>{selected !== null ? selected.status : 'No disponible'}</dd>
             </div>
             <div>
               <dt>Prioridad</dt>
@@ -1074,10 +1157,6 @@ export function ActionsView() {
             <div>
               <dt>Responsable</dt>
               <dd>{selected !== null ? assigneeLabel(selected, assigneeNames) : 'No disponible'}</dd>
-            </div>
-            <div>
-              <dt>Fecha límite</dt>
-              <dd>{selected !== null ? field(selected.due_date) : 'No disponible'}</dd>
             </div>
             <div>
               <dt>Creada por</dt>
@@ -1392,6 +1471,7 @@ export function ActionsView() {
           ) : null}
         </article>
       ) : null}
+      </div>
 
       <article className="panel actions-create" aria-labelledby="action-create-title">
         <PanelHeading eyebrow="ALTA" title="Nueva acción preventiva" titleId="action-create-title" level={2} />
@@ -1400,100 +1480,118 @@ export function ActionsView() {
           responsable en el directorio del realm cuando se elige uno y responde con el estado real.
         </p>
         <form className="actions-form" onSubmit={submitCreate}>
-          <label htmlFor="create-community">
-            Comunidad (CUT)
-            <input
-              id="create-community"
-              type="text"
-              required
-              value={form.communityCode}
-              disabled={!admin || writePending}
-              onChange={event => setForm(previous => ({ ...previous, communityCode: event.target.value }))}
-            />
-          </label>
-          <label htmlFor="create-title">
-            Título
-            <input
-              id="create-title"
-              type="text"
-              required
-              value={form.title}
-              disabled={!admin || writePending}
-              onChange={event => setForm(previous => ({ ...previous, title: event.target.value }))}
-            />
-          </label>
-          <label htmlFor="create-description">
-            Descripción
-            <textarea
-              id="create-description"
-              value={form.description}
-              disabled={!admin || writePending}
-              onChange={event => setForm(previous => ({ ...previous, description: event.target.value }))}
-            />
-          </label>
-          <label htmlFor="create-priority">
-            Prioridad (texto libre validado por el servicio)
-            <input
-              id="create-priority"
-              type="text"
-              value={form.priority}
-              disabled={!admin || writePending}
-              onChange={event => setForm(previous => ({ ...previous, priority: event.target.value }))}
-            />
-          </label>
-          <label htmlFor="create-assignee">
-            Responsable (usuario del directorio)
-            <select
-              id="create-assignee"
-              value={form.assigneeId}
-              // With no directory there is nobody to choose: the artboard disables
-              // the control and keeps creating without a responsible possible, so
-              // the value this form already holds (empty) is what it sends.
-              disabled={!admin || writePending || directoryState.phase === 'failed'}
-              // The state of the directory is part of the control's own
-              // description: a keyboard or screen-reader user hears the same
-              // thing a sighted user reads under the form.
-              aria-describedby="create-assignee-status"
-              onChange={event => setForm(previous => ({ ...previous, assigneeId: event.target.value }))}
-            >
-              <option value="">{UNASSIGNED_OPTION}</option>
-              {directoryState.phase === 'read'
-                ? directoryState.users.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.display_name}
-                    </option>
-                  ))
-                : null}
-            </select>
-          </label>
-          <label htmlFor="create-due-date">
-            Fecha límite
-            <input
-              id="create-due-date"
-              type="date"
-              value={form.dueDate}
-              disabled={!admin || writePending}
-              onChange={event => setForm(previous => ({ ...previous, dueDate: event.target.value }))}
-            />
-          </label>
+          {/* Board 06 groups the alta in two blocks: what the action is, and who
+              answers for it. The product keeps ONE form and one submit — a step
+              that hides half the fields would change the flow — so the groups are
+              fieldsets with legends, which is the native grouping a screen reader
+              already announces. The DOM order of the controls is unchanged. */}
+          <fieldset className="actions-fieldset" id="create-fields-record">
+            <legend>Datos de la acción</legend>
+            <div className="actions-fieldset-body">
+              <label htmlFor="create-community">
+                Comunidad (CUT)
+                <input
+                  id="create-community"
+                  type="text"
+                  required
+                  value={form.communityCode}
+                  disabled={!admin || writePending}
+                  onChange={event => setForm(previous => ({ ...previous, communityCode: event.target.value }))}
+                />
+              </label>
+              <label htmlFor="create-title">
+                Título
+                <input
+                  id="create-title"
+                  type="text"
+                  required
+                  value={form.title}
+                  disabled={!admin || writePending}
+                  onChange={event => setForm(previous => ({ ...previous, title: event.target.value }))}
+                />
+              </label>
+              <label htmlFor="create-description">
+                Descripción
+                <textarea
+                  id="create-description"
+                  value={form.description}
+                  disabled={!admin || writePending}
+                  onChange={event => setForm(previous => ({ ...previous, description: event.target.value }))}
+                />
+              </label>
+              <label htmlFor="create-priority">
+                Prioridad (texto libre validado por el servicio)
+                <input
+                  id="create-priority"
+                  type="text"
+                  value={form.priority}
+                  disabled={!admin || writePending}
+                  onChange={event => setForm(previous => ({ ...previous, priority: event.target.value }))}
+                />
+              </label>
+            </div>
+          </fieldset>
+          <fieldset className="actions-fieldset" id="create-fields-owner">
+            <legend>Responsable y plazo</legend>
+            <div className="actions-fieldset-body">
+              <label htmlFor="create-assignee">
+                Responsable (usuario del directorio)
+                <select
+                  id="create-assignee"
+                  value={form.assigneeId}
+                  // With no directory there is nobody to choose: the artboard disables
+                  // the control and keeps creating without a responsible possible, so
+                  // the value this form already holds (empty) is what it sends.
+                  disabled={!admin || writePending || directoryState.phase === 'failed'}
+                  // The state of the directory is part of the control's own
+                  // description: a keyboard or screen-reader user hears the same
+                  // thing a sighted user reads under the form.
+                  aria-describedby="create-assignee-status"
+                  onChange={event => setForm(previous => ({ ...previous, assigneeId: event.target.value }))}
+                >
+                  <option value="">{UNASSIGNED_OPTION}</option>
+                  {directoryState.phase === 'read'
+                    ? directoryState.users.map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.display_name}
+                        </option>
+                      ))
+                    : null}
+                </select>
+              </label>
+              <label htmlFor="create-due-date">
+                Fecha límite
+                <input
+                  id="create-due-date"
+                  type="date"
+                  value={form.dueDate}
+                  disabled={!admin || writePending}
+                  onChange={event => setForm(previous => ({ ...previous, dueDate: event.target.value }))}
+                />
+              </label>
+              {/* The directory's own state sits with the control it describes.
+                  It stays the live region of the alta: the write interlock and a
+                  failed read are announced here, once. */}
+              <p id="create-assignee-status" className="status-copy" role="status" aria-live="polite">
+                {assigneeStatus}
+              </p>
+              {admin && directoryState.phase === 'failed' ? (
+                <button
+                  id="retry-directory"
+                  className="secondary-button"
+                  type="button"
+                  disabled={writePending}
+                  onClick={() => setDirectoryRevision(value => value + 1)}
+                >
+                  Reintentar lectura del directorio
+                </button>
+              ) : null}
+            </div>
+          </fieldset>
           <button id="create-action" className="primary-button" type="submit" disabled={!admin || writePending}>
             Crear acción
           </button>
         </form>
-        <p id="create-assignee-status" className="status-copy" role="status" aria-live="polite">
-          {assigneeStatus}
-        </p>
-        {admin && directoryState.phase === 'failed' ? (
-          <button
-            id="retry-directory"
-            className="secondary-button"
-            type="button"
-            disabled={writePending}
-            onClick={() => setDirectoryRevision(value => value + 1)}
-          >
-            Reintentar lectura del directorio
-          </button>
-        ) : null}
       </article>
     </section>
   );

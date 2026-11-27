@@ -494,3 +494,50 @@ test('a viewer is offered no confirmation control and no action-list read', asyn
   expect(callsTo(ACTIONS_URL, 'GET')).toHaveLength(0);
   expect(text('observation-list-note')).toMatch(/rol admin/i);
 });
+
+// ── T6 · the field-work composition (board 11) ─────────────────────────────
+//
+// The board's record opens with the closed-catalogue type and the date, names the
+// zone as the record's subject, then reads the description and the attribution.
+// The list also states what it is, because a screen reader reaches the rows
+// without the panel title in view.
+
+test('each record opens with its type and names the zone before the description and the attribution', async () => {
+  await mountSignedIn();
+  await answer(ZONES_URL, 'GET', zonesFixture());
+  await answer(OBSERVATIONS_URL, 'GET', [observationFixture()]);
+
+  const item = document.querySelector('#observation-rows li') as HTMLElement | null;
+  expect(item).not.toBeNull();
+  const children = [...(item as HTMLElement).children];
+  // The head carries the type mark and the date; the zone is the record's own
+  // subject and is emphasised, not left as flat metadata.
+  expect(item?.querySelector('.observation-type')).toHaveTextContent('Vegetación seca');
+  expect(item?.querySelector('.observation-item-head .observation-date')).toHaveTextContent('2026-11-20');
+  expect(item?.querySelector('.observation-zone strong')).toHaveTextContent('Foco Quebrada del Este · z-1');
+  expect(children[0]?.className).toBe('observation-item-head');
+  expect(children[1]?.className).toBe('observation-zone');
+
+  // The list names itself and its order for the reader who lands inside it.
+  expect(document.getElementById('observation-rows')).toHaveAttribute(
+    'aria-label',
+    'Observaciones registradas, más reciente primero',
+  );
+});
+
+test('an unavailable list is a designed state, and the technical line stays in the live region', async () => {
+  await mountSignedIn();
+  await answer(ZONES_URL, 'GET', zonesFixture());
+  await answer(OBSERVATIONS_URL, 'GET', { code: 'storage_unavailable' }, 503, 'req-503');
+
+  const card = document.getElementById('observation-list-state');
+  expect(card).not.toBeNull();
+  expect(card).toHaveClass('field-state-error');
+  expect(card).toHaveTextContent(/no está disponible/i);
+  // The status/code/request id are announced once, by the status line.
+  expect(card).not.toHaveTextContent(/req-503/);
+  expect(text('observations-status')).toMatch(/req-503/);
+  // An error is not an empty period: the empty card belongs to a completed read.
+  expect(document.getElementById('observation-empty')).toBeNull();
+  expect(document.getElementById('observation-rows')?.querySelectorAll('li')).toHaveLength(0);
+});

@@ -355,6 +355,71 @@ and its period/zone selects have no served equivalent (the zone comes from the s
 route's own 100-row window, and no cutoff concept exists), so they are absent rather than simulated. The board's
 task links were not ported either: the history panel changes no route.
 
+## Prevention, simulation and observations (T6)
+
+T6 ports the board set's prevention, simulation and field screens —
+[`06-acciones-preventivas.html`](../design/firewatch-v1-vuelo/06-acciones-preventivas.html),
+[`10-simulacion-contrafactual.html`](../design/firewatch-v1-vuelo/10-simulacion-contrafactual.html) and
+[`11-observaciones-de-campo.html`](../design/firewatch-v1-vuelo/11-observaciones-de-campo.html) — into the routes
+the product already has: `#actions`, `#simulator` and `#observations`. No route, backend, auth, shared store,
+domain contract, `app.css` rule or dependency changed. The new stylesheet is
+[`src/styles/field-workspace.css`](src/styles/field-workspace.css), every selector scoped to one of the three view
+ids, and the one new component is
+[`src/components/field-work/FieldStateCard.tsx`](src/components/field-work/FieldStateCard.tsx).
+
+**No new palette and no new scale.** The file declares colours only through the existing tokens (`--paper`,
+`--canvas`, `--line`, `--muted`, `--ink`, `--soft`, `--forest-700`), plus three literals the product already uses:
+the focus ring `#cf7d4f`, the empty-card surface `#f8faf7` and the notification card's dashed mark `#c8d2c6`.
+The error tone reuses the shipped `--terracotta-soft` family (`#fdf6ef` surface, `#e0c9b6` border, `#9c472f`
+eyebrow) and the filtered tone keeps `--paper` because it is the only card that carries a control. Type stays in
+the in-use sizes (8, 9, 10, 11, 13px) and spacing in the 4px-derived values already in use.
+
+| Selector | Role | Declared values |
+| --- | --- | --- |
+| `.field-state` (scoped to the three ids) | Designed state card (06/10/11) | grid, `justify-items: start`, `gap: 4px`, `14px 16px 16px`, dashed `1px #c8d2c6`, radius `9px`, `#f8faf7`; `strong` `13px/650 --ink`; body `10px/1.6` capped at `78ch`; the eyebrow keeps the shipped rule |
+| `.field-state-error` | Refusal tone | solid `#e0c9b6`, `#fdf6ef`; eyebrow `#9c472f` |
+| `.field-state-filtered` | Filter tone (carries the reset) | `--paper` fill, so the shipped focus ring keeps its `3.11:1` |
+| `#actions .actions-workbench` | Workbench (06) | `1.25fr / 1fr`, `16px` gap, `align-items: start`; single column when the detail is absent or below `1280px` |
+| `#actions .actions-panel > .panel-heading` (and detail/create) | Panel heads | `padding: 0 0 10px` so the title aligns with the body the panel modifier already pads |
+| `#actions .actions-lede` | View lede (06) | `max-width: 76ch`, `11px/1.6` |
+| `#actions .actions-filters-label` / `.actions-filters` | Queue toolbar (06) | eyebrow above the form; bottom `1px solid --line`, `12px` padding and margin below |
+| `#actions .actions-detail-id` | Identity strip (06) | flex wrap, `gap: 8px 12px`, `10px`; the chip keeps the shipped tone rules, the identifier `650`, the deadline `strong` in `--ink` |
+| `#actions .actions-description` | Description block (06) | `10px 12px`, `1px solid --line`, radius `8px`, `--soft`; label `9px/800` uppercase, text `10px/1.6 --ink` |
+| `#actions #action-detail-fields` | Facts grid (06) | `repeat(2, minmax(0, 1fr))`, `gap: 8px 14px`; label `9px/800` uppercase `--muted`, value `10px/650 --ink` left-aligned; one column at `≤560px` |
+| `#actions .actions-fieldset` / `-body` | Alta groups (06) | fieldset spans the form (`grid-column: 1 / -1`), `1px solid --line`, radius `9px`, legend `9px/800 --forest-700`; the body keeps the shipped two-column control grid and stacks at `≤720px`; a textarea spans the group |
+| `#simulator .simulator-factors-eyebrow` / `#simulator-factors-note` | Factor block (10) | eyebrow above the before/after table, note below it at the shipped `9px/1.6` |
+| `#simulator .row-flag` | Substituted mark (10) | own line under the variable name, `4px` radius, `--soft`/`--forest-700`, `8px/850` uppercase |
+| `#observations .observation-type` | Record type mark (11) | inline-flex, `min-height: 22px`, `2px 7px`, `1px solid --line`, radius `5px`, `--soft`/`--ink`, `9px/800` uppercase |
+| `#observations .observation-zone strong` | Record subject (11) | `11px/650 --ink`; the record head keeps the date at the right |
+| textareas (scoped to the three ids) | Focus ring | `3px solid #cf7d4f`, offset `2px` — the shipped rule lists `input`/`select`/`a`/`[tabindex]` but not `textarea` |
+
+**Breakpoints.** `1279px` stacks the workbench (measured: below it the seven-column queue no longer fits its own
+min-content), `720px` stacks each alta group and keeps the shipped form collapse, `560px` stacks the facts grid.
+The simulator and observation layouts keep their shipped `1000px` collapse.
+
+**The queue is a table, and the board's queue is a card list.** Board 06 can run two columns from 1000px because
+its queue is a button list. The production queue is a seven-column `<table>`, so the pair only sits side by side
+where the table still fits: measured at 1440 the list region is `715` px (no internal scroll) and at 1280 it is
+`626` px, exactly its own min-content. Below 1280 the view keeps the shipped full-width list and stacks the detail
+under it, which is the only arrangement measured to avoid a horizontal scrollbar on the primary surface.
+
+**What the boards carry that the product does not.** Board 06's task switch (`Revisar` / `Preparar` / `Estados
+planificados`) is a prototype affordance: the production page keeps the list, the detail and the alta available at
+the same time, so no region is hidden behind a mode. Its `Estados planificados` panel previews `candidate`,
+`in_progress`, `reviewed` and `closed`, which the contract does not declare and no mapping exists for, so it was
+not ported. The illustrative queue, the four invented actions, the people, the `Nivel al corte`/`Cobertura` context
+facts, the `Prioridad contextual`, the recommendation catalogue and the PDF zone sheet (board 13) have no served
+equivalent in these views and were not drawn. The alta is one form with one submit: a two-step wizard would hide
+half the fields and change a flow that already writes through the server.
+
+**What was added instead, from real data.** The selected action's identity strip (state, identifier, deadline) and
+description; the two-column fact grid; the alta's two native groups; the substitution the simulator actually sent
+and the before→after level; the `Sustituida` mark on exactly the variables that travelled; the factor block's note
+that the service publishes no per-variable recommendation; and the observation record's type mark and emphasized
+zone. Board 10's factor table also carries a recommendation column and a contribution bar; the service returns
+neither a recommendation mapping nor a bar scale for the counterfactual, so only the value and `aporte` the rule
+returned are shown.
+
 ## What still needs a browser
 
 - Resolve inherited backgrounds, disabled and focus states, and route-specific overrides in the rendered views. For example, Actions already overrides some chip and tag colors, so their base ratios do not describe every view.

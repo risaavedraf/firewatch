@@ -17,6 +17,7 @@ import {
 import { getSessionSnapshot, subscribeSession } from '../core/session';
 import { levelLabel } from '../domain';
 import type { RiskBatch, ZoneFeature } from '../types/api';
+import '../styles/field-workspace.css';
 
 // PM-03 — counterfactual simulator (S1/S2/S4, D-D).
 //
@@ -182,9 +183,14 @@ interface RunState {
   readonly phase: RunPhase;
   readonly message: string;
   readonly result: SimulationResult | null;
+  // The substitution this page SENT with the request that produced `result`.
+  // The answer states the levels it recomputed, not which inputs were replaced,
+  // so the comparison names the request's own variables — never a value read back
+  // from the answer, and never the fields' current contents after the fact.
+  readonly substituted: Partial<Record<SimulationVariable, number>>;
 }
 
-const IDLE_RUN: RunState = { phase: 'idle', message: '', result: null };
+const IDLE_RUN: RunState = { phase: 'idle', message: '', result: null, substituted: {} };
 
 // The stored value of a factor, or null when the batch recorded no reading for it.
 // `known: false` is exactly "no lectura": the rule would answer desconocido, which
@@ -471,7 +477,7 @@ export function SimulatorView() {
     }
     setBusy(true);
     setNotice('');
-    setRun({ phase: 'running', message: 'Aplicando la regla guardada a las variables sustituidas…', result: null });
+    setRun({ phase: 'running', message: 'Aplicando la regla guardada a las variables sustituidas…', result: null, substituted: {} });
     void (async () => {
       const outcome = await simulateRisk({ zoneId, batchId: current.id, variables: substitutions });
       setBusy(false);
@@ -487,7 +493,7 @@ export function SimulatorView() {
           setBatchRevision(value => value + 1);
           return;
         }
-        setRun({ phase: 'failed', message, result: null });
+        setRun({ phase: 'failed', message, result: null, substituted: {} });
         return;
       }
       setRun({
@@ -496,6 +502,9 @@ export function SimulatorView() {
           outcome.data.stored_level,
         )}. No se publicó ningún lote.`,
         result: outcome.data,
+        // The body that was sent is the record of the substitution, not a
+        // reconstruction from the response.
+        substituted: substitutions,
       });
     })();
   }
@@ -653,6 +662,9 @@ export function SimulatorView() {
                 </div>
               </div>
 
+              <p className="eyebrow simulator-factors-eyebrow" id="simulator-factors-eyebrow">
+                COMPOSICIÓN DEL MISMO LOTE
+              </p>
               <div className="table-wrap">
                 <table id="simulator-factors">
                   <caption className="sr-only">
@@ -668,7 +680,14 @@ export function SimulatorView() {
                   <tbody>
                     {SIMULATION_VARIABLES.map(name => (
                       <tr key={name} data-variable={name}>
-                        <th scope="row">{VARIABLE_LABELS[name]}</th>
+                        <th scope="row">
+                          {VARIABLE_LABELS[name]}
+                          {run.substituted[name] !== undefined ? (
+                            <span className="row-flag" id={`simulator-substituted-${name}`}>
+                              Sustituida
+                            </span>
+                          ) : null}
+                        </th>
                         <td id={`simulator-before-factor-${name}`}>{factorText(factorOf(result.before, name))}</td>
                         <td id={`simulator-after-factor-${name}`}>{factorText(factorOf(result.after, name))}</td>
                       </tr>
@@ -676,9 +695,32 @@ export function SimulatorView() {
                   </tbody>
                 </table>
               </div>
+              <p className="panel-note" id="simulator-factors-note">
+                La tabla muestra el valor y el aporte que la regla calculó para cada variable, antes y después de la
+                sustitución. El servicio no publica una recomendación asociada por variable en esta respuesta, así que
+                la tabla no la inventa.
+              </p>
 
               <DataList
                 items={[
+                  {
+                    label: 'Sustitución aplicada',
+                    value: (
+                      <span id="simulator-applied">
+                        {SIMULATION_VARIABLES.filter(name => run.substituted[name] !== undefined)
+                          .map(name => `${VARIABLE_LABELS[name]} = ${String(run.substituted[name])}`)
+                          .join(' · ')}
+                      </span>
+                    ),
+                  },
+                  {
+                    label: 'Nivel antes → después',
+                    value: (
+                      <span id="simulator-delta">
+                        {`${levelLabel(result.before.level)} → ${levelLabel(result.after.level)}`}
+                      </span>
+                    ),
+                  },
                   { label: 'Lote simulado', value: <span id="simulator-batch-id">{result.batch_id}</span> },
                   { label: 'Zona', value: <span id="simulator-result-zone">{result.zone_id}</span> },
                   {

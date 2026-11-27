@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { idleCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
+import { FieldStateCard } from '../components/field-work/FieldStateCard';
 import { PanelHeading } from '../components/ui';
 import { createObservation, observationZones, observations, type Failure, type Outcome } from '../core/api';
 import { getSessionSnapshot, subscribeSession } from '../core/session';
@@ -13,6 +14,7 @@ import {
   type ObservationZone,
 } from '../types/api';
 import { ObservationAdoption } from './ObservationAdoption';
+import '../styles/field-workspace.css';
 import '../styles/observations.css';
 
 // S2/S3 — field observations (PM-09), built against the frozen seam in
@@ -360,6 +362,10 @@ export function ObservationsView() {
   }
 
   const zonesReady = zonesState.phase === 'read' && zonesState.zones.length > 0;
+  // A completed read with no row and a read that failed are different states, and
+  // board 11 draws them differently. The refused read gets the designed card; the
+  // empty one keeps its own card below, which is where the filter reset lives.
+  const listRefused = listState.phase === 'denied' || listState.phase === 'unavailable';
   const fieldDisabled = !admin || busy;
   const submitDisabled = !admin || busy || !zonesReady;
   const badge = signedIn ? listState.badge : 'SIN CONSULTAR';
@@ -578,14 +584,40 @@ export function ObservationsView() {
             {linkNotice}
           </p>
 
-          <ul className="observation-list" id="observation-rows" aria-busy={listState.phase === 'loading'}>
+          {listRefused ? (
+            <FieldStateCard
+              id="observation-list-state"
+              tone="error"
+              eyebrow={listState.phase === 'denied' ? 'SIN PERMISO' : 'NO DISPONIBLE'}
+              title={
+                listState.phase === 'denied'
+                  ? 'El servidor denegó la lectura de las observaciones.'
+                  : 'La lista de observaciones no está disponible.'
+              }
+            >
+              <p>
+                El detalle técnico queda en la línea de estado de arriba, con el estado HTTP y el request_id cuando el
+                servidor lo envía. La lista no se rellena con filas locales: el registro y los filtros siguen
+                disponibles cuando el servicio responda.
+              </p>
+            </FieldStateCard>
+          ) : null}
+
+          <ul
+            className="observation-list"
+            id="observation-rows"
+            aria-label="Observaciones registradas, más reciente primero"
+            aria-busy={listState.phase === 'loading'}
+          >
             {listState.observations.map(entry => (
               <li key={entry.id} className="observation-item" data-observation-id={entry.id}>
                 <div className="observation-item-head">
-                  <strong>{observationTypeLabel(entry.type)}</strong>
+                  <span className="observation-type">{observationTypeLabel(entry.type)}</span>
                   <span className="observation-date">{entry.observed_on}</span>
                 </div>
-                <p className="observation-zone">{zoneLabel(entry)}</p>
+                <p className="observation-zone">
+                  <strong>{zoneLabel(entry)}</strong>
+                </p>
                 <p className="observation-description">{entry.description}</p>
                 <p className="observation-meta">
                   Registrada por {entry.created_by} · {entry.created_at}

@@ -740,3 +740,175 @@ active and disabled surfaces of the new blocks were not re-measured (their decla
 and the history table's reflow was sampled at 1440/1280/1024/390/360/320 only. The table's internal scroll is
 described above but the touch-drag gesture itself was not exercised. Long real data — many zones in the series, a
 100-row history, a 64-character zone id — was not rendered. Print preview was not produced.
+
+## T6 — prevention, simulation and observations (2026-11-26)
+
+T6 ports boards 06 (acciones preventivas), 10 (simulación contrafactual) and 11 (observaciones de campo) into the
+routes the product has: the queue, detail, alta, evidence, review and reassessment in `#actions`, the substitution
+and its comparison in `#simulator`, and the register and its list in `#observations`. No route, backend, auth,
+shared store, domain contract, dependency or `app.css` rule changed. The new stylesheet is
+[`src/styles/field-workspace.css`](src/styles/field-workspace.css), every selector scoped to one of the three ids,
+and the one new component is
+[`src/components/field-work/FieldStateCard.tsx`](src/components/field-work/FieldStateCard.tsx).
+
+**Environment.** An isolated **Chromium** headless shell (the locally present Playwright
+`chromium_headless_shell-1223` build) driven over CDP against `file://` fixtures. Each fixture is the **real
+component output**: a temporary jsdom harness rendered the three views with the same stubbed `fetch` the shipped
+suites use, and wrote the markup beside the real stylesheets. The *before* pair is the base tree (`7bf567f`,
+extracted with `git archive` into ignored `tmp/t6/base`) linked to its own stylesheets, so base markup runs against
+base CSS; the *after* pair is this working tree. Same states, same payloads, same stubbed transport. No network,
+gateway, Keycloak, credential or backend state; nothing installed. Evidence: `tmp/t6/{before,after}/` (12 states
+each), `tmp/t6/measure.json`, `preserve.json`, `keyboard.json`, `contrast.json`, `tmp/t6/shots/`, probe scripts
+`probe.mjs`, `tables.mjs`, `factors.mjs`, `focuscheck.mjs` and the fixture renderer `fixtures.test.tsx` (ignored
+scratch).
+
+### Composition, before and after
+
+Boxes are the rendered `getBoundingClientRect` of the element named, in CSS px. Left column is `7bf567f`, right
+column is this change; the actions row is the populated state with the same two served actions and one open detail.
+
+| Element / viewport | Before | After |
+| --- | --- | --- |
+| `#actions` view 1440 | `1372×2386` at `y=27`, panels stacked | `1372×2040`; lede `451×35` at `y=100` under the title |
+| Actions queue panel 1440 | `1372×476` at `34,27` | `753×579` at `34,27`, head carries `LEÍDO` + `2 acciones` |
+| Action detail 1440 | `1372×1379` at `y=519` below the queue | `603×1419` at `803,27`: identity strip `565×23`, description `565×55`, facts `565×108` in two columns |
+| Alta panel 1440 | `1372×499` at `y=1914` | `1372×605` at `y=1462`: two groups (`record` `1334×287`, `owner` `1334×135`) and one submit |
+| Actions queue panel 390 | `360×702` | `360×754`, one column; the detail follows at `y=806` |
+| Action detail 390 | `360×1588` | `360×1694`: strip `322×23`, description `322×71`, facts stacked `322×223` |
+| Empty queue card 1440 | none (status block only) | card `1334×106` at `53,382`; the empty table region is hidden |
+| Empty queue card 390 | none | card `330×122` at `30,623` |
+| Refused queue card 1440 | none | card `1334×104` at `53,382`, tinted `#fdf6ef` |
+| Filtered queue card 1440 | `.empty-state` text block | card on `--paper` with the dashed mark and the reset inside |
+| Simulator factor block 1440 | table `657×238` at `y=437` | eyebrow + table `657×263` at `y=466` + note `657×29` at `y=710`; `Sustitución aplicada` `132×12` at `y=759` |
+| Simulator factor block 390 | table `327` wide | table `327` wide (block flag keeps the baseline width), note `322×43` |
+| Observation record 1440 | `687×122` | `687×135`: type mark `105×22`, emphasized zone |
+| Observation list 1440 | `725×514` (populated) / `725×229` (unavailable) | `725×539` / `725×333` with the error card `687×104` |
+| Observation record 390 | `330×122` | `330×135`, one column (shipped layout) |
+
+### PRESERVE — differential against the baseline
+
+The same probe ran against both trees at 1440, 1280, 1024, 390 and 320 px.
+
+- **Identifiers.** No shipped identifier is lost in any state (`lost vs base: none` in all twelve). `#actions`
+  keeps 19 ids plus 22 detail ids; the queue table and its tbody stay in the DOM when the region is hidden
+  (`hidden` is on the shipped `.table-wrap`, not on `#actions-table` or `#actions-rows`).
+  `#simulator` keeps 13 ids plus 13 result ids; `#observations` keeps 20. Eleven ids are added to `#actions`
+  (lede, count, the two state cards, the filters label, the strip plus its two values, the description and the two
+  alta groups), four to `#simulator` (applied, delta, factors eyebrow, factors note) and one to `#observations`
+  (`observation-list-state`); none is renamed.
+- **Controls.** Visible control counts are identical to the baseline in every state and viewport: actions
+  populated `6` text inputs / `3` selects / `11` buttons / `1` link / `3` textareas / `1` date; actions empty and
+  refused `4` / `2` / `3` / `0` / `1` / `1`; simulator `1` select, `5` checkboxes, `5` number inputs, `1` button;
+  observations `3` selects, `1` date, `1` textarea and the same button count per state. Label counts are identical.
+- **Copy.** Every pre-existing measured text is byte-identical before and after: both action statuses, the detail
+  status, every simulator status and run message, and every observations status and count. The only text
+  differences are the new elements (`2 acciones`, `Sustitución aplicada`, `Nivel antes → después`).
+- **Keyboard.** At 390 px the Tab sequence is identical in both builds for the sampled states
+  (`actions-populated`, `actions-empty`, `simulator-result`, `observations-populated`): filters → the list table
+  region → `Ver detalle` → the detail's tables and evidence fields → review → reassessment → transitions → the alta
+  in its shipped order. Every stop paints `3px solid rgb(207, 125, 79)`; the three textareas were the exception
+  in both builds (`1px auto`, the browser's own ring) before the correction below.
+- **Reflow.** `document.documentElement.scrollWidth === window.innerWidth` at 1440, 1280, 1024, 390 and 320 in all
+  twelve states and in both builds; no page error was logged by either build.
+- **Queue table.** The seven-column table keeps its shipped scroll region and its measured width where the
+  composition changed: 1440 `715/715` (fits), 1280 `626/626` (fits, exactly its min-content), 1024 `938/938`
+  (stacked, full width), 390 `330/892` and 320 unchanged from the baseline. The detail's five tables fit their
+  column at 1440 (`565/565`), 1280 (`494/494`), 1024 (`938/938`) and keep the baseline scroll at 390.
+- **Simulator factor table.** Block-placing the flag keeps the baseline table width: 390 client `322` / scroll
+  `327` before **and** after, 320 `252/327` before and after. The flag adds height, not width.
+- **Observations list.** The shipped `<ul>/<li>` structure, the server-side filter, the adoption disclosure and
+  the two empty cards keep their ids, copy and focus behaviour; the list gains an `aria-label` and the record head
+  a type mark.
+
+### The two-column decision, measured
+
+Board 06 runs the queue and the selected action side by side from 1000 px. Its queue is a card list; the
+production queue is a seven-column `<table>`. Measured with the balanced `1.02fr/.98fr` columns and a `1000px`
+collapse, the queue table showed an internal scroll of `43` px at 1280 (`615` vs `572`) and `163` px at 1024
+(`615` vs `452`) — the primary surface would have needed a scrollbar to reach `Ver detalle`. Two corrections
+followed: the columns became `1.25fr/1fr`, and the pair only sits side by side from **1280 px**, where both
+columns fit (`626/626` and `494/494`). Below that the view keeps the shipped single-column order.
+
+### Contrast (measured in Chromium, rendered computed styles)
+
+Ratios computed in the page from each element's `color` and its nearest opaque painted background.
+
+| Pair | Ratio | Read |
+| --- | --- | --- |
+| Actions lede `--muted` on `--paper`, 11px | 5.49:1 | Meets |
+| Queue count `#52646b` on `#edf1f2`, 8px/850 | 5.44:1 | Meets |
+| Empty card title `--ink` on `#f8faf7`, 13px/650 | 11.39:1 | Meets |
+| Empty card body `--muted` on `#f8faf7`, 10px | 5.28:1 | Meets |
+| Empty card eyebrow `--forest-700` on `#f8faf7`, 9px/800 | 7.08:1 | Meets |
+| Error card title `--ink` on `#fdf6ef`, 13px/650 | 11.16:1 | Meets |
+| Error card body `--muted` on `#fdf6ef`, 10px | 5.18:1 | Meets |
+| Error card eyebrow `#9c472f` on `#fdf6ef`, 9px/800 | 5.84:1 | Meets |
+| Filtered card title / body / reset on `--paper` | 11.85 / 5.49 / 7.36:1 | Meets |
+| Detail identifier `--ink` on `--paper`, 10px/650 | 11.85:1 | Meets |
+| Detail deadline `--muted` on `--paper`, 10px | 5.49:1 | Meets |
+| Description label `--muted` on `--soft`, 9px/800 | 4.86:1 | Meets (lowest measured pair) |
+| Description text `--ink` on `--soft`, 10px | 10.47:1 | Meets |
+| Detail fact label / value, 9px / 10px | 5.49 / 11.85:1 | Meets |
+| Alta legend `--forest-700` on `--paper`, 9px/800 | 7.36:1 | Meets |
+| Detail state chip `--ink` on `--soft`, 10px | 10.47:1 | Meets (shipped `#actions` override) |
+| Applied substitution `--ink` on `--paper`, 9px/700 | 11.85:1 | Meets |
+| Substituted flag `--forest-700` on `--soft`, 8px/850 | 6.51:1 | Meets |
+| Factor note `--muted` on `--paper`, 9px | 5.49:1 | Meets |
+| Observation type mark `--ink` on `--soft`, 9px/800 | 10.47:1 | Meets |
+| Observation zone `--ink` on `--paper`, 11px/650 | 11.85:1 | Meets |
+| Observation error title `--ink` on `#fdf6ef`, 13px/650 | 11.16:1 | Meets |
+| Focus ring `#cf7d4f` on `--paper`, 3px | 3.11:1 | Meets non-text 3:1 |
+| Focus ring `#cf7d4f` on `#f8faf7` (measured, not used behind a control) | 2.99:1 | Below 3:1 — why the filtered tone uses `--paper` |
+
+### States
+
+| Screen | State | Result |
+| --- | --- | --- |
+| `#actions` | populated + open detail | workbench, count badge, identity strip, description, fact grid, alta groups; 2 rows, 2 history rows |
+| `#actions` | empty (`[]`) | card states the response carried no row; the table region is hidden; no reset is offered |
+| `#actions` | filtered to zero | its own card on `--paper` with `Limpiar filtros` inside |
+| `#actions` | refused (403) | tinted card naming the denial; the status line keeps `HTTP 403 · forbidden · request_id` |
+| `#actions` | directory 503 | the alta's responsible group keeps the unassigned option, the retry and the refusal text |
+| `#simulator` | prefilled | shipped layout; no result block, no substitution summary |
+| `#simulator` | result | before/after pair, factor eyebrow, two `Sustituida` flags, factor note, applied substitution and level delta |
+| `#simulator` | refused (422) | shipped `run-status` refusal; no result and no factor block |
+| `#observations` | populated | two records with type mark, date, emphasized zone, description, attribution and the stored adoption block |
+| `#observations` | empty (`[]`) | shipped empty card; no error card |
+| `#observations` | unavailable (503) | tinted card; status line keeps `HTTP 503 · storage_unavailable · request_id` |
+| `#observations` | filtered to zero | shipped filter-empty card with `Quitar el filtro` |
+
+Sign-out, retry, form validation, write-uncertainty and session-replacement states remain covered by the DOM
+suites rather than screenshots.
+
+### Keyboard and focus (measured)
+
+At 390 px the sampled sequences are identical to the baseline (see PRESERVE). Every stop painted the shipped
+`3px solid rgb(207, 125, 79)` except the textareas, which the shipped `:focus-visible` rule does not list. Focused
+directly in both builds: `#evidence-criterion` and `#create-description` measured `1px auto rgb(16, 16, 16)` before
+and `3px solid rgb(207, 125, 79)` after; `#create-title` and `#create-due-date` measured the shipped ring in both.
+The `Sustituida` flag is plain text inside the row header, so it adds no Tab stop, and the state cards add no
+control except the reset the filtered card already had.
+
+### Automated
+
+Fourteen public-behaviour tests were added and no existing assertion was weakened or removed: seven in
+`tests/views/actions.test.tsx` (lede and count, unfiltered empty card, filtered card separation, refused card,
+identity strip plus description, alta groups, hidden table region), one in `tests/views/simulator.test.tsx`
+(applied substitution, level delta, substituted flags, factor note), two in `tests/views/observations.test.tsx`
+(record head and list name, unavailable card), and four in `tests/a11y/actions-accessibility.test.tsx` (group
+legends and names, one announcement per refusal, textarea ring, filtered card surface). RED before the product
+edit: `10 failed | 69 passed (79)`. GREEN after: the required seven suites `7 files / 108 passed (108)`.
+`npm run verify` on the final tree passed lint, typecheck, `57` files / `787` tests, the source gate over `76`
+shipped files, the local build and the loopback smoke (exit 0).
+
+### Not measured for T6
+
+No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real assistive technology ran for
+this change. The workspace was not opened with a live authenticated session: the fixtures carry the real
+components' markup but not the shell, the gate or a real token. The composition was sampled at 1440, 1280, 1024,
+390 and 320 CSS px; 375, 414 and 768 were not sampled, and the 390 px first fold is dominated by the shell the
+T1/T2 scope leaves in place. Hover, active and disabled surfaces of the new blocks were not re-measured (their
+declared pairs are the shipped ones). Long real content — an action titled well past 120 characters, 200 queue
+rows, many observations, a 64-character identifier — was not rendered. The simulator's factor flag was measured
+in the two-substitution state only. Print preview and the touch-drag gesture on the internal scroll regions were
+not exercised.
