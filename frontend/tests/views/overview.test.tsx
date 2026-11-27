@@ -1621,6 +1621,53 @@ test('without a session the workstation states the connection requirement instea
   expect(document.querySelectorAll('#overview .aerial-rail a')).toHaveLength(4);
 });
 
+// --- T12: the interactive 3D aerial stage ----------------------------------
+//
+// S6 — «que el mapa sea interactivo como lo diseñamos, que resalte, competimos
+// contra un mapa fotorealista tenemos que dar el pego». The overview's map is now
+// an oblique 3D stage with a real camera over the served commune geometry, floating
+// HUD controls and an explicit illustrative-relief badge — while every contracted
+// identifier, the keyboard selection and the honest empty states stay exactly as
+// they were.
+test('the overview ships the interactive 3D aerial stage with its honest relief badge (T12)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+
+  const stage = document.querySelector('#overview [data-projection-mode="3d"]');
+  expect(stage, 'the 3D stage is missing').not.toBeNull();
+  expect(stage?.getAttribute('data-camera-pitch')).toBeTruthy();
+
+  // The HUD is real UI: perspective, orbit, tilt, zoom, recenter and the layers.
+  for (const name of ['Vista 3D', '2D Cenital', 'Acercar', 'Alejar', 'Girar a la derecha', 'Centrar región', 'Relieve', 'Nombres', 'Grilla']) {
+    expect(screen.getByRole('button', { name }), name).toBeInTheDocument();
+  }
+
+  // Illustrative relief is labelled as such: the 3D scene is never presented as a
+  // calibrated elevation source, and the official limits keep their provenance.
+  const badge = document.getElementById('map-3d-attribution');
+  expect(badge?.textContent).toContain('Relieve 3D ilustrativo');
+  expect(badge?.textContent).toContain('Límites oficiales SUBDERE/IGM');
+
+  // The accessible map contract travelled into the 3D layer untouched: the same
+  // `#map-svg`, the same role, the served communes and their selection surface.
+  expect(element('map-svg')).toHaveAttribute('role', 'group');
+  expect(document.querySelectorAll('#map-svg path.zone-shape')).toHaveLength(2);
+  fireEvent.click(screen.getByRole('button', { name: 'Casablanca (05102)' }));
+  await settle();
+  expect(selector().value).toBe('05102');
+});
+
+test('without a catalogue the 3D stage offers no camera and keeps the connection state (T12)', async () => {
+  await openSignedOut();
+
+  expect(mapIsHidden()).toBe(true);
+  expect(textOf('map-empty')).toBe('Conecta un token autorizado para cargar las zonas analizadas.');
+  expect(document.querySelector('#overview canvas.map-3d-canvas')).toBeNull();
+  for (const name of ['Vista 3D', 'Acercar', 'Centrar región']) {
+    expect(screen.queryByRole('button', { name }), name).toBeNull();
+  }
+});
+
 // ── T5 — the model-data board (20) ──────────────────────────────────────────
 // Board 20 documents a model the service cannot yet describe: seven variables,
 // units, sources and mismatches. None of that is served metadata, so the port

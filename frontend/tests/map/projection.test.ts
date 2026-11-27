@@ -4,14 +4,26 @@ import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 import {
+  AERIAL_DEFAULT_BEARING,
+  AERIAL_VIEW,
+  AERIAL_ZOOM_MAX,
+  AERIAL_ZOOM_MIN,
   DETACHED_LONGITUDE,
   INSET_VIEW,
   MAINLAND_VIEW,
   buildMapLayout,
+  clampAerialZoom,
+  createAerialViewport,
   createProjection,
+  frameWidthKm,
   geometryBounds,
+  illustrativeRelief,
   partitionZones,
   pathData,
+  projectAerialPoint,
+  simplifyRings,
+  unprojectAerialPoint,
+  wrapAerialBearing,
   zoneLabel,
 } from '../../src/components/map/projection';
 import type { GeoGeometry, ZoneCollection, ZoneFeature } from '../../src/types/api';
@@ -199,5 +211,128 @@ describe('territorial map projection', () => {
   test('zone labels carry the catalogue identity for the shape title', () => {
     expect(zoneLabel({ code: '05101', name: 'Valparaíso' })).toBe('Valparaíso (05101)');
     expect(zoneLabel({ code: '', name: '' })).toBe('Zona sin nombre (sin código)');
+  });
+});
+
+// T12 — the interactive 3D camera. The stage renders an oblique scene, so the same
+// geometry has to travel through one camera in the canvas AND in the accessible
+// vector layer. The arithmetic lives here, framework-free, so the projection is
+// pinned independently of the DOM.
+describe('aerial 3D camera', () => {
+  const flatCamera = { bearing: 0, pitch: 0, zoom: 1, panX: 0, panY: 0 };
+
+  function californiaFrame() {
+    const geometry: GeoGeometry = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-72, -34],
+          [-70, -34],
+          [-70, -32],
+          [-72, -32],
+          [-72, -34],
+        ],
+      ],
+    };
+    return buildMapLayout({ type: 'FeatureCollection', features: [feature({ code: '05101', name: 'Valparaíso' }, geometry)] });
+  }
+
+  test('the camera declares its documented defaults and bounds', () => {
+    expect(AERIAL_DEFAULT_BEARING).toBe(-0.34);
+    expect(AERIAL_VIEW.width).toBeGreaterThan(AERIAL_VIEW.height);
+    expect(AERIAL_ZOOM_MIN).toBe(0.85);
+    expect(AERIAL_ZOOM_MAX).toBe(4.5);
+    expect(clampAerialZoom(0.1)).toBe(AERIAL_ZOOM_MIN);
+    expect(clampAerialZoom(99)).toBe(AERIAL_ZOOM_MAX);
+    expect(clampAerialZoom(Number.NaN)).toBe(1);
+  });
+
+  test('bearing wraps into one turn instead of drifting forever', () => {
+    expect(wrapAerialBearing(0)).toBeCloseTo(0, 12);
+    expect(wrapAerialBearing(Math.PI * 2)).toBeCloseTo(0, 12);
+    expect(wrapAerialBearing(-Math.PI * 2 - 0.5)).toBeCloseTo(-0.5, 12);
+  });
+
+  test('illustrative relief rises eastward from the coast to the cordillera', () => {
+    const bounds = { minLon: -71.9, minLat: -33.97, maxLon: -69.99, maxLat: -32.02 };
+    const coastal = illustrativeRelief(-71.6, -33.05, bounds);
+    const valley = illustrativeRelief(-71.1, -33.05, bounds);
+    const cordillera = illustrativeRelief(-70.3, -33.05, bounds);
+
+    expect(coastal).toBeGreaterThanOrEqual(0);
+    expect(cordillera).toBeLessThanOrEqual(1);
+    expect(valley).toBeGreaterThan(coastal);
+    expect(cordillera).toBeGreaterThan(valley);
+    // A real relief, not a flat wash: the cordillera is materially higher.
+    expect(cordillera - coastal).toBeGreaterThan(0.35);
+  });
+
+  test('the simplification keeps every ring closed-enough and drops no comuna', () => {
+    const rings = [
+      Array.from({ length: 200 }, (_, index) => ({
+        x: 100 + Math.cos((index / 200) * Math.PI * 2) * 50,
+        y: 100 + Math.sin((index / 200) * Math.PI * 2) * 50,
+      })),
+    ];
+    const simplified = simplifyRings(rings, 6);
+    expect(simplified).toHaveLength(1);
+    expect(simplified[0].length).toBeGreaterThanOrEqual(3);
+    expect(simplified[0].length).toBeLessThan(rings[0].length);
+
+    // Tolerance zero changes nothing; a ring of three points is already minimal.
+    expect(simplifyRings(rings, 0)[0].length).toBe(rings[0].length);
+    expect(simplifyRings([[{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }]], 10)[0]).toHaveLength(3);
+  });
+
+  test('a cenital camera maps the frame centre to the viewport centre', () => {
+    const frame = californiaFrame().mainland!;
+    const view = createAerialViewport(frame, AERIAL_VIEW, 1);
+    const centre = projectAerialPoint({ x: frame.width / 2, y: frame.height / 2 }, 0, flatCamera, view);
+    expect(centre.x).toBeCloseTo(view.cx, 6);
+    expect(centre.y).toBeCloseTo(view.cy, 6);
+
+    // Pitch compresses the north-south axis and a lift moves the point upward by
+    // `sin(pitch) * lift`; both are the camera, not a decoration.
+    const north = { x: frame.width / 2, y: frame.height / 4 };
+    const south = { x: frame.width / 2, y: (frame.height * 3) / 4 };
+    const flat = createAerialViewport(frame, AERIAL_VIEW, 1);
+    const oblique = { ...flatCamera, pitch: Math.PI / 3 };
+    const flatSpan = projectAerialPoint(north, 0, flatCamera, flat).y - projectAerialPoint(south, 0, flatCamera, flat).y;
+    const obliqueSpan = projectAerialPoint(north, 0, oblique, flat).y - projectAerialPoint(south, 0, oblique, flat).y;
+    expect(Math.abs(obliqueSpan)).toBeLessThan(Math.abs(flatSpan));
+
+    const lifted = projectAerialPoint({ x: frame.width / 2, y: frame.height / 2 }, 40, oblique, flat);
+    const grounded = projectAerialPoint({ x: frame.width / 2, y: frame.height / 2 }, 0, oblique, flat);
+    expect(lifted.y).toBeLessThan(grounded.y);
+    expect(lifted.depth).toBeGreaterThan(grounded.depth);
+  });
+
+  test('a point projected on the ground plane unprojects back to its real lon/lat', () => {
+    const frame = californiaFrame().mainland!;
+    const view = createAerialViewport(frame, AERIAL_VIEW, 2.2);
+    const camera = { bearing: -0.34, pitch: 0.9075712, zoom: 2.2, panX: 30, panY: -18 };
+    const point = { x: frame.width * 0.62, y: frame.height * 0.41 };
+    const projected = projectAerialPoint(point, 0, camera, view);
+    const back = unprojectAerialPoint(projected.x, projected.y, camera, view, frame);
+
+    expect(back).not.toBeNull();
+    const fit = frame.fit!;
+    const expectedLon = fit.minLon + (point.x - fit.offsetX) / (fit.cosLat * fit.scale);
+    const expectedLat = fit.maxLat - (point.y - fit.offsetY) / fit.scale;
+    expect(back!.lon).toBeCloseTo(expectedLon, 6);
+    expect(back!.lat).toBeCloseTo(expectedLat, 6);
+
+    // A frame without a fitted extent cannot answer, and says so.
+    expect(unprojectAerialPoint(0, 0, camera, view, { ...frame, fit: null })).toBeNull();
+  });
+
+  test('the scale bar length comes from the served extent, not a guess', () => {
+    const frame = californiaFrame().mainland!;
+    const km = frameWidthKm(frame);
+    expect(km).not.toBeNull();
+    // Two degrees of longitude at ~33° S are about 186 km.
+    expect(km!).toBeGreaterThan(170);
+    expect(km!).toBeLessThan(200);
+    expect(frameWidthKm({ ...frame, bounds: null })).toBeNull();
   });
 });

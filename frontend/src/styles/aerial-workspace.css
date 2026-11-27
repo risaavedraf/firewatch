@@ -1,258 +1,53 @@
-/* T2 — la vista aérea del territorio.
+/* T2 — la vista aérea del territorio. Composición; la paleta es global (T10).
  *
- * Todo va bajo `#overview` —o bajo `body:has(#overview)`, que es la misma ruta—
- * así que el mapa, la estación de trabajo y la ficha de resultado son la
- * composición de esta ruta y de ninguna otra. Las filas del armazón que rodean a
- * la vista (cabecera, barra de actualización y pie) no se pueden alcanzar desde
- * `#overview`, y por eso se alcanzan con el mismo anclaje de ruta que ya usan las
- * reglas de impresión (`body:has(#infrastructure)`, `body:has(#status)`): ninguna
- * otra vista monta `#overview`, así que ninguna otra hereda estos roles.
+ * Todo va bajo `#overview`, así que el mapa, la estación de trabajo y la ficha de
+ * resultado son la composición de esta ruta y de ninguna otra.
  *
- * La composición es la del tablero aprobado en lo que el producto real puede
- * sostener: el mapa ocupa el lienzo, la estación de trabajo se apoya a su lado
- * como panel de instrumentos y la lectura/resultado queda junto al lienzo que la
- * produjo. No hay cola por comuna, ni cámara, ni cortes, ni lecturas por sector:
- * esos controles del tablero no tienen datos servidos detrás.
+ * S8 — «los nuevos colores globalres»: este archivo ya no declara la paleta. Hasta
+ * T10 la declaraba en `body:has(#overview)` y re-coloreaba a mano la barra del
+ * producto, la columna lateral, la cabecera, la barra de actualización y el pie,
+ * de modo que solo el mapa se veía como el tablero. Ahora esos roles están en
+ * `tokens.css` `:root` (`--aerial-water`, `--paper`, `--surface-raised`, `--ink`,
+ * `--muted`, `--edge`, `--edge-strong`, `--accent`, `--focus`) y todas las rutas
+ * los leen. Lo único que queda aquí es la composición del tablero y las reglas de
+ * los elementos que existen solo en esta ruta (lienzo, estación de trabajo,
+ * lectura), más el aire que deja entrar al mapa en el primer pliegue.
  *
  * Nada de aquí cambia el comportamiento del mapa: `MapPanel` sigue siendo el
- * mismo componente y este archivo solo le da más superficie, la paleta de la ruta
- * y una sola columna cuando la ventana no da para dos.
+ * mismo componente y este archivo solo le da más superficie y una sola columna
+ * cuando la ventana no da para dos. Los rellenos de nivel tampoco se tocan: son
+ * los tokens compartidos, y el mapa y la leyenda prometen el mismo color.
  */
-
-/* ── Paleta de la ruta ──────────────────────────────────────────────────────
- *
- * Los cuatro primeros tonos son los del tablero aprobado: agua, panel, panel
- * elevado y acento. `--aerial-edge` es el borde del tablero (#647b8a) un paso más
- * claro: ese valor mide 2.92:1 contra el panel elevado que también bordea, y el
- * mínimo para un límite de componente es 3:1. Un paso más claro pasa los tres
- * pares medidos (panel 4.08, agua 3.79, elevado 3.27) sin cambiar de familia.
- *
- * Los roles neutros se re-apuntan aquí, en el elemento que enmarca la ruta, para
- * que la cabecera, la barra de actualización y el pie —que leen esos mismos
- * tokens— queden en la misma superficie que la consola. `tokens.css` no se toca:
- * las otras once vistas siguen leyendo la paleta clara. */
-body:has(#overview) {
-  --aerial-water: #152934;
-  --aerial-panel: #17222b;
-  --aerial-raised: #243341;
-  --aerial-ink: #f4f1eb;
-  --aerial-muted: #b8c8d2;
-  --aerial-edge: #6b8395;
-  --aerial-accent: #94dfda;
-  --aerial-warm: #f0a184;
-  --aerial-gold: #e5c87e;
-
-  --canvas: var(--aerial-water);
-  --paper: var(--aerial-panel);
-  --soft: var(--aerial-raised);
-  --ink: var(--aerial-ink);
-  --muted: var(--aerial-muted);
-  --line: var(--aerial-edge);
-
-  background: var(--aerial-water);
-  color: var(--aerial-ink);
-}
-
-/* El anillo de foco del producto (#cf7d4f) se eligió contra papel; sobre agua y
-   panel su par medido es el acento de la ruta. Se cambia solo el color: ancho y
-   desplazamiento siguen siendo los del contrato de la aplicación. */
-body:has(#overview) :focus-visible {
-  outline-color: var(--aerial-accent);
-}
-
-/* ── Armazón de esta ruta ──────────────────────────────────────────────────
- *
- * La barra del producto y la columna lateral son superficies compartidas, pero
- * en esta ruta son lo primero que se ve y seguían en verde bosque: el tablero
- * aprobado es pizarra y aguamarina. Se re-colorean solo bajo `body:has(#overview)`,
- * así que las otras once vistas conservan su armazón. Cada par está medido sobre
- * las superficies de la ruta: enlaces 9.41:1, página actual 8.51:1, ítems del
- * panel 14.33:1, borde del resumen 4.08:1, marca 9.89:1.
- *
- * Los elementos que no son tokens —el separador de migas, el glifo del chip de
- * zona, el enlace del pie— se re-apuntan aquí; todo lo demás sigue los roles
- * neutros ya re-apuntados en el anclaje. */
-body:has(#overview) .product-nav {
-  border-bottom-color: var(--aerial-edge);
-  background: var(--aerial-panel);
-  color: var(--aerial-ink);
-}
-
-body:has(#overview) .product-nav__link { color: var(--aerial-muted); }
-
-body:has(#overview) .product-nav__link:hover:not([aria-current='page']) {
-  background: var(--aerial-raised);
-  color: var(--aerial-ink);
-}
-
-body:has(#overview) .product-nav__link[aria-current='page'] {
-  border-color: var(--aerial-edge);
-  background: var(--aerial-raised);
-  color: var(--aerial-accent);
-}
-
-body:has(#overview) .product-nav__summary {
-  border-color: var(--aerial-edge);
-  color: var(--aerial-ink);
-}
-
-body:has(#overview) .product-nav__summary:hover,
-body:has(#overview) .product-nav__summary[aria-expanded='true'] {
-  border-color: var(--aerial-accent);
-  background: var(--aerial-raised);
-  color: var(--aerial-accent);
-}
-
-body:has(#overview) .product-nav__panel {
-  border-color: var(--aerial-edge);
-  background: var(--aerial-panel);
-}
-
-body:has(#overview) .product-nav__panel-title,
-body:has(#overview) .product-nav__group-title,
-body:has(#overview) .product-nav__note,
-body:has(#overview) .product-nav__where { color: var(--aerial-muted); }
-
-body:has(#overview) .product-nav__item { color: var(--aerial-ink); }
-body:has(#overview) .product-nav__item:hover { background: var(--aerial-raised); }
-body:has(#overview) .product-nav__item[aria-current='page'] { color: var(--aerial-accent); }
-body:has(#overview) .product-nav__where strong { color: var(--aerial-ink); }
-
-/* La columna lateral mantiene su altura y su desplazamiento: solo cambia de
-   familia de color. La marca pasa a aguamarina sobre agua, y los textos bajan al
-   tono medido en lugar del verde claro del armazón. */
-body:has(#overview) .sidebar {
-  background: var(--aerial-water);
-  color: var(--aerial-muted);
-}
-
-body:has(#overview) .brand,
-body:has(#overview) .brand strong { color: var(--aerial-ink); }
-body:has(#overview) .brand small { color: var(--aerial-muted); }
-
-body:has(#overview) .brand-mark {
-  background: var(--aerial-accent);
-  color: var(--aerial-water);
-}
-
-body:has(#overview) .workspace { border-color: var(--aerial-edge); }
-
-body:has(#overview) .workspace-mark {
-  background: var(--aerial-raised);
-  color: var(--aerial-accent);
-}
-
-body:has(#overview) .workspace small,
-body:has(#overview) .workspace > .icon { color: var(--aerial-muted); }
-
-body:has(#overview) .sidebar-bottom { color: var(--aerial-muted); }
-body:has(#overview) .health-card { border-color: var(--aerial-edge); }
-body:has(#overview) .health-head { color: var(--aerial-ink); }
-body:has(#overview) .health-card p { color: var(--aerial-muted); }
-body:has(#overview) .side-action { color: var(--aerial-accent); }
-body:has(#overview) .session-mark { color: var(--aerial-gold); }
-body:has(#overview) .session-card strong { color: var(--aerial-ink); }
-body:has(#overview) .session-card small { color: var(--aerial-muted); }
-
-body:has(#overview) .session-card button {
-  border-color: var(--aerial-edge);
-  color: var(--aerial-ink);
-}
-
-body:has(#overview) .breadcrumbs span { color: var(--aerial-edge); }
-body:has(#overview) .zone-chip > span { color: var(--aerial-accent); }
-body:has(#overview) footer button { color: var(--aerial-accent); }
-
-/* ── Aire de la ruta ───────────────────────────────────────────────────────
- *
- * Lo que separa al visitante del mapa no es el mapa: son las filas del armazón,
- * el encabezado de la ruta y el de la tarjeta del mapa, cada uno con su propio
- * relleno y su propio margen. Se compactan solo en esta ruta, sin quitar ninguna
- * fila, ningún rótulo ni ningún control, y sin cambiar el orden de lectura. */
-body:has(#overview) main { padding-block: 12px 24px; }
-
-body:has(#overview) .topbar {
-  min-height: 52px;
-  padding-block: 6px;
-}
-
-body:has(#overview) .topbar h1 {
-  margin-top: 2px;
-  font-size: 17px;
-}
-
-body:has(#overview) .breadcrumbs { font-size: 11px; }
-body:has(#overview) .zone-chip { padding: 5px 8px; gap: 7px; }
-
-body:has(#overview) .update-bar {
-  padding-block: 6px 0;
-  font-size: 9.5px;
-}
-
-#overview .aerial-canvas .map-stage { margin-top: 8px; }
 
 /* ── Consola de la ruta ────────────────────────────────────────────────────
  *
- * La vista se convierte en la consola del tablero: una superficie de agua con su
+ * La vista se convierte en la consola del tablero: la superficie de agua con su
  * límite, el aire interior del tablero y los paneles apoyados encima. El borde y
  * el radio le dan el marco que el tablero tiene; no hay degradados ni sombras
  * decorativas. */
 #overview {
-  --forest-700: var(--aerial-accent);
-  --forest-900: #cdf4f0;
-  --forest-500: #9dc3ce;
-  --terracotta: var(--aerial-warm);
-  --terracotta-soft: #3b2a24;
-  --gold: var(--aerial-gold);
-  --gold-soft: #33301f;
-  --shadow: 0 12px 28px rgb(0 0 0 / 26%);
-
   padding: 12px 16px 18px;
-  border: 1px solid var(--aerial-edge);
+  border: 1px solid var(--edge);
   border-radius: var(--radius);
   background: var(--aerial-water);
 }
 
 /* Los títulos de la ruta mantienen su jerarquía: la vista sigue siendo el `h2`
-   de la página y las notas quedan en el tono medido, no en el literal claro.
-   La cabecera se comprime porque el mapa tiene que alcanzar el primer pliegue:
-   el título es el mismo, ocupa menos alto. */
+   de la página y las notas quedan en el tono medido. La cabecera se comprime
+   porque el mapa tiene que alcanzar el primer pliegue: el título es el mismo,
+   ocupa menos alto. */
 #overview .intro-row {
   align-items: center;
   margin-bottom: 6px;
 }
 
 #overview .intro-row h2 {
-  color: var(--aerial-ink);
+  color: var(--ink);
   font-size: 19px;
 }
 
 #overview .intro-row .subheading {
   font-size: 11px;
-}
-
-/* Las etiquetas neutras del producto (alcance, proyección, nivel del resumen)
-   usaban un fondo fijo de papel; en la consola se apoyan en el panel elevado. */
-#overview .neutral-tag {
-  border: 1px solid var(--aerial-edge);
-  background: var(--aerial-raised);
-  color: var(--aerial-muted);
-}
-
-/* El aviso de lo que la API no publica conserva su forma de nota, con sus pares
-   medidos sobre el fondo oscuro en vez de sobre el papel. */
-#overview .unimplemented {
-  border-color: #8a7a4a;
-  background: #2b2a1e;
-  color: #e8d9a6;
-}
-
-/* Los separadores internos de las listas del producto eran una línea de papel;
-   sobre el panel se quedan en un trazo tenue: la línea de una fila no identifica
-   un componente, y un borde de 4:1 entre filas competiría con el borde del panel. */
-#overview .data-list > div,
-#overview .decision-links li {
-  border-bottom-color: #31475a;
 }
 
 /* ── Composición ───────────────────────────────────────────────────────────
@@ -271,6 +66,7 @@ body:has(#overview) .update-bar {
 }
 
 #overview .aerial-canvas { grid-area: canvas; min-width: 0; }
+
 /* La ficha del último lote es la lectura de esta vista y ocupa la misma columna
    que el mapa, debajo. Es el propio `article.panel.risk-panel`, así que conserva
    su relleno y su contrato y solo pierde el margen que la separaba del panel
@@ -279,33 +75,346 @@ body:has(#overview) .update-bar {
 
 /* ── El lienzo ─────────────────────────────────────────────────────────────
  *
- * El mapa deja de ser una tarjeta clara dentro de una página clara: es la
- * superficie de agua del tablero dentro del panel de instrumentos, con el piso
- * más alto de la ruta. Los rellenos de nivel siguen siendo los tokens
- * compartidos (no se redeclaran aquí): el mapa y la leyenda prometen el mismo
- * color, y el relleno claro conserva el significado que ya tenía.
+ * T12 — el mapa esquemático pasa a ser un escenario 3D interactivo. El piso es
+ * relativo a la ventana (`clamp(440px, 62vh, 680px)`), así que el mapa llena el
+ * primer pliegue sin desbordarlo, y la columna liberada por S7 le da todo el ancho.
  *
- * Cuando el catálogo no trae insulares (`.map-insets:empty` ya se oculta) la
- * segunda pista se retira: una pista `minmax(0, 190px)` vacía se expande hasta su
- * límite con el espacio libre antes que la pista flexible, así que sin este caso
- * el mapa dejaría 190 px sin usar a su lado. */
-#overview .aerial-canvas .map-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 190px); }
-#overview .aerial-canvas .map-stage:has(.map-insets:empty) { grid-template-columns: minmax(0, 1fr); }
+ * El canvas pinta océano, batimetría, relieve y extrusión; el SVG que ya existía
+ * conserva el contrato accesible y comparte la misma cámara. Las reglas de relleno
+ * de nivel NO se redeclaran aquí: el lienzo lee los mismos tokens que la leyenda. */
+#overview .aerial-canvas .map-stage {
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 8px;
+}
 
 #overview .aerial-canvas .map-viewport {
-  min-height: 480px;
+  min-height: clamp(440px, 62vh, 680px);
   background: var(--aerial-water);
-  border: 1px solid var(--aerial-edge);
+  border: 1px solid var(--edge);
   border-radius: 10px;
 }
 
-#overview .aerial-canvas .map-svg {
-  min-height: 480px;
+/* El escenario comparte el piso con su viewport para que canvas, capa vectorial y
+   controles flotantes vivan siempre en la misma caja. */
+#overview .map-3d {
+  position: relative;
 }
+
+#overview .map-3d-stage {
+  position: relative;
+  min-height: clamp(440px, 62vh, 680px);
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--aerial-water);
+  cursor: grab;
+  touch-action: none;
+}
+
+#overview .map-3d-stage[data-dragging="pan"] { cursor: grabbing; }
+#overview .map-3d-stage[data-dragging="orbit"] { cursor: ew-resize; }
+
+#overview .map-3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* La capa vectorial es la que recibe el puntero y el teclado; el canvas queda
+   debajo como escenografía. */
+#overview .map-3d .map-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* La comuna sin lote publicado es una placa topográfica oscura, nunca un gris
+   plano claro: el relleno neutro compartido se deja ver sobre el relieve pintado
+   en el canvas y su contorno es el borde medido del sistema. */
+#overview .map-3d .zone-neutral {
+  fill-opacity: 0.34;
+  stroke: var(--edge-strong);
+}
+
+/* «Información insuficiente» también es una ausencia de lectura: comparte el
+   relieve oscuro para que ninguna placa clara sugiera una severidad. */
+#overview .map-3d .level-desconocido {
+  fill-opacity: 0.22;
+  stroke: var(--edge-strong);
+}
+
+#overview .map-3d .level-bajo,
+#overview .map-3d .level-medio,
+#overview .map-3d .level-alto {
+  fill-opacity: 0.84;
+}
+
+#overview .map-3d .zone-hovered {
+  stroke: var(--accent);
+  stroke-width: 1.8;
+}
+
+#overview .map-3d .zone-selected {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+/* El foco del teclado se ve sobre el océano y sobre cualquier relleno de nivel. */
+#overview .map-3d .zone-shape:focus-visible {
+  outline: none;
+  stroke: var(--focus);
+  stroke-width: 3.5;
+  stroke-dasharray: 7 3;
+}
+
+#overview .map-3d-label {
+  fill: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  paint-order: stroke;
+  stroke: var(--aerial-water);
+  stroke-width: 2.6px;
+  stroke-linejoin: round;
+  pointer-events: none;
+  user-select: none;
+}
+
+#overview .map-3d-beacon {
+  pointer-events: none;
+}
+
+#overview .map-3d-beacon line {
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-dasharray: 3 3;
+}
+
+#overview .map-3d-beacon circle {
+  fill: var(--accent);
+  stroke: var(--aerial-water);
+  stroke-width: 2;
+}
+
+/* ── HUD flotante ─────────────────────────────────────────────────────────
+ *
+ * Los controles son cristal sobre el mapa: se agrupan en filas y no capturan el
+ * arrastre salvo en los botones, así que el escenario se sigue pudiendo mover. */
+#overview .map-3d-hud {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+  pointer-events: none;
+}
+
+#overview .map-3d-hud-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 10px;
+  background: rgb(15 25 34 / 78%);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+}
+
+#overview .map-3d-hud button {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#overview .map-3d-hud button:hover { border-color: var(--accent); color: var(--accent); }
+#overview .map-3d-hud button[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-raised); color: var(--accent); }
+#overview .map-3d-hud button:disabled { opacity: 0.55; cursor: not-allowed; }
+#overview .map-3d-hud button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+#overview .map-3d-hud > .map-3d-focus {
+  justify-self: end;
+  border-color: var(--edge-strong);
+  background: rgb(15 25 34 / 80%);
+  backdrop-filter: blur(6px);
+}
+
+#overview .map-3d-hud-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 7px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 10px;
+  background: rgb(15 25 34 / 78%);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+#overview .map-3d-compass {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent);
+  transition: transform 120ms ease-out;
+}
+
+#overview .map-3d-compass svg { display: block; width: 18px; height: 18px; }
+#overview .map-3d-compass-n { color: var(--accent); font-size: 8px; font-weight: 800; letter-spacing: 0.08em; }
+
+#overview .map-3d-scale { display: inline-grid; gap: 2px; justify-items: start; }
+
+#overview .map-3d-scale-bar {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgb(148 223 218 / 55%);
+}
+
+#overview .map-3d-scale-label { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
+
+#overview .map-3d-layers {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: calc(100% - 200px);
+}
+
+#overview .map-3d-layers button {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 999px;
+  background: rgb(15 25 34 / 78%);
+  color: var(--muted);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+#overview .map-3d-layers button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+#overview .map-3d-layers button:hover { color: var(--ink); }
+#overview .map-3d-layers button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* La chapa de atribución declara en el propio mapa que el relieve es ilustrativo:
+   no es un DEM ni una medición del terreno. */
+#overview .map-3d-attribution {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  z-index: 4;
+  display: grid;
+  gap: 1px;
+  max-width: calc(100% - 210px);
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  background: rgb(8 21 32 / 86%);
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+#overview .map-3d-attribution-note { color: var(--muted); font-size: 8.5px; font-weight: 500; }
+
+/* La instrucción de la cámara es la descripción accesible del mapa, no una capa
+   visual más: se anuncia y no ocupa espacio. */
+#overview .map-3d-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* La ficha flotante del puntero no es una región viva: la misma identidad ya
+   viaja en el selector y en el nombre accesible de cada comuna. */
+#overview .map-3d-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  max-width: 210px;
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: rgb(15 25 34 / 93%);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  will-change: transform;
+}
+
+#overview .map-3d-tooltip p { margin: 0; }
+#overview .map-3d-tooltip-name { color: var(--ink); font-size: 11px; font-weight: 800; }
+#overview .map-3d-tooltip-meta { color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
+#overview .map-3d-tooltip-coords { color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+
+/* Los insulares son tarjetas de océano oscuro, acopladas al escenario y nunca
+   posicionadas geográficamente contra el continente. */
+#overview .map-3d-stage .map-insets {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  display: grid;
+  gap: 6px;
+  width: min(190px, 44%);
+  max-height: 48%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#overview .map-3d-stage .map-inset {
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: rgb(8 21 32 / 86%);
+  box-shadow: 0 8px 18px rgb(0 0 0 / 42%);
+}
+
+#overview .map-3d-stage .map-inset svg {
+  border-radius: 5px;
+  background: radial-gradient(circle at 32% 22%, var(--surface-raised), var(--aerial-water) 72%);
+}
+
+#overview .map-3d-stage .map-inset figcaption { color: var(--accent); font-size: 8px; font-weight: 700; line-height: 1.35; }
+
 
 #overview .aerial-canvas .map-panel {
   margin-bottom: 0;
-  border-color: var(--aerial-edge);
   padding: 12px;
 }
 
@@ -327,26 +436,6 @@ body:has(#overview) .update-bar {
   height: 32px;
 }
 
-/* Los recuadros insulares se dibujan aparte del continente, así que se apoyan en
-   el panel elevado y su propio lienzo vuelve al agua: el mismo par que el mapa
-   principal, a menor escala. */
-#overview .aerial-canvas .map-inset {
-  border-color: var(--aerial-edge);
-  background: var(--aerial-raised);
-}
-
-#overview .aerial-canvas .map-inset svg {
-  background: var(--aerial-water);
-}
-
-/* El selector del mapa es un control: su límite entra en el mínimo de 3:1 y su
-   superficie es la elevada, como los demás controles del tablero. */
-#overview .aerial-canvas .map-toolbar select {
-  border-color: var(--aerial-edge);
-  background: var(--aerial-raised);
-  color: var(--aerial-ink);
-}
-
 /* ── La estación de trabajo ────────────────────────────────────────────────
  *
  * Se apoya en el panel elevado, con el acento en sus rótulos: es el instrumento
@@ -360,15 +449,15 @@ body:has(#overview) .update-bar {
   gap: 12px;
   align-content: start;
   padding: 16px;
-  border: 1px solid var(--aerial-edge);
+  border: 1px solid var(--edge-strong);
   border-radius: var(--radius);
-  background: var(--aerial-raised);
+  background: var(--surface-raised);
   box-shadow: var(--shadow);
 }
 
 #overview .aerial-rail > h3 {
   margin: 0;
-  color: var(--aerial-ink);
+  color: var(--ink);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -380,82 +469,59 @@ body:has(#overview) .update-bar {
   gap: 8px;
   align-content: start;
   padding-top: 10px;
-  border-top: 1px solid #31475a;
+  border-top: 1px solid var(--line);
 }
 
 #overview .aerial-block > h4 {
   margin: 0;
-  color: var(--aerial-accent);
+  color: var(--accent);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-#overview .aerial-state { margin: 0; color: var(--aerial-ink); font-size: 12px; line-height: 1.5; }
-#overview .aerial-note { margin: 0; color: var(--aerial-muted); font-size: 11px; line-height: 1.55; }
+#overview .aerial-state { margin: 0; color: var(--ink); font-size: 12px; line-height: 1.5; }
+#overview .aerial-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
 
 /* Los enlaces son el único control de la barra: cada uno nombra su destino en el
-   texto visible y lleva el anillo de foco de la ruta. El alto de 36 px deja un
+   texto visible y lleva el anillo de foco global. El alto de 36 px deja un
    objetivo cómodo sin convertir la barra en una lista de botones. */
 #overview .aerial-links { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+
 #overview .aerial-links a {
   display: inline-flex;
   align-items: center;
   min-height: 36px;
-  color: var(--aerial-accent);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.4;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-#overview .aerial-links a:hover { color: var(--forest-900); }
+
+#overview .aerial-links a:hover { color: var(--ink); }
 
 #overview .aerial-readings { display: grid; gap: 6px; margin: 0; }
 #overview .aerial-readings > div { display: flex; justify-content: space-between; gap: 12px; }
-#overview .aerial-readings dt { color: var(--aerial-muted); font-size: 11px; }
+#overview .aerial-readings dt { color: var(--muted); font-size: 11px; }
+
 #overview .aerial-readings dd {
   max-width: 62%;
   margin: 0;
-  color: var(--aerial-ink);
+  color: var(--ink);
   font-size: 11px;
   font-weight: 700;
   text-align: right;
   overflow-wrap: anywhere;
 }
 
-/* ── Estados operativos de la lectura ──────────────────────────────────────
- *
- * Los estados ya existen y siguen siendo los mismos: el lote consultado, sin
- * publicar, no disponible, en proceso o sin confirmación. Aquí solo se apoyan en
- * las superficies del tablero. Los colores de nivel no se tocan: el relleno de la
- * píldora y del símbolo es de la ruta, el nivel lo sigue diciendo el texto. */
-#overview .risk-pill {
-  border: 1px solid var(--aerial-edge);
-  background: var(--aerial-raised);
-  color: var(--aerial-accent);
-}
-
-#overview .risk-state {
-  border-color: var(--aerial-edge);
-  background: var(--aerial-raised);
-}
-
-#overview .risk-symbol {
-  border-color: var(--aerial-edge);
-  background: var(--aerial-panel);
-  color: var(--aerial-muted);
-}
-
-#overview .factor-track { background: #2c3d4d; }
-#overview .factor-track span { background: var(--aerial-accent); }
-
-/* La tarjeta de atención del resumen conserva su color cálido y su borde, medidos
-   sobre el panel oscuro en vez de sobre el papel. */
-#overview .metric-attention {
-  border-color: #7a5a4a;
-  background: #2a2320;
+/* El anillo de foco del producto se eligió contra papel; sobre el agua y el panel
+   su par medido es el rol global de foco. Se cambia solo el color: ancho y
+   desplazamiento siguen siendo los del contrato de la aplicación. */
+#overview :focus-visible {
+  outline-color: var(--focus);
 }
 
 /* ── Una columna ───────────────────────────────────────────────────────────
@@ -470,74 +536,73 @@ body:has(#overview) .update-bar {
       "rail"
       "result";
   }
+
   #overview .aerial-rail { position: static; }
+
   #overview .aerial-canvas .map-viewport,
-  #overview .aerial-canvas .map-svg { min-height: 420px; }
+  #overview .map-3d-stage { min-height: 420px; }
 }
 
+/* El pliegue de 390×844 es el pliegue del mapa: la ruta se compacta sin ocultar
+   ninguna fila, ningún rótulo ni ningún control, y sin cambiar el orden de
+   lectura. El armazón ya no está aquí: la columna lateral no existe (S7) y las
+   filas compartidas leen la paleta global, así que lo que queda es la ruta. */
 @media (max-width: 720px) {
-  /* El armazón se compacta aquí porque el pliegue de 390×844 es el pliegue del
-     mapa: la columna lateral pasa a una fila (misma marca, mismo ámbito, misma
-     sesión y mismo cierre de sesión, en el mismo orden de lectura, sin ocultar
-     nada) y las filas de la cabecera y de la actualización pierden su aire. */
-  body:has(#overview) .sidebar {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 10px;
-    padding: 8px 12px;
-  }
-
-  body:has(#overview) .brand { margin: 0; padding: 0; gap: 8px; }
-  body:has(#overview) .brand-mark { width: 26px; height: 26px; font-size: 15px; border-radius: 8px; }
-  body:has(#overview) .brand strong { font-size: 13px; }
-  body:has(#overview) .brand small { font-size: 7px; letter-spacing: 0.08em; }
-
-  body:has(#overview) .workspace { margin: 0; padding: 3px 7px; gap: 6px; font-size: 10px; }
-  body:has(#overview) .workspace-mark { width: 18px; height: 20px; font-size: 10px; }
-  body:has(#overview) .workspace small { font-size: 7px; }
-
-  body:has(#overview) .sidebar-bottom {
-    flex: 1 1 100%;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    padding: 0;
-  }
-
-  body:has(#overview) .session-card { flex: 1 1 auto; padding: 0; border-top: 0; }
-  body:has(#overview) .session-card strong { font-size: 9.5px; }
-  body:has(#overview) .session-card small { font-size: 8.5px; }
-  body:has(#overview) .session-card button { min-height: 28px; padding: 3px 8px; font-size: 9px; }
-
-  body:has(#overview) main { padding: 10px 12px 20px; }
-  body:has(#overview) .topbar { min-height: 0; padding: 6px 12px; gap: 8px; }
-  body:has(#overview) .topbar h1 { font-size: 15px; }
-  body:has(#overview) .breadcrumbs { font-size: 10px; }
-  body:has(#overview) .zone-chip { padding: 4px 6px; }
-  body:has(#overview) .zone-chip small { font-size: 7px; }
-  body:has(#overview) .update-bar { padding: 6px 12px 0; font-size: 9px; line-height: 1.4; }
-
   #overview { padding: 10px 10px 14px; }
+
   #overview .intro-row { gap: 6px; margin-bottom: 6px; }
   #overview .intro-row h2 { font-size: 17px; }
   #overview .intro-row .subheading { font-size: 10px; }
   #overview .aerial-workspace { gap: 10px; margin-bottom: 14px; }
+
   /* El encabezado del mapa pasa a bloque: rótulo, título y chapa, cada uno en su
      línea completa, en vez de repartir el ancho con la chapa y partir el título. */
   #overview .aerial-canvas .map-panel { padding: 10px; }
-  #overview .aerial-canvas .panel-heading { display: block; padding: 6px 8px 4px; gap: 4px; }
+
+  #overview .aerial-canvas .panel-heading {
+    display: block;
+    padding: 6px 8px 4px;
+    gap: 4px;
+  }
+
   #overview .aerial-canvas .panel-heading .eyebrow { font-size: 8px; letter-spacing: 0.04em; }
   #overview .aerial-canvas .panel-heading h3 { font-size: 14px; }
   #overview .aerial-canvas .panel-heading .neutral-tag { display: inline-block; margin-top: 4px; }
   #overview .aerial-canvas .map-toolbar { margin-top: 5px; gap: 5px; }
   #overview .aerial-canvas .map-toolbar select { width: 100%; max-width: none; }
+
   /* Los insulares apilados bajo el mapa, como ya hacía el mapa en pantalla
      estrecha: dos pistas aquí dejarían el lienzo en un tercio del ancho. */
   #overview .aerial-canvas .map-stage { grid-template-columns: minmax(0, 1fr); }
   #overview .aerial-canvas .map-viewport,
-  #overview .aerial-canvas .map-svg { min-height: 300px; }
+  #overview .map-3d-stage { min-height: 340px; }
+
+  /* El HUD se reparte en las dos esquinas sin tapar el mapa: controles a la
+     derecha, capas a la izquierda; ambos conservan un objetivo táctil real. */
+  #overview .map-3d-hud {
+    top: auto;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    max-width: none;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    pointer-events: auto;
+  }
+  #overview .map-3d-hud-row { flex: 0 0 auto; flex-wrap: nowrap; padding: 3px; }
+  #overview .map-3d-hud > .map-3d-focus { flex: 0 0 auto; }
+  #overview .map-3d-hud-meta { flex: 0 0 auto; }
+  #overview .map-3d-hud button { min-height: 36px; font-size: 10px; }
+  #overview .map-3d-layers { top: 8px; left: 8px; max-width: calc(100% - 16px); }
+  #overview .map-3d-attribution { left: 8px; right: 8px; bottom: 58px; max-width: none; }
+  #overview .map-3d-stage .map-insets { top: 50px; right: 8px; bottom: auto; width: min(140px, 42%); max-height: 36%; }
+  #overview .map-3d-stage .map-inset svg { max-height: 72px; }
+
   #overview .aerial-rail { padding: 13px; }
   #overview .aerial-links a { min-height: 40px; }
 }
