@@ -36,7 +36,12 @@ import type {
   RiskLevel,
   Scenario,
   ServiceSnapshot,
+  QualityFindingCode,
+  QualityFindingDefinition,
   SourceProvenance,
+  SourceQualityEntry,
+  SourceReview,
+  SourceReviewDecision,
   VegetationCatalogue,
   ZoneCollection,
   ZoneLandCover,
@@ -44,7 +49,18 @@ import type {
 } from '../types/api';
 // The closed type catalogues are runtime values: the guards compare the served
 // wire spelling against them, so they cannot travel through `import type`.
-import { ENVIRONMENT_CLASSES, EVALUATION_TRIGGERS, LAND_COVER_KEYS, OBSERVATION_TYPES, RISK_LEVELS, VEGETATION_SOURCE_LABEL } from '../types/api';
+import {
+  ENVIRONMENT_CLASSES,
+  EVALUATION_TRIGGERS,
+  LAND_COVER_KEYS,
+  OBSERVATION_TYPES,
+  QUALITY_FINDINGS,
+  QUALITY_FINDING_TRAITS,
+  RISK_LEVELS,
+  SOURCE_REVIEW_DECISIONS,
+  SOURCE_REVIEW_NOTE_LIMIT,
+  VEGETATION_SOURCE_LABEL,
+} from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -155,7 +171,8 @@ type RequestKind =
   | 'models'
   | 'simulate'
   | 'users'
-  | 'vegetation';
+  | 'vegetation'
+  | 'sourceReview';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
 // together for one selection, so a shared counter would make each treat the
@@ -1460,12 +1477,20 @@ export async function compare(
 // payload through UNCHANGED. It does not flatten it and it does not decide
 // integrity: `matches: false`, a missing provider or a stale cutoff is a
 // fail-closed decision the domain layer makes on the same body.
+//
+// V1-P-05 adds two REQUIRED members and both are closed vocabularies, so they are
+// proven here instead of being rendered on trust: the five-finding catalogue (its
+// order, each code's kind and severity, and a non-empty description) and each
+// source's findings (non-empty, no repeats, every code declared) with its review
+// (`null` or a coherent one about the same source).
 function isSourceProvenance(value: unknown): value is SourceProvenance {
   if (!record(value)) return false;
   const geography = record(value.geography) ? value.geography : null;
   const provenance = geography && record(geography.provenance) ? geography.provenance : null;
   const integrity = geography && record(geography.integrity) ? geography.integrity : null;
   if (geography === null || provenance === null || integrity === null) return false;
+  if (!isQualityCatalog(value.quality_catalog)) return false;
+  if (!Array.isArray(value.sources) || !value.sources.every(isSourceQualityEntry)) return false;
   return (
     typeof provenance.provider === 'string' &&
     typeof provenance.attribution === 'string' &&
@@ -1478,9 +1503,124 @@ function isSourceProvenance(value: unknown): value is SourceProvenance {
   );
 }
 
+function isQualityFindingCode(value: unknown): value is QualityFindingCode {
+  return typeof value === 'string' && (QUALITY_FINDINGS as readonly string[]).includes(value);
+}
+
+// The catalogue is positional on purpose: the service publishes the ratified
+// order, so a reordered list is refused rather than sorted here. Each entry must
+// carry the kind and severity its code has, which keeps a renamed trait from
+// being painted as a finding the page cannot explain.
+function isQualityCatalog(value: unknown): value is QualityFindingDefinition[] {
+  if (!Array.isArray(value) || value.length !== QUALITY_FINDINGS.length) return false;
+  return value.every((entry, index) => {
+    if (!record(entry)) return false;
+    const code = QUALITY_FINDINGS[index];
+    const traits = QUALITY_FINDING_TRAITS[code];
+    return (
+      entry.code === code &&
+      entry.kind === traits.kind &&
+      entry.severity === traits.severity &&
+      nonempty(entry.description)
+    );
+  });
+}
+
+function isSourceReviewDecision(value: unknown): value is SourceReviewDecision {
+  return typeof value === 'string' && (SOURCE_REVIEW_DECISIONS as readonly string[]).includes(value);
+}
+
+// One stored review. `reviewed_by` and `reviewed_at` are never empty: a review
+// without an actor or an instant is not a decision anybody can be held to.
+function isSourceReview(value: unknown): value is SourceReview {
+  if (!record(value)) return false;
+  if (!nonempty(value.source_id)) return false;
+  if (!isSourceReviewDecision(value.decision)) return false;
+  if (typeof value.note !== 'string' || Array.from(value.note).length > SOURCE_REVIEW_NOTE_LIMIT) return false;
+  if (!nonempty(value.reviewed_by)) return false;
+  if (!nonempty(value.reviewed_at)) return false;
+  return Number.isFinite(Date.parse(value.reviewed_at as string));
+}
+
+function nullableSourceInstant(value: unknown): boolean {
+  return value === null || typeof value === 'string';
+}
+
+function nullableAge(value: unknown): boolean {
+  return value === null || (typeof value === 'number' && Number.isFinite(value) && value >= 0);
+}
+
+// One source: the freshness the cycle always served, its findings and its review.
+// A review about another source is refused here, because painting it as this
+// source's decision would attribute one source's review to another.
+function isSourceQualityEntry(value: unknown): value is SourceQualityEntry {
+  if (!record(value)) return false;
+  if (!nonempty(value.source_id)) return false;
+  if (typeof value.complete !== 'boolean') return false;
+  if (!nullableSourceInstant(value.last_run_at) || !nullableSourceInstant(value.next_run_at)) return false;
+  if (!nullableAge(value.age_seconds)) return false;
+  if (value.last_error !== undefined && typeof value.last_error !== 'string') return false;
+  if (!Array.isArray(value.quality_findings) || value.quality_findings.length === 0) return false;
+  const seen = new Set<string>();
+  for (const finding of value.quality_findings) {
+    if (!isQualityFindingCode(finding) || seen.has(finding)) return false;
+    seen.add(finding);
+  }
+  if (value.review === null) return true;
+  return isSourceReview(value.review) && value.review.source_id === value.source_id;
+}
+
+// The review write's own request refusal. It runs BEFORE the request, so an
+// unhonourable body never reaches the gateway: an empty source, a decision outside
+// the closed pair or a note past the stored bound cannot be stored by definition.
+function sourceReviewRequestFailure(sourceId: string, input: { decision: string; note?: string }): Failure | null {
+  if (typeof sourceId !== 'string' || sourceId.trim() === '') {
+    return failureSpec('malformed', 'invalid_source_review_request');
+  }
+  if (!isSourceReviewDecision(input.decision)) return failureSpec('malformed', 'invalid_source_review_request');
+  const note = input.note ?? '';
+  if (typeof note !== 'string' || Array.from(note).length > SOURCE_REVIEW_NOTE_LIMIT) {
+    return failureSpec('malformed', 'invalid_source_review_request');
+  }
+  return null;
+}
+
 export async function sources(signal?: AbortSignal): Promise<Outcome<SourceProvenance>> {
   const result = await requestJson('sources', `${gatewayOrigin}${routes.sources}`, { authenticated: true }, signal);
   return guardOutcome(result, isSourceProvenance);
+}
+
+// Appends one human decision about one source. The actor is deliberately absent
+// from the body: the bearer token carries it and the server reads it there, so a
+// client cannot attribute a review to anybody. The answer must name the source
+// that was reviewed; a body about another source is refused as `source_mismatch`
+// rather than painted as this decision.
+export async function reviewSource(
+  sourceId: string,
+  input: { decision: SourceReviewDecision; note?: string },
+  signal?: AbortSignal,
+): Promise<Outcome<SourceReview>> {
+  const refusal = sourceReviewRequestFailure(sourceId, input);
+  if (refusal !== null) return failureOutcome<SourceReview>(refusal);
+  const result = await requestJson(
+    'sourceReview',
+    `${gatewayOrigin}${routes.sources}/${encodeURIComponent(sourceId)}/review`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ decision: input.decision, note: input.note ?? '' }),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<SourceReview>(result);
+  if (!isSourceReview(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (result.body.source_id !== sourceId) {
+    return failureOutcome(failureSpec('malformed', 'source_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
 }
 
 export async function riskStatus(signal?: AbortSignal): Promise<Outcome<ServiceSnapshot>> {

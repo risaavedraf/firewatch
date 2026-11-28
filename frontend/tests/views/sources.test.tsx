@@ -9,6 +9,7 @@ import { completeLogin, resetSession } from '../../src/core/session';
 import { SourcesView } from '../../src/views/SourcesView';
 
 import { createFetchStub, createStorageStub, flush, jwt } from '../core/harness';
+import { qualityCatalogFixture, sourceEntryFixture } from '../support/source-quality';
 
 // N8b — the sources + services view. It carries the scope declaration (S15),
 // reproduces the provenance fields verbatim, reproduces the restriction text
@@ -89,6 +90,11 @@ function provenanceBody(): Record<string, unknown> {
       integrity: { algorithm: 'sha256', matches: true },
     },
     risk_input: { synthetic: true, display_name: 'Perfil académico', id: 'academic' },
+    // V1-P-05: the closed catalogue is a required member of every answer, even one
+    // with no source: the page never infers the vocabulary from the entries that
+    // happened to arrive. No runner here means no source entry.
+    quality_catalog: qualityCatalogFixture(),
+    sources: [],
   };
 }
 
@@ -245,13 +251,14 @@ test('the scope declaration lives inside this view and names the real limits', (
   expect(scope).toHaveTextContent(/CONAF ni a SENAPRED/i);
 });
 
-test('the actions and findings note stays visible inside the view', () => {
+// V1-P-05 — the capability is delivered, so the note that declared it absent is
+// gone: an absence notice must not survive the feature it declared missing.
+test('the retired quality-findings absence note is gone from the view', () => {
   prepare();
   render(<SourcesView />);
 
-  const note = document.querySelector('#sources .unimplemented-note');
-  expect(note).not.toBeNull();
-  expect(note).toHaveTextContent(/hallazgos de calidad/i);
+  expect(document.querySelector('#sources .unimplemented-note')).toBeNull();
+  expect(document.getElementById('quality-catalog')).not.toBeNull();
 });
 
 test('provenance is reproduced verbatim and the integrity line only claims what the service verified', async () => {
@@ -438,13 +445,12 @@ test('the cycle panel shows the last run, the next run and the freshness the ser
   fetchStub.answer(SOURCES_URL, {
     ...provenanceBody(),
     sources: [
-      {
+      sourceEntryFixture({
         source_id: 'fixture',
         last_run_at: '2026-01-01T11:45:00Z',
         next_run_at: '2026-01-01T12:00:00Z',
-        complete: true,
         age_seconds: 900,
-      },
+      }),
     ],
   });
   fetchStub.answer(RISK_STATUS_URL, statusBody());
@@ -470,8 +476,20 @@ test('the cycle panel derives incompleteness and surfaces a source error (T13)',
   fetchStub.answer(SOURCES_URL, {
     ...provenanceBody(),
     sources: [
-      { source_id: 'a', last_run_at: '2026-01-01T11:45:00Z', next_run_at: '2026-01-01T12:00:00Z', complete: true, age_seconds: 900 },
-      { source_id: 'b', last_run_at: null, next_run_at: null, complete: false, age_seconds: null, last_error: 'timeout upstream' },
+      sourceEntryFixture({
+        source_id: 'a',
+        last_run_at: '2026-01-01T11:45:00Z',
+        next_run_at: '2026-01-01T12:00:00Z',
+        age_seconds: 900,
+      }),
+      sourceEntryFixture({
+        source_id: 'b',
+        last_run_at: null,
+        next_run_at: null,
+        complete: false,
+        age_seconds: null,
+        last_error: 'timeout upstream',
+      }),
     ],
   });
   fetchStub.answer(RISK_STATUS_URL, statusBody());
@@ -494,7 +512,10 @@ test('the cycle panel states the service does not report sources, without invent
   answerReads(fetchStub);
   await waitFor(() => expect(text('cycle-badge')).toBe('SIN INFORMAR'));
 
-  expect(text('cycle-status')).toMatch(/no informa/i);
+  // V1-P-05 makes `sources` a REQUIRED member of the answer, so the empty array is
+  // now the stated "no scheduler" case rather than an absent member: the sentence
+  // says the service reports no sources, which is what it served.
+  expect(text('cycle-status')).toMatch(/no reporta fuentes/i);
   expect(text('cycle-last-run')).toBe('No informado');
   expect(text('cycle-age')).toBe('No informado');
   expect(text('cycle-sources')).toBe('No informado');

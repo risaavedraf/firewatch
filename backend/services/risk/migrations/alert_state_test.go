@@ -104,7 +104,10 @@ func TestRiskAlertStateClaimsTheNextFreeLedgerVersion(t *testing.T) {
 	if name, claimed := afterwards[20]; !claimed || name != "batch_evaluation_actor" {
 		t.Errorf("version 20 is registered as %q (present=%t), want batch_evaluation_actor", name, claimed)
 	}
-	if len(afterwards) != 1 {
-		t.Errorf("versions claimed after 19 are %v, want only 20; a new claim must update this test and the ledger together", afterwards)
+	if name, claimed := afterwards[21]; !claimed || name != "source_quality_reviews" {
+		t.Errorf("version 21 is registered as %q (present=%t), want source_quality_reviews", name, claimed)
+	}
+	if len(afterwards) != 2 {
+		t.Errorf("versions claimed after 19 are %v, want only 20 and 21; a new claim must update this test and the ledger together", afterwards)
 	}
 }

@@ -63,15 +63,20 @@ export type UnimplementedCapability = {
 // `#overview` renders it in the sector table and in the zone detail card, so the
 // last of the two original entries leaves the inventory and the count is one. The
 // layer is complementary: the scalar `cobertura_vegetal` of the rule is untouched.
+// V1-P-05 retired «Revisar e incorporar registros, y hallazgos de calidad»: the
+// LAST entry of the inventory. `GET /v1/risk/sources` publishes the closed
+// five-finding quality catalogue and the findings derived from each source's
+// served evidence, `POST /v1/risk/sources/{source_id}/review` records a review
+// with the verified token actor and `#sources` renders both with accessible
+// controls. The list is therefore EMPTY: every capability the retired mockup
+// declared has been answered, and an inventory that kept a delivered row would
+// be claiming an absence the backend no longer has.
+//
+// An empty inventory is stated, not implied: the body renders one row saying no
+// capability is open, the head states the empty count, and the badge stops
+// claiming "not implemented" over nothing.
 // eslint-disable-next-line react-refresh/only-export-components
-export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
-  {
-    capability: 'Revisar e incorporar registros, y hallazgos de calidad',
-    reason:
-      'GET /v1/risk/sources publica la procedencia y la integridad reales; no existe un catálogo de hallazgos de calidad. Las acciones preventivas viven ahora en su propia vista (#actions).',
-    location: 'Fuentes y procedencia',
-  },
-];
+export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [];
 
 export function PendingView() {
   return (
@@ -85,19 +90,28 @@ export function PendingView() {
           eyebrow="ALCANCE DE ESTA ENTREGA"
           title="Aún no implementado"
           titleId="pending-title"
-          lede="Estas capacidades del mockup retirado no tienen respaldo en el backend actual. Declararlas es parte de la entrega: no se simulan y ningún control de esta página las ofrece."
+          lede={
+            NOT_IMPLEMENTED.length === 0
+              ? 'Ninguna capacidad del mockup retirado sigue sin respaldo en el backend actual: cada fila declarada se retiró del inventario al quedar respaldada por el contrato y el backend. La aceptación de cada fila de ODD sigue siendo una decisión humana (R6).'
+              : 'Estas capacidades del mockup retirado no tienen respaldo en el backend actual. Declararlas es parte de la entrega: no se simulan y ningún control de esta página las ofrece.'
+          }
         >
           <span className="ops-chip">Solo lectura</span>
           <span className="count-badge" id="pending-count">
             {NOT_IMPLEMENTED.length}
           </span>
           <span id="pending-badge">
-            <UnimplementedBadge />
+            {NOT_IMPLEMENTED.length === 0 ? (
+              <span className="neutral-tag">SIN FILAS ABIERTAS</span>
+            ) : (
+              <UnimplementedBadge />
+            )}
           </span>
         </OperationsViewHead>
         <StatusCopy id="pending-status">
-          Inventario de solo lectura: cada fila declara la capacidad ausente, por qué no está y dónde iría. Ninguna
-          fila es un control ni una simulación, y el backend actual no respalda ninguna de ellas.
+          {NOT_IMPLEMENTED.length === 0
+            ? 'Inventario de solo lectura: ninguna capacidad del mockup retirado queda sin respaldo. Una ausencia no se simula y una capacidad entregada no se conserva aquí como si siguiera faltando.'
+            : 'Inventario de solo lectura: cada fila declara la capacidad ausente, por qué no está y dónde iría. Ninguna fila es un control ni una simulación, y el backend actual no respalda ninguna de ellas.'}
         </StatusCopy>
         <TableWrap label="Capacidades sin respaldo en el backend">
           <table>
@@ -112,13 +126,25 @@ export function PendingView() {
               </tr>
             </thead>
             <tbody id="pending-rows">
-              {NOT_IMPLEMENTED.map(entry => (
-                <tr key={entry.capability}>
-                  <td>{entry.capability}</td>
-                  <td>{entry.reason}</td>
-                  <td>{entry.location}</td>
+              {NOT_IMPLEMENTED.length === 0 ? (
+                <tr>
+                  {/* One cell spanning the three columns: a zero-row table would
+                      look like a failed render, and a message inside a colonnless
+                      row would be announced with three empty cells. */}
+                  <td colSpan={3}>
+                    Ninguna capacidad del mockup retirado queda sin respaldo en el backend actual: el inventario está
+                    vacío.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                NOT_IMPLEMENTED.map(entry => (
+                  <tr key={entry.capability}>
+                    <td>{entry.capability}</td>
+                    <td>{entry.reason}</td>
+                    <td>{entry.location}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </TableWrap>

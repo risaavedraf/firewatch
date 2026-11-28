@@ -79,6 +79,51 @@ type fakeStore struct {
 	compareErr     error
 	compareCalls   int
 	compareQueries []repository.ComparisonQuery
+	// Source review state for the V1-P-05 routes. sourceReviewWrites records what
+	// each accepted write asked to append, so a test can prove the actor came from
+	// the verified token and never from the body; sourceReviews is the memory store
+	// the read serves back, and the two error seams prove both routes fail closed.
+	sourceReviews       map[string]repository.SourceReview
+	sourceReviewErr     error
+	sourceReviewReadErr error
+	sourceReviewWrites  []repository.SourceReviewRequest
+}
+
+// LatestSourceReviews stands in for the newest-review-per-source read. A store with
+// no review yet answers an empty map, which the route serves as the explicit null.
+func (s *fakeStore) LatestSourceReviews(context.Context) (map[string]repository.SourceReview, error) {
+	if s.sourceReviewReadErr != nil {
+		return nil, s.sourceReviewReadErr
+	}
+	if s.sourceReviews == nil {
+		return map[string]repository.SourceReview{}, nil
+	}
+	return s.sourceReviews, nil
+}
+
+// RecordSourceReview appends one review into memory and answers the row it wrote,
+// so the route's echo, its latest-per-source read-back and its append-only trace are
+// exercised without a database. A refused request stores nothing.
+func (s *fakeStore) RecordSourceReview(_ context.Context, request repository.SourceReviewRequest) (repository.SourceReview, error) {
+	if s.sourceReviewErr != nil {
+		return repository.SourceReview{}, s.sourceReviewErr
+	}
+	if err := request.Validate(); err != nil {
+		return repository.SourceReview{}, err
+	}
+	s.sourceReviewWrites = append(s.sourceReviewWrites, request)
+	review := repository.SourceReview{
+		SourceID:   request.SourceID,
+		Decision:   request.Decision,
+		Note:       request.Note,
+		ReviewedBy: request.ReviewedBy,
+		ReviewedAt: request.ReviewedAt.UTC(),
+	}
+	if s.sourceReviews == nil {
+		s.sourceReviews = map[string]repository.SourceReview{}
+	}
+	s.sourceReviews[review.SourceID] = review
+	return review, nil
 }
 
 func (s *fakeStore) ExecutiveBatches(context.Context) ([][]repository.Batch, error) {

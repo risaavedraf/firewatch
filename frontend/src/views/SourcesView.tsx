@@ -2,13 +2,20 @@ import { useEffect, useState } from 'react';
 
 import { idleCopy, rejectedSessionCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
-import { PanelHeading, UnimplementedNote } from '../components/ui';
+import { PanelHeading, TableWrap } from '../components/ui';
 import { OperationsViewHead } from '../components/operations/OperationsPrimitives';
 import { timing } from '../config';
 import { evaluateEffectiveClassifier, type ActiveRuleEvidence } from '../core/active-rule';
-import { jobsStatus, modelRegistry, ready, riskStatus, sources, type Failure } from '../core/api';
+import { jobsStatus, modelRegistry, ready, reviewSource, riskStatus, sources, type Failure } from '../core/api';
 import type { SessionState } from '../core/session';
+import type {
+  QualityFindingDefinition,
+  SourceProvenance,
+  SourceQualityEntry,
+  SourceReviewDecision,
+} from '../types/api';
 import {
+  declaresAdminRole,
   evaluateCycle,
   evaluatePipeline,
   evaluateProvenance,
@@ -17,6 +24,12 @@ import {
   type PipelineDecision,
   type ProvenanceDecision,
   type ServiceStatusDecision,
+  qualityFindingLines,
+  qualitySeverityLabel,
+  reviewDecisionLabel,
+  reviewInstantLabel,
+  reviewStatusText,
+  reviewTargetId,
 } from '../domain';
 import { evaluateGatewayProbe, type GatewayProbeDecision } from '../domain/readiness';
 import { evaluateOperationalStatus } from '../domain/operational-status';
@@ -38,6 +51,61 @@ type Phase = 'unconsulted' | 'loading' | 'settled';
 const WEATHER_INTEGRATION =
   'No integrada: el contrato que esta vista consulta no publica una fuente meteorológica; no hay lectura de clima que mostrar y no se inventa una.';
 
+// The served quality evidence, projected once per read: the closed catalogue, the
+// per-source entries and the source the review controls address. It is one object
+// because the three travel together and a partial projection would offer a review
+// of nothing.
+interface SourceQualitySnapshot {
+  readonly catalog: readonly QualityFindingDefinition[];
+  readonly entries: readonly SourceQualityEntry[];
+  readonly targetId: string;
+}
+
+function sourceQualitySnapshot(payload: SourceProvenance): SourceQualitySnapshot {
+  const entries = payload.sources;
+  return {
+    catalog: payload.quality_catalog,
+    entries,
+    targetId: reviewTargetId(entries, payload.risk_input?.id ?? ''),
+  };
+}
+
+// The ONE answer of the review write that is not a refusal. The published contract
+// states that `review_audit_unavailable` means the review WAS persisted and only its
+// audit event could not be recorded, so the panel must not claim nothing was written
+// and the stored row has to be read back. The code is paired with its documented
+// status on purpose: a code on another status is a pair the contract never defines
+// and would prove nothing about what the server did.
+const REVIEW_AUDIT_UNAVAILABLE = 'review_audit_unavailable';
+
+function reviewPersistedWithoutAudit(failure: Failure): boolean {
+  return failure.status === 503 && failure.reason === REVIEW_AUDIT_UNAVAILABLE;
+}
+
+// The refusal copy of the review write. It says what the server actually answered
+// and never claims a decision was recorded: 401 and 403 are refusals by
+// construction, any other failure leaves the write undetermined, and the audit
+// failure is the single case in which the decision IS stored.
+function reviewFailureMessage(failure: Failure): string {
+  if (reviewPersistedWithoutAudit(failure)) {
+    return `La revisión sí quedó registrada en el almacenamiento; lo que no se pudo registrar fue su evento de auditoría (HTTP 503 · ${REVIEW_AUDIT_UNAVAILABLE}). Se vuelve a leer el estado servido para mostrar la revisión guardada.`;
+  }
+  switch (failure.kind) {
+    case 'unauthorized':
+      return rejectedSessionCopy();
+    case 'forbidden':
+      return 'No se registró la revisión: la API exige el rol de administración (403).';
+    case 'malformed':
+      return 'No se registró la revisión: la API respondió un documento ilegible.';
+    default: {
+      const code =
+        failure.status !== undefined && failure.reason !== `http_${failure.status}` ? ` · ${failure.reason}` : '';
+      const http = failure.status !== undefined ? `HTTP ${failure.status}${code}` : 'sin conexión';
+      return `No se registró la revisión (${http}); el servidor no confirmó ninguna decisión.`;
+    }
+  }
+}
+
 interface SourcesSnapshot {
   provenance: ProvenanceDecision | null;
   provenanceFailure: Failure | null;
@@ -47,6 +115,7 @@ interface SourcesSnapshot {
   pipeline: PipelineDecision | null;
   gateway: GatewayProbeDecision;
   rule: ActiveRuleEvidence;
+  quality: SourceQualitySnapshot | null;
   riskCheckedAt: string;
   jobsCheckedAt: string;
 }
@@ -122,6 +191,19 @@ export function SourcesView() {
   // the explicit unconsulted state even though the last read is still in memory.
   const [stored, setStored] = useState<StoredSnapshot | null>(null);
 
+  // V1-P-05: the review write's local state. The note is what the operator typed,
+  // the notice is what the server answered, and the revision re-runs the read so
+  // the panel paints the stored row instead of the value the form sent.
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewNotice, setReviewNotice] = useState<{
+    tone: 'idle' | 'saving' | 'saved' | 'persisted' | 'failed';
+    message: string;
+  }>({
+    tone: 'idle',
+    message: '',
+  });
+  const [revision, setReviewRevision] = useState(0);
+
   useEffect(() => {
     if (!signedIn) return;
     const controller = new AbortController();
@@ -174,6 +256,10 @@ export function SourcesView() {
       // transport passes the optional object through; the domain decides what it
       // means and never invents a run time the service did not state.
       const cycleFreshness = sourcesOutcome.ok ? evaluateCycle(sourcesOutcome.data, now) : null;
+      // V1-P-05: the catalogue, the per-source findings and the review in force
+      // travel in the same read, so a failure to read the result is the same
+      // failure that empties the panel - never a half-painted quality state.
+      const quality = sourcesOutcome.ok ? sourceQualitySnapshot(sourcesOutcome.data) : null;
       const risk = riskOutcome.ok
         ? evaluateServiceStatus({ status: 200, body: riskOutcome.data }, now)
         : evaluateServiceStatus({ status: riskOutcome.failure.status ?? 0, body: null }, now);
@@ -202,6 +288,7 @@ export function SourcesView() {
           pipeline: evaluatePipeline(risk, jobs),
           gateway,
           rule,
+          quality,
           riskCheckedAt: riskOutcome.ok ? riskOutcome.data.checked_at : '',
           jobsCheckedAt: jobsOutcome.ok ? jobsOutcome.data.checked_at : '',
         },
@@ -216,7 +303,7 @@ export function SourcesView() {
       controller.abort();
       if (timer !== null) clearTimeout(timer);
     };
-  }, [signedIn, session]);
+  }, [signedIn, session, revision]);
 
   const current = signedIn && stored !== null && stored.owner === session ? stored.snapshot : null;
   const phase: Phase = !signedIn ? 'unconsulted' : current === null ? 'loading' : 'settled';
@@ -249,6 +336,73 @@ export function SourcesView() {
           : 'NO DISPONIBLE';
   const statusClass =
     accepted !== null ? 'status-copy risk-good' : phase === 'settled' ? 'status-copy risk-error' : 'status-copy';
+
+  // V1-P-05 — the served quality evidence, the review in force and the write's
+  // affordance. `admin` is the role the TOKEN declares, not a permission this page
+  // grants: the server decides, and a refusal it answers is rendered verbatim.
+  const qualityView = current?.quality ?? null;
+  const qualityCatalog = qualityView?.catalog ?? [];
+  const qualityEntries = qualityView?.entries ?? [];
+  const reviewTarget = qualityView?.targetId ?? '';
+  const selectedReview = qualityEntries.find(entry => entry.source_id === reviewTarget)?.review ?? null;
+  const admin = signedIn && declaresAdminRole(session.roles);
+  const submittingReview = reviewNotice.tone === 'saving';
+  const reviewDisabled = !admin || submittingReview || reviewTarget === '';
+
+  const qualityStatusText =
+    phase === 'unconsulted'
+      ? idleCopy(session, 'consultar los hallazgos de calidad')
+      : phase === 'loading'
+        ? 'Consultando los hallazgos de calidad…'
+        : qualityView === null
+          ? 'La API no publicó el catálogo de hallazgos de calidad; no se muestra ninguno.'
+          : `Catálogo cerrado de ${qualityCatalog.length} hallazgos · ${qualityEntries.length} ${
+              qualityEntries.length === 1 ? 'fuente informada' : 'fuentes informadas'
+            }.`;
+  // A persisted decision whose audit event failed is neither a success nor a
+  // refusal: it is stated in the neutral tone, because painting it green would hide
+  // the missing event and painting it red would deny the stored row.
+  const reviewNoticeClass =
+    reviewNotice.tone === 'failed'
+      ? 'status-copy risk-error'
+      : reviewNotice.tone === 'saved'
+        ? 'status-copy risk-good'
+        : 'status-copy';
+
+  // The write asks the server and then re-reads. It never paints its own answer as
+  // the stored state: the refresh is the evidence, and the notice is what the
+  // server said about the request. The audit failure is the case that proves the
+  // rule: the row is already stored, so the panel reads it back while stating that
+  // the event was not recorded.
+  function submitReview(decision: SourceReviewDecision): void {
+    if (reviewDisabled || !signedIn) return;
+    setReviewNotice({ tone: 'saving', message: 'Registrando la revisión…' });
+    void (async () => {
+      const outcome = await reviewSource(reviewTarget, { decision, note: reviewNote });
+      if (!outcome.ok) {
+        const persisted = reviewPersistedWithoutAudit(outcome.failure);
+        setReviewNotice({
+          tone: persisted ? 'persisted' : 'failed',
+          message: reviewFailureMessage(outcome.failure),
+        });
+        if (persisted) {
+          // Nothing to retry: the decision is stored, so the form is cleared and the
+          // served state is re-read to display the review the server holds.
+          setReviewNote('');
+          setReviewRevision(value => value + 1);
+        }
+        return;
+      }
+      setReviewNote('');
+      setReviewNotice({
+        tone: 'saved',
+        message: `Revisión registrada por el servidor: ${reviewDecisionLabel(outcome.data.decision)} · ${
+          outcome.data.reviewed_by
+        } · ${reviewInstantLabel(outcome.data.reviewed_at)}.`,
+      });
+      setReviewRevision(value => value + 1);
+    })();
+  }
 
   const pipelineStatus =
     phase === 'unconsulted'
@@ -394,11 +548,114 @@ export function SourcesView() {
                 <dd id="sources-input">{accepted ? accepted.riskInputLabel : field(undefined)}</dd>
               </div>
             </dl>
-            <UnimplementedNote>
-              Hallazgos de calidad: <code>/v1/risk/sources</code> publica la procedencia y la integridad reales, no un
-              catálogo de hallazgos de calidad. Las acciones preventivas sí existen y viven en su propia vista{' '}
-              (<a href="#actions">#actions</a>).
-            </UnimplementedNote>
+            {/* V1-P-05 — the closed catalogue, the findings of each source and the
+                review in force. The catalogue is reproduced verbatim from the
+                service: its order, its severity and its Spanish description. A
+                finding is never conveyed by colour alone - the label and the
+                severity word travel with the badge - and the review controls are
+                native buttons with a visible label, so a keyboard user can reach
+                them and a screen reader announces what they do. */}
+            <section className="quality-block" aria-labelledby="quality-title">
+              <h3 id="quality-title">Hallazgos de calidad</h3>
+              <p id="quality-status" className="panel-note">
+                {qualityStatusText}
+              </p>
+              <ul className="quality-catalog" id="quality-catalog">
+                {qualityCatalog.map(definition => (
+                  <li key={definition.code}>
+                    <code>{definition.code}</code>{' '}
+                    <span className="neutral-tag">{qualitySeverityLabel(definition.severity)}</span>{' '}
+                    {definition.description}
+                  </li>
+                ))}
+              </ul>
+              <TableWrap label="Hallazgos de calidad por fuente">
+                <table id="quality-sources">
+                  <caption className="sr-only">
+                    Hallazgos de calidad de cada fuente informada por el ciclo, en el orden del catálogo
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Fuente</th>
+                      <th scope="col">Hallazgos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {qualityEntries.length === 0 ? (
+                      <tr>
+                        <td colSpan={2}>
+                          El ciclo no informa fuentes: no hay hallazgos que mostrar y no se inventa ninguno.
+                        </td>
+                      </tr>
+                    ) : (
+                      qualityEntries.map(entry => (
+                        <tr key={entry.source_id}>
+                          <th scope="row">{entry.source_id}</th>
+                          <td>
+                            {qualityFindingLines(entry.quality_findings, qualityCatalog).map(line => (
+                              <span
+                                key={line.code}
+                                className={`quality-finding severity-${line.severity}`}
+                                data-quality-finding={line.code}
+                              >
+                                {line.label} · {qualitySeverityLabel(line.severity)}
+                              </span>
+                            ))}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </TableWrap>
+
+              <div className="source-review" id="source-review" aria-labelledby="source-review-title">
+                <h4 id="source-review-title">Revisión de la fuente</h4>
+                <p id="source-review-current">{reviewStatusText(selectedReview)}</p>
+                <div id="source-review-controls">
+                  <label className="filter-label" htmlFor="source-review-note">
+                    Nota de la revisión (opcional, máximo 500 caracteres)
+                  </label>
+                  <input
+                    id="source-review-note"
+                    type="text"
+                    maxLength={500}
+                    value={reviewNote}
+                    disabled={reviewDisabled}
+                    aria-describedby="source-review-hint"
+                    onChange={event => setReviewNote(event.target.value)}
+                  />
+                  <button
+                    id="source-review-incorporated"
+                    type="button"
+                    className="secondary-button"
+                    disabled={reviewDisabled}
+                    onClick={() => submitReview('incorporated')}
+                  >
+                    Incorporar registros
+                  </button>
+                  <button
+                    id="source-review-acknowledged"
+                    type="button"
+                    className="secondary-button"
+                    disabled={reviewDisabled}
+                    onClick={() => submitReview('acknowledged')}
+                  >
+                    Aceptar hallazgos
+                  </button>
+                  <p className="panel-note" id="source-review-hint">
+                    {!admin
+                      ? 'Solo un administrador puede registrar la revisión: el servidor decide y rechaza el resto.'
+                      : reviewTarget === ''
+                        ? 'No hay una fuente informada que revisar; el ciclo no publicó ninguna.'
+                        : 'El servidor fija el actor desde el token verificado y la fecha; no se envían desde aquí.'}
+                  </p>
+                </div>
+                <p id="source-review-notice" className={reviewNoticeClass} role="status" aria-live="polite">
+                  {reviewNotice.message}
+                </p>
+              </div>
+            </section>
           </article>
         </div>
 

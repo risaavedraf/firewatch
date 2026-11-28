@@ -9,7 +9,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"firewatch.local/contracts/geo"
 	observations "firewatch.local/contracts/observations/v1"
 	"firewatch.local/risk/internal/engine"
 	"firewatch.local/risk/internal/repository"
@@ -161,7 +163,17 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 	if len(providers) == 1 {
 		provider = providers[0]
 	}
-	mux.HandleFunc("GET /v1/risk/sources", sourcesWithCycle(provider, runner))
+	// V1-P-05: the review resource is derived from the same repository every other
+	// route already uses. Whether the seam is wired is a property of the repository,
+	// so a deployment without review storage serves no review and fails the write
+	// closed instead of implying one exists.
+	reviews := reviewStoreFrom(store)
+	auditor := reviewAuditorFrom(store)
+	mux.HandleFunc("GET /v1/risk/sources", sourcesFromWithCycle(provider, runner, reviews, geo.ComunasProvenanceJSON, geo.ComunasGeoJSON))
+	// The review is an admin action like the manual cycle: it appends a decision to
+	// an append-only resource, and the actor it records is the verified token
+	// subject rather than a field the caller could name.
+	mux.HandleFunc("POST /v1/risk/sources/{source_id}/review", requireAdmin(sourceReview(reviews, auditor, provider, runner, time.Now)))
 	authorized := Authorize(verifier, mux)
 	if classifiers == nil {
 		return authorized

@@ -1259,19 +1259,36 @@ paths:
     get:
       operationId: getRiskSources
       description: >-
-        Viewer/admin. Embedded geographic provenance and the active publisher
-        provider descriptor, separately. No database, broker or source fetch.
-        Geography does not establish real risk observations, a licence grant or
-        DIFROL validation. Stored cutoff_at is a retrieval-time substitution,
-        not an actual source cutoff; source_cutoff_at is explicitly null.
+        Viewer/admin. Embedded geographic provenance, the active publisher
+        provider descriptor, the closed catalogue of source quality findings and
+        one entry per source, separately. No source fetch and no risk
+        observation: geography does not establish real observations, a licence
+        grant or DIFROL validation, and a stored cutoff_at is a retrieval-time
+        substitution, not an actual source cutoff; source_cutoff_at is
+        explicitly null.
+
+        The quality catalogue is CLOSED and has exactly five codes:
+        STALE_CUTOFF, MISSING_CANONICAL_FACTOR, OUT_OF_RANGE_CLAMPED,
+        CHECKSUM_VERIFIED and SYNTHETIC_FALLBACK. Each source's
+        `quality_findings` are derived deterministically from evidence this read
+        already served - its freshness, whether it declares the five canonical
+        factors, whether its declared priority had to be bounded, the verified
+        checksum of the embedded artifact and its own synthetic declaration - and
+        are listed in catalogue order. The list is never empty and never invents
+        a code outside the catalogue.
+
+        `risk_input.priority` is served bounded to its nominal 0..100 range; a
+        source that declared a value outside it carries OUT_OF_RANGE_CLAMPED.
+        Each source also carries its latest `review`, or an explicit null when
+        nobody has reviewed it: an absence is not an empty review.
       responses:
         '200':
-          description: Geography integrity and active risk input
+          description: Geography integrity, active risk input and source quality
           content:
             application/json:
               schema:
                 type: object
-                required: [geography, risk_input, sources]
+                required: [geography, risk_input, quality_catalog, sources]
                 properties:
                   geography:
                     type: object
@@ -1340,19 +1357,39 @@ paths:
                       purpose: {type: string}
                       priority: {type: integer}
                       synthetic: {type: boolean}
+                  quality_catalog:
+                    type: array
+                    description: >-
+                      The closed catalogue of the five quality findings, in its
+                      ratified order. Present on every answer, including one
+                      with no sources, so the vocabulary never has to be
+                      inferred from the entries that happened to arrive.
+                    items: {$ref: '#/components/schemas/QualityFindingDefinition'}
                   sources:
                     type: array
                     description: >-
-                      Per-source cycle state and freshness. Empty when no
-                      scheduler is configured; never null.
-                    items: {$ref: '#/components/schemas/CycleSourceStatus'}
+                      Per-source cycle state and freshness, the quality findings
+                      derived from served evidence and the source's latest
+                      review. Never null. The sources the cycle reports come
+                      first, in the cycle's own order; the ACTIVE source this
+                      deployment publishes from is appended once when the cycle
+                      reports no status for it (a manual-only deployment, or a
+                      first tick that has not run yet), with no reading
+                      reported: its instants are null, `complete` is false and
+                      STALE_CUTOFF says so. Publishing it is what makes a
+                      review of that source readable instead of answering "no
+                      sources" about a source whose review was just stored.
+                    items: {$ref: '#/components/schemas/SourceQualityEntry'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '503':
           description: >-
-            The embedded geography artifact failed its integrity check, or no
-            active publisher descriptor is available. code is
-            geography_integrity_unavailable or risk_source_unavailable.
+            The embedded geography artifact failed its integrity check, no
+            active publisher descriptor is available, or the latest review of
+            each source could not be read. code is
+            geography_integrity_unavailable, risk_source_unavailable or
+            storage_unavailable. A failed review read is never served as "no
+            source was reviewed".
           headers:
             X-Request-ID: {$ref: '#/components/headers/RequestID'}
             Cache-Control: {schema: {type: string, enum: [no-store]}}
@@ -1361,6 +1398,115 @@ paths:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /v1/risk/sources/{source_id}/review:
+    post:
+      operationId: reviewRiskSource
+      description: >-
+        Admin. Appends one human decision about one source to an append-only
+        resource, and answers the row it stored.
+
+        `source_id` must name a source this deployment serves: the active
+        publisher provider, or a source the cycle reports. Anything else is
+        `404 source_not_found` and nothing is stored.
+
+        `reviewed_by` is the subject of the verified bearer token and
+        `reviewed_at` is set by the server. Neither is an input: the body has no
+        field for an actor, and a body that names one (`reviewed_by`, `actor`,
+        `reviewer` or any other key) is refused with `400 invalid_review_request`
+        instead of being ignored, because an ignored actor would look honoured.
+        A repeated member is refused for the same reason: last-one-wins would
+        make the accepted body depend on an encoding detail.
+
+        `decision` is the closed vocabulary `incorporated | acknowledged`; a value
+        outside it is `422 invalid_decision`. `note` is optional and bounded to
+        500 characters; a longer one is `422 invalid_note`. Every refusal answers
+        before anything is appended, so a refused review stores nothing.
+
+        A later review becomes the source's latest one and leaves the previous
+        row readable: the trace is the appended rows, not a rewrite. When the
+        deployment also wires an audit recorder, each stored review emits one
+        audit event; a failed announcement answers `503 review_audit_unavailable`
+        and the stored row is NOT undone, so that code never means "nothing was
+        written".
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          description: >-
+            Identifier of the source to review, exactly as `sources[].source_id`
+            and `risk_input.id` spell it.
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SourceReviewRequest'}
+      responses:
+        '200':
+          description: The review that was appended, with its verified actor.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SourceReview'}
+        '400':
+          description: >-
+            The body cannot be honoured and nothing was appended: code is
+            invalid_review_request. Refused: a member other than decision and
+            note (including reviewed_by, actor or any other name), a repeated
+            member, a document that is not a JSON object (null, an array, a
+            string, a number or a boolean), a malformed document, an empty body,
+            a body carrying more than one JSON value, a member whose type is not
+            the documented string, and a body larger than 4 KiB. The actor is
+            taken from the verified token only, so a submitted one can never be
+            recorded.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404':
+          description: >-
+            The path names no served source; nothing was appended. code is
+            source_not_found.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '422':
+          description: >-
+            The body is a well-formed review this resource cannot store, and
+            nothing was appended. code is invalid_decision when `decision` is
+            not one of the two documented literals, invalid_note when `note`
+            exceeds 500 characters, or invalid_decision when `decision` is
+            absent (an absent literal is not one of the two literals).
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503':
+          description: >-
+            The review could not be completed. code is storage_unavailable when
+            nothing was appended, review_store_unavailable when this deployment
+            wired no review storage (nothing was appended), or
+            review_audit_unavailable when the review WAS appended but its audit
+            event could not be recorded - that code never means the decision was
+            lost, so a caller must not read it as "nothing was written".
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
   /v1/risk/cycle/run:
     post:
       operationId: runRiskCycle
@@ -2902,6 +3048,120 @@ components:
         necessarily the instant the scheduler fires next: a manual run
         recomputes it while the automatic schedule keeps its own phase, so the
         two can differ by design.
+    QualityFindingCode:
+      type: string
+      description: >-
+        One code of the CLOSED source quality catalogue. The five values are the
+        ratified catalogue and nothing else may be published: STALE_CUTOFF (the
+        reading is outside the freshness window), MISSING_CANONICAL_FACTOR (the
+        source does not declare one of the five canonical classifier variables),
+        OUT_OF_RANGE_CLAMPED (a declared value was outside its nominal range and
+        is served bounded), CHECKSUM_VERIFIED (the embedded artifact's SHA-256
+        matches the recorded hash) and SYNTHETIC_FALLBACK (the source is the
+        synthetic input declared by D-A).
+      enum:
+        - STALE_CUTOFF
+        - MISSING_CANONICAL_FACTOR
+        - OUT_OF_RANGE_CLAMPED
+        - CHECKSUM_VERIFIED
+        - SYNTHETIC_FALLBACK
+    QualityFindingDefinition:
+      type: object
+      description: >-
+        One published entry of the closed quality catalogue. `kind` and
+        `severity` are closed vocabularies too: the page paints them, so a value
+        it does not know would render as neither. `description` is the Spanish
+        sentence the page reproduces verbatim.
+      required: [code, kind, severity, description]
+      properties:
+        code: {$ref: '#/components/schemas/QualityFindingCode'}
+        kind:
+          type: string
+          enum: [freshness, coverage, range, integrity, provenance]
+        severity:
+          type: string
+          enum: [warning, info]
+        description:
+          type: string
+          minLength: 1
+    SourceReviewRequest:
+      type: object
+      description: >-
+        The accepted review body: exactly two members. There is deliberately no
+        actor member, because reviewed_by is the verified token subject and a
+        subject the caller can name is not an identity; a body that declares any
+        other member is refused instead of being read.
+      required: [decision]
+      additionalProperties: false
+      properties:
+        decision:
+          type: string
+          enum: [incorporated, acknowledged]
+        note:
+          type: string
+          maxLength: 500
+          description: >-
+            Optional operator note. Absent and empty are the same absence: the
+            stored row carries an empty note and the answer repeats it. An
+            explicit null is NOT the documented optional string and is refused
+            as a malformed document, because reading it as an empty note would
+            store a value the client never wrote.
+    SourceReview:
+      type: object
+      nullable: true
+      description: >-
+        One stored review. reviewed_by is the verified token subject of the
+        caller who recorded it and reviewed_at is the instant the server set;
+        neither is ever taken from the request. A later review becomes the latest
+        one and leaves the previous row readable, so the trace is the appended
+        rows rather than a rewrite.
+
+        It is declared nullable because a source that nobody reviewed has to be
+        served as an explicit null: under the strict OpenAPI 3.0.3 reading of
+        `nullable`, an allOf whose branch rejects null rejects the whole member,
+        so the schema the read references must allow null as well as the property
+        that references it. The write's 200 answer always carries an object - a
+        stored review is never null - and a nullable schema accepts it.
+      required: [source_id, decision, note, reviewed_by, reviewed_at]
+      properties:
+        source_id: {type: string, minLength: 1}
+        decision:
+          type: string
+          enum: [incorporated, acknowledged]
+        note:
+          type: string
+          maxLength: 500
+        reviewed_by: {type: string, minLength: 1}
+        reviewed_at: {type: string, format: date-time}
+    SourceQualityEntry:
+      description: >-
+        One source of the read: the cycle freshness it always carried, the
+        quality findings derived from served evidence and its latest review.
+        `review` is explicitly null when nobody reviewed the source - an absence
+        is not an empty review - and `quality_findings` is never empty and never
+        names a code outside the catalogue.
+      allOf:
+        - $ref: '#/components/schemas/CycleSourceStatus'
+        - type: object
+          required: [quality_findings, review]
+          properties:
+            quality_findings:
+              type: array
+              minItems: 1
+              description: >-
+                The findings the served evidence supports, in catalogue order.
+                Deterministic: the same evidence answers the same list.
+              items: {$ref: '#/components/schemas/QualityFindingCode'}
+            review:
+              type: object
+              nullable: true
+              description: >-
+                The source's latest review, or null when it has none. Both the
+                property and the schema it references declare object type and
+                nullability, which is what the strict OpenAPI 3.0.3 reading of a
+                nullable allOf requires.
+              allOf:
+                - $ref: '#/components/schemas/SourceReview'
     CycleZoneResult:
       type: object
       required: [zone_id, published]

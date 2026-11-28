@@ -66,8 +66,8 @@ func TestBatchEvaluationActorMigrationIsGuardedAndIdempotent(t *testing.T) {
 // this branch depends on. The shared ledger is claimed against the integrated
 // tree, not against one module's list: risk held 1-8, 10, 12, 13, 17, 18 and 19,
 // prevention holds 9, 11, 14, 15 and 16, so 20 was the next free integer and
-// prevention's next migration must take 21. A version lower than 20 would collide
-// with a claim this branch does not own.
+// prevention's next migration must take 22 afterwards, because V1-P-05 claimed 21.
+// A version lower than 20 would collide with a claim this branch does not own.
 func TestBatchEvaluationActorClaimsTheNextFreeLedgerVersion(t *testing.T) {
 	all := All()
 	highest := 0
@@ -86,7 +86,7 @@ func TestBatchEvaluationActorClaimsTheNextFreeLedgerVersion(t *testing.T) {
 	if !owns {
 		t.Error("risk does not register version 20; the evaluation actor columns would never be created")
 	}
-	if highest != 20 {
-		t.Errorf("risk's highest claimed version is %d, want 20; the ledger's next free integer follows from it", highest)
+	if highest != 21 {
+		t.Errorf("risk's highest claimed version is %d, want 21; the ledger's next free integer follows from it", highest)
 	}
 }
