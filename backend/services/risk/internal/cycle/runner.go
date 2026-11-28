@@ -6,6 +6,10 @@
 // It owns scheduling and status, not data acquisition or classification. The
 // publication seam keeps those contracts behind one interface, so replacing the
 // fixture with a real source changes neither the cycle nor the API.
+//
+// The cadence itself is not defined here: the nominal interval, the bounded jitter
+// and the seed come from internal/scheduler, so the automatic loop and the
+// freshness bands describe one period instead of two.
 package cycle
 
 import (
@@ -17,12 +21,15 @@ import (
 
 	v1 "firewatch.local/contracts/events/v1"
 	observations "firewatch.local/contracts/observations/v1"
+	"firewatch.local/risk/internal/scheduler"
 	"github.com/google/uuid"
 )
 
 // DefaultInterval is the automatic cycle period required by the bases: every 15
-// minutes the system ingests, validates, classifies and publishes.
-const DefaultInterval = 15 * time.Minute
+// minutes the system ingests, validates, classifies and publishes. It is an alias
+// of the scheduler's nominal interval, not a second literal, so the wired period
+// and the cadence contract cannot drift apart.
+const DefaultInterval = scheduler.NominalInterval
 
 // Publisher is the publication seam. Its single method runs the whole
 // ingest-to-persist path for one zone as an INTERNAL, automatic publication: the
@@ -60,6 +67,16 @@ type Options struct {
 	// NewID mints the event, trace and job identifiers of one cycle request. It
 	// defaults to UUID generation.
 	NewID func() string
+	// Schedule overrides the automatic cadence: the interval, the jitter bound and
+	// the seed the jitter is derived from. Its zero value -a nil pointer- is derived
+	// from Interval with the scheduler's agreed defaults, so an existing caller that
+	// only sets Interval keeps its behaviour and gains the bounded jitter.
+	Schedule *scheduler.Schedule
+	// After is the wait seam of the automatic loop: it receives the delay of the next
+	// cycle and delivers when that wait is over. It defaults to time.After and exists
+	// so a test can drive the loop without sleeping, which is what makes the cadence
+	// observable instead of a wall-clock hope.
+	After func(time.Duration) <-chan time.Time
 }
 
 // ZoneResult is the outcome of one zone inside a cycle.
@@ -104,6 +121,8 @@ type Runner struct {
 	publisher Publisher
 	zones     []string
 	interval  time.Duration
+	schedule  scheduler.Schedule
+	after     func(time.Duration) <-chan time.Time
 	now       func() time.Time
 	newID     func() string
 
@@ -123,17 +142,29 @@ func New(source DescriptorProvider, publisher Publisher, options Options) *Runne
 		publisher: publisher,
 		zones:     append([]string(nil), options.Zones...),
 		interval:  options.Interval,
+		after:     options.After,
 		now:       options.Now,
 		newID:     options.NewID,
 	}
 	if runner.interval <= 0 {
 		runner.interval = DefaultInterval
 	}
+	if options.Schedule != nil {
+		runner.schedule = *options.Schedule
+		// NextRunAt is the renewal deadline, so it has to follow the active cadence
+		// rather than a period the caller no longer uses.
+		runner.interval = runner.schedule.Interval()
+	} else {
+		runner.schedule = scheduler.New(scheduler.Options{Interval: runner.interval})
+	}
 	if runner.now == nil {
 		runner.now = time.Now
 	}
 	if runner.newID == nil {
 		runner.newID = uuid.NewString
+	}
+	if runner.after == nil {
+		runner.after = time.After
 	}
 	return runner
 }
@@ -246,9 +277,23 @@ func (r *Runner) Statuses() []SourceStatus {
 	return []SourceStatus{status}
 }
 
-// Start runs the cycle immediately and then on the configured interval until the
-// context is cancelled. A failed run is logged and does not stop the schedule:
-// the next tick retries, which is why the refusal never dead-letters.
+// Start runs the cycle immediately and then on the configured cadence until the
+// context is cancelled. A failed run is logged and does not stop the schedule: the
+// next tick retries, which is why the refusal never dead-letters.
+//
+// The wait of each cycle is the scheduler's nominal interval plus its seeded,
+// bounded jitter, so consecutive cycles are not a fixed-period ticker and the same
+// schedule replays the same series. The wait goes through the After seam:
+// production uses time.After, whose abandoned timer is collected in Go 1.23 and
+// later, and a test supplies its own channel and observes the loop without
+// sleeping.
+//
+// The scheduled delay is the START-to-START interval, not a wait added on top of the
+// cycle's own runtime. Each cycle's elapsed time is measured on the runner's clock
+// and discounted from the delay that follows it, clamped at zero, so a slow ingest
+// does not push every later start past the agreed 900s + 30s band. A cycle that
+// outlasts its whole period starts the next one immediately instead of waiting a
+// negative span.
 func (r *Runner) Start(ctx context.Context) {
 	run := func() {
 		result := r.RunOnce(ctx)
@@ -258,15 +303,23 @@ func (r *Runner) Start(ctx context.Context) {
 		}
 		slog.Info("cycle_complete", "source_id", result.SourceID, "zones", len(result.Zones), "finished_at", result.FinishedAt)
 	}
-	run()
-	ticker := time.NewTicker(r.interval)
-	defer ticker.Stop()
-	for {
+	// One loop, so the runtime of every cycle -the first included- is measured and
+	// discounted from the wait that follows it. Ordinal 1 is the wait between the
+	// first and second cycle, which is also the scheduler's convention.
+	for ordinal := 1; ; ordinal++ {
+		cycleStart := r.now()
+		run()
+		delay := r.schedule.Delay(ordinal)
+		if elapsed := r.now().Sub(cycleStart); elapsed > 0 {
+			delay -= elapsed
+			if delay < 0 {
+				delay = 0
+			}
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			run()
+		case <-r.after(delay):
 		}
 	}
 }
