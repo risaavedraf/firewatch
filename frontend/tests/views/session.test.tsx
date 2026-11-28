@@ -257,8 +257,11 @@ const GUARD_LINES: Record<string, RegExp> = {
   'backend/services/gateway/internal/handler/gateway.go#strings.Fields': /strings\.Fields/,
   'backend/services/gateway/internal/handler/gateway.go#verifier.Verify(ctx, auth[1])':
     /verifier\.Verify\(ctx, auth\[1\]\)/,
+  // PM-15 (D-C): the risk gate now admits the three declared roles, and the
+  // tactical half is its own guard.
   'backend/services/risk/internal/handler/security.go#"viewer"':
-    /role == "viewer" \|\| role == "admin"/,
+    /role == "viewer" \|\| role == "analista" \|\| role == "admin"/,
+  'backend/services/risk/internal/handler/security.go#requireTactical': /func requireTactical/,
   'backend/services/risk/internal/handler/security.go#fail(w, 403, "forbidden")': /fail\(w, 403, "forbidden"\)/,
   'backend/services/risk/internal/handler/api.go#GET /v1/risk/status': /"GET \/v1\/risk\/status"/,
   'backend/services/risk/internal/handler/api.go#GET /v1/risk/latest': /"GET \/v1\/risk\/latest"/,
@@ -268,9 +271,13 @@ const GUARD_LINES: Record<string, RegExp> = {
   'backend/services/risk/internal/handler/api.go#GET /v1/risk/synthetic-scenarios':
     /"GET \/v1\/risk\/synthetic-scenarios"/,
   'backend/services/risk/internal/handler/api.go#GET /v1/risk/sources': /"GET \/v1\/risk\/sources"/,
+  'backend/services/risk/internal/handler/api.go#PUT /v1/risk/alerts/{id}/state':
+    /"PUT \/v1\/risk\/alerts\/\{id\}\/state"/,
+  'backend/services/risk/internal/handler/api.go#POST /v1/risk/cycle/run': /"POST \/v1\/risk\/cycle\/run"/,
   'backend/services/risk/internal/handler/api.go#Authorize(verifier, mux)':
     /Authorize\(verifier, mux\)/,
-  'backend/services/jobs/internal/handler/security.go#"admin"': /role == "admin"/,
+  'backend/services/jobs/internal/handler/security.go#holdsTacticalRole': /func holdsTacticalRole/,
+  'backend/services/jobs/internal/handler/security.go#holdsDeclaredRole': /func holdsDeclaredRole/,
   'backend/services/jobs/internal/handler/security.go#fail(w, 403, "forbidden")': /fail\(w, 403, "forbidden"\)/,
   'backend/services/jobs/internal/handler/api.go#GET /v1/jobs/status': /"GET \/v1\/jobs\/status"/,
   'backend/services/jobs/internal/handler/api.go#POST /v1/jobs': /"POST \/v1\/jobs"/,
@@ -278,6 +285,26 @@ const GUARD_LINES: Record<string, RegExp> = {
   'backend/services/jobs/internal/handler/api.go#GET /v1/audit': /"GET \/v1\/audit"/,
   'backend/services/jobs/internal/handler/api.go#Authorize(verifier, mux)':
     /Authorize\(verifier, mux\)/,
+  'backend/services/prevention/internal/handler/security.go#holdsAnyAcceptedRole':
+    /func holdsAnyAcceptedRole/,
+  'backend/services/prevention/internal/handler/security.go#isAnalystOrAdmin': /func isAnalystOrAdmin/,
+  'backend/services/prevention/internal/handler/security.go#isAdmin': /func isAdmin/,
+  'backend/services/prevention/internal/handler/api.go#GET /v1/users': /"GET \/v1\/users"/,
+  'backend/services/prevention/internal/handler/api.go#GET /v1/prevention/actions':
+    /"GET \/v1\/prevention\/actions"/,
+  'backend/services/prevention/internal/handler/api.go#POST /v1/prevention/actions':
+    /"POST \/v1\/prevention\/actions"/,
+  'backend/services/prevention/internal/handler/api.go#POST /v1/prevention/actions/{id}/transitions':
+    /"POST \/v1\/prevention\/actions\/\{id\}\/transitions"/,
+  'backend/services/prevention/internal/handler/api.go#isFinalReviewTarget': /func isFinalReviewTarget/,
+  'backend/services/prevention/internal/handler/evidence.go#POST /v1/prevention/actions/{id}/evidence':
+    /"POST \/v1\/prevention\/actions\/\{id\}\/evidence"/,
+  'backend/services/prevention/internal/handler/evidence.go#POST /v1/prevention/actions/{id}/evidence/{evidence_id}/reviews':
+    /"POST \/v1\/prevention\/actions\/\{id\}\/evidence\/\{evidence_id\}\/reviews"/,
+  'backend/services/prevention/internal/handler/observations.go#POST /v1/prevention/observations':
+    /"POST \/v1\/prevention\/observations"/,
+  'backend/services/prevention/internal/handler/observations.go#POST /v1/prevention/observations/{id}/adoption':
+    /"POST \/v1\/prevention\/observations\/\{id\}\/adoption"/,
 };
 
 test('the permissions matrix documents the real server guards and marks what it cannot verify', () => {
@@ -289,17 +316,24 @@ test('the permissions matrix documents the real server guards and marks what it 
 
   const cited = new Set<string>();
   let unverified = 0;
+  let anonymousRefusals = 0;
   for (const row of rows) {
     const cells = [...row.querySelectorAll('td')];
-    expect(cells).toHaveLength(4);
+    expect(cells).toHaveLength(5);
     expect(cells[0].textContent?.trim().length ?? 0).toBeGreaterThan(0);
+    // The ratified column order: capability (with its verified guard), the
+    // no-token verdict, then one column per declared role.
+    expect(cells[1].textContent?.trim().length ?? 0).toBeGreaterThan(0);
+    if ((cells[1].textContent ?? '').includes('401')) anonymousRefusals += 1;
 
-    const cell = cells[3].textContent ?? '';
-    if (cell.startsWith('No verificado')) {
+    // The guard citation travels in `data-guards` as well as on screen, so the
+    // exact text can be re-read from disk without depending on the visible layout.
+    const guardCell = row.getAttribute('data-guards') ?? '';
+    if (guardCell === '') {
       unverified += 1;
       continue;
     }
-    for (const ref of cell.split(' · ')) {
+    for (const ref of guardCell.split(' · ')) {
       expect(GUARD_LINES[ref], `uncited or unknown guard reference: ${ref}`).toBeDefined();
       cited.add(ref);
       // A citation is `<repo-relative-path>#<token>`: the path plus the route or
@@ -324,6 +358,9 @@ test('the permissions matrix documents the real server guards and marks what it 
     }
   }
   expect(unverified).toBeGreaterThanOrEqual(1);
+  // The no-token column is not decoration: every route inside the bearer gate
+  // refuses a credential-less request with 401 before any role is considered.
+  expect(anonymousRefusals).toBeGreaterThan(0);
   expect([...cited].sort()).toEqual(Object.keys(GUARD_LINES).sort());
 
   const rowsWith = (text: string): Element[] =>
@@ -331,20 +368,50 @@ test('the permissions matrix documents the real server guards and marks what it 
   const auditRow = rowsWith('/v1/audit');
   expect(auditRow).toHaveLength(1);
   const auditCells = [...auditRow[0].querySelectorAll('td')];
-  expect(auditCells[1].textContent).toMatch(/^No\b/);
-  expect(auditCells[1].textContent).toMatch(/403/);
+  // Columns: 0 capability, 1 sin token, 2 viewer, 3 analista, 4 admin.
+  expect(auditCells[1].textContent).toMatch(/401/);
+  // PM-15 (D-C): the ratified matrix lists «auditoría» among the GET reads open to
+  // all three declared roles, so a viewer reads it instead of being refused.
   expect(auditCells[2].textContent).toMatch(/^Sí(\s|$)/);
+  // The analista cells carry a short reason («Sí: operación táctica»), so the
+  // assertion is a prefix and never a bare equality.
+  expect(auditCells[3].textContent).toMatch(/^Sí/);
+  expect(auditCells[4].textContent).toMatch(/^Sí(\s|$)/);
 
   const latestRows = rowsWith('/v1/risk/latest');
   expect(latestRows).toHaveLength(1);
   const latestCells = [...latestRows[0].querySelectorAll('td')];
-  expect(latestCells[1].textContent).toMatch(/^Sí(\s|$)/);
+  expect(latestCells[2].textContent).toMatch(/^Sí(\s|$)/);
+  expect(latestCells[3].textContent).toMatch(/^Sí/);
 
+  // The tactical row is the one the new role exists for: a viewer is refused, an
+  // analista and an admin are granted.
   const jobsRow = rowsWith('POST /v1/jobs');
   expect(jobsRow).toHaveLength(1);
   const jobsCells = [...jobsRow[0].querySelectorAll('td')];
-  expect(jobsCells[1].textContent).toMatch(/^No\b/);
-  expect(jobsCells[2].textContent).toMatch(/^Sí(\s|$)/);
+  expect(jobsCells[2].textContent).toMatch(/^No\b/);
+  expect(jobsCells[2].textContent).toMatch(/403/);
+  expect(jobsCells[3].textContent).toMatch(/^Sí/);
+  expect(jobsCells[4].textContent).toMatch(/^Sí(\s|$)/);
+
+  // The final review and the cancellation stay administrative, and the matrix says
+  // so in the analista column explicitly.
+  const finalRow = rowsWith('revisión final de evidencia');
+  expect(finalRow).toHaveLength(1);
+  const finalCells = [...finalRow[0].querySelectorAll('td')];
+  expect(finalCells[2].textContent).toMatch(/^No\b/);
+  expect(finalCells[3].textContent).toMatch(/^No\b/);
+  expect(finalCells[3].textContent).toMatch(/403/);
+  expect(finalCells[4].textContent).toMatch(/^Sí(\s|$)/);
+
+  // The two rows that carry `devuelta` say different things and must not be
+  // confusable: reopening a returned action is tactical, rejecting the evidence
+  // is the administrative decision.
+  const tacticalTransitions = rowsWith('Avanzar el flujo táctico');
+  expect(tacticalTransitions).toHaveLength(1);
+  expect(tacticalTransitions[0].textContent).toMatch(/devuelta → en_curso/);
+  expect(finalRow[0].textContent).toMatch(/enviada → devuelta/);
+  expect(finalRow[0].textContent).not.toMatch(/devuelta → en_curso/);
 });
 
 test('no role selector, switcher or picker is ported anywhere in the view', () => {
@@ -366,7 +433,9 @@ test('no role selector, switcher or picker is ported anywhere in the view', () =
   const matrixNote = document.getElementById('permissions-matrix-note')?.textContent ?? '';
   expect(matrixNote).toMatch(/ruta#token/);
   expect(matrixNote).toMatch(/risk\/internal\/handler\/security\.go#"viewer"/);
-  expect(matrixNote).toMatch(/jobs\/internal\/handler\/security\.go#"admin"/);
+  expect(matrixNote).toMatch(/jobs\/internal\/handler\/security\.go#holdsTacticalRole/);
+  expect(matrixNote).toMatch(/prevention\/internal\/handler\/security\.go#isAnalystOrAdmin/);
+  expect(matrixNote).toMatch(/prevention\/internal\/handler\/security\.go#isAdmin/);
   // The note also cites the two `Authorize` wraps. Both are the same full guard
   // refs the matrix renders, so the matrix test above proves their disk content;
   // a short `api.go` form here would drift unverified, as it did once.

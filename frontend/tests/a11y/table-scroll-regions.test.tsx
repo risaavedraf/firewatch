@@ -296,13 +296,15 @@ test('the pending inventory is a named scroll region and keeps every declared ro
   expect(document.querySelectorAll('#pending-head table, #pending-head .table-wrap')).toHaveLength(0);
 });
 
-test('the session permissions matrix is a named scroll region and keeps its four columns', () => {
+test('the session permissions matrix is a named scroll region and keeps its five columns', () => {
   render(<SessionView />);
 
   scrollRegionOf(tableIn('#permissions-rows'), NAMES.session);
   expectAllWrappersNamed(1);
   expect(document.querySelectorAll('#permissions-rows tr')).toHaveLength(PERMISSION_MATRIX.length);
-  expect(document.querySelectorAll('#permissions table thead th')).toHaveLength(4);
+  // PM-15 (D-C): the matrix carries one column per ratified role, so capability +
+  // viewer + analista + admin + guard.
+  expect(document.querySelectorAll('#permissions table thead th')).toHaveLength(5);
   // T7 — the documentation blocks added under the panels carry lists and steps,
   // not a second table or a second scroll region.
   expect(document.querySelectorAll('#session-verification table, #session-limits table')).toHaveLength(0);

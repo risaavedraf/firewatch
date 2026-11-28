@@ -209,11 +209,14 @@ func TestAlertStateKeepsTheReadGate(t *testing.T) {
 	}
 }
 
-// TestAlertStateMarkIsAdminOnlyAndOwnSubjectOnly pins the authorization policy:
-// a mark is applied by an admin, to the admin's own state, and a viewer is
-// refused before storage. The subject reaches the repository as the digest of the
-// verified token subject; the request body cannot name an actor.
-func TestAlertStateMarkIsAdminOnlyAndOwnSubjectOnly(t *testing.T) {
+// TestAlertStateMarkIsAvailableToEveryDeclaredRoleAndOwnSubjectOnly pins the
+// authorization policy: a mark is applied by any declared role —the ratified D-C
+// matrix makes a personal mark a per-caller preference, not an administrative
+// action, so viewer, analista and admin all reach it— to the caller's own state,
+// never to another subject's. An undeclared role is refused before storage. The
+// subject reaches the repository as the digest of the verified token subject; the
+// request body cannot name an actor.
+func TestAlertStateMarkIsAvailableToEveryDeclaredRoleAndOwnSubjectOnly(t *testing.T) {
 	const subject = "admin.uno@example.test"
 	store := &fakeStore{}
 	handler, token := authorizedServerWithSubject(t, "admin", subject, store)
@@ -239,19 +242,27 @@ func TestAlertStateMarkIsAdminOnlyAndOwnSubjectOnly(t *testing.T) {
 		t.Fatalf("the mark body exposes the caller identity: %s", w.Body.String())
 	}
 
-	// A viewer never reaches the write: 403 is a role decision, not a storage
-	// failure, so nothing is written.
-	viewerStore := &fakeStore{}
-	viewerHandler, viewerToken := authorizedServerWithSubject(t, "viewer", subject, viewerStore)
-	refused := alertStateCall(t, viewerHandler, viewerToken, http.MethodPut, alertStatePath, "application/json", `{"state":"dismissed"}`)
-	if refused.Code != http.StatusForbidden {
-		t.Fatalf("viewer got %d want 403: %s", refused.Code, refused.Body.String())
-	}
-	if len(viewerStore.markWrites) != 0 {
-		t.Fatal("a viewer's mark reached storage")
+	// A viewer and an analista reach the same write, each for its own subject: the
+	// mark is a preference of the caller, so it is not gated on a role. Nothing is
+	// written for another subject and nothing is written by an undeclared role.
+	for _, role := range []string{"viewer", "analista"} {
+		t.Run("a "+role+" marks its own state", func(t *testing.T) {
+			ownStore := &fakeStore{}
+			ownHandler, ownToken := authorizedServerWithSubject(t, role, subject, ownStore)
+			marked := alertStateCall(t, ownHandler, ownToken, http.MethodPut, alertStatePath, "application/json", `{"state":"dismissed"}`)
+			if marked.Code != http.StatusOK {
+				t.Fatalf("%s got %d want 200: %s", role, marked.Code, marked.Body.String())
+			}
+			if len(ownStore.markWrites) != 1 {
+				t.Fatalf("%s storage writes = %d, want 1", role, len(ownStore.markWrites))
+			}
+			if write := ownStore.markWrites[0]; write.SubjectKey != repository.AlertStateSubjectKey(subject) {
+				t.Fatalf("%s wrote the mark for %q, want the verified subject's digest", role, write.SubjectKey)
+			}
+		})
 	}
 
-	// The same refusal for a token whose role is outside the read gate, and a 401
+	// The same refusal for a token whose role is outside the gate, and a 401
 	// for no token at all; neither touches storage.
 	for _, tc := range []struct {
 		name string

@@ -432,7 +432,8 @@ test('a viewer reads the list but cannot submit the form', async () => {
 
   expect(document.getElementById('observation-rows')?.querySelectorAll('li')).toHaveLength(1);
   expect((document.getElementById('observation-submit') as HTMLButtonElement).disabled).toBe(true);
-  expect(text('observation-role-note')).toMatch(/no declara el rol admin/i);
+  expect(text('observation-role-note')).toMatch(/rol viewer/i);
+  expect(text('observation-role-note')).toMatch(/analista o admin/i);
   expect(text('observation-role-note')).toMatch(/servidor/i);
   expect(callsTo(OBSERVATIONS_URL, 'POST')).toHaveLength(0);
 });
@@ -492,7 +493,7 @@ test('a viewer is offered no confirmation control and no action-list read', asyn
   expect(document.getElementById('observation-adopt-obs-1')).toBeNull();
   expect(document.getElementById('observation-adoption-obs-1')).toBeNull();
   expect(callsTo(ACTIONS_URL, 'GET')).toHaveLength(0);
-  expect(text('observation-list-note')).toMatch(/rol admin/i);
+  expect(text('observation-list-note')).toMatch(/rol analista o admin/i);
 });
 
 // ── T6 · the field-work composition (board 11) ─────────────────────────────

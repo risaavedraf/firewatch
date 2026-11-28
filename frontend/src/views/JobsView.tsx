@@ -15,7 +15,7 @@ import { timing } from '../config';
 import { createJob, history, job as readJob, latest, scenarios } from '../core/api';
 import type { Failure } from '../core/api';
 import { getAccessToken, getSessionSnapshot, subscribeSession } from '../core/session';
-import { expectedBatchInHistory, matchesBatch, presentBatch } from '../domain';
+import { declaresTacticalRole, expectedBatchInHistory, matchesBatch, presentBatch } from '../domain';
 import type { JobProgressKind } from '../domain/job-progress';
 import type { Job, Scenario } from '../types/api';
 import '../styles/operations-workspace.css';
@@ -123,6 +123,11 @@ export function JobsView() {
   const selectedZone = useSelectedZone();
   const session = useSessionState();
   const signedIn = session.status === 'signed-in';
+  // PM-15 (D-C): dispatching a job is the TACTICAL half of the ratified matrix —
+  // «evalúa y gestiona acciones, sin admin» — so analista and admin may request a
+  // batch and a viewer reads. The role is a token FACT read without verifying the
+  // signature: it only decides the affordance, and the server decides the answer.
+  const tactical = signedIn && declaresTacticalRole(session.roles);
 
   const [catalogue, setCatalogue] = useState<Scenario[] | null>(null);
   const [scenarioNote, setScenarioNote] = useState(DEFAULT_SCENARIO_NOTE);
@@ -455,7 +460,7 @@ export function JobsView() {
       ? NO_JOB_STATUS
       : idleCopy(session, 'solicitar el lote de la zona');
   const selectorDisabled = !signedIn || catalogue === null;
-  const createDisabled = !signedIn || selectedZone === '' || requesting;
+  const createDisabled = !signedIn || !tactical || selectedZone === '' || requesting;
 
   return (
     <section className="view" id="jobs" data-view="jobs" aria-labelledby="jobs-title">
@@ -534,8 +539,11 @@ export function JobsView() {
                 </p>
               </div>
               <p className="panel-note">
-                Solicita el procesamiento de la zona seleccionada. Esta operación requiere permisos de administrador y crea
-                únicamente un trabajo sintético.
+                Solicita el procesamiento de la zona seleccionada. Esta operación es táctica: requiere el rol analista o
+                admin, y crea únicamente un trabajo sintético.
+                {signedIn && !tactical
+                  ? ' Tu token declara el rol viewer, así que el alta queda deshabilitada en esta página; puedes leer el estado de los trabajos. La página no concede permisos y el servidor decide cada uno.'
+                  : ''}
               </p>
               <button id="create-job" className="primary-button" type="button" disabled={createDisabled} onClick={requestBatch}>
                 Solicitar lote de la zona

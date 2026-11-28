@@ -84,7 +84,10 @@ func New(store Repository, verifier Verifier, checks ...StatusCheck) http.Handle
 		check = checks[0]
 	}
 	mux.HandleFunc("GET /v1/jobs/status", statusHandler(check))
-	mux.HandleFunc("POST /v1/jobs", func(w http.ResponseWriter, r *http.Request) {
+	// Creating a job is a tactical operation: the ratified D-C matrix answers «No»
+	// for viewer and «Sí» for analista and admin on POST /v1/jobs, so it carries
+	// requireTactical and a viewer is refused 403 before the store is reached.
+	mux.HandleFunc("POST /v1/jobs", requireTactical(func(w http.ResponseWriter, r *http.Request) {
 		media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if err != nil || media != "application/json" {
 			fail(w, 415, "json_required")
@@ -166,7 +169,7 @@ func New(store Repository, verifier Verifier, checks ...StatusCheck) http.Handle
 		}
 		w.Header().Set("Location", "/v1/jobs/"+job.ID)
 		respond(w, 202, job)
-	})
+	}))
 	mux.HandleFunc("GET /v1/jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(r.PathValue("id"))
 		if err != nil {
@@ -184,7 +187,9 @@ func New(store Repository, verifier Verifier, checks ...StatusCheck) http.Handle
 		}
 		respond(w, 200, job)
 	})
-	mux.HandleFunc("POST /v1/jobs/{id}/replay", func(w http.ResponseWriter, r *http.Request) {
+	// Replay re-dispatches evaluation work, so it is the same tactical row of the
+	// matrix as the create route above.
+	mux.HandleFunc("POST /v1/jobs/{id}/replay", requireTactical(func(w http.ResponseWriter, r *http.Request) {
 		// Echo the correlation id first so every rejection below carries the same
 		// request_id as its response header, exactly as the create path does.
 		trace, err := uuid.Parse(r.Header.Get("X-Request-ID"))
@@ -224,7 +229,10 @@ func New(store Repository, verifier Verifier, checks ...StatusCheck) http.Handle
 			return
 		}
 		respond(w, 202, job)
-	})
+	}))
+	// The activity register is a GET read: the matrix grants it to viewer, analista
+	// and admin, and the Authorize gate above already decided membership in that
+	// vocabulary. It needs no narrower guard.
 	mux.HandleFunc("GET /v1/audit", func(w http.ResponseWriter, r *http.Request) {
 		items, err := store.Audit(r.Context())
 		if err != nil {

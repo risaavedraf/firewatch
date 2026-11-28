@@ -25,6 +25,13 @@ type subjectKey struct{}
 // route can require it without re-reading the token.
 type adminKey struct{}
 
+// tacticalKey carries whether the verified token holds a role that operates the
+// system — analista or admin — so a tactical route decides without re-reading the
+// token. The two facts are kept apart on purpose: the ratified D-C matrix grants
+// the tactical half of prevention to analista and keeps the final half for admin,
+// and one boolean could not express that.
+type tacticalKey struct{}
+
 // subjectOf returns the verified token subject, or "" when there is none. Every
 // route that reaches a handler has passed Authorize, so this is non-empty there.
 func subjectOf(ctx context.Context) string {
@@ -38,14 +45,24 @@ func isAdmin(ctx context.Context) bool {
 	return admin
 }
 
+// isAnalystOrAdmin reports whether the verified token held a role that operates
+// the system: analista or admin. It is the TACTICAL half of the ratified D-C
+// matrix — «evalúa y gestiona acciones, sin admin» — and it never admits a viewer.
+func isAnalystOrAdmin(ctx context.Context) bool {
+	tactical, _ := ctx.Value(tacticalKey{}).(bool)
+	return tactical
+}
+
 // Authorize is the authentication middleware of this service, the same policy the
 // sibling services apply: the Authorization header must carry a Bearer token that
 // verifies against the configured issuer and audience, must be a bearer token
-// with a live not-before, and must hold one of the roles this service accepts.
+// with a live not-before, and must hold one of the three roles the ratified D-C
+// matrix declares — viewer, analista or admin. A role the realm does not declare,
+// such as `operator`, is still refused 403.
 //
-// Reads are open to viewer and admin; admin-only enforcement for writes lives in
-// the write handlers, so a viewer gets 403 (authorized but not permitted) instead
-// of 401 on a route they may read.
+// Reads are open to all three. The write routes enforce their own half of the
+// matrix — tactical (analista+admin) or final (admin) — so a viewer gets 403
+// (authorized but not permitted) instead of 401 on a route they may read.
 func Authorize(verifier Verifier, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Fields(r.Header.Get("Authorization"))
@@ -77,15 +94,25 @@ func Authorize(verifier Verifier, next http.Handler) http.Handler {
 		}
 		authorized := context.WithValue(r.Context(), subjectKey{}, token.Subject)
 		authorized = context.WithValue(authorized, adminKey{}, holdsAdmin(claims.Realm.Roles))
+		authorized = context.WithValue(authorized, tacticalKey{}, holdsAnalystOrAdmin(claims.Realm.Roles))
 		next.ServeHTTP(w, r.WithContext(authorized))
 	})
 }
 
 // holdsAnyAcceptedRole reports whether the token carries a role this service
-// accepts at all. Reads are open to viewer and admin; the write routes enforce
-// admin separately, so a viewer is 403 (authorized, not permitted), not 401.
+// accepts at all: the three roles the ratified matrix declares. The write routes
+// enforce their own half separately, so a viewer is 403 (authorized, not
+// permitted), not 401.
 func holdsAnyAcceptedRole(roles []string) bool {
-	return slices.Contains(roles, "viewer") || slices.Contains(roles, "admin")
+	return slices.Contains(roles, "viewer") || slices.Contains(roles, "analista") || slices.Contains(roles, "admin")
+}
+
+// holdsAnalystOrAdmin reports whether the verified token holds a role that
+// operates the system. Like holdsAdmin below it scans the WHOLE list: the order of
+// realm_access.roles belongs to the identity provider, so the answer is membership
+// in the set and never the first interesting element in it.
+func holdsAnalystOrAdmin(roles []string) bool {
+	return slices.Contains(roles, "analista") || slices.Contains(roles, "admin")
 }
 
 // holdsAdmin reports whether the verified token holds the admin role.

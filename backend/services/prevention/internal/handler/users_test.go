@@ -197,15 +197,32 @@ func TestUsersRouteCapsAt200(t *testing.T) {
 	}
 }
 
-// TestUsersRouteIsAdminOnly pins the role gate: a viewer is authorized to read
-// this service but not to enumerate its users, and the directory is never asked.
-func TestUsersRouteIsAdminOnly(t *testing.T) {
+// TestUsersRouteIsReadableByEveryDeclaredRole updates the role gate to the
+// ratified D-C matrix: «usuarios» is one of the GET reads granted to viewer,
+// analista and admin, so every declared role enumerates the directory and only an
+// undeclared role is refused before the directory is asked.
+func TestUsersRouteIsReadableByEveryDeclaredRole(t *testing.T) {
+	for _, role := range []string{"viewer", "analista", "admin"} {
+		t.Run(role, func(t *testing.T) {
+			stub := &stubDirectory{users: []directory.User{{ID: "u1", DisplayName: "Demo Admin"}}}
+			h, signer := usersApp(t, stub)
+
+			w := requestWith(t, h, http.MethodGet, "/v1/users", token(t, signer, role, "demo-"+role), "")
+			if w.Code != http.StatusOK {
+				t.Fatalf("a %s answered %d (%s), want 200", role, w.Code, w.Body.String())
+			}
+			if stub.calls != 1 {
+				t.Fatalf("the directory was read %d times, want exactly 1", stub.calls)
+			}
+		})
+	}
+
 	stub := &stubDirectory{users: []directory.User{{ID: "u1", DisplayName: "Demo Admin"}}}
 	h, signer := usersApp(t, stub)
 
-	w := requestWith(t, h, http.MethodGet, "/v1/users", token(t, signer, "viewer", "demo-viewer"), "")
+	w := requestWith(t, h, http.MethodGet, "/v1/users", token(t, signer, "operator", "demo-operator"), "")
 	if w.Code != http.StatusForbidden {
-		t.Fatalf("a viewer answered %d (%s), want 403", w.Code, w.Body.String())
+		t.Fatalf("an undeclared role answered %d (%s), want 403", w.Code, w.Body.String())
 	}
 	if body := errorBody(t, w); body["code"] != "forbidden" {
 		t.Fatalf("error code %q, want forbidden", body["code"])

@@ -146,8 +146,9 @@ type createRequest struct {
 	DueDate    *string `json:"due_date"`
 }
 
-// create serves POST /v1/prevention/actions: admin only, and the created action is
-// always propuesta.
+// create serves POST /v1/prevention/actions: a TACTICAL operation, admitted for
+// analista and admin and refused 403 to a viewer (ratified D-C matrix, «crear /
+// asignar acciones»). The created action is always propuesta.
 //
 // An assignee_id is resolved through the user directory before storage is
 // touched. An identifier the directory does not know is refused 422 with the
@@ -156,7 +157,7 @@ type createRequest struct {
 // omitted assignee_id leaves the action unassigned, exactly as before.
 func create(store Repository, dir Directory) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !isAdmin(r.Context()) {
+		if !isAnalystOrAdmin(r.Context()) {
 			fail(w, 403, "forbidden")
 			return
 		}
@@ -323,17 +324,26 @@ type transitionRequest struct {
 	Note *string `json:"note"`
 }
 
-// transition serves POST /v1/prevention/actions/{id}/transitions: admin only.
+// transition serves POST /v1/prevention/actions/{id}/transitions.
 //
-// The two failure modes are deliberately different. A target that is not a state
-// of the vocabulary is invalid input (422) and never reaches storage. A target
-// that is a state but that the frozen machine does not allow from the action's
-// current status is a conflict (409 invalid_transition), decided inside the
-// repository's transaction so the action is left exactly as it was with no
+// The ratified D-C matrix splits this route in two halves, and the split is the
+// whole point of the analista role:
+//   - the TACTICAL half —asignada, en_curso, enviada, bloqueada, devuelta— is
+//     admitted for analista and admin and refused 403 to a viewer;
+//   - the FINAL half —anything that lands on aceptada, devuelta or cancelada— is
+//     the human review decision and the cancellation, and stays admin alone. An
+//     analista asking for one of those is refused 403 BEFORE the store is called,
+//     so no history row and no evidence is written.
+//
+// The two other failure modes are deliberately different. A target that is not a
+// state of the vocabulary is invalid input (422) and never reaches storage. A
+// target that is a state but that the frozen machine does not allow from the
+// action's current status is a conflict (409 invalid_transition), decided inside
+// the repository's transaction so the action is left exactly as it was with no
 // history row.
 func transition(store Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !isAdmin(r.Context()) {
+		if !isAnalystOrAdmin(r.Context()) {
 			fail(w, 403, "forbidden")
 			return
 		}
@@ -358,6 +368,12 @@ func transition(store Repository) http.HandlerFunc {
 		}
 		if request.To == nil || !state.Valid(state.State(*request.To)) {
 			fail(w, 422, "invalid_transition_request")
+			return
+		}
+		// The final half of the matrix is decided here, before any storage call, so
+		// an analista never reaches a row for a decision that is not theirs.
+		if isFinalReviewTarget(state.State(*request.To)) && !isAdmin(r.Context()) {
+			fail(w, 403, "forbidden")
 			return
 		}
 		note := ""
@@ -391,6 +407,23 @@ func transition(store Repository) http.HandlerFunc {
 			"occurred_at", action.UpdatedAt)
 		respond(w, 200, action)
 	}
+}
+
+// isFinalReviewTarget reports whether a transition target belongs to the FINAL
+// half of the ratified D-C matrix, the half that stays admin-only: approving or
+// rejecting the final evidence review (`aceptada`, `devuelta`) and cancelling the
+// action (`cancelada`, which the frozen machine allows from every non-terminal
+// state). Every other target is a tactical workflow step.
+//
+// Exact membership is deliberate: an unknown state is invalid input and is
+// refused 422 by the caller before this function is consulted, so this predicate
+// only ever narrows a target the vocabulary already declared.
+func isFinalReviewTarget(to state.State) bool {
+	switch to {
+	case state.Aceptada, state.Devuelta, state.Cancelada:
+		return true
+	}
+	return false
 }
 
 // actionID parses the {id} path value as a UUID. The path is a UUID or it is

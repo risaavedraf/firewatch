@@ -41,10 +41,11 @@ func subjectFrom(ctx context.Context) (string, bool) {
 	return subject, ok && subject != ""
 }
 
-// Authorize authenticates the bearer token and admits the viewer and admin roles,
-// the same read-or-admin gate every route has always used. It stores the
-// verified roles on the request context so an admin-only route wraps itself with
-// requireAdmin instead of re-verifying the token.
+// Authorize authenticates the bearer token and admits the viewer, analista and
+// admin roles, the closed vocabulary the ratified D-C matrix declares. It stores
+// the verified roles on the request context so a route whose policy is narrower
+// than "any declared role" wraps itself with requireTactical or requireAdmin
+// instead of re-verifying the token.
 func Authorize(verifier Verifier, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Fields(r.Header.Get("Authorization"))
@@ -71,7 +72,7 @@ func Authorize(verifier Verifier, next http.Handler) http.Handler {
 			return
 		}
 		for _, role := range claims.Realm.Roles {
-			if role == "viewer" || role == "admin" {
+			if role == "viewer" || role == "analista" || role == "admin" {
 				ctx := context.WithValue(r.Context(), rolesContextKey{}, claims.Realm.Roles)
 				// The verified subject travels with the same request context as the
 				// roles, so a personal route scopes storage to an identity this gate
@@ -83,6 +84,29 @@ func Authorize(verifier Verifier, next http.Handler) http.Handler {
 		}
 		fail(w, 403, "forbidden")
 	})
+}
+
+// requireTactical admits the two roles that operate the system: analista and
+// admin (ratified D-C, «Operación táctica: evalúa y gestiona acciones, sin
+// admin»). It is applied inside the router, after Authorize has already verified
+// the token and stored the roles, so it neither re-verifies nor lets an
+// unauthenticated request through: Authorize's 401 runs first. A viewer is still
+// authorised to read and is refused here with the documented 403, which is a
+// permission decision and never a storage one.
+//
+// The decision is membership in the role set, like requireAdmin below: the order
+// of realm_access.roles belongs to the identity provider, so a token that lists
+// viewer before analista keeps its tactical rights.
+func requireTactical(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		for _, role := range rolesFrom(r.Context()) {
+			if role == "analista" || role == "admin" {
+				next(w, r)
+				return
+			}
+		}
+		fail(w, 403, "forbidden")
+	}
 }
 
 // requireAdmin admits only the admin role. It is applied inside the router, after

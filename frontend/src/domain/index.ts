@@ -12,6 +12,7 @@ export * from './history';
 export * from './zone-levels';
 export * from './supersession';
 export * from './prevention';
+export * from './roles';
 export * from './assignment';
 export * from './cycle';
 export * from './model';

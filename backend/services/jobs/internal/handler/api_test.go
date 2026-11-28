@@ -32,9 +32,11 @@ type fakeStore struct {
 	// test can prove a display name comes from token claims and nowhere else.
 	createActor repository.Actor
 	// job and getErr let a test drive GET /v1/jobs/{id} through the Repository
-	// interface without a database.
-	job    repository.Job
-	getErr error
+	// interface without a database. getCalls proves a refused role never reaches
+	// storage, which is a permission decision rather than a storage one.
+	job      repository.Job
+	getErr   error
+	getCalls int
 	// replayJob, replayErr and the recorded arguments let a test drive
 	// POST /v1/jobs/{id}/replay through the Repository interface and prove the
 	// transport forwards one call to the single store transition.
@@ -65,6 +67,7 @@ func (s *fakeStore) CreateAs(_ context.Context, actor repository.Actor, key, zon
 	return repository.Job{ID: uuid.NewString(), ZoneID: zone, State: "queued"}, nil
 }
 func (s *fakeStore) Get(context.Context, string) (repository.Job, error) {
+	s.getCalls++
 	return s.job, s.getErr
 }
 func (s *fakeStore) Audit(context.Context) ([]repository.Audit, error) {
@@ -98,7 +101,7 @@ func TestStatusAuthorization(t *testing.T) {
 	for _, tc := range []struct {
 		role string
 		want int
-	}{{"", 401}, {"invalid", 401}, {"operator", 403}, {"viewer", 403}, {"admin", 200}} {
+	}{{"", 401}, {"invalid", 401}, {"operator", 403}, {"viewer", 200}, {"analista", 200}, {"admin", 200}} {
 		t.Run(tc.role, func(t *testing.T) {
 			calls := 0
 			ready := true
@@ -269,6 +272,9 @@ func TestCreateAuthorizationAndValidation(t *testing.T) {
 		want                                          int
 	}{
 		{name: "admin accepted", role: "admin", want: 202},
+		// PM-15 (D-C): dispatching a job is tactical, so analista is accepted and a
+		// viewer is still refused.
+		{name: "analista accepted", role: "analista", want: 202},
 		{name: "viewer forbidden", role: "viewer", want: 403},
 		{name: "unknown role forbidden", role: "operator", want: 403},
 		{name: "missing token", noToken: true, want: 401},
@@ -663,10 +669,14 @@ func TestVerifiedActorNameIsTheOnlyNameSource(t *testing.T) {
 
 // TestAuditReadIsAdminOnlyAndCarriesTheExtendedContract pins the read contract
 // end to end at the transport boundary: only an admin reaches the store, and the
-// response carries the durable event id, the verified name or an explicit null,
-// the free-text detail, the event kind and a nullable job reference, while every
-// legacy field keeps its original value and shape.
-func TestAuditReadIsAdminOnlyAndCarriesTheExtendedContract(t *testing.T) {
+// TestAuditReadIsAvailableToEveryDeclaredRoleAndCarriesTheExtendedContract pins
+// the activity register as a GET read: the ratified D-C matrix grants it to
+// viewer, analista and admin, an undeclared role and a missing token are still
+// refused before storage, and the answer carries the durable event id, the
+// verified name or an explicit null, the free-text detail, the event kind and a
+// nullable job reference, while every legacy field keeps its original value and
+// shape.
+func TestAuditReadIsAvailableToEveryDeclaredRoleAndCarriesTheExtendedContract(t *testing.T) {
 	name := "Demo Admin"
 	detail := "Solicitud de trabajo para la zona valparaiso-demo"
 	jobID := uuid.NewString()
@@ -685,7 +695,7 @@ func TestAuditReadIsAdminOnlyAndCarriesTheExtendedContract(t *testing.T) {
 		status int
 	}{
 		{name: "missing token", status: http.StatusUnauthorized},
-		{name: "viewer forbidden", token: mint("viewer"), status: http.StatusForbidden},
+		{name: "undeclared role forbidden", token: mint("operator"), status: http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/v1/audit", nil)
@@ -700,7 +710,24 @@ func TestAuditReadIsAdminOnlyAndCarriesTheExtendedContract(t *testing.T) {
 		})
 	}
 	if store.auditCalls != 0 {
-		t.Fatalf("an unauthorized read reached the store %d times", store.auditCalls)
+		t.Fatalf("a refused read reached the store %d times", store.auditCalls)
+	}
+
+	for _, role := range []string{"viewer", "analista", "admin"} {
+		t.Run("a "+role+" reads the register", func(t *testing.T) {
+			store := &fakeStore{audits: store.audits}
+			handler, mint := replayHandler(t, store)
+			r := httptest.NewRequest(http.MethodGet, "/v1/audit", nil)
+			r.Header.Set("Authorization", "Bearer "+mint(role))
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			if w.Code != http.StatusOK {
+				t.Fatalf("code=%d want=%d body=%s", w.Code, http.StatusOK, w.Body)
+			}
+			if store.auditCalls != 1 {
+				t.Fatalf("storage reads = %d, want exactly 1", store.auditCalls)
+			}
+		})
 	}
 
 	r := httptest.NewRequest(http.MethodGet, "/v1/audit", nil)

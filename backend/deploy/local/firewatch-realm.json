@@ -20,6 +20,7 @@
   "accessTokenLifespan": 300,
   "roles": {"realm": [
     {"name": "viewer"},
+    {"name": "analista"},
     {"name": "admin"},
     {"name": "offline_access"},
     {"name": "uma_authorization"},
@@ -67,6 +68,12 @@
     "firstName": "Demo", "lastName": "Viewer", "email": "viewer@example.invalid", "emailVerified": true,
     "realmRoles": ["viewer"],
     "credentials": [{"type": "password", "value": "${DEMO_VIEWER_PASSWORD}", "temporary": false}]
+  }, {
+    "id": "5b1f9c2e-3a4d-4c8b-9e7f-0a1b2c3d4e5f",
+    "username": "demo-analista", "enabled": true,
+    "firstName": "Demo", "lastName": "Analista", "email": "analista@example.invalid", "emailVerified": true,
+    "realmRoles": ["analista"],
+    "credentials": [{"type": "password", "value": "${DEMO_ANALISTA_PASSWORD}", "temporary": false}]
   }, {
     "username": "service-account-firewatch-directory",
     "enabled": true,

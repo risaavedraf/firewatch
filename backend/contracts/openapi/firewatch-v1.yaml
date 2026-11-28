@@ -12,7 +12,7 @@ paths:
     get:
       operationId: getRiskStatus
       description: >-
-        Viewer/admin. Bounded database ping then cached broker snapshot. Not an
+        Viewer/analista/admin. Bounded database ping then cached broker snapshot. Not an
         end-to-end delivery test or evidence of real risk. Freshness is bounded,
         not instantaneous. A 403 means not authorized to check, not unavailable.
         This authenticated route's 200/503 follows the full dependency decision
@@ -30,7 +30,7 @@ paths:
     get:
       operationId: getInferenceStatus
       description: >-
-        Viewer/admin. Evidence about the inference service this deployment is
+        Viewer/analista/admin. Evidence about the inference service this deployment is
         configured to call, gathered by risk itself: the only service that
         already holds the configured internal address and the internal CA. The
         public surface never reaches inference directly, and this read never
@@ -94,8 +94,10 @@ paths:
     get:
       operationId: getJobsStatus
       description: >-
-        Admin only; viewer receives 403, meaning not authorized to check rather
-        than unavailable. Bounded database ping then cached broker snapshot;
+        Viewer/analista/admin. Every declared role reads it, so a 403 now means
+        the token carries a role outside the closed vocabulary rather than that
+        the check is not permitted. Bounded database ping then cached broker
+        snapshot;
         not an instantaneous or end-to-end delivery guarantee. This
         authenticated route's 200/503 follows the full dependency decision and
         keeps doing so; the unauthenticated /health/ready probe is decided by
@@ -112,7 +114,7 @@ paths:
     get:
       operationId: getServiceStatus
       description: >-
-        Viewer/admin. One bounded, parallel read of the four declared status
+        Viewer/analista/admin. One bounded, parallel read of the four declared status
         surfaces: risk, jobs, prevention and the inference evidence risk
         publishes. It is answered by the gateway itself, so the gateway entry
         stays ready even when an upstream is not: the aggregate summarises what
@@ -188,7 +190,8 @@ paths:
     post:
       operationId: createDemoJob
       description: >-
-        Admin only. Same subject and idempotency key return the existing job.
+        Tactical: analista or admin; a viewer is refused 403. Same subject and
+        idempotency key return the existing job.
         Any zone code present in the zone catalogue is accepted; the fixed
         demo zone is one entry of that catalogue. Optional scenario_id selects
         a reproducible synthetic profile. Without it, the legacy fixture is
@@ -242,7 +245,8 @@ paths:
     get:
       operationId: getJob
       description: >-
-        Admin only. queued means no answer has been received yet and stays so
+        Viewer/analista/admin. queued means no answer has been received yet and
+        stays so
         until one arrives; published is completed. failed is terminal and is
         recorded only from real evidence - a permanent consumer failure or an
         exhausted retry budget - with its failure_reason and the attempts spent,
@@ -269,7 +273,8 @@ paths:
     post:
       operationId: replayJob
       description: >-
-        Admin only. Returns a failed job to queued, or re-dispatches a queued
+        Tactical: analista or admin; a viewer is refused 403. Returns a failed
+        job to queued, or re-dispatches a queued
         one, so its work is dispatched again; nothing is replayed automatically.
         The transition is one guarded update, so two concurrent replays cannot
         both enqueue - the loser is answered 409 rather than silently accepted.
@@ -379,7 +384,7 @@ paths:
     get:
       operationId: getLatestBatch
       description: >-
-        Viewer/admin. Reads the newest requested batch, not the most recently
+        Viewer/analista/admin. Reads the newest requested batch, not the most recently
         finished worker.
       parameters: [{$ref: '#/components/parameters/Zone'}]
       responses:
@@ -414,7 +419,7 @@ paths:
     get:
       operationId: listBatches
       description: >-
-        Viewer/admin. Up to 100 batches in descending request-time order.
+        Viewer/analista/admin. Up to 100 batches in descending request-time order.
       parameters: [{$ref: '#/components/parameters/Zone'}]
       responses:
         '200':
@@ -434,7 +439,7 @@ paths:
     get:
       operationId: exportRiskHistoryCSV
       description: >-
-        Viewer/admin. The same bounded history that GET /v1/risk/history serves,
+        Viewer/analista/admin. The same bounded history that GET /v1/risk/history serves,
         rendered as a CSV attachment: one zone_id parameter, the same accepted
         zone catalogue, up to 100 batches in descending request-time order and
         the same access policy. No filter is added, no row the JSON read serves
@@ -525,7 +530,7 @@ paths:
     get:
       operationId: getRiskHistorySeries
       description: >-
-        Viewer/admin. One series per zone over a required window, bucketed by hour,
+        Viewer/analista/admin. One series per zone over a required window, bucketed by hour,
         day or week. This is an additive sibling of GET /v1/risk/history: that
         route keeps its fixed 100 row window, its body and its CSV export
         unchanged, and this one answers a different question through its own
@@ -605,7 +610,7 @@ paths:
     get:
       operationId: compareZoneRisk
       description: >-
-        Viewer/admin. Two or three catalogue zones compared in one request: each
+        Viewer/analista/admin. Two or three catalogue zones compared in one request: each
         zone's stored assessment at a shared cutoff, plus PM-04's history
         semantics inside a required window. It is additive - the single-zone
         reads, their bodies and their vocabulary are unchanged - and it is the
@@ -678,7 +683,7 @@ paths:
     get:
       operationId: listLatestBatchesPerZone
       description: >-
-        Viewer/admin. The newest published batch of every zone, in one answer,
+        Viewer/analista/admin. The newest published batch of every zone, in one answer,
         ordered by zone_id ascending, so a client can present the whole
         territory without one request per zone. A zone with no published batch
         is absent from the array; nothing published at all is an empty array
@@ -703,7 +708,7 @@ paths:
     post:
       operationId: simulateRiskBatch
       description: >-
-        Viewer/admin. Counterfactual recalculation of the newest stored batch of
+        Viewer/analista/admin. Counterfactual recalculation of the newest stored batch of
         one zone: the same rule that produced the stored level is applied again
         to the stored variables (before) and to the caller's substituted variables
         (after), and both results are returned. Nothing is published: the route
@@ -808,7 +813,7 @@ paths:
     get:
       operationId: getExecutiveRiskSummary
       description: >-
-        Viewer/admin. Read-only, with no query parameters. Counts each catalogue
+        Viewer/analista/admin. Read-only, with no query parameters. Counts each catalogue
         zone's newest published batch by risk level, including expired and demo
         batches. Zones without a batch are counted separately, never as unknown.
         For each zone, newest means descending requested_at then batch ID, as in
@@ -935,7 +940,7 @@ paths:
     get:
       operationId: listRiskAlerts
       description: >-
-        Viewer/admin. One page of the persisted PM-07 level-change alerts, newest
+        Viewer/analista/admin. One page of the persisted PM-07 level-change alerts, newest
         first by default. Every element is a transition stored in the risk
         database, read back with its zone label and its batch provenance: this
         route invents no alert, generates no stand-in and serves no count. The
@@ -1030,10 +1035,10 @@ paths:
     get:
       operationId: getRiskAlertState
       description: >-
-        Viewer/admin. The caller's own explicit notification mark on one stored
+        Viewer/analista/admin. The caller's own explicit notification mark on one stored
         PM-07 alert. The actor is exclusively the verified bearer subject: the
         route accepts no actor parameter and the write body cannot name one. A
-        viewer and an admin both read, and each reads only their own state. An
+        viewer, analista and admin all read, and each reads only their own state. An
         alert this subject never marked is `unread` with `marked_at: null`, and
         reading creates no row. An alert that is not stored is 404, never a
         fabricated unread answer. This route records no delivery and is not a
@@ -1056,8 +1061,11 @@ paths:
     put:
       operationId: markRiskAlertState
       description: >-
-        Admin only, for the caller itself. Appends one explicit personal mark to
-        one stored alert. The state is a closed vocabulary of `read` and
+        Viewer/analista/admin. Appends one explicit personal mark to one stored
+        alert, always for the caller itself. A personal mark is a per-caller
+        preference, not an administrative action, so the ratified D-C matrix
+        grants it to the three declared roles. The state is a closed vocabulary
+        of `read` and
         `dismissed`; `unread` is not a mark and is refused. The marks are
         monotonic - read, then dismissed - and dismissed dominates a read
         regardless of the order the requests arrived in. The write is
@@ -1127,7 +1135,7 @@ paths:
     get:
       operationId: listSyntheticScenarios
       description: >-
-        Viewer/admin. Lists the built-in demonstration profiles without
+        Viewer/analista/admin. Lists the built-in demonstration profiles without
         fetching observations or accessing the database/broker. These are
         synthetic software scenarios, not calibrated risk probabilities or
         official observations. The partial-retrieval profile intentionally
@@ -1148,7 +1156,7 @@ paths:
     get:
       operationId: listInfrastructure
       description: >-
-        Viewer/admin. The embedded fictional infrastructure catalogue for the
+        Viewer/analista/admin. The embedded fictional infrastructure catalogue for the
         PM-11 demo: one declared entity, zone, geometry and source per element.
         It is not the mandante's real catalogue, no coordinate is a real asset
         location, and `source` is `synthetic_fixture`. Each element contributes
@@ -1174,7 +1182,7 @@ paths:
     get:
       operationId: getRiskSources
       description: >-
-        Viewer/admin. Embedded geographic provenance and the active publisher
+        Viewer/analista/admin. Embedded geographic provenance and the active publisher
         provider descriptor, separately. No database, broker or source fetch.
         Geography does not establish real risk observations, a licence grant or
         DIFROL validation. Stored cutoff_at is a retrieval-time substitution,
@@ -1280,7 +1288,8 @@ paths:
     post:
       operationId: runRiskCycle
       description: >-
-        Admin. Runs one ingestion cycle synchronously for the demo: ingest,
+        Tactical: analista or admin; a viewer is refused 403. Runs one ingestion
+        cycle synchronously for the demo: ingest,
         per-record validation, classification and publication for every
         configured zone. The result reports each zone and whether the cycle was
         complete. A zone that fails does not abort the rest, and an incomplete
@@ -1309,7 +1318,7 @@ paths:
     get:
       operationId: listModels
       description: >-
-        Viewer/admin. The model registry: every version with its kind, frozen
+        Viewer/analista/admin. The model registry: every version with its kind, frozen
         parameter fingerprint, approval instant, metrics and active flag. The
         active row is first so the UI can show the version the registry presents
         as active. Reading the registry promotes nothing.
@@ -1356,7 +1365,8 @@ paths:
     post:
       operationId: activateModelVersion
       description: >-
-        Admin. Makes one model version active and records its approval in one
+        Admin only: analista and viewer are refused 403. Makes one model version
+        active and records its approval in one
         transaction: the previously active row is cleared, approved_at is set
         when it was null, and metrics records the activation, which is what makes
         the row authoritative for inference. At most one version is active.
@@ -1412,7 +1422,7 @@ paths:
     get:
       operationId: listZones
       description: >-
-        Viewer/admin. The zone catalogue as a GeoJSON FeatureCollection
+        Viewer/analista/admin. The zone catalogue as a GeoJSON FeatureCollection
         following RFC 7946. Zones without geometry are omitted rather than
         given an invented one, so an empty collection is a valid answer and
         never an error.
@@ -1444,7 +1454,8 @@ paths:
     get:
       operationId: listAudit
       description: >-
-        Admin only. Last 100 audit records, newest first. Every row carries a
+        Viewer/analista/admin. Last 100 audit records, newest first. Every row
+        carries a
         durable event id derived from the audit table's own identity, the
         verified display name captured when the event was written (null when no
         verified human name exists: legacy rows and system events such as
@@ -1542,7 +1553,7 @@ paths:
     get:
       operationId: listPreventiveActions
       description: >-
-        Viewer/admin. Lists preventive actions, newest first, capped at 200
+        Viewer/analista/admin. Lists preventive actions, newest first, capped at 200
         rows. Both query parameters are optional filters: an omitted one
         narrows nothing, and an empty result is a valid answer rather than an
         error. A parameter that is repeated, is not one of these two, or carries
@@ -1595,7 +1606,8 @@ paths:
     post:
       operationId: createPreventiveAction
       description: >-
-        Admin only; a viewer is refused 403. The action is created in the
+        Tactical: analista or admin; a viewer is refused 403. The action is
+        created in the
         propuesta state and its id is server-generated: neither status nor id is
         accepted from the client, and an unknown field is refused rather than
         ignored. Only community_code and title are required, because the
@@ -1670,7 +1682,7 @@ paths:
     get:
       operationId: getPreventiveAction
       description: >-
-        Viewer/admin. The action plus its attributable history, oldest first.
+        Viewer/analista/admin. The action plus its attributable history, oldest first.
         The history holds one row per accepted transition; creation is not a
         transition, so a newly created action has an empty history.
       parameters:
@@ -1722,7 +1734,11 @@ paths:
     post:
       operationId: transitionPreventiveAction
       description: >-
-        Admin only; a viewer is refused 403. Advances one action to the
+        Tactical: analista or admin; a viewer is refused 403. Except for the
+        final half of the ratified matrix, which stays administrative: any
+        transition that lands on `aceptada`, `devuelta` or `cancelada` is
+        answered 403 to an analista, decided before storage is reached.
+        Advances one action to the
         requested state and appends one history row in a single transaction
         that locks the row, so two concurrent transitions cannot both be
         accepted. The two refusals differ: a target outside the frozen
@@ -1837,7 +1853,8 @@ paths:
     post:
       operationId: recordPreventiveEvidence
       description: >-
-        Admin only; a viewer is refused 403. Appends one immutable evidence
+        Tactical: analista or admin; a viewer is refused 403. Appends one
+        immutable evidence
         snapshot: a sufficiency criterion plus bounded, credential-free
         http(s) references. Nothing is fetched or uploaded, a reference is a
         citation only. Recording a new snapshot does not edit earlier ones, and
@@ -1943,7 +1960,8 @@ paths:
     post:
       operationId: reviewPreventiveEvidence
       description: >-
-        Admin only; a viewer is refused 403. Appends one attributable HUMAN
+        Admin only: analista and viewer are refused 403. Appends one attributable
+        HUMAN
         sufficiency decision about one evidence snapshot. The reviewer is the
         verified token subject and the date is the server clock; neither is
         client-supplied. The reviewed snapshot must still be the current one: a
@@ -2063,7 +2081,8 @@ paths:
     post:
       operationId: linkPreventiveReassessment
       description: >-
-        Admin only; a viewer is refused 403. Persists the link between the
+        Tactical: analista or admin; a viewer is refused 403. Persists the link
+        between the
         action and one REAL published synthetic batch. The client names only the
         server-produced job; batch, version, risk level, commune, synthetic flag
         and publication instant are read from the shared risk database and can
@@ -2188,7 +2207,7 @@ paths:
     get:
       operationId: listPreventionObservations
       description: >-
-        Viewer/admin. PM-09 field observations, newest first, capped at 200
+        Viewer/analista/admin. PM-09 field observations, newest first, capped at 200
         rows. `type` is the only query parameter and is an optional filter: an
         omitted or empty one narrows nothing, and an empty result is a valid
         answer rather than an error. A repeated parameter, a parameter this
@@ -2236,7 +2255,8 @@ paths:
     post:
       operationId: createPreventionObservation
       description: >-
-        Admin only; a viewer is refused 403. Records one field observation. The
+        Tactical: analista or admin; a viewer is refused 403. Records one field
+        observation. The
         author is the verified token subject: the body has no author field, and
         an unknown field — including a client-sent created_by, author, id or
         zone_name — is refused rather than ignored. The type must be a member of
@@ -2304,7 +2324,8 @@ paths:
     post:
       operationId: adoptPreventionObservation
       description: >-
-        Admin only. Explicitly confirms that an existing non-cancelled action
+        Tactical: analista or admin; a viewer is refused 403. Explicitly
+        confirms that an existing non-cancelled action
         is needed and records the field observation supporting it. The action
         may still be proposed; this operation does not assign personnel or
         change its status. An observation can support at most one action, and
@@ -2376,7 +2397,7 @@ paths:
     get:
       operationId: listPreventionObservationZones
       description: >-
-        Viewer/admin. The zone options the observation form offers, read from the
+        Viewer/analista/admin. The zone options the observation form offers, read from the
         authoritative zone catalogue — the `zones` table the risk migrations
         create and seed — and ordered by name then code. Every catalogue zone is
         listed, including the zones that carry no geometry and are therefore
@@ -2405,7 +2426,7 @@ paths:
     get:
       operationId: listRealmUsers
       description: >-
-        Admin only; a viewer receives 403 and an unauthenticated caller 401. The
+        Viewer/analista/admin. An unauthenticated caller receives 401. The
         realm's users as the identity provider's admin API reports them, with the
         identifier it assigns and a display name, sorted by display_name then id
         and capped at 200 entries. Reading the directory changes nothing.
@@ -2451,7 +2472,7 @@ paths:
     get:
       operationId: getPreventionStatus
       description: >-
-        Viewer/admin. The prevention service's own operational status, read from
+        Viewer/analista/admin. The prevention service's own operational status, read from
         the dependency it actually has: one bounded ping of its database. It does
         not report a broker or a dead-letter queue, because this service talks to
         neither and reporting them would be a fabricated dependency. It is not a
@@ -2742,6 +2763,38 @@ components:
                 enum: [upstream_unavailable, directory_upstream_failed]
               request_id: {type: string, format: uuid}
   schemas:
+    RealmRole:
+      type: string
+      enum: [viewer, analista, admin]
+      description: >-
+        The closed realm-role vocabulary of the ratified access decision (D-C).
+        Every service admits exactly these three roles and refuses any other
+        verified role with 403 `forbidden`; an unverifiable token is 401
+        `unauthorized` instead. The vocabulary is a set, never a precedence list:
+        the demo realm grants its admin account BOTH `viewer` and `admin`, and
+        the order of `realm_access.roles` belongs to the identity provider, so a
+        caller keeps the strongest role it holds wherever that role appears.
+
+        What each role may do is declared per operation, in the first sentence of
+        that operation's description, with one of three sentences:
+
+        - `Viewer/analista/admin.` — a GET read, and the personal alert mark,
+          granted to all three roles.
+        - `Tactical: analista or admin; a viewer is refused 403.` — the tactical
+          half of the decision, «evalúa y gestiona acciones, sin admin»:
+          triggering evaluation and jobs, creating and assigning preventive
+          actions, uploading evidence, registering and adopting observations,
+          linking a reassessment and the workflow transitions that do not land on
+          `aceptada`, `devuelta` or `cancelada`.
+        - `Admin only: analista and viewer are refused 403.` — activating a model
+          version, approving or rejecting the final evidence review, and
+          cancelling an action (`cancelada`). The refusal is decided before any
+          storage write.
+
+        Publishing an evaluated batch (`POST /v1/risk/batches/{id}/publish`) and
+        reviewing a source (`POST /v1/risk/sources/{id}/review`) belong to the
+        admin and tactical halves respectively, but neither route exists yet in
+        this deployment.
     CycleSourceStatus:
       type: object
       required: [source_id, complete]
