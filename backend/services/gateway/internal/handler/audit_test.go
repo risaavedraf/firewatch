@@ -682,7 +682,7 @@ func TestCSVRecordingFailureAnswersTheDocumentedErrorInsteadOfTheFile(t *testing
 	if !canonicalUUID.MatchString(requestID) {
 		t.Fatalf("X-Request-ID = %q, want the canonical id", requestID)
 	}
-	wantBody := `{"code":"storage_unavailable","request_id":"` + requestID + "\"}\n"
+	wantBody := `{"code":"storage_unavailable","category":"UPSTREAM_UNAVAILABLE","message":"upstream service unavailable","request_id":"` + requestID + "\"}\n"
 	if got := response.Body.String(); got != wantBody {
 		t.Fatalf("body = %q, want the existing JSON 503 %q", got, wantBody)
 	}

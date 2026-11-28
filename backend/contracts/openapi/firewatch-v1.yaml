@@ -24,6 +24,7 @@ paths:
         '503': {$ref: '#/components/responses/OperationalUnavailable'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/risk/inference/status:
@@ -88,6 +89,7 @@ paths:
               schema: {$ref: '#/components/schemas/InferenceStatusEvidence'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/jobs/status:
@@ -106,6 +108,7 @@ paths:
         '503': {$ref: '#/components/responses/OperationalUnavailable'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/status:
@@ -183,6 +186,7 @@ paths:
               schema: {$ref: '#/components/schemas/MultiserviceStatus'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
   /v1/jobs:
     post:
@@ -235,6 +239,7 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -262,6 +267,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -331,8 +337,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code:
                     type: string
                     enum: [invalid_job_id, invalid_replay_request]
@@ -348,8 +356,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [job_not_found]}
                   request_id: {type: string, format: uuid}
         '409':
@@ -366,12 +376,15 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code:
                     type: string
                     enum: [replay_confirmation_required, job_not_replayable]
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -407,6 +420,7 @@ paths:
                 properties:
                   code: {type: string, enum: [no_published_batch]}
                   data_status: {type: string, enum: [insufficient]}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -427,6 +441,7 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -505,6 +520,7 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503':
@@ -598,6 +614,7 @@ paths:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -671,6 +688,7 @@ paths:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -696,6 +714,7 @@ paths:
               schema: {$ref: '#/components/schemas/BatchCollection'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -801,6 +820,7 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -928,6 +948,7 @@ paths:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1007,13 +1028,16 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 additionalProperties: false
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_alert_query]}
                   request_id: {type: string, format: uuid}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1050,6 +1074,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/AlertNotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1096,9 +1121,11 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 additionalProperties: false
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_alert_state]}
                   request_id: {type: string, format: uuid}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -1115,11 +1142,14 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 additionalProperties: false
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [json_required]}
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1142,6 +1172,7 @@ paths:
                 items: {$ref: '#/components/schemas/SyntheticScenario'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/risk/infrastructure:
@@ -1168,6 +1199,7 @@ paths:
               schema: {$ref: '#/components/schemas/InfrastructureCatalogue'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/risk/sources:
@@ -1274,6 +1306,7 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/risk/cycle/run:
@@ -1337,6 +1370,7 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/models:
@@ -1384,6 +1418,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/models/{version}/activate:
@@ -1440,6 +1475,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/risk/zones:
@@ -1472,6 +1508,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
   /v1/audit:
@@ -1569,6 +1606,7 @@ paths:
                     occurred_at: {type: string, format: date-time}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1619,10 +1657,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_query]}
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1674,8 +1715,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [json_required]}
                   request_id: {type: string, format: uuid}
         '422':
@@ -1693,10 +1736,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_action_request, assignee_not_found]}
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamOrDirectoryFailed'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1730,8 +1776,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_action_id]}
                   request_id: {type: string, format: uuid}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -1745,10 +1793,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [action_not_found]}
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1794,8 +1845,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_action_id]}
                   request_id: {type: string, format: uuid}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -1809,8 +1862,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [action_not_found]}
                   request_id: {type: string, format: uuid}
         '409':
@@ -1829,8 +1884,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code:
                     type: string
                     enum: [invalid_transition, insufficient_evidence]
@@ -1844,8 +1901,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [json_required]}
                   request_id: {type: string, format: uuid}
         '422':
@@ -1860,10 +1919,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_transition_request]}
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -1906,8 +1968,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_action_id]}
                   request_id: {type: string, format: uuid}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -1921,8 +1985,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [action_not_found]}
                   request_id: {type: string, format: uuid}
         '409':
@@ -1936,8 +2002,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_evidence_state]}
                   request_id: {type: string, format: uuid}
         '415':
@@ -1949,8 +2017,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [json_required]}
                   request_id: {type: string, format: uuid}
         '422':
@@ -1966,10 +2036,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_evidence_request]}
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -2020,8 +2093,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code:
                     type: string
                     enum: [invalid_action_id, invalid_evidence_id]
@@ -2037,8 +2112,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code:
                     type: string
                     enum: [action_not_found, evidence_not_found]
@@ -2055,8 +2132,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code:
                     type: string
                     enum: [stale_evidence, invalid_evidence_state]
@@ -2070,8 +2149,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [json_required]}
                   request_id: {type: string, format: uuid}
         '422':
@@ -2086,10 +2167,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_review_request]}
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -2137,8 +2221,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_action_id]}
                   request_id: {type: string, format: uuid}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -2152,8 +2238,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [action_not_found]}
                   request_id: {type: string, format: uuid}
         '409':
@@ -2174,8 +2262,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code:
                     type: string
                     enum:
@@ -2194,8 +2284,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [json_required]}
                   request_id: {type: string, format: uuid}
         '422':
@@ -2211,10 +2303,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_reassessment_request]}
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -2260,10 +2355,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [invalid_query]}
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -2306,8 +2404,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code: {type: string, enum: [json_required]}
                   request_id: {type: string, format: uuid}
         '422':
@@ -2325,12 +2425,15 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [code, request_id]
+                required: [code, category, message, request_id]
                 properties:
+                  category: {$ref: '#/components/schemas/ErrorCategory'}
+                  message: {type: string, minLength: 1}
                   code:
                     type: string
                     enum: [invalid_observation_request, zone_not_found]
                   request_id: {type: string, format: uuid}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -2403,6 +2506,7 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -2432,6 +2536,7 @@ paths:
                 items: {$ref: '#/components/schemas/PreventiveObservationZone'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
@@ -2478,6 +2583,7 @@ paths:
                 items: {$ref: '#/components/schemas/DirectoryUser'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamOrDirectoryFailed'}
         '503': {$ref: '#/components/responses/DirectoryUnavailable'}
@@ -2519,6 +2625,7 @@ paths:
               schema: {$ref: '#/components/schemas/PreventionStatus'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
 components:
@@ -2699,6 +2806,19 @@ components:
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
+    InternalError:
+      description: >-
+        Unhandled failure inside the service that owns the route, including a
+        recovered panic. The body is the shared error shape with the INTERNAL
+        category and the generic "internal error" message; the cause is written
+        only to the service's structured log under the same request_id, so a
+        caller never receives a Go, SQL or driver detail.
+      headers:
+        X-Request-ID: {$ref: '#/components/headers/RequestID'}
+        Cache-Control: {schema: {type: string, enum: [no-store]}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
     AlertNotFound:
       description: >-
         The path names no stored alert, so there is no personal state to read or
@@ -2712,9 +2832,11 @@ components:
         application/json:
           schema:
             type: object
-            required: [code, request_id]
+            required: [code, category, message, request_id]
             additionalProperties: false
             properties:
+              category: {$ref: '#/components/schemas/ErrorCategory'}
+              message: {type: string, minLength: 1}
               code: {type: string, enum: [alert_not_found]}
               request_id: {type: string, format: uuid}
     DirectoryUnavailable:
@@ -2731,8 +2853,10 @@ components:
         application/json:
           schema:
             type: object
-            required: [code, request_id]
+            required: [code, category, message, request_id]
             properties:
+              category: {$ref: '#/components/schemas/ErrorCategory'}
+              message: {type: string, minLength: 1}
               code: {type: string, enum: [directory_unavailable]}
               request_id: {type: string, format: uuid}
     DirectoryUpstreamFailed:
@@ -2748,8 +2872,10 @@ components:
         application/json:
           schema:
             type: object
-            required: [code, request_id]
+            required: [code, category, message, request_id]
             properties:
+              category: {$ref: '#/components/schemas/ErrorCategory'}
+              message: {type: string, minLength: 1}
               code: {type: string, enum: [directory_upstream_failed]}
               request_id: {type: string, format: uuid}
     UpstreamOrDirectoryFailed:
@@ -2769,8 +2895,10 @@ components:
         application/json:
           schema:
             type: object
-            required: [code, request_id]
+            required: [code, category, message, request_id]
             properties:
+              category: {$ref: '#/components/schemas/ErrorCategory'}
+              message: {type: string, minLength: 1}
               code:
                 type: string
                 enum: [upstream_unavailable, directory_upstream_failed]
@@ -2890,13 +3018,35 @@ components:
       description: >-
         Missing evidence or a resolution failure. No version or fingerprint is
         claimed, and the registry list itself remains a successful 200.
+    ErrorCategory:
+      type: string
+      description: >-
+        Closed error taxonomy, identical in every service. It is decided by the
+        status, never by the route: VALIDATION for 400, 413, 415 and 422 (a
+        rejected request, refused before any effect); UNAUTHORIZED for 401;
+        FORBIDDEN for 403; NOT_FOUND for 404; CONFLICT for 409; RATE_LIMITED for
+        429; UPSTREAM_UNAVAILABLE for 502, 503 and 504; and INTERNAL for 500,
+        including a failure that escaped its own error path.
+      enum:
+        - VALIDATION
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NOT_FOUND
+        - CONFLICT
+        - RATE_LIMITED
+        - UPSTREAM_UNAVAILABLE
+        - INTERNAL
     ErrorResponse:
       type: object
       description: >-
         One error body shared by the gateway and both backend services. It
-        carries a stable machine-readable code and the request's correlation id,
-        which is also returned in the X-Request-ID header.
-      required: [code, request_id]
+        carries a stable machine-readable code, the closed error category that
+        decided the status, a safe human-readable message, and the request's
+        correlation id, which is also returned in the X-Request-ID header. The
+        message is derived from the category and never from the underlying
+        failure: the cause of a 500 is recorded only in the service's structured
+        log, keyed by request_id, and is never written here.
+      required: [code, category, message, request_id]
       properties:
         code:
           type: string
@@ -2906,6 +3056,14 @@ components:
             codes they answer. The shared error responses are reused by many
             operations, so they describe the status and headers instead and
             leave the code to the layer that decided the failure.
+        category: {$ref: '#/components/schemas/ErrorCategory'}
+        message:
+          type: string
+          minLength: 1
+          description: >-
+            Safe client-facing summary derived from the category. A 500 always
+            answers "internal error"; no Go, SQL or driver detail is ever
+            written here.
         request_id:
           type: string
           format: uuid

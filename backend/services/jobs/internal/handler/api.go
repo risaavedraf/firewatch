@@ -233,5 +233,8 @@ func New(store Repository, verifier Verifier, checks ...StatusCheck) http.Handle
 		}
 		respond(w, 200, items)
 	})
-	return Authorize(verifier, mux)
+	// BH-12: the panic boundary wraps the authenticated chain, so a failure that
+	// escapes a handler or the identity gate is answered as the documented 500
+	// INTERNAL instead of closing the connection with no body.
+	return withErrorRecovery(Authorize(verifier, mux))
 }

@@ -156,7 +156,7 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 		provider = providers[0]
 	}
 	mux.HandleFunc("GET /v1/risk/sources", sourcesWithCycle(provider, runner))
-	authorized := Authorize(verifier, mux)
+	authorized := withErrorRecovery(Authorize(verifier, mux))
 	if classifiers == nil {
 		return authorized
 	}
