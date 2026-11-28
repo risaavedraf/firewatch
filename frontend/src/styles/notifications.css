@@ -248,7 +248,7 @@
   padding: 2px 7px;
   border: 1px solid var(--edge-strong);
   border-radius: 5px;
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 0.03em;
 }
@@ -270,26 +270,26 @@
 
 .notification-mark-time {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-variant-numeric: tabular-nums;
 }
 
 .notification-mark-pending {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 
 /* The unreadable mark states its own contract code and request id, never a state
    the service did not serve. */
 .notification-mark-unknown {
   color: var(--ink);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.5;
 }
 
 .notification-mark-unknown code {
   color: var(--gold);
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 
 .notification-mark-actions {
@@ -316,7 +316,7 @@
   max-width: 34ch;
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.5;
 }
 
@@ -362,7 +362,7 @@
   max-width: 68ch;
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.65;
 }
 
