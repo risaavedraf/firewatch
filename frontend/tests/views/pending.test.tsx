@@ -65,7 +65,6 @@ const RETIRED_ALL_ZONES_CAPABILITY = 'Historial de todas las zonas';
 const EXPECTED_CAPABILITIES = [
   'Cobertura y entorno por sector',
   'Contexto y prioridad por sector',
-  'Estados candidate, in_progress, reviewed y closed',
   'Revisar e incorporar registros, y hallazgos de calidad',
 ];
 
@@ -120,10 +119,10 @@ test('the retired all-zones history entry is gone and the count is the real one 
   expect(capabilities).not.toContain(RETIRED_ALL_ZONES_CAPABILITY);
   expect(document.getElementById('pending-rows')).not.toHaveTextContent(/historial de todas las zonas/i);
 
-  // Four rows: the row count the exported list and the rendering agree on.
-  expect(EXPECTED_CAPABILITIES).toHaveLength(4);
-  expect(NOT_IMPLEMENTED).toHaveLength(4);
-  expect(rows).toHaveLength(4);
+  // The row count the exported list and the rendering agree on.
+  expect(EXPECTED_CAPABILITIES).toHaveLength(3);
+  expect(NOT_IMPLEMENTED).toHaveLength(3);
+  expect(rows).toHaveLength(3);
   expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
 });
 
@@ -131,8 +130,8 @@ test('the retired all-zones history entry is gone and the count is the real one 
 // gate, the page offers them, so the row that declared «Publicar lote, avance
 // manual y reevaluación» an absence leaves the inventory. As with the two
 // retirements above, both halves are pinned: the entry is gone from the exported
-// list and from the rendering, and the row count is the real one — four, not a
-// stale copy of the old five.
+// list and from the rendering, and the row count is the real one — the surviving
+// rows, not a stale copy of an older total.
 const RETIRED_MANUAL_PUBLISH_CAPABILITY = 'Publicar lote, avance manual y reevaluación';
 
 test('the retired manual publish entry is gone and the count is the real one (V1-P-06)', () => {
@@ -149,10 +148,52 @@ test('the retired manual publish entry is gone and the count is the real one (V1
 
   // The real count: the exported list, the rendered rows and the head's badge all
   // agree, and the surviving order is untouched.
-  expect(NOT_IMPLEMENTED).toHaveLength(4);
-  expect(rows).toHaveLength(4);
+  expect(NOT_IMPLEMENTED).toHaveLength(3);
+  expect(rows).toHaveLength(3);
   expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
-  expect(document.getElementById('pending-count')).toHaveTextContent('4');
+  expect(document.getElementById('pending-count')).toHaveTextContent('3');
+});
+
+// V1-P-03 — the owner's ratified decision keeps the eight frozen states and
+// publishes their canonical projection as four stage groups (`stage_group`),
+// rendered as the chips of `#actions`, so the row that declared «Estados
+// candidate, in_progress, reviewed y closed» an absence leaves the inventory. As
+// with every retirement above, both halves are pinned: the entry is gone from the
+// exported list and from the rendering, and the remaining three rows keep their
+// order, their cells and the head's real count.
+const RETIRED_STAGE_PROJECTION_CAPABILITY = 'Estados candidate, in_progress, reviewed y closed';
+
+test('the retired stage projection entry is gone and the count is the real one (V1-P-03)', () => {
+  render(<PendingView />);
+
+  const tbody = document.getElementById('pending-rows') as HTMLElement | null;
+  expect(tbody).not.toBeNull();
+  const rows = [...(tbody as HTMLElement).querySelectorAll('tr')];
+  const capabilities = rows.map(row => row.querySelector('td')?.textContent?.trim() ?? '');
+
+  expect(NOT_IMPLEMENTED.map(entry => entry.capability)).not.toContain(RETIRED_STAGE_PROJECTION_CAPABILITY);
+  expect(capabilities).not.toContain(RETIRED_STAGE_PROJECTION_CAPABILITY);
+  expect(document.getElementById('pending-rows')).not.toHaveTextContent(/esos cuatro estados no existen/i);
+
+  // The real count: three rows, in the order the survivors already had.
+  expect(NOT_IMPLEMENTED).toHaveLength(3);
+  expect(rows).toHaveLength(3);
+  expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
+  expect(document.getElementById('pending-count')).toHaveTextContent('3');
+
+  // The first and last surviving rows keep their three filled cells.
+  const first = [...rows[0].querySelectorAll('td')].map(cell => cell.textContent?.trim());
+  expect(first).toEqual([
+    'Cobertura y entorno por sector',
+    'La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.',
+    'Tabla de sectores',
+  ]);
+  const last = [...rows[rows.length - 1].querySelectorAll('td')].map(cell => cell.textContent?.trim());
+  expect(last).toEqual([
+    'Revisar e incorporar registros, y hallazgos de calidad',
+    'GET /v1/risk/sources publica la procedencia y la integridad reales; no existe un catálogo de hallazgos de calidad. Las acciones preventivas viven ahora en su propia vista (#actions).',
+    'Fuentes y procedencia',
+  ]);
 });
 
 test('the view offers no button, link or interactive control for any listed capability', () => {

@@ -4,6 +4,13 @@ import { idleCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
 import { FieldStateCard } from '../components/field-work/FieldStateCard';
 import { PanelHeading, StatusCopy, TableWrap } from '../components/ui';
+import {
+  ACTION_STAGE_GROUPS,
+  matchesStageGroup,
+  stageGroupCounts,
+  stageGroupLabel,
+  stageGroupOfAction,
+} from '../api/prevention-stage';
 import { timing } from '../config';
 import {
   createJob,
@@ -369,6 +376,10 @@ export function ActionsView() {
   const [transitionNote, setTransitionNote] = useState('');
   const [communityFilter, setCommunityFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  // V1-P-03 — the stage group the rows are narrowed to, or '' for all of them. It
+  // is a reading of the response this page holds, not a state of the action: the
+  // four groups project the eight frozen statuses and never replace them.
+  const [stageFilter, setStageFilter] = useState('');
   const [applied, setApplied] = useState<{ communityCode: string; status: string }>({ communityCode: '', status: '' });
   const [revision, setRevision] = useState(0);
   const [detailRevision, setDetailRevision] = useState(0);
@@ -499,6 +510,7 @@ export function ActionsView() {
         setTransitionNote('');
         setCommunityFilter('');
         setStatusFilter('');
+        setStageFilter('');
         setApplied({ communityCode: '', status: '' });
         setBusy(false);
         setEvidenceCriterion('');
@@ -611,11 +623,19 @@ export function ActionsView() {
   function clearFilters(): void {
     setCommunityFilter('');
     setStatusFilter('');
+    setStageFilter('');
     setApplied({ communityCode: '', status: '' });
   }
 
-  const filtersApplied = applied.communityCode !== '' || applied.status !== '';
-  const filteredToNothing = list.phase === 'read' && list.actions.length === 0 && filtersApplied;
+  // The stage filter narrows the rows this read returned; the community and status
+  // filters are applied by the service before the 200-row cap. Both facts are
+  // stated next to the controls, because a narrowed page and a narrowed read are
+  // not the same thing.
+  const visibleActions =
+    stageFilter === '' ? list.actions : list.actions.filter(action => matchesStageGroup(action, stageFilter));
+  const stageCounts = stageGroupCounts(list.actions);
+  const filtersApplied = applied.communityCode !== '' || applied.status !== '' || stageFilter !== '';
+  const filteredToNothing = list.phase === 'read' && filtersApplied && visibleActions.length === 0;
   // Three different facts reach this panel with an empty table: a read that
   // returned no row, a filter that matched none, and a read that failed. The
   // designed card is chosen from the state, and the filtered one keeps the reset
@@ -933,7 +953,12 @@ export function ActionsView() {
                   returned, with the noun, because a bare number has no subject. */}
               {list.phase === 'read' ? (
                 <span className="count-badge" id="actions-count">
-                  {`${list.actions.length} ${list.actions.length === 1 ? 'acción' : 'acciones'}`}
+                  {/* A narrowed view states both numbers: what it shows and what it
+                      read. A stage filter never hides a row the page did not read,
+                      so the pair is the honest description of the table below. */}
+                  {stageFilter === ''
+                    ? `${list.actions.length} ${list.actions.length === 1 ? 'acción' : 'acciones'}`
+                    : `${visibleActions.length} de ${list.actions.length} ${list.actions.length === 1 ? 'acción' : 'acciones'}`}
                 </span>
               ) : null}
             </div>
@@ -960,7 +985,9 @@ export function ActionsView() {
           {notice}
         </p>
         <p className="panel-note">
-          El servicio acota la lista a 200 filas y ambos filtros son opcionales: un filtro vacío no acota nada. La
+          El servicio acota la lista a 200 filas y los filtros de comunidad, estado y etapa son opcionales: un filtro
+          vacío no acota nada. Comunidad y estado se aplican en el servidor; la etapa acota las filas que esta lectura
+          devolvió a las del grupo elegido, y el servicio acepta el mismo valor como filtro <code>stage_group</code>. La
           prioridad es texto libre validado por el servicio. El responsable se resuelve con el directorio de usuarios del
           realm cuando la sesión puede leerlo; el texto libre heredado se muestra tal como lo guardó el servicio.
         </p>
@@ -1011,6 +1038,51 @@ export function ActionsView() {
             Actualizar lista
           </button>
         </form>
+
+        {/* V1-P-03 — the four stage groups as filters. They are native buttons with
+            `aria-pressed`, so the selection is announced and operable from the
+            keyboard; the count is the number of returned rows in each group, and
+            the same control releases the filter. */}
+        <p className="eyebrow actions-filters-label" id="actions-stage-filters-label">
+          Etapa del trabajo
+        </p>
+        <div
+          className="filter-bar actions-filters"
+          id="actions-stage-filters"
+          role="group"
+          aria-labelledby="actions-stage-filters-label"
+        >
+          <button
+            id="actions-stage-all"
+            className="secondary-button"
+            type="button"
+            aria-pressed={stageFilter === ''}
+            disabled={!signedIn}
+            onClick={() => setStageFilter('')}
+          >
+            Todas
+          </button>
+          {ACTION_STAGE_GROUPS.map(group => (
+            <button
+              key={group}
+              id={`actions-stage-${group}`}
+              className="secondary-button"
+              type="button"
+              data-stage-group={group}
+              aria-pressed={stageFilter === group}
+              disabled={!signedIn}
+              onClick={() => setStageFilter(current => (current === group ? '' : group))}
+            >
+              {/* The group's own word, in its own element: the label and the count
+                  are read separately by a screen reader, and the exact word a chip
+                  promises is the exact word a row shows. */}
+              <span className="stage-filter-label">{stageGroupLabel(group)}</span>
+              <span className="count-badge" aria-label={`${stageCounts[group]} ${stageCounts[group] === 1 ? 'acción' : 'acciones'}`}>
+                {stageCounts[group]}
+              </span>
+            </button>
+          ))}
+        </div>
 
         {filteredToNothing ? (
           <FieldStateCard
@@ -1066,7 +1138,7 @@ export function ActionsView() {
           </FieldStateCard>
         ) : null}
 
-        <TableWrap label="Listado de acciones preventivas" hidden={list.actions.length === 0}>
+        <TableWrap label="Listado de acciones preventivas" hidden={visibleActions.length === 0}>
           <table id="actions-table">
             <caption className="sr-only">Acciones preventivas devueltas por el servicio</caption>
             <thead>
@@ -1074,6 +1146,7 @@ export function ActionsView() {
                 <th scope="col">Acción</th>
                 <th scope="col">Comunidad</th>
                 <th scope="col">Estado</th>
+                <th scope="col">Etapa</th>
                 <th scope="col">Prioridad</th>
                 <th scope="col">Responsable</th>
                 <th scope="col">Fecha límite</th>
@@ -1081,31 +1154,48 @@ export function ActionsView() {
               </tr>
             </thead>
             <tbody id="actions-rows">
-              {list.actions.map(action => (
-                <tr key={action.id} className={action.id === selectedId ? 'is-selected' : undefined}>
-                  <td>{action.title}</td>
-                  <td>{action.community_code}</td>
-                  <td>
-                    <span className="chip" data-status={action.status}>
-                      <span className="chip-dot" aria-hidden="true" />
-                      {actionStatusLabel(action.status)}
-                    </span>
-                  </td>
-                  <td>{field(action.priority)}</td>
-                  <td>{assigneeLabel(action, assigneeNames)}</td>
-                  <td>{field(action.due_date)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="button-text"
-                      data-action-id={action.id}
-                      onClick={() => openDetail(action.id)}
-                    >
-                      Ver detalle
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {visibleActions.map(action => {
+                // The stage group is the projection of the status shown beside it.
+                // A response that declares one of the four is what the table shows;
+                // an older payload is projected from its status instead, and a token
+                // outside the vocabulary is rendered as it arrived.
+                const stage = stageGroupOfAction(action);
+                return (
+                  <tr key={action.id} className={action.id === selectedId ? 'is-selected' : undefined}>
+                    <td>{action.title}</td>
+                    <td>{action.community_code}</td>
+                    <td>
+                      <span className="chip" data-status={action.status}>
+                        <span className="chip-dot" aria-hidden="true" />
+                        {actionStatusLabel(action.status)}
+                      </span>
+                    </td>
+                    <td>
+                      {stage === null ? (
+                        'No declarada'
+                      ) : (
+                        <span className="chip" data-stage-group={stage}>
+                          <span className="chip-dot" aria-hidden="true" />
+                          {stageGroupLabel(stage)}
+                        </span>
+                      )}
+                    </td>
+                    <td>{field(action.priority)}</td>
+                    <td>{assigneeLabel(action, assigneeNames)}</td>
+                    <td>{field(action.due_date)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="button-text"
+                        data-action-id={action.id}
+                        onClick={() => openDetail(action.id)}
+                      >
+                        Ver detalle
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </TableWrap>

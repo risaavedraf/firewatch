@@ -97,6 +97,11 @@ type Action struct {
 	Priority string `json:"priority"`
 	// Status is one of the eight frozen states.
 	Status string `json:"status"`
+	// StageGroup is the canonical four-group projection of Status. It is derived,
+	// never stored: WithStageGroup fills it on every representation the repository
+	// returns, so it cannot disagree with the state the row is in and no migration
+	// adds a column to keep in sync.
+	StageGroup string `json:"stage_group"`
 	// Assignee and DueDate are absent until someone sets them; DueDate is
 	// rendered as a plain calendar date (YYYY-MM-DD) because it is a date, not
 	// an instant, and a time of day would be a fabricated precision.
@@ -196,6 +201,21 @@ type NewAction struct {
 	CreatedBy  string
 }
 
+// ListFilters is the optional narrowing of the list read. An empty field is not a
+// filter: the contract documents the three query parameters as optional, so an
+// omitted one narrows nothing instead of matching nothing.
+type ListFilters struct {
+	// CommunityCode narrows the read to one community.
+	CommunityCode string
+	// Status narrows it to one of the eight frozen states.
+	Status string
+	// StageGroup narrows it to the states that project onto one of the four stage
+	// groups. The projection is derived from the status and is not a column, so the
+	// filter is applied to the states of the group — never to a stored copy that
+	// could disagree with them.
+	StageGroup string
+}
+
 // NewEvidence is the validated evidence snapshot to append.
 type NewEvidence struct {
 	Criterion  string
@@ -215,11 +235,25 @@ type NewReview struct {
 // the wire format is a calendar date regardless of the driver's time zone.
 const actionColumns = `id::text,community_code,title,description,priority,status,assignee,assignee_id::text,to_char(due_date,'YYYY-MM-DD'),created_by,created_at,updated_at`
 
-// scanAction reads the shared projection in the shared ordered list.
+// scanAction reads the shared projection in the shared ordered list and fills the
+// derived stage group.
 func scanAction(row pgx.Row) (Action, error) {
 	var a Action
-	err := row.Scan(&a.ID, &a.CommunityCode, &a.Title, &a.Description, &a.Priority, &a.Status, &a.Assignee, &a.AssigneeID, &a.DueDate, &a.CreatedBy, &a.CreatedAt, &a.UpdatedAt)
-	return a, err
+	if err := row.Scan(&a.ID, &a.CommunityCode, &a.Title, &a.Description, &a.Priority, &a.Status, &a.Assignee, &a.AssigneeID, &a.DueDate, &a.CreatedBy, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		return Action{}, err
+	}
+	return WithStageGroup(a), nil
+}
+
+// WithStageGroup returns action with its canonical stage group projected from
+// Status. It is the one rule every representation goes through — the read
+// projection here and the response the transport builds — so a stage group is
+// never accepted from a caller and never survives beside a status it does not
+// belong to. An undeclared status answers the empty string, which the published
+// enum refuses instead of the service claiming a group it cannot name.
+func WithStageGroup(action Action) Action {
+	action.StageGroup = string(state.StageGroupOf(state.State(action.Status)))
+	return action
 }
 
 // Create inserts one action in the initial propuesta state. The id is generated
@@ -289,15 +323,32 @@ func mapAssignmentError(err error) error {
 // the bound is stated here rather than assumed by the caller.
 const defaultListLimit = 200
 
-// List returns the actions of one community, newest first. An empty
-// communityCode is not a filter, an empty status is not a filter: the contract
-// writes both query parameters as optional filters, so an omitted one narrows
-// nothing instead of matching nothing. The result slice is never nil, so an empty
-// result marshals as [] rather than null.
-func (s Store) List(ctx context.Context, communityCode, status string) ([]Action, error) {
-	rows, err := s.DB.Query(ctx, `SELECT `+actionColumns+` FROM prevention.actions
-		WHERE ($1='' OR community_code=$1) AND ($2='' OR status=$2)
-		ORDER BY created_at DESC, id DESC LIMIT $3`, communityCode, status, defaultListLimit)
+// listQueryBase is the filter the list read always applies. Both predicates are
+// written so an empty value narrows nothing, which is what the contract's
+// optional query parameters mean.
+const listQueryBase = `SELECT ` + actionColumns + ` FROM prevention.actions
+	WHERE ($1='' OR community_code=$1) AND ($2='' OR status=$2)`
+
+// List returns the actions matching the filters, newest first. An empty filter
+// field is not a filter: the contract writes the query parameters as optional, so
+// an omitted one narrows nothing instead of matching nothing. A stage group is
+// narrowed in SQL to the states it groups, so the row cap applies to the rows that
+// match rather than to a page filtered afterwards. The result slice is never nil,
+// so an empty result marshals as [] rather than null.
+func (s Store) List(ctx context.Context, filter ListFilters) ([]Action, error) {
+	query := listQueryBase + ` ORDER BY created_at DESC, id DESC LIMIT $3`
+	args := []any{filter.CommunityCode, filter.Status, defaultListLimit}
+	if filter.StageGroup != "" {
+		statuses := make([]string, 0, 2)
+		for _, status := range state.StatesInStage(state.StageGroup(filter.StageGroup)) {
+			statuses = append(statuses, string(status))
+		}
+		// statuses is empty when the group is not one the contract declares, so an
+		// undeclared group matches nothing instead of widening to the whole list.
+		query = listQueryBase + ` AND status = ANY($3) ORDER BY created_at DESC, id DESC LIMIT $4`
+		args = []any{filter.CommunityCode, filter.Status, statuses, defaultListLimit}
+	}
+	rows, err := s.DB.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

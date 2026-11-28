@@ -37,23 +37,23 @@ type matrixStore struct {
 	history []repository.History
 	note    string
 
-	action       repository.Action
-	detail       repository.Detail
-	list         []repository.Action
-	err          error
-	getErr       error
-	createErr    error
-	notFound     bool
-	lastList     [2]string
-	lastCreate   repository.NewAction
-	createCalls  int
-	listCalls    int
-	getCalls     int
-	transitions  int
-	lastTransID  string
-	lastTransTo  string
-	lastActorSub string
-	traceSeen    string
+	action          repository.Action
+	detail          repository.Detail
+	list            []repository.Action
+	err             error
+	getErr          error
+	createErr       error
+	notFound        bool
+	lastListFilters repository.ListFilters
+	lastCreate      repository.NewAction
+	createCalls     int
+	listCalls       int
+	getCalls        int
+	transitions     int
+	lastTransID     string
+	lastTransTo     string
+	lastActorSub    string
+	traceSeen       string
 
 	// evidenceSufficient mirrors the guard the real store evaluates inside the
 	// row-locked transaction: accepting an action is refused unless the current
@@ -70,9 +70,9 @@ type matrixStore struct {
 	lastLinkLinkedBy     string
 }
 
-func (s *matrixStore) List(_ context.Context, communityCode, status string) ([]repository.Action, error) {
+func (s *matrixStore) List(_ context.Context, filter repository.ListFilters) ([]repository.Action, error) {
 	s.listCalls++
-	s.lastList = [2]string{communityCode, status}
+	s.lastListFilters = filter
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -626,13 +626,25 @@ func TestCreateActionAcceptsOmittedOptionalFields(t *testing.T) {
 
 func TestListRouteForwardsFiltersAndNeverReturnsNull(t *testing.T) {
 	for _, tc := range []struct {
-		name, target          string
-		communityCode, status string
+		name, target string
+		want         repository.ListFilters
 	}{
-		{name: "no filter", target: "/v1/prevention/actions", communityCode: "", status: ""},
-		{name: "community", target: "/v1/prevention/actions?community_code=valparaiso", communityCode: "valparaiso", status: ""},
-		{name: "status", target: "/v1/prevention/actions?status=en_curso", communityCode: "", status: "en_curso"},
-		{name: "both", target: "/v1/prevention/actions?community_code=valparaiso&status=devuelta", communityCode: "valparaiso", status: "devuelta"},
+		{name: "no filter", target: "/v1/prevention/actions", want: repository.ListFilters{}},
+		{
+			name:   "community",
+			target: "/v1/prevention/actions?community_code=valparaiso",
+			want:   repository.ListFilters{CommunityCode: "valparaiso"},
+		},
+		{
+			name:   "status",
+			target: "/v1/prevention/actions?status=en_curso",
+			want:   repository.ListFilters{Status: "en_curso"},
+		},
+		{
+			name:   "both",
+			target: "/v1/prevention/actions?community_code=valparaiso&status=devuelta",
+			want:   repository.ListFilters{CommunityCode: "valparaiso", Status: "devuelta"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := &matrixStore{list: nil}
@@ -644,8 +656,8 @@ func TestListRouteForwardsFiltersAndNeverReturnsNull(t *testing.T) {
 			if strings.TrimSpace(w.Body.String()) != "[]" {
 				t.Errorf("an empty list must serialise as [], got %s", w.Body.String())
 			}
-			if store.lastList != [2]string{tc.communityCode, tc.status} {
-				t.Errorf("filters forwarded as %v, want %v", store.lastList, [2]string{tc.communityCode, tc.status})
+			if store.lastListFilters != tc.want {
+				t.Errorf("filters forwarded as %+v, want %+v", store.lastListFilters, tc.want)
 			}
 		})
 	}
