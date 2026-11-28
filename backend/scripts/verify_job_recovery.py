@@ -188,14 +188,32 @@ DECLARED_VOLUME_DESTINATIONS = ("/var/lib/postgresql/data", "/var/lib/rabbitmq")
 EGRESS_UNREACHABLE_CODES = (6, 7, 28)
 # docker's codes for "the command could not be executed at all".
 DAEMON_FAILURE_CODES = (125, 126, 127)
-# What the daemon says when an id genuinely does not exist. A non-zero exit alone
-# is not absence: a dead daemon also exits non-zero.
-ABSENT_MARKERS = ("no such object", "no such container", "no such network", "no such volume")
-# Some daemon versions answer ``network <id> not found`` (after printing ``[]``)
-# instead of ``No such network``. That wording is still a definitive statement of
-# non-existence, so it is accepted - but only when it names a resource kind, so an
-# unrelated "plugin not found" is never mistaken for absence.
-ABSENT_PATTERNS = (re.compile(r"\b(?:container|network|volume|object)\b[^\n]*\bnot found\b"),)
+# The resource kinds the daemon states non-existence about. The kind is a whole
+# token in every accepted statement; ``volume-driver`` is not ``volume``.
+ABSENT_KINDS = ("container", "network", "volume", "object")
+# What the daemon says when an id genuinely does not exist, and the only shapes
+# accepted. A non-zero exit alone is not absence: a dead daemon also exits
+# non-zero. Each shape must match a **whole trimmed stderr line**, so nothing can
+# precede the statement and nothing can trail after the kind, the identifier or
+# ``not found``: ``network driver not found for <id>``, ``lookup <id>: no such
+# volume-driver`` and ``network <id> not found in driver cache`` all quote the kind
+# and the id without ever being the daemon's statement that our resource is gone.
+# The three statements, with the only decoration Docker adds - an optional
+# ``Error:``/``Error response from daemon:`` prefix:
+#   1) ``No such <kind>: <id>``
+#   2) ``<kind> <id> not found``
+#   3) ``get <id>: no such <kind>``   (how a removed volume surfaces)
+# Shapes 1 and 3 end on the kind or the identifier, and a trailing period is
+# refused there on purpose: ``.`` is a legal character in Docker names, so
+# ``No such volume: fw-test.`` is a statement about ``fw-test.`` and not about
+# ``fw-test``. Only shape 2 allows a trailing period, because it follows
+# ``not found`` and can never belong to the name.
+# ``{ref}`` is replaced by the inspected identifier, regex-escaped.
+ABSENT_LINE_GRAMMAR = (
+    r"(?:error(?: response from daemon)?:\s*)?no such (?:{kinds}):\s*{ref}",
+    r"(?:error(?: response from daemon)?:\s*)?(?:{kinds})\s+{ref}\s+not found\.?",
+    r"(?:error(?: response from daemon)?:\s*)?get\s+{ref}:\s*no such (?:{kinds})",
+)
 
 # Targets proven unreachable from inside the network before any fault is
 # injected. An IP literal needs no resolver, a name exercises the resolver.
@@ -624,25 +642,35 @@ class Harness(stack.Harness):
     def _is_absent(output: str, identifier: str) -> bool:
         """Report whether the daemon says THIS identifier does not exist.
 
-        Two conditions, both required: the output carries the daemon's absence
-        wording, **and** it names the identifier that was inspected - or its
-        leading 12-hex prefix, the form Docker shortens ids to. Without the second
-        condition ``network driver not found``, which names a resource *kind* and
-        not our resource, would prove a network gone.
+        Two conditions, both required: a **whole trimmed stderr line** is one of
+        the daemon's absence statements (``ABSENT_LINE_GRAMMAR``), **and** that
+        statement names the identifier that was inspected - either the id itself or
+        its leading 12-hex prefix, the form Docker shortens ids to. Anchoring to the
+        whole line is what keeps a sentence that merely quotes the kind and the id
+        from proving anything: ``network driver not found for <id>``, ``lookup <id>:
+        no such volume-driver`` and ``network <id> not found in driver cache`` are
+        all rejected, as is a statement about another id with ours in prose. An id a
+        longer id extends or ends with is likewise not ours, and a trailing period
+        after the name is part of the name.
         """
-        lowered = output.lower()
-        ident = (identifier or "").lower()
+        text = output.lower()
+        ident = (identifier or "").strip().lower()
         if not ident:
-            return False
-        says_absent = any(marker in lowered for marker in ABSENT_MARKERS) or any(
-            pattern.search(lowered) for pattern in ABSENT_PATTERNS
-        )
-        if not says_absent:
             return False
         candidates = [ident]
         if re.fullmatch(r"[0-9a-f]{13,64}", ident):
             candidates.append(ident[:12])
-        return any(candidate in lowered for candidate in candidates)
+        kinds = "|".join(ABSENT_KINDS)
+        # Empty lines carry nothing, and the ``[]`` Docker prints before a daemon
+        # error is not a statement; each remaining line must be the whole statement.
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        for candidate in candidates:
+            ref = re.escape(candidate)
+            for line in lines:
+                for template in ABSENT_LINE_GRAMMAR:
+                    if re.fullmatch(template.format(kinds=kinds, ref=ref), line):
+                        return True
+        return False
 
     @staticmethod
     def _labels_or_none(output: str) -> dict | None:
@@ -867,9 +895,10 @@ class Harness(stack.Harness):
 
         A non-zero ``docker inspect`` is not absence: a dead daemon, a permission
         error and a missing id all exit non-zero, and only the last one proves
-        anything. Every absence below therefore requires the daemon's own "no such"
-        wording, and the labelled inventory that follows requires an exit-0 daemon
-        query rather than accepting a failed query as an empty result.
+        anything. Every absence below therefore requires one of the daemon's own
+        absence statements naming the inspected identifier, and the labelled
+        inventory that follows requires an exit-0 daemon query rather than accepting
+        a failed query as an empty result.
         """
         problems = list(self.volume_problems)
         for name, container_id in self.created.items():
@@ -1221,12 +1250,14 @@ class Harness(stack.Harness):
         self._expect(row.get("failed_at"), f"{what}: the terminal row carries no failed_at")
 
     def _expect_dead_letter_delta(self, signal, *, what):
-        """Require one give-up to add exactly one dead letter, allowing for lag.
+        """Require one give-up to raise the dead-letter queue's depth by one.
 
         The broker's management API republishes its counters on a stats interval,
         so a single read straight after the give-up can still see the previous
         depth. This waits inside the run's own budget and reports the depth it
-        actually ends at, so a real extra or missing dead letter still fails.
+        actually ends at, so a real extra or missing dead letter still fails. What
+        is asserted is the queue's **depth delta** - not the identity or payload of
+        the message that was added.
         """
         try:
             self._wait_for(

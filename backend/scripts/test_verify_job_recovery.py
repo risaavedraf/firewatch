@@ -1060,11 +1060,14 @@ class RedactionSafetyTest(unittest.TestCase):
 
 
 class AbsenceWordingTest(unittest.TestCase):
-    """Absence needs the daemon's wording AND the identifier that was inspected.
+    """Absence needs the daemon's own grammar with the inspected identifier in it.
 
-    "network driver not found" names a resource *kind*; it says nothing about the
-    id this run asked about. Binding the wording to the inspected identifier is
-    what stops an unrelated daemon sentence from proving a resource gone.
+    The daemon states non-existence in exactly two shapes: ``No such <kind>: <id>``
+    and ``<kind> <id> not found``. Naming a resource *kind* somewhere and the id
+    somewhere else is not that statement -- ``network driver not found for <id>``
+    and ``container runtime failed while attaching <id>`` are failures *about* the
+    kind, not the daemon saying our resource is gone. The identifier also has to be
+    a whole token, so an id another id merely extends or ends with is not ours.
     """
 
     IDENT = "6bd0d2d11cd8" + "0" * 52
@@ -1079,6 +1082,87 @@ class AbsenceWordingTest(unittest.TestCase):
     def test_the_no_such_container_wording_naming_the_id_is_absence(self):
         self.assertTrue(recovery.Harness._is_absent(f"Error: No such container: {self.IDENT}", self.IDENT))
 
+    def test_the_daemon_prefixed_no_such_container_wording_is_absence(self):
+        output = f"Error response from daemon: No such container: {self.IDENT}"
+        self.assertTrue(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_the_no_such_network_wording_is_absence(self):
+        self.assertTrue(recovery.Harness._is_absent(f"Error: No such network: {self.IDENT}", self.IDENT))
+
+    def test_the_no_such_volume_wording_is_absence(self):
+        self.assertTrue(recovery.Harness._is_absent(f"Error: No such volume: {self.IDENT}", self.IDENT))
+
+    def test_the_kind_id_not_found_wording_is_absence(self):
+        for kind in ("container", "network", "volume"):
+            with self.subTest(kind=kind):
+                self.assertTrue(
+                    recovery.Harness._is_absent(f"Error response from daemon: {kind} {self.IDENT} not found", self.IDENT)
+                )
+
+    def test_the_daemon_get_no_such_volume_wording_is_absence(self):
+        # The wording the live daemon produced for a removed anonymous volume:
+        # ``[]`` then ``get <name>: no such volume``. The identifier is still bound
+        # to the statement, so this is absence and not a driver failure.
+        volume = "a" * 64
+        output = f"[]\nError response from daemon: get {volume}: no such volume"
+        self.assertTrue(recovery.Harness._is_absent(output, volume))
+
+    def test_the_get_wording_for_another_volume_is_not_absence(self):
+        ours = "a" * 64
+        other = "b" * 64
+        output = f"Error response from daemon: get {other}: no such volume\nthe daemon also reports {ours}"
+        self.assertFalse(recovery.Harness._is_absent(output, ours))
+
+    def test_a_get_wording_about_another_kind_is_not_absence(self):
+        volume = "a" * 64
+        self.assertFalse(
+            recovery.Harness._is_absent(f"Error response from daemon: get {volume}: no such plugin", volume)
+        )
+
+    def test_a_get_wording_where_a_longer_token_extends_ours_is_not_absence(self):
+        volume = "a" * 64
+        output = f"Error response from daemon: get {volume}ff: no such volume"
+        self.assertFalse(recovery.Harness._is_absent(output, volume))
+
+    def test_the_lookup_no_such_volume_driver_wording_is_not_absence(self):
+        # ``volume-driver`` is a different token than the kind ``volume``, so this
+        # is a driver failure quoting the id, not the daemon saying it is gone.
+        output = f"Error response from daemon: lookup {self.IDENT}: no such volume-driver"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_the_not_found_wording_with_a_trailing_clause_is_not_absence(self):
+        output = f"Error response from daemon: network {self.IDENT} not found in driver cache"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_a_hyphenated_kind_after_no_such_is_not_absence(self):
+        output = f"Error: No such container-shim: {self.IDENT}"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_the_get_wording_with_a_compound_kind_is_not_absence(self):
+        output = f"Error response from daemon: get {self.IDENT}: no such network-driver"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_a_trailing_clause_after_the_identifier_is_not_absence(self):
+        output = f"Error: No such container: {self.IDENT} (driver cache stale)"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_a_trailing_clause_after_not_found_is_not_absence(self):
+        output = f"Error response from daemon: volume {self.IDENT} not found in the catalogue"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_a_trailing_period_after_the_name_is_not_absence(self):
+        # ``.`` is legal in Docker names, so ``fw-test.`` names a different volume
+        # than ``fw-test``. Only the statement without the period is about ours.
+        self.assertFalse(recovery.Harness._is_absent("Error: No such volume: fw-test.", "fw-test"))
+        self.assertTrue(recovery.Harness._is_absent("Error: No such volume: fw-test", "fw-test"))
+        # A period after ``not found`` cannot belong to the name, so it stays allowed.
+        self.assertTrue(
+            recovery.Harness._is_absent("Error response from daemon: network fw-test not found.", "fw-test")
+        )
+
+    def test_crlf_line_endings_do_not_hide_the_diagnostic(self):
+        self.assertTrue(recovery.Harness._is_absent(f"Error: No such container: {self.IDENT}\r\n", self.IDENT))
+
     def test_a_shortened_id_prefix_is_absence(self):
         self.assertTrue(recovery.Harness._is_absent(f"Error: No such container: {self.IDENT[:12]}", self.IDENT))
 
@@ -1086,6 +1170,43 @@ class AbsenceWordingTest(unittest.TestCase):
         self.assertFalse(
             recovery.Harness._is_absent("Error response from daemon: network driver not found", self.IDENT)
         )
+
+    def test_a_kind_driver_not_found_for_the_id_is_not_absence(self):
+        output = f"Error response from daemon: network driver not found for {self.IDENT}"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_a_container_runtime_failure_naming_the_id_is_not_absence(self):
+        output = f"Error response from daemon: container runtime failed while attaching {self.IDENT}"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_a_volume_driver_error_naming_the_id_is_not_absence(self):
+        output = f"Error response from daemon: volume driver error on {self.IDENT}"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_a_kind_not_found_with_the_id_on_another_line_is_not_absence(self):
+        output = f"Error response from daemon: volume driver not found\nwhile removing {self.IDENT}"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_absence_stated_for_another_id_while_naming_ours_is_not_absence(self):
+        other = "f" * 64
+        output = f"Error: No such container: {other}\nthe daemon also reports {self.IDENT}"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_an_id_a_longer_one_extends_is_not_our_id(self):
+        output = f"Error: No such container: {self.IDENT}deadbeef"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_an_id_a_longer_one_ends_with_is_not_our_id(self):
+        output = f"Error: No such container: ff{self.IDENT}"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_a_shortened_prefix_inside_a_longer_token_is_not_absence(self):
+        output = f"Error: No such container: {self.IDENT[:12]}deadbeef"
+        self.assertFalse(recovery.Harness._is_absent(output, self.IDENT))
+
+    def test_a_name_a_longer_one_extends_is_not_absence(self):
+        name = "firewatch-verify-3f9a2c"
+        self.assertFalse(recovery.Harness._is_absent(f"Error: No such container: {name}-2", name))
 
     def test_the_wording_for_a_different_id_is_not_absence(self):
         other = "f" * 64
