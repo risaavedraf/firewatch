@@ -77,7 +77,10 @@ func NewWithOperationalStatus(store Repository, verifier Verifier, dir Directory
 	// as every sibling route. It reports only this service's own dependency, so a
 	// broker or dead-letter entry is never invented for it.
 	mux.HandleFunc("GET /v1/prevention/status", operationalStatusHandler(status))
-	return Authorize(verifier, mux)
+	// BH-12: the panic boundary wraps the authenticated chain, so a failure that
+	// escapes a handler or the identity gate is answered as the documented 500
+	// INTERNAL instead of closing the connection with no body.
+	return withErrorRecovery(Authorize(verifier, mux))
 }
 
 // list serves GET /v1/prevention/actions. Both query parameters are optional

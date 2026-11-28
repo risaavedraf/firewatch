@@ -109,5 +109,5 @@ func respond(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 func fail(w http.ResponseWriter, status int, code string) {
-	respond(w, status, map[string]string{"code": code, "request_id": w.Header().Get("X-Request-ID")})
+	writeError(w, status, code)
 }
