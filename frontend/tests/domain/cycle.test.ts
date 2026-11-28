@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { evaluateCycle } from '../../src/domain/cycle';
+import { evaluateCycle, summariseCycleRun } from '../../src/domain/cycle';
 
 // S3 — cycle freshness for `GET /v1/risk/sources`. The service publishes per-source
 // status in a `sources` ARRAY (there is no `cycle` object and no `status` field);
@@ -124,5 +124,62 @@ describe('cycle freshness', () => {
   test('stays silent about last_error when no source reports one', () => {
     const cycle = evaluateCycle(envelope([source()]), NOW);
     expect(cycle.lastError).toBe('');
+  });
+});
+
+// V1-P-06 — the manual publication's outcome. `POST /v1/risk/cycle/run` answers
+// one `CycleRunResult`: the source, the window, whether the cycle completed and
+// one entry per configured zone. The view may only state what that answer
+// carries, so the sentence is decided here, once, and the incomplete case names
+// the zones that failed instead of rounding "no publicó todo" into "publicó".
+describe('the manual cycle outcome', () => {
+  test('a complete run states how many zones it published', () => {
+    const summary = summariseCycleRun({
+      complete: true,
+      zones: [
+        { zone_id: '05101', published: true },
+        { zone_id: '05102', published: true },
+      ],
+    });
+    expect(summary.complete).toBe(true);
+    expect(summary.published).toBe(2);
+    expect(summary.failed).toEqual([]);
+    expect(summary.label).toContain('Ciclo completo');
+    expect(summary.label).toContain('2 zonas publicadas');
+  });
+
+  test('one published zone stays singular', () => {
+    expect(summariseCycleRun({ complete: true, zones: [{ zone_id: '05101', published: true }] }).label).toContain(
+      '1 zona publicada',
+    );
+  });
+
+  test('an incomplete run names every zone that failed and its server reason', () => {
+    const summary = summariseCycleRun({
+      complete: false,
+      zones: [
+        { zone_id: '05101', published: true },
+        { zone_id: '05102', published: false, error: 'validation_failed' },
+        { zone_id: '05103', published: false },
+      ],
+    });
+    expect(summary.complete).toBe(false);
+    expect(summary.published).toBe(1);
+    expect(summary.failed).toHaveLength(2);
+    expect(summary.label).toContain('Ciclo incompleto');
+    expect(summary.label).toContain('05102');
+    expect(summary.label).toContain('validation_failed');
+  });
+
+  test('a zone that failed without a reason is not given one', () => {
+    const summary = summariseCycleRun({ complete: false, zones: [{ zone_id: '05102', published: false }] });
+    expect(summary.label).toContain('05102');
+    expect(summary.label).toContain('sin motivo informado');
+  });
+
+  test('a complete run that published nothing says exactly that', () => {
+    const summary = summariseCycleRun({ complete: true, zones: [] });
+    expect(summary.published).toBe(0);
+    expect(summary.label).toContain('no se publicó ninguna zona');
   });
 });

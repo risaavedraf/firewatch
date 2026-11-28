@@ -4,18 +4,25 @@ import { idleCopy } from '../app/sessionCopy';
 import {
   getJobProgress,
   getSelectedZone,
+  rememberZoneLevel,
   reportJobProgress,
   subscribeZoneState,
   useSelectedZone,
   useSessionState,
 } from '../app/store';
-import { StatusCopy, UnimplementedNote } from '../components/ui';
+import { StatusCopy } from '../components/ui';
 import { OperationsSteps, OperationsViewHead } from '../components/operations/OperationsPrimitives';
 import { timing } from '../config';
-import { createJob, history, job as readJob, latest, scenarios } from '../core/api';
+import { createJob, cycleRun, history, job as readJob, latest, scenarios } from '../core/api';
 import type { Failure } from '../core/api';
 import { getAccessToken, getSessionSnapshot, subscribeSession } from '../core/session';
-import { expectedBatchInHistory, matchesBatch, presentBatch } from '../domain';
+import {
+  batchProvenance,
+  expectedBatchInHistory,
+  matchesBatch,
+  presentBatch,
+  summariseCycleRun,
+} from '../domain';
 import type { JobProgressKind } from '../domain/job-progress';
 import type { Job, Scenario } from '../types/api';
 import '../styles/operations-workspace.css';
@@ -39,6 +46,15 @@ import '../styles/operations-workspace.css';
 // served catalogue comes from `/v1/risk/synthetic-scenarios`, the chosen id
 // travels only when one was chosen, and a refused or failed catalogue is NOT
 // replaced by an invented one — the selector disables and the note says why.
+//
+// V1-P-06 — the three G6 actions exist as authenticated endpoints with a role
+// gate, so this view no longer declares them missing. It offers the one that
+// belongs to it: `POST /v1/risk/cycle/run`, an admin-only manual publication of
+// the whole cycle. The route declares no body — the operator is the verified
+// token subject — so this view never sends an actor, and it states the 403 a
+// `viewer` receives and the 401 an unauthenticated request receives as two
+// different outcomes. Manual advance (`transitions`) and reassessment
+// (`reassessments`) live in `#actions`, which the note beside the control names.
 //
 // State ownership: the zone and the session are external stores, so this view
 // *subscribes* to them and resets in the callback. The job snapshot is nulled
@@ -68,6 +84,26 @@ const POLL_EXHAUSTED = 'Se agotó la consulta automática; publicación o lectur
 const DEADLINE_EXPIRED =
   'Tiempo de consulta automática agotado; publicación o lectura sin verificar. Puedes actualizar manualmente.';
 
+// V1-P-06 — the manual publication of the cycle. The route is admin-only and
+// declares no body, so these are the four answers the operator has to be able to
+// tell apart: it ran, the role was refused, there is no cycle configured, and the
+// request itself was refused.
+const NO_CYCLE_STATUS =
+  'Sin publicación manual en esta vista. El ciclo automático lo ejecuta el servidor por su cuenta.';
+const CYCLE_RUNNING_STATUS =
+  'Ejecutando el ciclo y publicando el lote de cada zona configurada…';
+const CYCLE_PERMISSION_DENIED =
+  'La API denegó el permiso para publicar el lote ahora (403): esta acción requiere admin y un viewer no puede ejecutarla. No se publicó ningún lote.';
+const CYCLE_UNAVAILABLE =
+  'El servicio no tiene un ciclo configurado (503 cycle_unavailable); no se publicó ningún lote.';
+const CYCLE_BODY_REFUSED =
+  'La API rechazó la solicitud de publicación (400): esta página no envía cuerpo y el contrato tampoco lo declara. No se ejecutó ningún ciclo.';
+const NO_PROVENANCE_READ =
+  'Procedencia sin leer: esta vista muestra quién evaluó un lote cuando lo lee, y todavía no lo hizo.';
+const PROVENANCE_UNREAD =
+  'Procedencia sin verificar: la lectura del último lote no respondió, así que esta página no afirma quién evaluó.';
+const NO_PUBLISHED_BATCH = 'La zona no tiene un lote publicado, así que no hay evaluación que atribuir.';
+
 interface JobSnapshot {
   status: string;
   state: string;
@@ -76,6 +112,15 @@ interface JobSnapshot {
   // True once a job has actually been read back from the API, which is when the
   // manual refresh becomes meaningful.
   known: boolean;
+}
+
+// The provenance of the batch this view actually read, and the zone it belongs to.
+// Storing the zone is what makes a stale reading impossible to display after the
+// selection moves.
+interface ProvenanceReading {
+  zone: string;
+  batchId: string;
+  label: string;
 }
 
 function scenarioFallback(failure: Failure): string {
@@ -93,6 +138,20 @@ function failureCopy(failure: Failure, action: string): string | null {
   if (failure.reason === 'zone_mismatch' || failure.reason === 'job_mismatch') return OTHER_JOB;
   const status = failure.status !== undefined && failure.status > 0 ? String(failure.status) : 'sin conexión';
   return `No se pudo ${action} (HTTP ${status}).`;
+}
+
+// The manual publication's failure copy. 401 is left to the session copy (the
+// transport already closed the session, and `idleCopy` names the rejection), 403
+// is a role decision the operator can act on, 503 `cycle_unavailable` means the
+// deployment has no cycle wired at all, and 400 is a contract change this page
+// must not describe as a publication.
+function cycleFailureCopy(failure: Failure): string | null {
+  if (failure.kind === 'unauthorized') return null;
+  if (failure.kind === 'forbidden') return CYCLE_PERMISSION_DENIED;
+  if (failure.status === 400) return CYCLE_BODY_REFUSED;
+  if (failure.status === 503 || failure.reason === 'cycle_unavailable') return CYCLE_UNAVAILABLE;
+  const status = failure.status !== undefined && failure.status > 0 ? String(failure.status) : 'sin conexión';
+  return `No se pudo publicar el lote ahora (HTTP ${status}).`;
 }
 
 // What the map is told about the batch this job stands for. `queued` is a batch
@@ -129,6 +188,13 @@ export function JobsView() {
   const [scenarioId, setScenarioId] = useState('');
   const [requesting, setRequesting] = useState(false);
   const [job, setJob] = useState<JobSnapshot | null>(null);
+  // The manual cycle's own state. It is separate from the job snapshot on purpose:
+  // a cycle run publishes a batch for every configured zone and is not a job, so
+  // mixing the two would let one action claim the other's result. `null` means no
+  // manual publication was attempted in this view.
+  const [cycleStatus, setCycleStatus] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [provenance, setProvenance] = useState<ProvenanceReading | null>(null);
 
   const mountedRef = useRef(true);
   const zoneRef = useRef(selectedZone);
@@ -141,6 +207,9 @@ export function JobsView() {
   const deadlineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptsRef = useRef(0);
   const currentJobIdRef = useRef('');
+  // The manual publication's own fence, independent of the job cycle's: a cycle
+  // run is not a job and must not cancel, or be cancelled by, the poll for one.
+  const cycleSequenceRef = useRef(0);
 
   // The async callbacks read the zone and the session at the moment an answer
   // lands, not when the request started, so they are mirrored into refs after
@@ -193,6 +262,9 @@ export function JobsView() {
         lastZoneRef.current = zone;
         fenceJob(false);
         setJob(null);
+        // The provenance belonged to the batch of the previous zone, so it is
+        // dropped rather than left describing a zone nobody selected.
+        setProvenance(null);
         // The progress belonged to the previous zone's job: nothing is being
         // produced for the new selection.
         reportJobProgress('idle', '');
@@ -215,6 +287,12 @@ export function JobsView() {
         setScenarioId('');
         setScenarioNote(DEFAULT_SCENARIO_NOTE);
         setRequesting(false);
+        // A cycle result belongs to the session that ran it, and so does the
+        // provenance of the batch it read: the next session states neither.
+        cycleSequenceRef.current += 1;
+        setCycleStatus(null);
+        setPublishing(false);
+        setProvenance(null);
         reportJobProgress('idle', '');
       }),
     [fenceJob],
@@ -378,6 +456,14 @@ export function JobsView() {
       if (confirmed) {
         stopDeadline();
         patchJob({ status: `Trabajo publicado · lote ${fetched.batch_id} verificado en último lote e historial.` });
+        // The read that confirmed the publication is also the read that proves who
+        // evaluated the batch, so the panel states that provenance instead of
+        // leaving the manual and the scheduled evaluation indistinguishable.
+        setProvenance({
+          zone,
+          batchId: fetched.batch_id,
+          label: batchProvenance(latestOutcome.ok ? latestOutcome.data : null).label,
+        });
         // Published: nothing is being produced any more, so the map stops saying
         // that it is.
         reportJobProgress('idle', '');
@@ -449,13 +535,82 @@ export function JobsView() {
     })();
   }
 
+  // ── V1-P-06 — the manual publication ────────────────────────────────
+  //
+  // `POST /v1/risk/cycle/run` runs one full cycle synchronously and publishes a
+  // batch for every configured zone. It declares no body: the operator is the
+  // verified token subject, so this page sends none and an answer that names one
+  // is refused by the service before the cycle starts. A cycle run is not a job,
+  // so it carries its own fence and never cancels the job poll.
+  function publishNow(): void {
+    if (!signedInRef.current || publishing) return;
+    const zone = zoneRef.current;
+    const sequence = (cycleSequenceRef.current += 1);
+    setPublishing(true);
+    setCycleStatus(CYCLE_RUNNING_STATUS);
+    void (async () => {
+      try {
+        const outcome = await cycleRun();
+        if (!mountedRef.current || sequence !== cycleSequenceRef.current) return;
+        // The action is over once the server answered: the button is live again
+        // before the follow-up read, which is a display refresh and not part of
+        // the publication.
+        setPublishing(false);
+        if (!outcome.ok) {
+          // `null` hands the copy to the session: a 401 already closed it, and
+          // `idleCopy` names the rejection instead of a permission decision.
+          const copy = cycleFailureCopy(outcome.failure);
+          setCycleStatus(copy);
+          return;
+        }
+        setCycleStatus(summariseCycleRun(outcome.data).label);
+        await readPublishedBatch(zone, sequence);
+      } finally {
+        if (mountedRef.current && sequence === cycleSequenceRef.current) setPublishing(false);
+      }
+    })();
+  }
+
+  // The batch this panel can speak about after a publication is the selected
+  // zone's last one. Reading it back is what lets the view state the provenance of
+  // the evaluation that produced it, and it is also how the shared zone level —
+  // the fact the map paints — is refreshed after a manual run. A read that fails
+  // clears the provenance instead of leaving the previous one on screen.
+  async function readPublishedBatch(zone: string, sequence: number): Promise<void> {
+    if (zone === '') return;
+    const outcome = await latest(zone);
+    if (!mountedRef.current || sequence !== cycleSequenceRef.current || zone !== zoneRef.current) return;
+    if (!outcome.ok) {
+      setProvenance({ zone, batchId: '', label: PROVENANCE_UNREAD });
+      return;
+    }
+    // The transport maps a 404 to "no published batch" rather than to a failure,
+    // so this is the absence of an evaluation to attribute, never an unread one.
+    if (outcome.data === null) {
+      rememberZoneLevel(zone, null);
+      setProvenance({ zone, batchId: '', label: NO_PUBLISHED_BATCH });
+      return;
+    }
+    const presentation = presentBatch(outcome.data);
+    // The map only takes a level from a batch that passed the same fail-closed
+    // validation the risk panel applies; anything else clears it.
+    rememberZoneLevel(zone, presentation.valid && presentation.level !== '' ? presentation.level : null);
+    setProvenance({ zone, batchId: outcome.data.id, label: batchProvenance(outcome.data).label });
+  }
+
   const status = job
     ? job.status
     : signedIn
       ? NO_JOB_STATUS
       : idleCopy(session, 'solicitar el lote de la zona');
+  const cycleCopy = cycleStatus ?? (signedIn ? NO_CYCLE_STATUS : idleCopy(session, 'publicar el lote ahora'));
+  const provenanceCopy =
+    provenance === null
+      ? NO_PROVENANCE_READ
+      : `${provenance.label}${provenance.batchId === '' ? '' : ` · lote ${provenance.batchId}`}`;
   const selectorDisabled = !signedIn || catalogue === null;
   const createDisabled = !signedIn || selectedZone === '' || requesting;
+  const publishDisabled = !signedIn || publishing;
 
   return (
     <section className="view" id="jobs" data-view="jobs" aria-labelledby="jobs-title">
@@ -541,6 +696,30 @@ export function JobsView() {
                 Solicitar lote de la zona
               </button>
             </div>
+            {/* V1-P-06 — the manual publication. It is a real control with a real
+                endpoint behind it, so it states its role gate and its two refusals
+                in the copy instead of hiding behind a disabled button. */}
+            <div>
+              <h4 id="cycle-title">Publicar lote ahora</h4>
+              <p className="panel-note" id="cycle-note">
+                Ejecuta el ciclo completo en el acto y publica el lote de cada zona configurada (
+                <code>POST /v1/risk/cycle/run</code>). Requiere admin: un <code>viewer</code> recibe 403 y una petición
+                sin sesión recibe 401. El operador queda registrado como el sujeto del token verificado, así que esta
+                página no envía cuerpo ni identidad. El avance manual del estado de una acción preventiva y su
+                reevaluación viven en <a href="#actions">#actions</a>.
+              </p>
+              <button
+                id="publish-batch"
+                className="primary-button"
+                type="button"
+                disabled={publishDisabled}
+                aria-describedby="cycle-note"
+                onClick={publishNow}
+              >
+                Publicar lote ahora
+              </button>
+              <StatusCopy id="cycle-status">{cycleCopy}</StatusCopy>
+            </div>
           </div>
           <aside className="ops-side">
             <div className="job-result">
@@ -560,6 +739,10 @@ export function JobsView() {
                 <dd id="job-requested">{job ? job.requested : '—'}</dd>
               </div>
             </dl>
+            <p className="eyebrow">PROCEDENCIA DE LA EVALUACIÓN</p>
+            <p id="batch-provenance" className="panel-note">
+              {provenanceCopy}
+            </p>
             <button
               id="refresh-job"
               className="secondary-button"
@@ -574,10 +757,16 @@ export function JobsView() {
             </div>
           </aside>
         </div>
-        <UnimplementedNote>
-          Publicar lote, el avance manual del estado y la reevaluación: no existen como endpoint; el servidor decide y
-          publica por su cuenta, y esta página solo solicita el trabajo y lee el resultado.
-        </UnimplementedNote>
+        {/* The absence this view used to declare is retired: the three G6 actions
+            exist as authenticated endpoints with a role gate. The manual
+            publication is offered above; the other two are pointed at the view
+            that really performs them, never simulated here. */}
+        <p className="ops-note" id="jobs-actions-note">
+          Las tres acciones de G6 existen como endpoints autenticados con autorización por rol. Publicar un lote ahora
+          es la que ofrece esta vista (<code>POST /v1/risk/cycle/run</code>, solo admin). El avance manual del estado y la
+          reevaluación de una acción preventiva se realizan en <a href="#actions">#actions</a>; esta página las enlaza y
+          no las simula.
+        </p>
       </article>
     </section>
   );

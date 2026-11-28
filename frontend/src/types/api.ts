@@ -8,6 +8,15 @@ export type RiskLevel = 'bajo' | 'medio' | 'alto' | 'desconocido';
 
 export const RISK_LEVELS: readonly RiskLevel[] = ['bajo', 'medio', 'alto', 'desconocido'];
 
+// The provenance of the evaluation itself, declared once for the whole page.
+// `BatchCore` is closed on exactly two values: `scheduler` means nobody asked for
+// the run, `manual` means a verified operator did. The union lives here, with the
+// shared payload declarations, so the domain, the transport guard and the view
+// cannot drift into three spellings of the same two words.
+export type EvaluationTrigger = 'scheduler' | 'manual';
+
+export const EVALUATION_TRIGGERS: readonly EvaluationTrigger[] = ['scheduler', 'manual'];
+
 export interface Factor {
   name: string;
   known: boolean;
@@ -40,6 +49,15 @@ export interface RiskBatch {
   data_status?: string;
   scenario_id?: string | null;
   evaluated_at?: string | null;
+  // PM-06 BatchCore provenance: which evaluation produced this batch, and, for a
+  // manual one, the token subject of the operator who asked for it. `evaluated_by`
+  // is null (never an empty string) for a scheduled run, so "nobody asked" stays
+  // distinguishable from a blank actor. Both are optional because a row written
+  // before the provenance columns existed carries neither, and the declaration is
+  // not a runtime guarantee: the transport validates their types and the domain
+  // validates the closed vocabulary before the page shows either.
+  evaluation_trigger?: EvaluationTrigger;
+  evaluated_by?: string | null;
 }
 
 export type GeoGeometry =

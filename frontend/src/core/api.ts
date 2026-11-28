@@ -19,6 +19,7 @@ import type {
   ActionHistoryEntry,
   AuditEntry,
   BatchCollection,
+  EvaluationTrigger,
   Job,
   ModelRegistry,
   Observation,
@@ -38,7 +39,7 @@ import type {
 } from '../types/api';
 // The closed type catalogues are runtime values: the guards compare the served
 // wire spelling against them, so they cannot travel through `import type`.
-import { OBSERVATION_TYPES, RISK_LEVELS } from '../types/api';
+import { EVALUATION_TRIGGERS, OBSERVATION_TYPES, RISK_LEVELS } from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -106,6 +107,12 @@ const COMPARE_ROUTE = '/v1/risk/compare';
 // lives beside the one function that uses it instead of being a bare literal.
 const AGGREGATE_STATUS_ROUTE = '/v1/status';
 
+// V1-P-06 — the manual publication of the risk cycle. Same reason as the two paths
+// above: `config.routes` lists the routes the retired page already knew and this
+// unit does not extend it, so the path is written once, here, and never as a bare
+// literal at the call site.
+const CYCLE_RUN_ROUTE = '/v1/risk/cycle/run';
+
 // A single bounded deadline for one transport read. The retired page bounded its
 // own status cycle at 10 s and fenced a hung fetch on the job path; the port
 // applies the same bound to every read so no route can hang the view.
@@ -128,6 +135,7 @@ type RequestKind =
   | 'audit'
   | 'createJob'
   | 'job'
+  | 'cycleRun'
   | 'preventiveActions'
   | 'preventiveAction'
   | 'createPreventiveAction'
@@ -404,6 +412,21 @@ function nullableUuid(value: unknown): boolean {
   return value === undefined || value === null || (typeof value === 'string' && UUID_PATTERN.test(value));
 }
 
+// The evaluation's provenance, as `BatchCore` declares it. The trigger's closed
+// vocabulary is validated here instead of being tolerated as an arbitrary string:
+// the declaration hands a caller `'scheduler' | 'manual'`, a type predicate must not
+// hand it a value outside that union, and the service writes only those two (the
+// column is NOT NULL with a default). The actor is nullable because a scheduled run
+// records no actor at all. A payload that predates the columns omits both, which
+// stays accepted.
+function isEvaluationTrigger(value: unknown): value is EvaluationTrigger {
+  return EVALUATION_TRIGGERS.some(trigger => trigger === value);
+}
+
+function optionalEvaluationTrigger(value: unknown): boolean {
+  return value === undefined || isEvaluationTrigger(value);
+}
+
 function isRiskBatch(value: unknown): value is RiskBatch {
   if (!record(value)) return false;
   if (!nonempty(value.zone_id) || !nonempty(value.id) || !nonempty(value.job_id)) return false;
@@ -418,6 +441,7 @@ function isRiskBatch(value: unknown): value is RiskBatch {
   if (!optionalString(value.published_at) || !optionalString(value.valid_until) || !optionalString(value.requested_at)) return false;
   if (!optionalString(value.model_version) || !optionalString(value.data_status)) return false;
   if (!nullableString(value.scenario_id) || !nullableString(value.evaluated_at)) return false;
+  if (!optionalEvaluationTrigger(value.evaluation_trigger) || !nullableString(value.evaluated_by)) return false;
   return true;
 }
 
@@ -1458,6 +1482,80 @@ export async function job(id: string, signal?: AbortSignal): Promise<Outcome<Job
     return failureOutcome(failureSpec('malformed', 'job_mismatch', result.status, result.requestId));
   }
   return { ok: true, data: result.body };
+}
+
+// --- Manual publication of the risk cycle (V1-P-06) -----------------------
+//
+// `POST /v1/risk/cycle/run` is admin-only and declares NO body: the operator who
+// triggered the evaluation is the verified token subject, so a body that named one
+// is refused with 400 `invalid_body` before the cycle starts. This transport
+// therefore sends none — an empty object would also be accepted, but "no body" is
+// the one spelling that cannot look like it carried an actor.
+//
+// The result is one `CycleRunResult`: the source, the window, whether the cycle
+// completed and one entry per configured zone. It fails closed on a payload the
+// view cannot use, so a publication can never be claimed from an unusable answer.
+// The three answers a caller must keep apart stay apart: 401 closes the session
+// and is `unauthorized`, 403 is `forbidden`, and 503 `cycle_unavailable` is an
+// availability failure that keeps its own code and status.
+export interface CycleZoneResult {
+  readonly zone_id: string;
+  readonly published: boolean;
+  // The reason a zone was not published, as the service states it. Absent when the
+  // zone published; a failure without one is never given an invented reason.
+  readonly error?: string;
+}
+
+export interface CycleRunResult {
+  readonly source_id: string;
+  readonly started_at: string;
+  readonly finished_at: string;
+  readonly complete: boolean;
+  readonly zones: readonly CycleZoneResult[];
+}
+
+function isCycleZoneResult(value: unknown): value is CycleZoneResult {
+  return (
+    record(value) &&
+    nonempty(value.zone_id) &&
+    typeof value.published === 'boolean' &&
+    optionalString(value.error)
+  );
+}
+
+// One zone failed when it did not publish, or when it published while reporting an
+// error. `error` carries `omitempty` in the service, so an absent or empty reason is
+// not a failure by itself.
+function cycleZoneFailed(zone: CycleZoneResult): boolean {
+  return !zone.published || (zone.error !== undefined && zone.error !== '');
+}
+
+function isCycleRunResult(value: unknown): value is CycleRunResult {
+  if (!record(value)) return false;
+  if (typeof value.source_id !== 'string' || typeof value.started_at !== 'string') return false;
+  if (typeof value.finished_at !== 'string' || typeof value.complete !== 'boolean') return false;
+  if (!Array.isArray(value.zones) || !value.zones.every(isCycleZoneResult)) return false;
+  // `cycle.Runner` starts `RunResult.Complete` at true and clears it exactly when a
+  // zone fails, so the Go invariant is BICONDITIONAL: complete is true if and only if
+  // every zone published and carries no error. A payload that states otherwise
+  // contradicts itself — a "complete" run reporting a failed zone, or an
+  // "incomplete" run reporting no failure at all — and accepting either would let
+  // the page announce a publication the cycle did not make. The stricter reading is
+  // deliberate; the two allowed combinations are pinned in the transport tests.
+  const failures = (value.zones as readonly CycleZoneResult[]).filter(cycleZoneFailed).length;
+  return value.complete === (failures === 0);
+}
+
+export async function cycleRun(signal?: AbortSignal): Promise<Outcome<CycleRunResult>> {
+  const result = await requestJson(
+    'cycleRun',
+    `${gatewayOrigin}${CYCLE_RUN_ROUTE}`,
+    // No `body`, and therefore no `Content-Type`: the route takes its actor from
+    // the verified token and refuses any body that declares one.
+    { method: 'POST', authenticated: true },
+    signal,
+  );
+  return guardOutcome(result, isCycleRunResult);
 }
 
 // --- Preventive actions (frozen `prevention` contract) ---------------------

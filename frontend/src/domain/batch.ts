@@ -1,4 +1,4 @@
-import type { RiskLevel } from '../types/api';
+import type { EvaluationTrigger, RiskLevel } from '../types/api';
 import { isFiniteNumber, isNonEmptyString, isRecord } from './guards';
 import { canonicalLevel } from './risk-level';
 
@@ -84,4 +84,76 @@ export function latestOutcome(status: number): LatestOutcome {
   if (status === 403) return 'forbidden';
   if (status === 404) return 'no-published-batch';
   return 'error';
+}
+
+// ── Provenance of the evaluation itself (V1-P-06) ────────────────────────
+//
+// `BatchCore` declares `evaluation_trigger` (`scheduler` or `manual`) and
+// `evaluated_by`: the verified token subject of the operator who asked for a
+// manual evaluation, and null for a scheduled one — a run nobody requested has no
+// actor to attribute. The batch was published with that provenance and the page
+// used to leave it invisible, so a manual publication read exactly like the
+// automatic cycle's.
+//
+// This reads the payload rather than the declared type on purpose: the two members
+// are read here as `unknown`, which is the same fail-closed entry `presentBatch`
+// takes, so a batch that predates them is still presentable while its provenance
+// is stated as not reported instead of guessed. Nothing here upgrades a missing or
+// contradictory provenance into a manual evaluation.
+//
+// The trigger union is NOT redeclared here: it lives with the shared payload
+// declarations in `types/api.ts` and the transport validates it against the same
+// closed catalogue, so the domain, the guard and the declaration cannot drift into
+// three spellings of the same two words.
+export interface BatchProvenance {
+  /** True only when the payload proves one of the two documented evaluations. */
+  readonly reported: boolean;
+  readonly trigger: EvaluationTrigger | '';
+  /** The verified subject of the operator, or `''` when there is no actor. */
+  readonly actor: string;
+  /** The sentence the panel renders, never a placeholder for a missing fact. */
+  readonly label: string;
+}
+
+const PROVENANCE_NOT_REPORTED =
+  'Procedencia de la evaluación no informada: el lote no declara una evaluación manual con operador ni una evaluación programada.';
+
+export function batchProvenance(batch: unknown): BatchProvenance {
+  const notReported: BatchProvenance = {
+    reported: false,
+    trigger: '',
+    actor: '',
+    label: PROVENANCE_NOT_REPORTED,
+  };
+  if (!isRecord(batch)) return notReported;
+
+  const trigger = batch.evaluation_trigger;
+  const actor = batch.evaluated_by;
+
+  // A manual evaluation always records its operator: the service takes it from the
+  // verified token, so a manual trigger without one is a contradiction and not a
+  // provenance this page can show.
+  if (trigger === 'manual') {
+    if (!isNonEmptyString(actor)) return notReported;
+    return {
+      reported: true,
+      trigger: 'manual',
+      actor,
+      label: `Evaluación manual · operador verificado: ${actor}.`,
+    };
+  }
+
+  // A scheduled run has no actor. A non-empty one there contradicts the contract,
+  // so the pair is reported as unproven rather than presented as scheduled.
+  if (trigger === 'scheduler') {
+    if (actor !== undefined && actor !== null && actor !== '') return notReported;
+    return {
+      reported: true,
+      trigger: 'scheduler',
+      actor: '',
+      label: 'Evaluación programada · nadie la solicitó, así que no hay operador que atribuir.',
+    };
+  }
+
+  return notReported;
 }
