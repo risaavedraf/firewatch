@@ -5,4 +5,9 @@
 go.work*
 .git
 deploy
+# The prevention test stage bakes the development realm its internal/directory
+# tests read, and that document lives under deploy/, which is kept out of every
+# build context. This re-includes exactly that one file and nothing else: the
+# rest of deploy/ stays out, so no other service's context grows.
+!deploy/local/firewatch-realm.json
 docs
