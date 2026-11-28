@@ -19,8 +19,10 @@ import type {
   ActionHistoryEntry,
   AuditEntry,
   BatchCollection,
+  EnvironmentClass,
   EvaluationTrigger,
   Job,
+  LandCoverBreakdown,
   ModelRegistry,
   Observation,
   ObservationType,
@@ -35,12 +37,14 @@ import type {
   Scenario,
   ServiceSnapshot,
   SourceProvenance,
+  VegetationCatalogue,
   ZoneCollection,
+  ZoneLandCover,
   ZonePriority,
 } from '../types/api';
 // The closed type catalogues are runtime values: the guards compare the served
 // wire spelling against them, so they cannot travel through `import type`.
-import { EVALUATION_TRIGGERS, OBSERVATION_TYPES, RISK_LEVELS } from '../types/api';
+import { ENVIRONMENT_CLASSES, EVALUATION_TRIGGERS, LAND_COVER_KEYS, OBSERVATION_TYPES, RISK_LEVELS, VEGETATION_SOURCE_LABEL } from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -150,7 +154,8 @@ type RequestKind =
   | 'adoptObservation'
   | 'models'
   | 'simulate'
-  | 'users';
+  | 'users'
+  | 'vegetation';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
 // together for one selection, so a shared counter would make each treat the
@@ -483,6 +488,84 @@ function isDominantCategory(value: unknown): boolean {
   return value === null || (typeof value === 'string' && (DOMINANT_CATEGORIES as readonly string[]).includes(value));
 }
 
+// --- V1-P-01 / PM-12 — the land-cover layer --------------------------------
+//
+// The page states, in visible text, that the layer is synthetic, that it is a
+// closed scale and that the percentages sum to one hundred. A payload that does
+// not satisfy those claims is unreadable instead of being rendered as if it did:
+// every number below is a claim the reader is asked to trust.
+
+// The tolerance the five percentages are summed with. The producer emits whole
+// points, so the sum is exact; the tolerance only absorbs binary float error in a
+// sum of five decimal values.
+const BREAKDOWN_TOLERANCE = 1e-6;
+
+function isEnvironmentClass(value: unknown): value is EnvironmentClass {
+  return typeof value === 'string' && (ENVIRONMENT_CLASSES as readonly string[]).includes(value);
+}
+
+// fraction is the documented 0.00..1.00 range of every NDVI member.
+function fraction(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+// percentage is the documented 0..100 range of a land-cover share.
+function percentage(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
+}
+
+// The five declared percentages, each in 0..100 and summing to 100. An undeclared
+// key is a contract change rather than a share the view may print, so the object
+// has to carry exactly these five.
+function isLandCoverBreakdown(value: unknown): value is LandCoverBreakdown {
+  if (!record(value)) return false;
+  const keys = Object.keys(value);
+  if (keys.length !== LAND_COVER_KEYS.length) return false;
+  if (!keys.every(key => (LAND_COVER_KEYS as readonly string[]).includes(key))) return false;
+  let total = 0;
+  for (const key of LAND_COVER_KEYS) {
+    const share = value[key];
+    if (!percentage(share)) return false;
+    total += share;
+  }
+  return Math.abs(total - 100) < BREAKDOWN_TOLERANCE;
+}
+
+// isZoneLandCover validates one commune's entry: thousandth-free NDVI inside
+// 0.00..1.00 with min <= mean <= max, an anomaly inside -1.00..1.00, the five
+// percentages, the closed class and the DECLARED synthetic provenance. A block
+// that claims to be an observation is refused: the layer never is one.
+function isZoneLandCover(value: unknown): value is ZoneLandCover {
+  if (!record(value)) return false;
+  if (!nonempty(value.zone_id) || !nonempty(value.zone_name)) return false;
+  const low = value.ndvi_min;
+  const mean = value.ndvi_mean;
+  const high = value.ndvi_max;
+  if (!fraction(low) || !fraction(mean) || !fraction(high)) return false;
+  if (low > mean || mean > high) return false;
+  const anomaly = value.ndvi_anomaly;
+  if (typeof anomaly !== 'number' || !Number.isFinite(anomaly) || anomaly < -1 || anomaly > 1) return false;
+  if (!isLandCoverBreakdown(value.land_cover_breakdown)) return false;
+  if (!isEnvironmentClass(value.environment_class)) return false;
+  if (value.synthetic !== true) return false;
+  return value.source_label === VEGETATION_SOURCE_LABEL;
+}
+
+// isVegetationCatalogue validates the whole answer. A repeated zone is refused
+// because the table would show the same commune twice from one payload.
+function isVegetationCatalogue(value: unknown): value is VegetationCatalogue {
+  if (!record(value)) return false;
+  if (value.source !== VEGETATION_SOURCE_LABEL) return false;
+  if (!Array.isArray(value.zones)) return false;
+  const seen = new Set<string>();
+  for (const entry of value.zones) {
+    if (!isZoneLandCover(entry)) return false;
+    if (seen.has(entry.zone_id)) return false;
+    seen.add(entry.zone_id);
+  }
+  return true;
+}
+
 // priorityIndex is the documented 0..100 range of every served index.
 function priorityIndex(value: unknown): value is number {
   return integer(value) && value >= 0 && value <= 100;
@@ -529,6 +612,13 @@ function isRiskBatch(value: unknown): value is RiskBatch {
     // the service never computed it for.
     if (priority.zone_id !== value.zone_id) return false;
     if (priority.risk_level !== value.risk_level) return false;
+  }
+  if (value.land_cover !== undefined && value.land_cover !== null) {
+    const landCover = value.land_cover;
+    if (!isZoneLandCover(landCover)) return false;
+    // The same mismatched-join rule as priority: an entry naming another commune
+    // would attach a land cover to a row the service never declared it for.
+    if (landCover.zone_id !== value.zone_id) return false;
   }
   return true;
 }
@@ -907,6 +997,23 @@ export async function batches(signal?: AbortSignal): Promise<Outcome<RiskBatch[]
     collection.push(entry);
   }
   return { ok: true, data: collection };
+}
+
+// --- Land-cover layer -------------------------------------------------------
+//
+// V1-P-01 / PM-12. The path is declared here rather than in `config.routes` for the
+// same reason the granular series is: the transport owns the read it issues for it.
+// The route accepts no parameter at all, so nothing is built into the URL.
+const VEGETATION_ROUTE = '/v1/risk/vegetation';
+
+export async function vegetation(signal?: AbortSignal): Promise<Outcome<VegetationCatalogue>> {
+  const result = await requestJson(
+    'vegetation',
+    `${gatewayOrigin}${VEGETATION_ROUTE}`,
+    { authenticated: true },
+    signal,
+  );
+  return guardOutcome(result, isVegetationCatalogue);
 }
 
 // --- Executive summary ------------------------------------------------------

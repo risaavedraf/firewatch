@@ -142,6 +142,11 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
 	mux.HandleFunc("GET /v1/risk/infrastructure", listInfrastructure())
+	// PM-12: the land-cover layer is a compiled-in read like its infrastructure
+	// neighbour. It is mounted inside the same Authorize gate, accepts no query
+	// parameter at all, and keeps the scalar `cobertura_vegetal` of the classifier
+	// untouched: the layer is complementary and never an input of the rule.
+	mux.HandleFunc("GET /v1/risk/vegetation", listVegetation())
 	// S4 (PM-16): the inference evidence read. It is mounted inside the same
 	// Authorize gate as every sibling read, and the evaluator it reports was built
 	// from configuration by the process: no parameter of this request reaches the

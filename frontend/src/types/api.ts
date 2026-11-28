@@ -40,6 +40,49 @@ export interface ZonePriority {
   context_summary: string;
 }
 
+// V1-P-01 / PM-12 — the land-cover layer. It is COMPLEMENTARY to the scalar
+// `cobertura_vegetal` variable of the rule and never replaces it: nothing here is
+// an input of the classifier. The four classes are closed, and the provenance is
+// always the synthetic seed the owner's decision declares.
+export const ENVIRONMENT_CLASSES = ['WUI_ALTA', 'FORESTAL_DENSO', 'MIXTO_RURAL', 'PERIURBANO'] as const;
+
+export type EnvironmentClass = (typeof ENVIRONMENT_CLASSES)[number];
+
+export const VEGETATION_SOURCE_LABEL = 'SINTETICO_SEED_V1';
+
+// The five declared percentages, in the decision's own order. This client
+// reference exists to validate and to label the served split, never to replace it.
+export const LAND_COVER_KEYS = [
+  'bosque_nativo_pct',
+  'plantacion_forestal_pct',
+  'matorral_pastizal_pct',
+  'interfaz_urbano_forestal_pct',
+  'suelo_desnudo_agua_pct',
+] as const;
+
+export type LandCoverKey = (typeof LAND_COVER_KEYS)[number];
+
+// Every member is a percentage in 0..100 and the five sum to exactly 100.
+export type LandCoverBreakdown = Record<LandCoverKey, number>;
+
+export interface ZoneLandCover {
+  zone_id: string;
+  zone_name: string;
+  ndvi_mean: number;
+  ndvi_min: number;
+  ndvi_max: number;
+  ndvi_anomaly: number;
+  land_cover_breakdown: LandCoverBreakdown;
+  environment_class: EnvironmentClass;
+  synthetic: true;
+  source_label: typeof VEGETATION_SOURCE_LABEL;
+}
+
+export interface VegetationCatalogue {
+  source: typeof VEGETATION_SOURCE_LABEL;
+  zones: ZoneLandCover[];
+}
+
 export interface Factor {
   name: string;
   known: boolean;
@@ -86,6 +129,11 @@ export interface RiskBatch {
   // serve it (`latest` and `batches`), and because a batch whose regional context
   // could not be computed is served without it instead of with an invented one.
   priority?: ZonePriority | null;
+  // V1-P-01 / PM-12: the land cover and environment of exactly this batch's
+  // commune. Optional for the same two reasons as `priority`: only `latest` and
+  // `batches` serve it, and a commune the layer does not declare is served
+  // without it. When present its `zone_id` always equals this batch's.
+  land_cover?: ZoneLandCover | null;
 }
 
 export type GeoGeometry =

@@ -12,7 +12,7 @@ import { gatewayOrigin, issuer, pkceTransactionKey, routes } from '../../src/con
 import { routes as declaredRoutes } from '../../src/app/routes';
 import { clearZoneState, getSelectedZone, getSelectedZoneLabel, getZoneLevels, reportJobProgress } from '../../src/app/store';
 import { completeLogin, getSessionSnapshot, resetSession } from '../../src/core/session';
-import type { RiskBatch, ZoneCollection, ZoneFeature, ZonePriority } from '../../src/types/api';
+import type { RiskBatch, ZoneCollection, ZoneFeature, ZoneLandCover, ZonePriority } from '../../src/types/api';
 import { OverviewView } from '../../src/views/OverviewView';
 import { createFetchStub, createStorageStub, flush, jwt } from '../core/harness';
 
@@ -29,6 +29,10 @@ const BATCHES_URL = `${gatewayOrigin}/v1/risk/batches`;
 // suite names the URL the transport names, exactly as it does for the aggregate
 // read above.
 const EXECUTIVE_URL = `${gatewayOrigin}/v1/risk/executive-summary`;
+// V1-P-01 / PM-12 — the land-cover layer. `config.routes` does not carry it either,
+// so the suite names the URL the transport names, exactly as it does for the two
+// reads above.
+const VEGETATION_URL = `${gatewayOrigin}/v1/risk/vegetation`;
 
 // Two stubs are shared by the whole file and rebuilt before every test, so no
 // test can inherit a pending request or a previous session from another.
@@ -100,6 +104,52 @@ function batch(zone = '05101', id = 'batch-1', job = 'job-1', overrides: Partial
     notice: 'Sintético',
     ...overrides,
   };
+}
+
+// --- V1-P-01 / PM-12 fixtures ---------------------------------------------
+//
+// The land-cover layer as the service serves it: one entry per catalogue commune
+// with the declared synthetic provenance. The numbers are arbitrary but readable;
+// what these tests pin is that the page repeats them and never derives its own.
+
+function landCover(overrides: Partial<ZoneLandCover> = {}): ZoneLandCover {
+  return {
+    zone_id: '05101',
+    zone_name: 'Valparaíso',
+    ndvi_mean: 0.61,
+    ndvi_min: 0.55,
+    ndvi_max: 0.68,
+    ndvi_anomaly: -0.04,
+    land_cover_breakdown: {
+      bosque_nativo_pct: 20,
+      plantacion_forestal_pct: 10,
+      matorral_pastizal_pct: 40,
+      interfaz_urbano_forestal_pct: 20,
+      suelo_desnudo_agua_pct: 10,
+    },
+    environment_class: 'WUI_ALTA',
+    synthetic: true,
+    source_label: 'SINTETICO_SEED_V1',
+    ...overrides,
+  };
+}
+
+function vegetationBody(zones: ZoneLandCover[]): Record<string, unknown> {
+  return { source: 'SINTETICO_SEED_V1', zones };
+}
+
+async function serveVegetation(zones: ZoneLandCover[]): Promise<void> {
+  fetchStub.answer(VEGETATION_URL, vegetationBody(zones));
+  await settle();
+}
+
+function sectorRows(): HTMLElement[] {
+  const body = document.getElementById('sector-coverage-rows');
+  return body === null ? [] : [...(body as HTMLElement).querySelectorAll('tr')];
+}
+
+function sectorCells(row: HTMLElement): string[] {
+  return [...row.querySelectorAll('th, td')].map(cell => cell.textContent?.trim() ?? '');
 }
 
 // The executive summary body the server serves (PM-01). It is spelled as the
@@ -230,7 +280,7 @@ async function logOut(): Promise<void> {
 
 // --- Contract surface ------------------------------------------------------
 
-test('the view keeps the overview identity, every contracted identifier and the coverage note', async () => {
+test('the view keeps the overview identity and every contracted identifier', async () => {
   await openSignedIn();
   await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
   await serveZone('05101', null, 404);
@@ -263,13 +313,21 @@ test('the view keeps the overview identity, every contracted identifier and the 
     expect(document.getElementById(id), `missing DOM ${id}`).not.toBeNull();
   }
 
-  // The "Cobertura por sector" limitation stays inside this view, and its copy
-  // names the granularity the service really publishes (T3): this card reads one
-  // comuna by its CUT code, so it must not present that result as a sector
-  // reading.
-  const coverageLimit = screen.getByText(/Cobertura por sector/);
-  expect(coverageLimit).toHaveTextContent(/comuna \(c[oó]digo CUT\)/i);
-  expect(coverageLimit).toHaveTextContent(/no publica .*por sector/i);
+  // V1-P-01 / PM-12 — the view no longer declares coverage absent. The risk
+  // service publishes the land-cover layer per commune, so the retired
+  // limitation sentence is gone rather than reworded, and the sector panel with
+  // its synthetic badge is part of the contracted surface now.
+  //
+  // The retired note is named VERBATIM: the executive panel's coverage card keeps
+  // its own sentence about the contract's granularity (that card states what the
+  // server summary does not count), so a broad /por sector/ match would assert
+  // against copy this unit does not own.
+  expect(screen.queryByText(/no publica lecturas ni un porcentaje de cobertura por sector/i)).toBeNull();
+  expect(document.querySelector('#overview .unimplemented-note')).toBeNull();
+  expect(screen.queryByText(/Cobertura por sector/)).toBeNull();
+  expect(document.getElementById('sector-coverage')).not.toBeNull();
+  expect(document.getElementById('vegetation-badge')).not.toBeNull();
+  expect(document.getElementById('vegetation-status')).not.toBeNull();
 });
 
 test('without a session the metrics stay unknown and the map states the connection requirement', async () => {
@@ -1805,4 +1863,146 @@ test('V1-P-02 does not claim a position for a zone the ranking could not place',
   expect(textOf('zone-priority-exposure')).toBe('61');
   expect(textOf('zone-priority-summary')).toMatch(/sin puesto regional/);
   expect(textOf('zone-priority-status')).toMatch(/no se le asigna puesto/i);
+});
+
+// --- V1-P-01 / PM-12: the land-cover layer --------------------------------
+//
+// The layer is a read of its own (`/v1/risk/vegetation`) and an additive member of
+// the published batch. Both surfaces are pinned here: the sector table renders the
+// served rows, the zone card repeats the number the batch carried, and an absent or
+// failed answer is stated as an absence instead of being filled in.
+//
+// Nothing in this section changes the classifier: `cobertura_vegetal` stays the
+// scalar variable of the rule and no land-cover value may appear among the factors.
+
+test('the sector table renders one row per served commune with its class, NDVI, dominant share and provenance (V1-P-01 / PM-12)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso'), feature('05102', 'Casablanca')]));
+  await serveZone('05101', batch('05101', 'batch-1', 'job-1', { land_cover: landCover() }), 200, [batch('05101')]);
+  await serveVegetation([
+    landCover(),
+    landCover({
+      zone_id: '05102',
+      zone_name: 'Casablanca',
+      environment_class: 'FORESTAL_DENSO',
+      ndvi_mean: 0.74,
+      ndvi_min: 0.7,
+      ndvi_max: 0.8,
+    }),
+  ]);
+
+  // One read for the whole territory, issued with the session's bearer.
+  const calls = fetchStub.callsFor(VEGETATION_URL);
+  expect(calls).toHaveLength(1);
+  expect((calls[0].init.headers as Record<string, string>).Authorization).toMatch(/^Bearer /);
+
+  const rows = sectorRows();
+  expect(rows).toHaveLength(2);
+  expect(sectorCells(rows[0])).toEqual([
+    '05101 · Valparaíso',
+    'Interfaz urbano-forestal alta',
+    '0.61',
+    'Matorral y pastizal (40%)',
+    'SINTÉTICO · SINTETICO_SEED_V1',
+  ]);
+  expect(sectorCells(rows[1])).toEqual([
+    '05102 · Casablanca',
+    'Forestal denso',
+    '0.74',
+    'Matorral y pastizal (40%)',
+    'SINTÉTICO · SINTETICO_SEED_V1',
+  ]);
+
+  // The panel states the scope of what it shows and that the layer is not the rule.
+  expect(textOf('vegetation-badge')).toBe('SINTÉTICO · SINTETICO_SEED_V1');
+  expect(textOf('vegetation-status')).toMatch(/2 comunas del catálogo/i);
+  expect(textOf('vegetation-status')).toMatch(/no sustituye la variable escalar/i);
+
+  // S5 fix — the scalar is the VEGETATION input among the five canonical variables of
+  // the classifier, never the classifier's only input. The retired wording claimed
+  // the latter, which the rule itself contradicts.
+  expect(textOf('sector-coverage-note')).toMatch(/insumo de vegetación entre las cinco variables canónicas/i);
+  expect(textOf('sector-coverage-note')).not.toMatch(/única entrada del clasificador/i);
+});
+
+test('a failed layer read leaves the table empty and says so instead of inventing rows (V1-P-01 / PM-12)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', null, 404);
+  fetchStub.answer(VEGETATION_URL, { code: 'catalogue_unavailable', request_id: '00000000-0000-0000-0000-000000000000' }, 503);
+  await settle();
+
+  expect(sectorRows()).toHaveLength(0);
+  expect(document.getElementById('sector-coverage-table')).toBeNull();
+  expect(textOf('vegetation-status')).toMatch(/no se pudo consultar la capa de vegetación/i);
+  expect(textOf('vegetation-status')).toMatch(/no se sustituye por datos inventados/i);
+});
+
+test('a payload that breaks a declared invariant is refused, so no row is painted from it (V1-P-01 / PM-12)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', null, 404);
+  // The split sums to 99, so the transport guard must reject the whole answer.
+  const broken = landCover({
+    land_cover_breakdown: {
+      bosque_nativo_pct: 20,
+      plantacion_forestal_pct: 10,
+      matorral_pastizal_pct: 40,
+      interfaz_urbano_forestal_pct: 20,
+      suelo_desnudo_agua_pct: 9,
+    },
+  });
+  await serveVegetation([broken]);
+
+  expect(sectorRows()).toHaveLength(0);
+  expect(textOf('vegetation-status')).toMatch(/no se pudo consultar la capa de vegetación/i);
+});
+
+test('the zone detail states the land cover the batch carried (V1-P-01 / PM-12)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone(
+    '05101',
+    batch('05101', 'batch-1', 'job-1', {
+      land_cover: landCover(),
+      factors: [
+        { name: 'cobertura_vegetal', known: true, value: 62, contribution: 0.2, note: 'estimada' },
+        { name: 'viento', known: true, value: 30, contribution: 0.1, note: 'sintético' },
+      ],
+    }),
+  );
+  await serveVegetation([landCover()]);
+
+  const detail = document.getElementById('zone-land-cover');
+  expect(detail).not.toBeNull();
+  expect(detail).toHaveAttribute('data-status', 'present');
+  expect(textOf('zone-land-cover-badge')).toBe('SINTÉTICO · SINTETICO_SEED_V1');
+  expect(textOf('zone-land-cover-environment')).toBe('Interfaz urbano-forestal alta');
+  expect(textOf('zone-land-cover-ndvi')).toBe('0.61');
+  expect(textOf('zone-land-cover-range')).toBe('0.55–0.68');
+  expect(textOf('zone-land-cover-dominant')).toBe('Matorral y pastizal (40%)');
+  expect(textOf('zone-land-cover-status')).toMatch(/no sustituye la variable escalar/i);
+
+  // The rule is untouched: `cobertura_vegetal` is still the batch's scalar factor
+  // and no land-cover value leaked into the factor list.
+  const factors = document.getElementById('risk-factors')?.textContent ?? '';
+  expect(factors).toMatch(/cobertura_vegetal: 62/);
+  expect(factors).not.toMatch(/wui_alta|forestal_denso|sintetico_seed/i);
+});
+
+test('the zone detail states an explicit absence when the batch carries no land cover (V1-P-01 / PM-12)', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', batch('05101'));
+  await serveVegetation([landCover()]);
+
+  const detail = document.getElementById('zone-land-cover');
+  expect(detail).not.toBeNull();
+  expect(detail).toHaveAttribute('data-status', 'absent');
+  expect(textOf('zone-land-cover-status')).toMatch(/sin cobertura de suelo/i);
+  expect(textOf('zone-land-cover-status')).toMatch(/no publicó la capa de vegetación/i);
+  // A number the payload did not carry is an em dash, never a zero.
+  for (const id of ['zone-land-cover-environment', 'zone-land-cover-ndvi', 'zone-land-cover-range', 'zone-land-cover-dominant']) {
+    expect(textOf(id), id).toBe('—');
+  }
 });

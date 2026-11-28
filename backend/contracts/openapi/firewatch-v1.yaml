@@ -1181,6 +1181,80 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+  /v1/risk/vegetation:
+    get:
+      operationId: listVegetation
+      description: >-
+        Viewer/admin. The embedded land-cover layer for the PM-12 demo: one entry
+        per commune of the zone catalogue (the same 38 comunas the zones route
+        serves, ordered by ascending `zone_id`), with its NDVI block, its
+        five-class land-cover split and its environment class. The layer is
+        COMPLEMENTARY and does not replace the scalar `cobertura_vegetal`
+        variable of the five canonical rule inputs: nothing in this answer feeds
+        the classifier, and no factor of a published batch is derived from it.
+
+        The data is synthetic and declared as such: the body declares
+        `source: SINTETICO_SEED_V1` and every entry repeats `synthetic: true` and
+        `source_label: SINTETICO_SEED_V1`, so no page or export can present the
+        layer as an observation. It is not an ingested satellite product, carries
+        no retrieval instant and establishes no freshness. Every NDVI value is a
+        whole hundredth inside `0.00..1.00` with `ndvi_min <= ndvi_mean <=
+        ndvi_max`, `ndvi_anomaly` is a whole hundredth inside `-1.00..1.00`, and
+        the five land-cover percentages are inside `0..100` and sum to exactly
+        `100`. The values are computed from the commune code, so the same code
+        always serves the same profile.
+
+        The route accepts no query parameter at all: a query string with any
+        parameter, a repeated one, or a percent-encoded pair that cannot be read
+        is refused `422 invalid_query` before anything is answered, because a
+        silently dropped parameter would read as "no filters". The route reads no
+        database or broker, so it stays answerable while dependencies are down.
+      responses:
+        '200':
+          description: >-
+            Frozen synthetic layer: the declared origin and one entry per
+            catalogue commune. The array is empty only if the compiled-in asset
+            cannot be read, and that case is reported as `503` instead.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/VegetationCatalogue'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422':
+          description: >-
+            Invalid input; nothing was read. The route declares no query
+            parameter, so any key, a repeated key or a query string with a
+            malformed percent-encoded pair is refused here instead of being
+            served as an unfiltered catalogue.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                properties:
+                  code: {type: string, enum: [invalid_query]}
+                  request_id: {type: string, format: uuid}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503':
+          description: >-
+            The compiled-in land-cover asset could not be read. It is stated
+            instead of answering an empty catalogue, which would read as "the
+            layer covers nothing".
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, request_id]
+                properties:
+                  code: {type: string, enum: [catalogue_unavailable]}
+                  request_id: {type: string, format: uuid}
   /v1/risk/sources:
     get:
       operationId: getRiskSources
@@ -3371,6 +3445,96 @@ components:
             minItems: 2
             maxItems: 2
             items: {type: number}
+    EnvironmentClass:
+      type: string
+      enum: [WUI_ALTA, FORESTAL_DENSO, MIXTO_RURAL, PERIURBANO]
+      description: >-
+        Closed four-value scale of the ratified PM-12 decision. `WUI_ALTA` names a
+        commune where settlement meets burnable vegetation; `FORESTAL_DENSO` one
+        dominated by continuous forest cover; `MIXTO_RURAL` one of scrub, pasture
+        and scattered woodland; `PERIURBANO` one where built-up land is the
+        dominant class. No fifth value exists and none may be inferred from the
+        percentages: the class is served, never derived by a client.
+    LandCoverBreakdown:
+      type: object
+      description: >-
+        The five-class percentage split of one commune, exactly as the decision
+        names it. Each member is a percentage in `0..100` and the five of them sum
+        to exactly `100`, because the producer emits whole points.
+      required:
+        - bosque_nativo_pct
+        - plantacion_forestal_pct
+        - matorral_pastizal_pct
+        - interfaz_urbano_forestal_pct
+        - suelo_desnudo_agua_pct
+      properties:
+        bosque_nativo_pct: {type: number, minimum: 0, maximum: 100}
+        plantacion_forestal_pct: {type: number, minimum: 0, maximum: 100}
+        matorral_pastizal_pct: {type: number, minimum: 0, maximum: 100}
+        interfaz_urbano_forestal_pct: {type: number, minimum: 0, maximum: 100}
+        suelo_desnudo_agua_pct: {type: number, minimum: 0, maximum: 100}
+    ZoneLandCover:
+      type: object
+      description: >-
+        One commune's NDVI block, land-cover split and environment class, with its
+        declared synthetic provenance. The scalar `cobertura_vegetal` variable of
+        the rule is a DIFFERENT datum: this entry never replaces it and is never
+        read by the classifier.
+
+        Every NDVI value is a whole hundredth inside `0.00..1.00`, with
+        `ndvi_min <= ndvi_mean <= ndvi_max`; `ndvi_anomaly` is a whole hundredth
+        inside `-1.00..1.00` and is a deviation of the seed, not a measured
+        departure from a climatology. `synthetic` is always `true` and
+        `source_label` always `SINTETICO_SEED_V1`; there is no version of this
+        entry that claims an observation.
+      required:
+        - zone_id
+        - zone_name
+        - ndvi_mean
+        - ndvi_min
+        - ndvi_max
+        - ndvi_anomaly
+        - land_cover_breakdown
+        - environment_class
+        - synthetic
+        - source_label
+      properties:
+        zone_id:
+          type: string
+          example: '05101'
+          description: >-
+            Catalogue commune code (CUT). The accepted set is the zone catalogue
+            served by the zones endpoint, so it is deliberately not an enum: an
+            enum would drift from the table.
+        zone_name:
+          type: string
+          example: Valparaíso
+          description: Commune name as the zone catalogue declares it.
+        ndvi_mean: {type: number, minimum: 0, maximum: 1}
+        ndvi_min: {type: number, minimum: 0, maximum: 1}
+        ndvi_max: {type: number, minimum: 0, maximum: 1}
+        ndvi_anomaly: {type: number, minimum: -1, maximum: 1}
+        land_cover_breakdown: {$ref: '#/components/schemas/LandCoverBreakdown'}
+        environment_class: {$ref: '#/components/schemas/EnvironmentClass'}
+        synthetic: {type: boolean, enum: [true]}
+        source_label: {type: string, enum: [SINTETICO_SEED_V1]}
+    VegetationCatalogue:
+      type: object
+      description: >-
+        Frozen PM-12 demo body: the declared origin every entry shares and one
+        entry per commune of the zone catalogue, ordered by ascending `zone_id`.
+        The layer is complementary to the scalar `cobertura_vegetal` variable and
+        establishes no freshness: it carries no retrieval instant.
+      required: [source, zones]
+      properties:
+        source: {type: string, enum: [SINTETICO_SEED_V1]}
+        zones:
+          type: array
+          description: >-
+            One entry per catalogue commune, ordered by ascending zone_id. It is
+            never null; an unreadable compiled-in asset is answered `503`
+            instead of an empty array.
+          items: {$ref: '#/components/schemas/ZoneLandCover'}
     Job:
       type: object
       required: [id, zone_id, state, requested_at, attempts]
@@ -3682,6 +3846,14 @@ components:
                 absent when the aggregate read that builds the ranking failed, and
                 the page then says the regional context is unavailable instead of
                 claiming a position it could not calculate.
+            land_cover:
+              allOf:
+                - $ref: '#/components/schemas/ZoneLandCover'
+              description: >-
+                Land cover and environment of exactly this batch's commune
+                (PM-12). It is additive and optional: it is absent for a zone the
+                land-cover layer does not declare, and its `zone_id` always equals
+                the batch's own. The bounded history read does not serve it.
     PublishedZoneBatch:
       description: >-
         One element of the aggregate read: the shared core without geometry, with
@@ -3696,6 +3868,14 @@ components:
               description: >-
                 Regional context of this published batch, ranked with every other
                 zone of the same read.
+            land_cover:
+              allOf:
+                - $ref: '#/components/schemas/ZoneLandCover'
+              description: >-
+                Land cover and environment of this element's commune (PM-12). It
+                is the same entry the `GET /v1/risk/vegetation` route serves for
+                that `zone_id`, and it is absent for a zone the layer does not
+                declare.
     BatchCollection:
       type: object
       description: >-
