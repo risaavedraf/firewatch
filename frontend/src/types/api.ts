@@ -225,6 +225,14 @@ export interface AuditEntry {
 // are not guarantees: every payload is validated at the transport boundary and
 // `action_history` is required by the detail route.
 
+// V1-P-03 — the canonical four-group projection of the eight frozen preventive
+// action statuses. The owner's ratified decision keeps the eight states exactly as
+// they are and publishes this projection on top of them: candidate (propuesta,
+// asignada), in_progress (en_curso, enviada), reviewed (bloqueada, devuelta) and
+// closed (aceptada, cancelada). It is derived from `status` and stored nowhere, so
+// it can never disagree with the state the action is in.
+export type ActionStageGroup = 'candidate' | 'in_progress' | 'reviewed' | 'closed';
+
 export interface PreventiveAction {
   id: string;
   community_code: string;
@@ -232,6 +240,11 @@ export interface PreventiveAction {
   description?: string;
   priority?: string;
   status: string;
+  // The group `status` projects onto. The service sends it on every read; it is
+  // optional here because a payload recorded before the projection existed omits
+  // it, and the page then derives the same group from `status` instead of
+  // inventing one. An undeclared value is shown as it arrived, never translated.
+  stage_group?: ActionStageGroup;
   // Nullable on the wire: the column is `*string`, so an unassigned action
   // carries `null` rather than an absent field.
   assignee?: string | null;

@@ -1213,3 +1213,157 @@ test('a queue with no row hides the table region instead of painting a header ov
   await waitFor(() => expect(document.getElementById('actions-rows')?.querySelectorAll('tr')).toHaveLength(1));
   expect(region).not.toHaveAttribute('hidden');
 });
+
+// ── V1-P-03 · the canonical four-stage projection ──────────────────────────
+//
+// The owner's ratified decision keeps the eight frozen statuses and projects them
+// onto four stage groups: candidate (propuesta, asignada), in_progress (en_curso,
+// enviada), reviewed (bloqueada, devuelta) and closed (aceptada, cancelada). The
+// page shows the projection beside the status — the status vocabulary and the
+// transitions are untouched, so this section never renames a state — and offers
+// the four groups as filters over the rows the service returned.
+
+const STAGE_OF_STATUS: Record<string, string> = {
+  propuesta: 'candidate',
+  asignada: 'candidate',
+  en_curso: 'in_progress',
+  enviada: 'in_progress',
+  bloqueada: 'reviewed',
+  devuelta: 'reviewed',
+  aceptada: 'closed',
+  cancelada: 'closed',
+};
+
+const STAGE_GROUPS = ['candidate', 'in_progress', 'reviewed', 'closed'];
+
+// The exact word each group carries in the page. The chips are the only place the
+// four contract values are named in Spanish, so the group is asserted by its label
+// instead of by "some text": a chip that renders the wrong group's word, or the
+// raw contract token where a label belongs, is a silent wrong answer to a filter.
+const STAGE_LABELS: Record<string, string> = {
+  candidate: 'Candidata',
+  in_progress: 'En curso',
+  reviewed: 'En revisión',
+  closed: 'Cerrada',
+};
+
+function eightStatuses(): Record<string, unknown>[] {
+  return Object.keys(STAGE_OF_STATUS).map((status, index) =>
+    actionFixture({ id: `action-${index + 1}`, title: `Acción ${status}`, status }),
+  );
+}
+
+function stageChips(): HTMLButtonElement[] {
+  return [...document.querySelectorAll('#actions-stage-filters [data-stage-group]')] as HTMLButtonElement[];
+}
+
+function rows(): HTMLElement[] {
+  return [...(document.getElementById('actions-rows')?.querySelectorAll('tr') ?? [])] as HTMLElement[];
+}
+
+test('the four stage groups are offered as chips and every row shows its own (V1-P-03)', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList(eightStatuses());
+
+  const chips = stageChips();
+  expect(chips.map(chip => chip.dataset.stageGroup)).toEqual(STAGE_GROUPS);
+  chips.forEach((chip, index) => {
+    const group = STAGE_GROUPS[index];
+    // A native button, not a div: the filter is reachable and operable by keyboard
+    // alone, and its pressed state is announced instead of painted only.
+    expect(chip.tagName).toBe('BUTTON');
+    expect(chip).toHaveAttribute('type', 'button');
+    expect(chip).toHaveAttribute('aria-pressed');
+    // The label is the exact word of its group, and the count is the number of
+    // returned rows in it: eight statuses, two per group, so every chip reads 2.
+    expect(chip.querySelector('.stage-filter-label')?.textContent).toBe(STAGE_LABELS[group]);
+    expect(chip.querySelector('.count-badge')?.textContent).toBe('2');
+  });
+
+  const rendered = rows();
+  expect(rendered).toHaveLength(8);
+  rendered.forEach((row, index) => {
+    const status = Object.keys(STAGE_OF_STATUS)[index];
+    const group = STAGE_OF_STATUS[status];
+    // The eight-state chip stays exactly as it was; the projection sits beside it.
+    expect(row.querySelector(`.chip[data-status="${status}"]`)).not.toBeNull();
+    const stage = row.querySelector('[data-stage-group]') as HTMLElement | null;
+    expect(stage, status).not.toBeNull();
+    expect(stage?.dataset.stageGroup).toBe(group);
+    // The row names the group with the exact word of its projection, not a copy of
+    // the status word: "En curso" and "En revisión" stay distinguishable.
+    expect(stage?.textContent?.trim()).toBe(STAGE_LABELS[group]);
+  });
+});
+
+test('a stage chip narrows the returned rows and states its own selection (V1-P-03)', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList(eightStatuses());
+
+  const reviewed = document.querySelector('#actions-stage-filters [data-stage-group="reviewed"]') as HTMLButtonElement;
+  await userEvent.click(reviewed);
+
+  let rendered = rows();
+  expect(rendered).toHaveLength(2);
+  expect(rendered[0]).toHaveTextContent('Acción bloqueada');
+  expect(rendered[1]).toHaveTextContent('Acción devuelta');
+  expect(reviewed).toHaveAttribute('aria-pressed', 'true');
+  for (const other of stageChips().filter(chip => chip !== reviewed)) {
+    expect(other).toHaveAttribute('aria-pressed', 'false');
+  }
+  // A narrowed view states both numbers: what it shows and what it read.
+  expect(text('actions-count')).toBe('2 de 8 acciones');
+
+  // The same control releases the filter, so nothing hidden becomes unreachable.
+  await userEvent.click(reviewed);
+  rendered = rows();
+  expect(rendered).toHaveLength(8);
+  expect(reviewed).toHaveAttribute('aria-pressed', 'false');
+  expect(text('actions-count')).toBe('8 acciones');
+});
+
+test('a stage filter that matches no returned row keeps the filtered card and its reset (V1-P-03)', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  // `propuesta` projects onto candidate, so a closed filter matches nothing.
+  await answerList([actionFixture()]);
+
+  await userEvent.click(
+    document.querySelector('#actions-stage-filters [data-stage-group="closed"]') as HTMLButtonElement,
+  );
+
+  // The empty queue and the filtered-to-nothing queue are different facts.
+  expect(document.getElementById('actions-empty')).toBeNull();
+  expect(document.getElementById('actions-filter-empty')).not.toBeNull();
+  expect(rows()).toHaveLength(0);
+
+  await userEvent.click(document.getElementById('actions-clear-filters') as HTMLButtonElement);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL).length).toBeGreaterThanOrEqual(2));
+  await answerList([actionFixture()]);
+  await waitFor(() => expect(document.getElementById('actions-filter-empty')).toBeNull());
+  expect(rows()).toHaveLength(1);
+});
+
+test('the stage a response declares wins, and an undeclared one is never translated (V1-P-03)', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList([
+    actionFixture({ id: 'action-1', title: 'Declarada', status: 'propuesta', stage_group: 'closed' }),
+    actionFixture({ id: 'action-2', title: 'No declarada', status: 'asignada', stage_group: 'archived' }),
+  ]);
+
+  const rendered = rows();
+  // The service owns the projection, so its declared value is the one shown even
+  // when the page's own transcription of the same status would say otherwise.
+  expect(rendered[0].querySelector('[data-stage-group]')).toHaveAttribute('data-stage-group', 'closed');
+  // A value the contract does not declare is shown as it arrived: translating it
+  // into one of the four would invent a group for a state the page cannot name.
+  expect(rendered[1].querySelector('[data-stage-group]')).toHaveAttribute('data-stage-group', 'archived');
+  expect(stageChips().every(chip => chip.getAttribute('aria-pressed') === 'false')).toBe(true);
+});

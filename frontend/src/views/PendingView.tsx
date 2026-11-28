@@ -38,8 +38,14 @@ export type UnimplementedCapability = {
 // `POST /v1/prevention/actions/{id}/transitions` and `POST
 // /v1/prevention/actions/{id}/reassessments` (both in `#actions`) — and one test
 // covers the role rejection of each together with the state it leaves published.
-// The entry declared the opposite, so it leaves the inventory and the count is
-// the four rows that remain.
+//
+// V1-P-03 retired «Estados candidate, in_progress, reviewed y closed»: the four
+// groups are not a second vocabulary but the canonical projection of the eight
+// frozen statuses (`stage_group`), published in `firewatch-v1.yaml`, computed by
+// the service on every read, accepted as the `stage_group` filter, and rendered
+// as a chip and as a filter control in `#actions`. The entry declared that those
+// states existed in no contract, so it leaves the inventory and the count is the
+// three rows that remain.
 // eslint-disable-next-line react-refresh/only-export-components
 export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
   {
@@ -53,12 +59,6 @@ export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
     reason:
       'El backend clasifica la zona con el lote publicado y no calcula prioridad regional ni contexto por comuna.',
     location: 'Ficha de detalle de la zona',
-  },
-  {
-    capability: 'Estados candidate, in_progress, reviewed y closed',
-    reason:
-      'El backend informa el estado del trabajo (en cola, publicado) y el estado del dato; esos cuatro estados no existen en ningún contrato.',
-    location: 'Chips de estado',
   },
   {
     capability: 'Revisar e incorporar registros, y hallazgos de calidad',

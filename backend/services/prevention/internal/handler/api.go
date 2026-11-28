@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -25,9 +26,9 @@ import (
 // returned by the store, so the transport depends on the operations of the
 // contract and nothing else.
 type Repository interface {
-	// List returns the actions matching the optional filters, newest first. An
-	// empty filter narrows nothing.
-	List(ctx context.Context, communityCode, status string) ([]repository.Action, error)
+	// List returns the actions matching the filters, newest first. An empty filter
+	// field narrows nothing.
+	List(ctx context.Context, filter repository.ListFilters) ([]repository.Action, error)
 	// Create inserts one action in the initial propuesta state, attributed to
 	// input.CreatedBy.
 	Create(ctx context.Context, input repository.NewAction) (repository.Action, error)
@@ -80,54 +81,75 @@ func NewWithOperationalStatus(store Repository, verifier Verifier, dir Directory
 	return Authorize(verifier, mux)
 }
 
-// list serves GET /v1/prevention/actions. Both query parameters are optional
+// list serves GET /v1/prevention/actions. All three query parameters are optional
 // filters: an omitted one narrows nothing, which is what the contract's
-// "?community_code=&status=" form means. A parameter that is repeated, unknown, or
-// not a state of the vocabulary is malformed input and is refused before storage
-// is touched.
+// "?community_code=&status=&stage_group=" form means. A parameter that is
+// repeated, unknown, or not a value of its vocabulary is malformed input and is
+// refused before storage is touched.
 func list(store Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		communityCode, status, ok := listFilters(r)
+		filters, ok := listFilters(r)
 		if !ok {
 			fail(w, 422, "invalid_query")
 			return
 		}
-		actions, err := store.List(r.Context(), communityCode, status)
+		actions, err := store.List(r.Context(), filters)
 		if err != nil {
 			slog.Error("list_actions_failed", "request_id", r.Header.Get("X-Request-ID"))
 			fail(w, 503, "storage_unavailable")
 			return
 		}
-		// A nil slice would marshal as null, which is not the documented list. An
-		// empty result is a valid answer, so it is normalised to [] here instead
-		// of trusting every repository implementation to do it.
-		if actions == nil {
-			actions = []repository.Action{}
+		// An empty result is a valid answer, and a nil slice would marshal as null,
+		// which is not the documented list. Building the bodies from a sized slice
+		// normalises both facts in one step.
+		bodies := make([]repository.Action, 0, len(actions))
+		for _, action := range actions {
+			bodies = append(bodies, repository.WithStageGroup(action))
 		}
-		respond(w, 200, actions)
+		respond(w, 200, bodies)
 	}
 }
 
-// listFilters validates the list query and returns the two filter values.
-func listFilters(r *http.Request) (communityCode, status string, ok bool) {
-	query := r.URL.Query()
+// listFilters validates the list query and returns the filters the store applies.
+// The three keys are the ones the contract documents; anything else is refused
+// rather than ignored, so a misspelt filter cannot silently return the whole list.
+func listFilters(r *http.Request) (repository.ListFilters, bool) {
+	// The raw query is parsed explicitly because URL.Query() DISCARDS the parse
+	// error: a malformed pair such as `?stage_group=%ZZ` would then read as an
+	// omitted filter and answer the whole list, so the malformed request would be
+	// indistinguishable from a valid, unfiltered read. A query string that cannot be
+	// parsed is malformed input and is refused before storage is touched.
+	query, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		return repository.ListFilters{}, false
+	}
 	for key := range query {
-		if key != "community_code" && key != "status" {
-			return "", "", false
+		switch key {
+		case "community_code", "status", "stage_group":
+		default:
+			return repository.ListFilters{}, false
 		}
 	}
-	for _, key := range []string{"community_code", "status"} {
+	for _, key := range []string{"community_code", "status", "stage_group"} {
 		if len(query[key]) > 1 {
-			return "", "", false
+			return repository.ListFilters{}, false
 		}
 	}
-	status = query.Get("status")
+	var filters repository.ListFilters
+	filters.Status = query.Get("status")
 	// An unknown status would silently return an empty list, which reads as "no
 	// such actions" instead of "you asked for a state that does not exist".
-	if status != "" && !state.Valid(state.State(status)) {
-		return "", "", false
+	if filters.Status != "" && !state.Valid(state.State(filters.Status)) {
+		return repository.ListFilters{}, false
 	}
-	return query.Get("community_code"), status, true
+	filters.StageGroup = query.Get("stage_group")
+	// The same rule for the projection: an undeclared group is malformed input, not
+	// an empty answer, because the four groups are a closed vocabulary.
+	if filters.StageGroup != "" && !state.ValidStageGroup(state.StageGroup(filters.StageGroup)) {
+		return repository.ListFilters{}, false
+	}
+	filters.CommunityCode = query.Get("community_code")
+	return filters, true
 }
 
 // createRequest is the create body. Every field is a pointer so an omitted field
@@ -210,7 +232,7 @@ func create(store Repository, dir Directory) http.HandlerFunc {
 			"trace_id", r.Header.Get("X-Request-ID"),
 			"occurred_at", action.CreatedAt)
 		w.Header().Set("Location", "/v1/prevention/actions/"+action.ID)
-		respond(w, 201, action)
+		respond(w, 201, repository.WithStageGroup(action))
 	}
 }
 
@@ -312,6 +334,9 @@ func detail(store Repository) http.HandlerFunc {
 			fail(w, 503, "storage_unavailable")
 			return
 		}
+		// The detail is the same action plus its history, so it carries the same
+		// derived projection.
+		result.Action = repository.WithStageGroup(result.Action)
 		respond(w, 200, result)
 	}
 }
@@ -389,7 +414,7 @@ func transition(store Repository) http.HandlerFunc {
 			"to_status", action.Status,
 			"trace_id", r.Header.Get("X-Request-ID"),
 			"occurred_at", action.UpdatedAt)
-		respond(w, 200, action)
+		respond(w, 200, repository.WithStageGroup(action))
 	}
 }
 

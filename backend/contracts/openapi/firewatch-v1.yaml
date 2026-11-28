@@ -1577,12 +1577,21 @@ paths:
       operationId: listPreventiveActions
       description: >-
         Viewer/admin. Lists preventive actions, newest first, capped at 200
-        rows. Both query parameters are optional filters: an omitted one
+        rows. All three query parameters are optional filters: an omitted one
         narrows nothing, and an empty result is a valid answer rather than an
-        error. A parameter that is repeated, is not one of these two, or carries
-        a status outside the frozen vocabulary is refused 422 invalid_query
-        before anything is read, because an unrecognised status would otherwise
-        read as "no such actions" instead of "no such state".
+        error. A parameter that is repeated, is not one of these three, or
+        carries a status or a stage group outside its closed vocabulary is
+        refused 422 invalid_query before anything is read, because an
+        unrecognised value would otherwise read as "no such actions" instead of
+        "no such state".
+
+        Every returned action carries `stage_group`, the canonical projection of
+        its `status` onto the four stage groups, so a client filters by the group
+        without restating the 8 → 4 mapping.
+
+        A query string that cannot be percent-decoded is refused 422
+        invalid_query instead of being read as an omitted filter: a malformed
+        request must never be answered with the whole list.
       parameters:
         - in: query
           name: community_code
@@ -1597,6 +1606,14 @@ paths:
           name: status
           required: false
           schema: {$ref: '#/components/schemas/PreventiveActionState'}
+        - in: query
+          name: stage_group
+          required: false
+          description: >-
+            Narrows the read to the states that project onto this group. Applied
+            to the statuses of the group rather than to a stored copy, so the row
+            cap counts the rows that match.
+          schema: {$ref: '#/components/schemas/ActionStageGroup'}
       responses:
         '200':
           description: Actions matching the filters; [] when none matches.
@@ -1611,7 +1628,12 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422':
-          description: Invalid input; nothing was read.
+          description: >-
+            Invalid input; nothing was read. An unknown key, a repeated
+            parameter or a value outside the closed vocabulary is refused here,
+            and so is a query string with a malformed percent-encoded pair:
+            dropping it would read as an omitted filter and answer the whole
+            list.
           headers:
             X-Request-ID: {$ref: '#/components/headers/RequestID'}
             Cache-Control: {schema: {type: string, enum: [no-store]}}
@@ -3947,6 +3969,25 @@ components:
         - aceptada
         - devuelta
         - cancelada
+    ActionStageGroup:
+      type: string
+      description: >-
+        Canonical four-group projection of the frozen PreventiveActionState
+        vocabulary. It is derived from `status` and stored nowhere, so it can
+        never disagree with the state an action is in: candidate is propuesta
+        (DRAFT) and asignada (ASSIGNED); in_progress is en_curso (IN_PROGRESS)
+        and enviada (EVIDENCE_SUBMITTED); reviewed is bloqueada (UNDER_REVIEW)
+        and devuelta (REJECTED); closed is aceptada (COMPLETED) and cancelada
+        (CANCELLED). The mapping is deterministic and closed — every state
+        belongs to exactly one group — and it does not rename a state or add a
+        transition: the eight-state machine above is unchanged. A value outside
+        this enum is refused 422 invalid_query when used as the stage_group
+        filter, exactly like a status outside the frozen vocabulary.
+      enum:
+        - candidate
+        - in_progress
+        - reviewed
+        - closed
     PreventiveAction:
       type: object
       required:
@@ -3956,6 +3997,7 @@ components:
         - description
         - priority
         - status
+        - stage_group
         - assignee
         - assignee_id
         - due_date
@@ -3974,6 +4016,13 @@ components:
             for it, so it is deliberately not an enum; the empty string means
             the priority was not stated.
         status: {$ref: '#/components/schemas/PreventiveActionState'}
+        stage_group:
+          allOf:
+            - $ref: '#/components/schemas/ActionStageGroup'
+          description: >-
+            The group this action's status projects onto. Derived by the
+            service from `status` on every read; it is never accepted from a
+            client and never stored, so it cannot disagree with the state.
         assignee:
           type: string
           nullable: true

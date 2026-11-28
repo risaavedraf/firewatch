@@ -430,7 +430,7 @@ func TestListFiltersAndOrder(t *testing.T) {
 	if _, err := store.Transition(ctx, second.ID, string(state.Asignada), "admin-1", ""); err != nil {
 		t.Fatalf("transition: %v", err)
 	}
-	all, err := store.List(ctx, "list-community", "")
+	all, err := store.List(ctx, ListFilters{CommunityCode: "list-community"})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -443,14 +443,32 @@ func TestListFiltersAndOrder(t *testing.T) {
 	if all[0].Status != string(state.Asignada) || all[1].Status != string(state.Propuesta) {
 		t.Errorf("unexpected statuses %s and %s", all[0].Status, all[1].Status)
 	}
-	assigned, err := store.List(ctx, "list-community", string(state.Asignada))
+	assigned, err := store.List(ctx, ListFilters{CommunityCode: "list-community", Status: string(state.Asignada)})
 	if err != nil {
 		t.Fatalf("filtered list: %v", err)
 	}
 	if len(assigned) != 1 || assigned[0].ID != second.ID {
 		t.Errorf("status filter returned %+v", assigned)
 	}
-	other, err := store.List(ctx, "no-such-community", "")
+	// V1-P-03: a stage group narrows the read to the states it groups, in SQL, so
+	// the row cap applies to the rows that match instead of to a page filtered
+	// afterwards. `asignada` projects onto candidate and `propuesta` does too, so
+	// the group returns both fixtures while `reviewed` returns none.
+	candidates, err := store.List(ctx, ListFilters{CommunityCode: "list-community", StageGroup: string(state.StageCandidate)})
+	if err != nil {
+		t.Fatalf("stage-group list: %v", err)
+	}
+	if len(candidates) != 2 {
+		t.Errorf("the candidate group returned %d actions, want 2: %+v", len(candidates), candidates)
+	}
+	reviewed, err := store.List(ctx, ListFilters{CommunityCode: "list-community", StageGroup: string(state.StageReviewed)})
+	if err != nil {
+		t.Fatalf("stage-group list: %v", err)
+	}
+	if reviewed == nil || len(reviewed) != 0 {
+		t.Errorf("the reviewed group must be empty, got %#v", reviewed)
+	}
+	other, err := store.List(ctx, ListFilters{CommunityCode: "no-such-community"})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
