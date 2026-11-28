@@ -19,7 +19,7 @@
 // The element identifiers are the legacy contract preserved for N9; the visible
 // copy is Spanish and is copied from the retired page.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import {
   claimZoneBatchAggregateRead,
@@ -40,16 +40,21 @@ import { ExecutivePanel } from '../components/executive/ExecutivePanel';
 import { useExecutiveSummary } from '../components/executive/useExecutiveSummary';
 import { AerialWorkstation } from '../components/territory/AerialWorkstation';
 import { SectorCoverageTable } from '../components/territory/SectorCoverage';
-import { DataList, Metric, PanelHeading, StatusCopy, UnimplementedNote } from '../components/ui';
+import { DataList, Metric, PanelHeading, StatusCopy } from '../components/ui';
 import '../styles/aerial-workspace.css';
 import '../styles/history-workspace.css';
 import {
   batches,
+  EXPLAIN_QUESTION_LIMIT,
+  EXPLAIN_TOPICS,
+  explainRisk,
   history,
   latest,
   modelVersions,
   vegetation,
   zones,
+  type ExplainResult,
+  type ExplainTopic,
   type Failure,
   type Outcome,
 } from '../core/api';
@@ -116,6 +121,55 @@ const CANONICAL_FACTORS: readonly string[] = [
 const CANONICAL_FACTOR_SET = new Set(CANONICAL_FACTORS);
 const NO_READING = 'sin lectura';
 const NOT_INFORMED_BY_BATCH = 'no informada en el lote';
+
+// PM-17 — the five operational topics the explanatory assistant accepts, with the
+// Spanish label the selector shows. Only the label is localised: the value that
+// travels is the contract's own spelling, so the closed vocabulary cannot drift.
+const EXPLAIN_TOPIC_LABELS: Record<ExplainTopic, string> = {
+  FACTORES: 'Factores del cálculo',
+  PRIORIDAD: 'Prioridad operativa',
+  TENDENCIA: 'Tendencia entre publicaciones',
+  RECOMENDACIONES: 'Recomendaciones preventivas',
+  FUENTES: 'Fuentes y trazabilidad',
+};
+
+// The rejection notice names the code the service answered, so the reader can tell
+// a scope refusal from an outage. It is the GRD-I1 arm of the panel, and it names
+// the scope rules in the same order the service applies them, so the reader can tell
+// which one applied instead of seeing a generic "no permitido".
+const EXPLAIN_INPUT_REJECTED_COPY =
+  'GRD-I1 rechazó la consulta (GUARDRAIL_INPUT_REJECTED): el tópico, la comuna o la pregunta están fuera del alcance permitido. Cada palabra de la pregunta debe pertenecer al vocabulario de FireWatch —no se admite un término ajeno como «fotosíntesis»—, la pregunta debe usar el vocabulario del tópico elegido y anclarse en el lote, la regla o la lectura, referirse solo a la comuna seleccionada, y preguntar por la lectura del lote publicado, no por el clima de hoy ni por un pronóstico. No se leyó ningún lote y no se compuso ninguna respuesta.';
+
+// One settled exchange with the assistant. A refused answer and an unavailable one
+// are separate states on purpose: the first is a decision about the request, the
+// second is a failure of the exchange, and the page must not present one as the
+// other. Every settled state carries the zone it was asked about, so a selection
+// change derives `idle` instead of needing an effect that clears state.
+type ExplainState =
+  | { kind: 'idle' }
+  | { kind: 'loading'; zone: string }
+  | { kind: 'ready'; zone: string; result: ExplainResult }
+  | { kind: 'rejected'; zone: string; message: string }
+  | { kind: 'failed'; zone: string; message: string };
+
+// The assistant's own failure vocabulary. Each message states which guardrail or
+// which boundary refused the answer, because "no se pudo" would hide whether the
+// request was out of scope or the answer could not be grounded.
+function explainFailureMessage(failure: Failure): string {
+  if (failure.reason === 'no_published_batch') {
+    return 'La comuna no tiene un lote publicado, así que no hay nada que explicar. El asistente no inventa un nivel.';
+  }
+  if (failure.reason === 'GUARDRAIL_OUTPUT_BLOCKED') {
+    return 'La respuesta no superó la verificación GRD-I2 y el servicio la bloqueó. No se muestra ningún texto sin verificar.';
+  }
+  if (failure.reason === 'zone_mismatch' || failure.reason === 'batch_mismatch' || failure.reason === 'topic_mismatch') {
+    return 'La API devolvió una explicación de otra zona, otro lote u otro tópico; se descartó.';
+  }
+  if (failure.kind === 'malformed') {
+    return 'La respuesta del asistente no tiene la forma del contrato; se descartó.';
+  }
+  return failureMessage(failure, 'consultar el asistente');
+}
 
 type CatalogueState = { kind: 'ready'; collection: ZoneCollection } | { kind: 'error' };
 type CataloguePhase = 'idle' | 'loading' | 'ready' | 'error' | 'cleared';
@@ -478,6 +532,15 @@ export function OverviewView() {
   // PM-14 — el resultado de la única acción de la ficha. Vive en la región viva de
   // la tarjeta, así que un lector de pantalla escucha el guardado o su fallo.
   const [fichaStatus, setFichaStatus] = useState('');
+  // PM-17 — el asistente explicativo. La consulta es siempre explícita: la página no
+  // pide nada por tecleo, y el tópico y la pregunta solo seleccionan qué plantilla
+  // verifica el servicio sobre el lote publicado.
+  const [explainTopic, setExplainTopic] = useState<ExplainTopic>('FACTORES');
+  const [explainQuestion, setExplainQuestion] = useState('');
+  const [explainState, setExplainState] = useState<ExplainState>({ kind: 'idle' });
+  // Un ticket por envío: una respuesta lenta no puede pintarse como la de este lote
+  // después de otra consulta o de un cambio de zona.
+  const explainTicket = useRef(0);
   // Whether a real session was ever established. It separates "never connected"
   // (the count is still unknown, `—`) from "the session was closed" (the count
   // is explicitly uninformed), which the retired page distinguished the same way.
@@ -789,6 +852,61 @@ export function OverviewView() {
     }
   };
 
+  // PM-17 — el estado visible del asistente. Una respuesta asentada pertenece a la
+  // zona sobre la que se preguntó, así que mover la selección deriva `idle` en vez de
+  // volver a etiquetarla para otra comuna. La insignia y el texto distinguen tres
+  // desenlaces que no se pueden confundir: la respuesta verificada por los dos
+  // guardrails, el rechazo de alcance de `GRD-I1` y un intercambio que no se pudo
+  // completar.
+  const currentExplain: ExplainState =
+    explainState.kind === 'idle' || explainState.zone === selectedZone ? explainState : { kind: 'idle' };
+  const explainStateText =
+    currentExplain.kind === 'idle'
+      ? signedIn
+        ? 'Elige un tópico y pulsa «Explicar». El asistente compone el texto desde el lote publicado: no hay modelo de lenguaje y nada se envía por tecleo.'
+        : idleCopy(session, 'consultar el asistente')
+      : currentExplain.kind === 'loading'
+        ? 'Componiendo la explicación desde el lote publicado…'
+        : currentExplain.kind === 'ready'
+          ? `Explicación verificada · ${currentExplain.result.guardrails.input} · ${currentExplain.result.guardrails.output}`
+          : currentExplain.message;
+  const explainBadge =
+    currentExplain.kind === 'ready'
+      ? 'GRD-I1 + GRD-I2'
+      : currentExplain.kind === 'rejected'
+        ? 'GRD-I1 · RECHAZADO'
+        : currentExplain.kind === 'failed'
+          ? 'NO DISPONIBLE'
+          : 'SIN CONSULTAR';
+  const canExplain = signedIn && selectedZone !== '' && currentExplain.kind !== 'loading';
+
+  // El envío es explícito y lleva el lote que la ficha está mostrando: el
+  // transporte verifica que la respuesta cite ese lote y esa comuna, así que una
+  // respuesta lenta de una selección anterior no puede pintarse aquí.
+  const submitExplain = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!signedIn || selectedZone === '') return;
+    const ticket = explainTicket.current + 1;
+    explainTicket.current = ticket;
+    setExplainState({ kind: 'loading', zone: selectedZone });
+    const outcome = await explainRisk({
+      zoneId: selectedZone,
+      topic: explainTopic,
+      question: explainQuestion,
+      batchId: batchData?.id,
+    });
+    if (explainTicket.current !== ticket) return;
+    if (outcome.ok) {
+      setExplainState({ kind: 'ready', zone: selectedZone, result: outcome.data });
+      return;
+    }
+    if (outcome.failure.reason === 'GUARDRAIL_INPUT_REJECTED') {
+      setExplainState({ kind: 'rejected', zone: selectedZone, message: EXPLAIN_INPUT_REJECTED_COPY });
+      return;
+    }
+    setExplainState({ kind: 'failed', zone: selectedZone, message: explainFailureMessage(outcome.failure) });
+  };
+
   const originText = batchData === null ? 'Sin consultar' : batchData.demo === true ? DEMO_ORIGIN : DISCREPANT_ORIGIN;
   const noticeText =
     batchData === null
@@ -1010,10 +1128,6 @@ export function OverviewView() {
             </p>
           </div>
           <StatusCopy id="zone-pdf-status">{fichaStatus}</StatusCopy>
-          <UnimplementedNote>
-            Cobertura por sector: la API no publica lecturas ni un porcentaje de cobertura por sector. Su unidad es la
-            comuna (código CUT), así que esta ficha no muestra un porcentaje de cobertura.
-          </UnimplementedNote>
           {/*
             V1-P-01 / PM-12 — la cobertura de suelo y el entorno que el lote
             publicado trae como miembro aditivo. La capa es sintética y declarada,
@@ -1068,6 +1182,111 @@ export function OverviewView() {
               {zoneLandCover.kind === 'present' ? zoneLandCover.summary : zoneLandCover.reason}
             </StatusCopy>
           </div>
+        </article>
+
+        {/*
+          PM-17 — el asistente explicativo. Responde solo sobre el lote publicado de la
+          comuna seleccionada, con un texto que el servicio compone por plantilla y
+          verifica con GRD-I1 (entrada) y GRD-I2 (salida). No hay modelo de lenguaje:
+          la página no envía nada por tecleo y el envío es explícito.
+        */}
+        <article className="panel assistant-panel" id="assistant-panel" aria-labelledby="assistant-title">
+          <PanelHeading
+            eyebrow="ASISTENTE EXPLICATIVO"
+            titleId="assistant-title"
+            title="Pregunta sobre este lote"
+            badge={
+              <span className="neutral-tag" id="assistant-badge">
+                {explainBadge}
+              </span>
+            }
+          />
+          <StatusCopy id="assistant-status">{explainStateText}</StatusCopy>
+          <form id="assistant-form" className="assistant-form" onSubmit={submitExplain}>
+            <div className="field">
+              <label htmlFor="assistant-topic">Tópico a explicar</label>
+              <select
+                id="assistant-topic"
+                value={explainTopic}
+                disabled={!signedIn}
+                aria-describedby="assistant-topic-note"
+                onChange={(event) => setExplainTopic(event.target.value as ExplainTopic)}
+              >
+                {EXPLAIN_TOPICS.map((topic) => (
+                  <option key={topic} value={topic}>
+                    {EXPLAIN_TOPIC_LABELS[topic]}
+                  </option>
+                ))}
+              </select>
+              <p className="field-note" id="assistant-topic-note">
+                Cinco tópicos operativos: factores del cálculo, prioridad, tendencia, recomendaciones y fuentes. La
+                pregunta solo admite el vocabulario de FireWatch —un término ajeno la hace rechazar—, debe usar las
+                palabras del tópico elegido y nombrar el lote, la regla o la lectura: sin ese anclaje, o si nombra otra
+                comuna, o si pide el clima de hoy o un pronóstico, se rechaza con GRD-I1 (GUARDRAIL_INPUT_REJECTED)
+                antes de leer ningún lote.
+              </p>
+            </div>
+            <div className="field">
+              <label htmlFor="assistant-question">Pregunta (opcional)</label>
+              <input
+                id="assistant-question"
+                type="text"
+                autoComplete="off"
+                maxLength={EXPLAIN_QUESTION_LIMIT}
+                value={explainQuestion}
+                disabled={!signedIn}
+                aria-describedby="assistant-question-note"
+                onChange={(event) => setExplainQuestion(event.target.value)}
+              />
+              <p className="field-note" id="assistant-question-note">
+                {`Hasta ${EXPLAIN_QUESTION_LIMIT} caracteres. Escríbela solo con el vocabulario de FireWatch y sobre la comuna seleccionada, nombrando el lote, la regla o la lectura: una palabra ajena, un tópico distinto o una pregunta sin ese anclaje se rechaza. La pregunta nunca llega a un modelo de lenguaje: solo elige la plantilla que el servicio verifica sobre el lote publicado, que es la lectura de un corte pasado y no el clima de hoy ni un pronóstico.`}
+              </p>
+            </div>
+            <div className="form-actions">
+              <button id="assistant-submit" className="primary-button" type="submit" disabled={!canExplain}>
+                Explicar
+              </button>
+            </div>
+          </form>
+
+          {currentExplain.kind === 'ready' ? (
+            <div id="assistant-answer">
+              <p id="assistant-guardrails">
+                <span className="neutral-tag" id="assistant-guardrail-input">
+                  {currentExplain.result.guardrails.input}
+                </span>{' '}
+                <span className="neutral-tag" id="assistant-guardrail-output">
+                  {currentExplain.result.guardrails.output}
+                </span>
+              </p>
+              <p id="assistant-citation">{`Lote citado: ${currentExplain.result.batch_id} · ${currentExplain.result.zone_name} (${currentExplain.result.zone_id}) · nivel ${currentExplain.result.risk_level}`}</p>
+              <p id="assistant-answer-text">{currentExplain.result.answer}</p>
+              <ul id="assistant-factors" aria-label="Variables citadas por la respuesta">
+                {currentExplain.result.factors.map((factor) => (
+                  <li key={factor.name}>
+                    {factor.known
+                      ? `${factor.name}: ${factor.value} · contribución ${factor.contribution}`
+                      : `${factor.name}: ${NO_READING}`}
+                  </li>
+                ))}
+              </ul>
+              <p className="panel-note" id="assistant-notice">
+                {currentExplain.result.notice}
+              </p>
+            </div>
+          ) : null}
+
+          {currentExplain.kind === 'rejected' ? (
+            <p id="assistant-rejected">
+              <strong>GRD-I1:</strong> {currentExplain.message}
+            </p>
+          ) : null}
+
+          <p className="panel-note" id="assistant-panel-note">
+            El asistente compone la respuesta localmente desde el lote publicado, cita el lote y la comuna que usó y
+            no inventa variables que el lote no trae. No crea acciones, no publica nada y no llama a ningún proveedor
+            de lenguaje externo.
+          </p>
         </article>
       </div>
 

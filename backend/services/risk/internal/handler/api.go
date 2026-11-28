@@ -143,6 +143,13 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 	// locally from the rule the batch recorded and writes no row. No gateway change
 	// is needed: /v1/risk/ is already proxied as a subtree.
 	mux.HandleFunc("POST /v1/risk/simulate", simulate(store))
+	// PM-17 is the explanatory assistant, and it is mounted here for the same
+	// reasons as the simulation above: it is a viewer/admin read inside the
+	// Authorize gate, it composes the answer locally instead of calling any
+	// language model, and it writes nothing. GRD-I1 runs before the single storage
+	// read and GRD-I2 runs on the composed answer, so neither guardrail can be
+	// skipped by a caller. /v1/risk/ is already proxied as a subtree.
+	mux.HandleFunc("POST /v1/risk/explain", explainAnswer(store))
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
 	mux.HandleFunc("GET /v1/risk/infrastructure", listInfrastructure())

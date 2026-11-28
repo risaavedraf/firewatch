@@ -41,7 +41,12 @@ func jobsPathItem(t *testing.T, path string) string {
 	if err != nil {
 		t.Fatalf("read the published contract: %v", err)
 	}
-	lines := strings.Split(string(raw), "\n")
+	// A checkout with autocrlf rewrites this .yaml to CRLF, and both comparisons
+	// below are exact against the line, so the endings are normalised here instead
+	// of making the declared policy depend on how the file was checked out. This
+	// changes no assertion: the path line and the policy sentence are still matched
+	// exactly.
+	lines := strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n")
 	start := -1
 	for index, line := range lines {
 		if line == "  "+path+":" {

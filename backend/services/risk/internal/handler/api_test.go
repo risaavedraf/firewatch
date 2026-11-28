@@ -87,6 +87,11 @@ type fakeStore struct {
 	sourceReviewErr     error
 	sourceReviewReadErr error
 	sourceReviewWrites  []repository.SourceReviewRequest
+	// listQueries records the zone and limit of every List call and listErr forces a
+	// storage failure, so a test can prove the explain route reads one bounded window
+	// for the requested zone and fails closed when the read fails.
+	listQueries []listQuery
+	listErr     error
 }
 
 // LatestSourceReviews stands in for the newest-review-per-source read. A store with
@@ -124,6 +129,12 @@ func (s *fakeStore) RecordSourceReview(_ context.Context, request repository.Sou
 	}
 	s.sourceReviews[review.SourceID] = review
 	return review, nil
+}
+
+// listQuery is one bounded history read the fake observed.
+type listQuery struct {
+	Zone  string
+	Limit int
 }
 
 func (s *fakeStore) ExecutiveBatches(context.Context) ([][]repository.Batch, error) {
@@ -164,8 +175,12 @@ func (s *fakeStore) ActivateModel(_ context.Context, version string) (repository
 	return repository.ModelVersion{Version: version, Kind: "rule", Active: true, ApprovedAt: &approved, Metrics: []byte("{}")}, nil
 }
 
-func (s *fakeStore) List(context.Context, string, int) ([]repository.Batch, error) {
+func (s *fakeStore) List(_ context.Context, zone string, limit int) ([]repository.Batch, error) {
 	s.calls++
+	s.listQueries = append(s.listQueries, listQuery{Zone: zone, Limit: limit})
+	if s.listErr != nil {
+		return nil, s.listErr
+	}
 	return s.batches, nil
 }
 
