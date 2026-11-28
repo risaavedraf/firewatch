@@ -16,3 +16,5 @@ export * from './assignment';
 export * from './cycle';
 export * from './model';
 export * from './job-progress';
+// V1-P-02 / PM-11 — how the served regional priority is read and stated.
+export * from './priority';

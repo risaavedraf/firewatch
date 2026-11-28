@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -8,6 +9,66 @@ import (
 	"firewatch.local/prevention/internal/repository"
 	"firewatch.local/prevention/internal/state"
 )
+
+// statefulReassessmentStore is the storage the reassessment route really writes into
+// and the detail route really reads back from. The canned matrixStore answers the
+// write with a fixture and stores nothing, so a test built on it can only assert
+// what the handler ASKED for; this one keeps what was recorded, which is what makes
+// the resulting-state readback evidence.
+type statefulReassessmentStore struct {
+	*matrixStore
+	stored []repository.Reassessment
+}
+
+func newStatefulReassessmentStore() *statefulReassessmentStore {
+	return &statefulReassessmentStore{matrixStore: &matrixStore{status: state.Enviada}}
+}
+
+// LinkReassessment appends the link the handler really asked for and answers it,
+// exactly as the guarded transaction does: the action, the job the caller named and
+// the actor the API gate proved.
+func (s *statefulReassessmentStore) LinkReassessment(_ context.Context, id, jobID, linkedBy string) (repository.Reassessment, error) {
+	s.linkCalls++
+	s.lastLinkJobID, s.lastLinkLinkedBy = jobID, linkedBy
+	record := repository.Reassessment{
+		ID:        int64(len(s.stored) + 1),
+		ActionID:  id,
+		JobID:     jobID,
+		BatchID:   "batch-1",
+		Version:   "academic-rule-v1",
+		RiskLevel: "medio",
+		ZoneID:    "valparaiso-demo",
+		Synthetic: true,
+		LinkedBy:  linkedBy,
+	}
+	s.stored = append(s.stored, record)
+	return record, nil
+}
+
+// Get serves the detail read with the reassessments that are actually stored, so the
+// readback the test asserts on comes from the same state the write touched.
+func (s *statefulReassessmentStore) Get(_ context.Context, id string) (repository.Detail, error) {
+	s.getCalls++
+	if s.getErr != nil {
+		return repository.Detail{}, s.getErr
+	}
+	if s.notFound {
+		return repository.Detail{}, repository.ErrActionNotFound
+	}
+	return repository.Detail{
+		Action: repository.Action{
+			ID:            id,
+			CommunityCode: "valparaiso",
+			Title:         "Cortafuegos",
+			Status:        string(s.status),
+		},
+		History:            []repository.History{},
+		Evidence:           []repository.Evidence{},
+		EvidenceReviews:    []repository.EvidenceReview{},
+		Reassessments:      append([]repository.Reassessment(nil), s.stored...),
+		EvidenceSufficient: s.evidenceSufficient,
+	}, nil
+}
 
 // The evidence, human-review and synthetic-reassessment routes are the S2 half of
 // the preventive contract: an admin records bounded, credential-free references
@@ -110,6 +171,73 @@ func TestReassessmentRouteRejectsAFabricatedPayload(t *testing.T) {
 		if code := errorBody(t, w)["code"]; code != "invalid_reassessment_request" {
 			t.Errorf("code %q, want invalid_reassessment_request", code)
 		}
+	}
+}
+
+// V1-P-06 (S1-S2): the reassessment is the third G6 action, and the criterion asks
+// for the rejection AND the resulting state. This test therefore proves the state
+// the write leaves by READING IT BACK through `GET /v1/prevention/actions/{id}`,
+// not by trusting the write's own answer: a refused request must leave no stored
+// reassessment at all, and an accepted one must persist the link with the action,
+// the job the caller named and the verified token subject as its operator.
+func TestReassessmentRoleGateAndResultingState(t *testing.T) {
+	const jobID = "6f1e7b0a-2f4f-4a3f-9a5b-1d3c7e9f2a44"
+	for _, tc := range []struct {
+		name, role string
+		want       int
+		wantStored int
+	}{
+		{"unauthenticated is refused", "", http.StatusUnauthorized, 0},
+		{"viewer is refused", "viewer", http.StatusForbidden, 0},
+		{"admin records the reassessment", "admin", http.StatusCreated, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newStatefulReassessmentStore()
+			h, signer := app(t, store)
+			w := requestWith(t, h, http.MethodPost,
+				"/v1/prevention/actions/"+fixedActionID+"/reassessments",
+				bearerFor(t, signer, tc.role),
+				`{"job_id":"`+jobID+`"}`)
+
+			if w.Code != tc.want {
+				t.Fatalf("answered %d, want %d: %s", w.Code, tc.want, w.Body.String())
+			}
+
+			// The readback is a plain read, so a refused write can still be inspected:
+			// what was stored is a property of the repository, not of the caller.
+			read := requestWith(t, h, http.MethodGet, "/v1/prevention/actions/"+fixedActionID,
+				token(t, signer, "viewer", "reader-1"), "")
+			if read.Code != http.StatusOK {
+				t.Fatalf("the detail readback answered %d: %s", read.Code, read.Body.String())
+			}
+			var body struct {
+				Reassessments []repository.Reassessment `json:"reassessments"`
+			}
+			if err := json.Unmarshal(read.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.wantStored == 0 {
+				if len(body.Reassessments) != 0 {
+					t.Fatalf("a refused request left %d stored reassessments: %+v", len(body.Reassessments), body.Reassessments)
+				}
+				return
+			}
+
+			if len(body.Reassessments) != tc.wantStored {
+				t.Fatalf("stored %d reassessments, want %d: %+v", len(body.Reassessments), tc.wantStored, body.Reassessments)
+			}
+			stored := body.Reassessments[0]
+			if stored.ActionID != fixedActionID {
+				t.Errorf("stored reassessment action_id %q, want %q", stored.ActionID, fixedActionID)
+			}
+			if stored.JobID != jobID {
+				t.Errorf("stored reassessment job_id %q, want %q", stored.JobID, jobID)
+			}
+			if stored.LinkedBy != "operator-1" {
+				t.Errorf("stored reassessment linked_by %q, want the verified token subject", stored.LinkedBy)
+			}
+		})
 	}
 }
 

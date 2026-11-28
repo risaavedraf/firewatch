@@ -64,10 +64,7 @@ const RETIRED_ALL_ZONES_CAPABILITY = 'Historial de todas las zonas';
 
 const EXPECTED_CAPABILITIES = [
   'Cobertura y entorno por sector',
-  'Contexto y prioridad por sector',
-  'Estados candidate, in_progress, reviewed y closed',
   'Revisar e incorporar registros, y hallazgos de calidad',
-  'Publicar lote, avance manual y reevaluación',
 ];
 
 test('the retired audit entry is gone and its neighbouring rows are untouched (PM-10 / V1-P-07)', () => {
@@ -84,17 +81,17 @@ test('the retired audit entry is gone and its neighbouring rows are untouched (P
   expect(capabilities).not.toContain(RETIRED_AUDIT_CAPABILITY);
   expect(document.getElementById('pending-rows')).not.toHaveTextContent(/nombre del actor/i);
 
-  // Nothing else moved: same five capabilities, same order. A retirement that
-  // also dropped, reordered or rewrote a neighbour is the regression this catches.
+  // Nothing else moved: same capabilities, same order. A retirement that also
+  // dropped, reordered or rewrote a neighbour is the regression this catches.
   expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
   expect(NOT_IMPLEMENTED).toHaveLength(EXPECTED_CAPABILITIES.length);
 
   // The two rows that used to surround the retired entry keep their full cells.
   const last = [...rows[rows.length - 1].querySelectorAll('td')].map(cell => cell.textContent?.trim());
   expect(last).toEqual([
-    'Publicar lote, avance manual y reevaluación',
-    'No existe endpoint: el servidor decide y publica por su cuenta; la página solo solicita el trabajo y lee el resultado.',
-    'Procesamiento asíncrono',
+    'Revisar e incorporar registros, y hallazgos de calidad',
+    'GET /v1/risk/sources publica la procedencia y la integridad reales; no existe un catálogo de hallazgos de calidad. Las acciones preventivas viven ahora en su propia vista (#actions).',
+    'Fuentes y procedencia',
   ]);
   const first = [...rows[0].querySelectorAll('td')].map(cell => cell.textContent?.trim());
   expect(first).toEqual([
@@ -121,11 +118,127 @@ test('the retired all-zones history entry is gone and the count is the real one 
   expect(capabilities).not.toContain(RETIRED_ALL_ZONES_CAPABILITY);
   expect(document.getElementById('pending-rows')).not.toHaveTextContent(/historial de todas las zonas/i);
 
-  // Five rows: the row count the exported list and the rendering agree on.
-  expect(EXPECTED_CAPABILITIES).toHaveLength(5);
-  expect(NOT_IMPLEMENTED).toHaveLength(5);
-  expect(rows).toHaveLength(5);
+  // The row count the exported list and the rendering agree on.
+  expect(EXPECTED_CAPABILITIES).toHaveLength(2);
+  expect(NOT_IMPLEMENTED).toHaveLength(2);
+  expect(rows).toHaveLength(2);
   expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
+});
+
+// V1-P-06 — the three G6 actions exist as authenticated endpoints with a role
+// gate, the page offers them, so the row that declared «Publicar lote, avance
+// manual y reevaluación» an absence leaves the inventory. As with the two
+// retirements above, both halves are pinned: the entry is gone from the exported
+// list and from the rendering, and the row count is the real one — the surviving
+// rows, not a stale copy of an older total.
+const RETIRED_MANUAL_PUBLISH_CAPABILITY = 'Publicar lote, avance manual y reevaluación';
+
+test('the retired manual publish entry is gone and the count is the real one (V1-P-06)', () => {
+  render(<PendingView />);
+
+  const tbody = document.getElementById('pending-rows') as HTMLElement | null;
+  expect(tbody).not.toBeNull();
+  const rows = [...(tbody as HTMLElement).querySelectorAll('tr')];
+  const capabilities = rows.map(row => row.querySelector('td')?.textContent?.trim() ?? '');
+
+  expect(NOT_IMPLEMENTED.map(entry => entry.capability)).not.toContain(RETIRED_MANUAL_PUBLISH_CAPABILITY);
+  expect(capabilities).not.toContain(RETIRED_MANUAL_PUBLISH_CAPABILITY);
+  expect(document.getElementById('pending-rows')).not.toHaveTextContent(/no existe endpoint/i);
+
+  // The real count: the exported list, the rendered rows and the head's badge all
+  // agree, and the surviving order is untouched.
+  expect(NOT_IMPLEMENTED).toHaveLength(2);
+  expect(rows).toHaveLength(2);
+  expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
+  expect(document.getElementById('pending-count')).toHaveTextContent('2');
+});
+
+// V1-P-03 — the owner's ratified decision keeps the eight frozen states and
+// publishes their canonical projection as four stage groups (`stage_group`),
+// rendered as the chips of `#actions`, so the row that declared «Estados
+// candidate, in_progress, reviewed y closed» an absence leaves the inventory. As
+// with every retirement above, both halves are pinned: the entry is gone from the
+// exported list and from the rendering, and the remaining three rows keep their
+// order, their cells and the head's real count.
+const RETIRED_STAGE_PROJECTION_CAPABILITY = 'Estados candidate, in_progress, reviewed y closed';
+
+test('the retired stage projection entry is gone and the count is the real one (V1-P-03)', () => {
+  render(<PendingView />);
+
+  const tbody = document.getElementById('pending-rows') as HTMLElement | null;
+  expect(tbody).not.toBeNull();
+  const rows = [...(tbody as HTMLElement).querySelectorAll('tr')];
+  const capabilities = rows.map(row => row.querySelector('td')?.textContent?.trim() ?? '');
+
+  expect(NOT_IMPLEMENTED.map(entry => entry.capability)).not.toContain(RETIRED_STAGE_PROJECTION_CAPABILITY);
+  expect(capabilities).not.toContain(RETIRED_STAGE_PROJECTION_CAPABILITY);
+  expect(document.getElementById('pending-rows')).not.toHaveTextContent(/esos cuatro estados no existen/i);
+
+  // The real count: two rows, in the order the survivors already had.
+  expect(NOT_IMPLEMENTED).toHaveLength(2);
+  expect(rows).toHaveLength(2);
+  expect(capabilities).toEqual(EXPECTED_CAPABILITIES);
+  expect(document.getElementById('pending-count')).toHaveTextContent('2');
+
+  // The first and last surviving rows keep their three filled cells.
+  const first = [...rows[0].querySelectorAll('td')].map(cell => cell.textContent?.trim());
+  expect(first).toEqual([
+    'Cobertura y entorno por sector',
+    'La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.',
+    'Tabla de sectores',
+  ]);
+  const last = [...rows[rows.length - 1].querySelectorAll('td')].map(cell => cell.textContent?.trim());
+  expect(last).toEqual([
+    'Revisar e incorporar registros, y hallazgos de calidad',
+    'GET /v1/risk/sources publica la procedencia y la integridad reales; no existe un catálogo de hallazgos de calidad. Las acciones preventivas viven ahora en su propia vista (#actions).',
+    'Fuentes y procedencia',
+  ]);
+});
+
+// V1-P-02 / PM-11 — the ratified five-category weighting and the regional
+// priority context are served by the risk reads and rendered by the zone detail
+// card and the infrastructure view, so the row that declared «Contexto y
+// prioridad por sector» an absence leaves the inventory. As with every retirement
+// above, both halves are pinned: the entry is gone from the exported list and from
+// the rendering, and the two surviving rows keep their order, their cells and the
+// head's real count.
+const RETIRED_PRIORITY_CONTEXT_CAPABILITY = 'Contexto y prioridad por sector';
+
+test('the retired priority context entry is gone and the count is the real one (V1-P-02 / PM-11)', () => {
+  render(<PendingView />);
+
+  const tbody = document.getElementById('pending-rows') as HTMLElement | null;
+  expect(tbody).not.toBeNull();
+  const rows = [...(tbody as HTMLElement).querySelectorAll('tr')];
+  const capabilities = rows.map(row => row.querySelector('td')?.textContent?.trim() ?? '');
+
+  expect(NOT_IMPLEMENTED.map(entry => entry.capability)).not.toContain(RETIRED_PRIORITY_CONTEXT_CAPABILITY);
+  expect(capabilities).not.toContain(RETIRED_PRIORITY_CONTEXT_CAPABILITY);
+  expect(document.getElementById('pending-rows')).not.toHaveTextContent(/no calcula prioridad regional/i);
+
+  // The real count: two rows, and the surviving order is the one they had around
+  // the retired entry.
+  expect(NOT_IMPLEMENTED).toHaveLength(2);
+  expect(rows).toHaveLength(2);
+  expect(capabilities).toEqual([
+    'Cobertura y entorno por sector',
+    'Revisar e incorporar registros, y hallazgos de calidad',
+  ]);
+  expect(document.getElementById('pending-count')).toHaveTextContent('2');
+
+  // Neither surviving row was dropped, reordered or rewritten.
+  const first = [...rows[0].querySelectorAll('td')].map(cell => cell.textContent?.trim());
+  expect(first).toEqual([
+    'Cobertura y entorno por sector',
+    'La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.',
+    'Tabla de sectores',
+  ]);
+  const last = [...rows[rows.length - 1].querySelectorAll('td')].map(cell => cell.textContent?.trim());
+  expect(last).toEqual([
+    'Revisar e incorporar registros, y hallazgos de calidad',
+    'GET /v1/risk/sources publica la procedencia y la integridad reales; no existe un catálogo de hallazgos de calidad. Las acciones preventivas viven ahora en su propia vista (#actions).',
+    'Fuentes y procedencia',
+  ]);
 });
 
 test('the view offers no button, link or interactive control for any listed capability', () => {
@@ -143,7 +256,7 @@ test('the view offers no button, link or interactive control for any listed capa
 
 // ── T7 — board 19's head, with the real count and no prototype links ───────
 // Board 19 opens the inventory with its scope and its count. The production
-// count is the five rows the list really carries, not the board's seven, and the
+// count is the four rows the list really carries, not the board's seven, and the
 // board's links to prototype screens are not ported: this page states absences
 // and offers no control that would imply the capability exists.
 test('the inventory states its real count and scope without adding a control (T7)', () => {

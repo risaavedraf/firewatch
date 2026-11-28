@@ -9,9 +9,99 @@ import (
 	"testing"
 	"time"
 
+	v1 "firewatch.local/contracts/events/v1"
+	"firewatch.local/risk/internal/classify"
 	"firewatch.local/risk/internal/cycle"
+	"firewatch.local/risk/internal/repository"
+	"firewatch.local/risk/internal/service"
 	"firewatch.local/risk/internal/source"
 )
+
+// statefulCycleStore is the storage the production publication path writes into and
+// the read route reads back from, so the role test proves the RESULTING STATE
+// through the API instead of trusting a runner's canned answer.
+//
+// It embeds the read fake for the routes this test never exercises, and adds the
+// two durability pieces the criterion needs: the manual/scheduled persistence
+// seams the publisher requires, and a `List` that serves what was really stored.
+type statefulCycleStore struct {
+	*fakeStore
+	published []repository.Batch
+}
+
+func newStatefulCycleStore(zone string) *statefulCycleStore {
+	return &statefulCycleStore{fakeStore: &fakeStore{zones: map[string]bool{zone: true}}}
+}
+
+// Publish is the job-completion seam. A cycle never reaches it (the runner uses the
+// two origin seams below), but the publisher's store contract requires it, so it
+// persists with the scheduled origin the column defaults to instead of pretending
+// an operator asked.
+func (s *statefulCycleStore) Publish(_ context.Context, request v1.Event, assessment repository.Assessment) error {
+	return s.persist(request, assessment, "scheduler", "")
+}
+
+func (s *statefulCycleStore) PublishScheduled(_ context.Context, request v1.Event, assessment repository.Assessment) error {
+	return s.persist(request, assessment, "scheduler", "")
+}
+
+func (s *statefulCycleStore) PublishManual(_ context.Context, request v1.Event, assessment repository.Assessment, actor string) error {
+	return s.persist(request, assessment, "manual", actor)
+}
+
+// persist records one batch exactly as the two provenance columns describe it: the
+// trigger the seam owns and, for a manual run, the operator the API gate proved.
+// The actor is never read from the request, which is what makes the readback
+// evidence of attribution rather than of echoing.
+func (s *statefulCycleStore) persist(request v1.Event, assessment repository.Assessment, trigger, actor string) error {
+	factors, err := json.Marshal(assessment.Factors)
+	if err != nil {
+		return err
+	}
+	published := request.RequestedAt
+	if published.IsZero() {
+		published = time.Now().UTC()
+	}
+	batch := repository.Batch{
+		ID:                request.ID,
+		JobID:             request.JobID,
+		ZoneID:            request.ZoneID,
+		RequestedAt:       request.RequestedAt,
+		PublishedAt:       published,
+		ValidUntil:        published.Add(24 * time.Hour),
+		ModelVersion:      assessment.ModelVersion,
+		Demo:              assessment.Demo,
+		DataStatus:        "verified",
+		RiskLevel:         assessment.RiskLevel,
+		Factors:           factors,
+		Rationale:         assessment.Rationale,
+		Notice:            "Sintético",
+		Policy:            assessment.Policy,
+		EvaluationTrigger: trigger,
+	}
+	if strings.TrimSpace(actor) != "" {
+		operator := actor
+		batch.EvaluatedBy = &operator
+	}
+	s.published = append(s.published, batch)
+	return nil
+}
+
+// List serves what was really stored, newest first, so `GET /v1/risk/latest` reads
+// the state the POST left instead of a fixture the test wrote twice.
+func (s *statefulCycleStore) List(_ context.Context, zone string, limit int) ([]repository.Batch, error) {
+	s.calls++
+	matches := make([]repository.Batch, 0, len(s.published))
+	for index := len(s.published) - 1; index >= 0; index-- {
+		if s.published[index].ZoneID == zone {
+			matches = append(matches, s.published[index])
+		}
+	}
+	if limit > 0 && len(matches) > limit {
+		matches = matches[:limit]
+	}
+	return matches, nil
+}
 
 // fakeCycle is the handler's view of the runner: it records run calls and serves
 // fixed statuses, so the routes are exercised without a scheduler or a database.
@@ -122,6 +212,94 @@ func TestCycleRunRequiresAdminAndRunsOnce(t *testing.T) {
 			}
 			if !result.Complete || len(result.Zones) != 1 || result.Zones[0].ZoneID != "valparaiso-demo" {
 				t.Fatalf("result = %+v", result)
+			}
+		})
+	}
+}
+
+// V1-P-06 (S1-S2): the manual publication's role gate and the state the ACCEPTED
+// call really leaves. The three G6 routes exist as authenticated endpoints with a
+// role gate, and the criterion asks for the rejection AND the resulting state — so
+// this test wires the production publication path (domain/cycle.New runner ->
+// service.Publisher -> storage) instead of a canned runner answer, and then reads
+// the state back through `GET /v1/risk/latest`. A refused request must leave that
+// read empty; an accepted one must serve the batch with the provenance the manual
+// origin records: `evaluation_trigger = manual` and `evaluated_by` equal to the
+// verified token subject.
+func TestManualCycleRunRoleGateAndResultingState(t *testing.T) {
+	const zone = "valparaiso-demo"
+	const subject = "operator-ana"
+	for _, tc := range []struct {
+		name       string
+		role       string
+		want       int
+		wantStored bool
+	}{
+		{"unauthenticated is refused", "", http.StatusUnauthorized, false},
+		{"viewer is refused", "viewer", http.StatusForbidden, false},
+		{"admin publishes and the read proves it", "admin", http.StatusOK, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newStatefulCycleStore(zone)
+			// The real publication path: the fixture provider is synthetic, the rule
+			// classifier is the shipped one, and the store persists through the manual
+			// seam that records the operator.
+			publisher := service.Publisher{
+				Provider:   source.NewFixtureProvider(),
+				Classifier: classify.NewAcademicRuleV1(),
+				Store:      store,
+			}
+			runner := cycle.New(source.NewFixtureProvider(), publisher, cycle.Options{Zones: []string{zone}})
+			handler, token := authorizedServerSubjectWith(t, tc.role, subject, store, runner)
+
+			r := httptest.NewRequest(http.MethodPost, "/v1/risk/cycle/run", nil)
+			// An empty role means the caller sent no token at all: 401 and 403 are
+			// different answers and this row proves they stay different.
+			if tc.role != "" {
+				r.Header.Set("Authorization", "Bearer "+token)
+			}
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+			if w.Code != tc.want {
+				t.Fatalf("got %d want %d: %s", w.Code, tc.want, w.Body.String())
+			}
+
+			// The readback uses its own reader router over the SAME store, so an
+			// unauthenticated or forbidden POST can still be read back: what it
+			// published (or did not) is a property of storage, not of the caller.
+			reader, readerToken := authorizedServerSubjectWith(t, "viewer", "reader-ana", store, runner)
+			latest := getZones(t, reader, readerToken, "/v1/risk/latest?zone_id="+zone)
+
+			if !tc.wantStored {
+				if latest.Code != http.StatusNotFound {
+					t.Fatalf("a refused run left a published batch: %d %s", latest.Code, latest.Body.String())
+				}
+				if len(store.published) != 0 {
+					t.Fatalf("a refused run stored %d batches", len(store.published))
+				}
+				return
+			}
+
+			if latest.Code != http.StatusOK {
+				t.Fatalf("the run published nothing: %d %s", latest.Code, latest.Body.String())
+			}
+			var batch repository.Batch
+			if err := json.Unmarshal(latest.Body.Bytes(), &batch); err != nil {
+				t.Fatal(err)
+			}
+			if batch.ZoneID != zone {
+				t.Errorf("the published batch is for zone %q, want %q", batch.ZoneID, zone)
+			}
+			if batch.ID == "" || batch.JobID == "" {
+				t.Errorf("the published batch carries no id/job id: %+v", batch)
+			}
+			// The provenance the manual origin records, read back from storage: the
+			// trigger and the operator's verified subject, never a request value.
+			if batch.EvaluationTrigger != "manual" {
+				t.Errorf("evaluation_trigger = %q, want manual", batch.EvaluationTrigger)
+			}
+			if batch.EvaluatedBy == nil || *batch.EvaluatedBy != subject {
+				t.Errorf("evaluated_by = %v, want the verified subject %q", batch.EvaluatedBy, subject)
 			}
 		})
 	}

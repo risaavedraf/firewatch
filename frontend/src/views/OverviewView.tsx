@@ -59,6 +59,10 @@ import {
   latestOutcome,
   levelLabel,
   presentBatch,
+  priorityNumber,
+  priorityRankLabel,
+  priorityStatusCopy,
+  priorityView,
   validityLabel,
   type ActiveModel,
   type BatchPresentation,
@@ -610,6 +614,11 @@ export function OverviewView() {
   const factorBars = batchData === null ? [] : computeFactorBars(batchData);
   const factorRows = overviewFactorRows(factorBars);
   const showFactorOmission = presentation !== null && presentation.omissions.includes('factores');
+  // V1-P-02 / PM-11 — el contexto regional que el backend calculó sobre el lote
+  // publicado. No se recalcula aquí: si la API no lo sirvió, la ficha lo dice en
+  // vez de derivar un puesto del nivel de riesgo.
+  const zonePriority = priorityView(batchData?.priority);
+  const priorityPlaced = zonePriority.kind === 'ranked';
 
   // T2 — la estación de trabajo. Cada frase es un hecho que esta vista ya leyó: la
   // única solicitud de lote de la sesión, la zona compartida, el tipo de respuesta
@@ -790,6 +799,52 @@ export function OverviewView() {
           <p id="risk-rationale">{rationaleText}</p>
           <h4>Política informada</h4>
           <p id="risk-policy">{policyText}</p>
+          {/*
+            V1-P-02 / PM-11 — la prioridad regional. Es la única parte de la ficha
+            que no proviene del clasificador: la calcula el backend sobre el lote
+            publicado, con la tabla ponderada ratificada, y aquí solo se muestra.
+          */}
+          <h4>Prioridad regional</h4>
+          <div className="zone-priority" id="zone-priority" data-status={zonePriority.kind}>
+            <DataList
+              items={[
+                {
+                  label: 'Prioridad',
+                  value: <span id="zone-priority-score">{priorityPlaced ? priorityNumber(zonePriority.priorityScore) : '—'}</span>,
+                },
+                {
+                  label: 'Puesto regional',
+                  value: (
+                    <span id="zone-priority-rank">
+                      {priorityPlaced ? priorityRankLabel(zonePriority.rank, zonePriority.total) : '—'}
+                    </span>
+                  ),
+                },
+                {
+                  label: 'Exposición',
+                  value: (
+                    <span id="zone-priority-exposure">
+                      {zonePriority.kind === 'absent' ? '—' : priorityNumber(zonePriority.exposureScore)}
+                    </span>
+                  ),
+                },
+                {
+                  label: 'Elementos ficticios declarados',
+                  value: (
+                    <span id="zone-priority-assets">
+                      {zonePriority.kind === 'absent' ? '—' : priorityNumber(zonePriority.assets)}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+            <StatusCopy id="zone-priority-status">{priorityStatusCopy(zonePriority)}</StatusCopy>
+            {zonePriority.kind === 'absent' ? null : (
+              <p id="zone-priority-summary" className="panel-note">
+                {zonePriority.summary}
+              </p>
+            )}
+          </div>
           <DataList
             items={[
               { label: 'Estado del dato', value: <span id="data-status">{batchField(batchData?.data_status)}</span> },

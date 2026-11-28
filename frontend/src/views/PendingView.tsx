@@ -31,6 +31,30 @@ export type UnimplementedCapability = {
 // and `#history` renders that series. A retired entry is not kept here as a
 // "recently fixed" note: an absence list that also lists what exists is no longer
 // a statement of what the page cannot do.
+//
+// V1-P-06 retired «Publicar lote, avance manual y reevaluación»: the three G6
+// actions exist as authenticated endpoints with a role gate — `POST
+// /v1/risk/cycle/run` (admin-only manual publication, offered by `#jobs`),
+// `POST /v1/prevention/actions/{id}/transitions` and `POST
+// /v1/prevention/actions/{id}/reassessments` (both in `#actions`) — and one test
+// covers the role rejection of each together with the state it leaves published.
+//
+// V1-P-03 retired «Estados candidate, in_progress, reviewed y closed»: the four
+// groups are not a second vocabulary but the canonical projection of the eight
+// frozen statuses (`stage_group`), published in `firewatch-v1.yaml`, computed by
+// the service on every read, accepted as the `stage_group` filter, and rendered
+// as a chip and as a filter control in `#actions`. The entry declared that those
+// states existed in no contract, so it leaves the inventory and the count is the
+// two rows that remain.
+//
+// V1-P-02 / PM-11 retired «Contexto y prioridad por sector»: the risk service now
+// computes the regional priority of every published zone with the ratified
+// weighted table of five critical-infrastructure categories and the 0..100 index
+// (`round(0.70 × risk_score + 0.30 × exposure_score)`), ranks the published batch
+// by `priority_score DESC, zone_id ASC`, and serves it as the batch's `priority`
+// member. `#overview` renders it in the zone detail card and `#infrastructure`
+// publishes the weight table with the per-comuna index, so the capability the row
+// declared absent is answered and the row leaves the inventory.
 // eslint-disable-next-line react-refresh/only-export-components
 export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
   {
@@ -40,28 +64,10 @@ export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
     location: 'Tabla de sectores',
   },
   {
-    capability: 'Contexto y prioridad por sector',
-    reason:
-      'El backend clasifica la zona con el lote publicado y no calcula prioridad regional ni contexto por comuna.',
-    location: 'Ficha de detalle de la zona',
-  },
-  {
-    capability: 'Estados candidate, in_progress, reviewed y closed',
-    reason:
-      'El backend informa el estado del trabajo (en cola, publicado) y el estado del dato; esos cuatro estados no existen en ningún contrato.',
-    location: 'Chips de estado',
-  },
-  {
     capability: 'Revisar e incorporar registros, y hallazgos de calidad',
     reason:
       'GET /v1/risk/sources publica la procedencia y la integridad reales; no existe un catálogo de hallazgos de calidad. Las acciones preventivas viven ahora en su propia vista (#actions).',
     location: 'Fuentes y procedencia',
-  },
-  {
-    capability: 'Publicar lote, avance manual y reevaluación',
-    reason:
-      'No existe endpoint: el servidor decide y publica por su cuenta; la página solo solicita el trabajo y lee el resultado.',
-    location: 'Procesamiento asíncrono',
   },
 ];
 

@@ -37,23 +37,23 @@ type matrixStore struct {
 	history []repository.History
 	note    string
 
-	action       repository.Action
-	detail       repository.Detail
-	list         []repository.Action
-	err          error
-	getErr       error
-	createErr    error
-	notFound     bool
-	lastList     [2]string
-	lastCreate   repository.NewAction
-	createCalls  int
-	listCalls    int
-	getCalls     int
-	transitions  int
-	lastTransID  string
-	lastTransTo  string
-	lastActorSub string
-	traceSeen    string
+	action          repository.Action
+	detail          repository.Detail
+	list            []repository.Action
+	err             error
+	getErr          error
+	createErr       error
+	notFound        bool
+	lastListFilters repository.ListFilters
+	lastCreate      repository.NewAction
+	createCalls     int
+	listCalls       int
+	getCalls        int
+	transitions     int
+	lastTransID     string
+	lastTransTo     string
+	lastActorSub    string
+	traceSeen       string
 
 	// evidenceSufficient mirrors the guard the real store evaluates inside the
 	// row-locked transaction: accepting an action is refused unless the current
@@ -70,9 +70,9 @@ type matrixStore struct {
 	lastLinkLinkedBy     string
 }
 
-func (s *matrixStore) List(_ context.Context, communityCode, status string) ([]repository.Action, error) {
+func (s *matrixStore) List(_ context.Context, filter repository.ListFilters) ([]repository.Action, error) {
 	s.listCalls++
-	s.lastList = [2]string{communityCode, status}
+	s.lastListFilters = filter
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -352,6 +352,78 @@ func TestTransitionRouteMatchesTheFrozenContract(t *testing.T) {
 	}
 }
 
+// V1-P-06 (S1-S2): the manual advance is one of the three G6 actions, and the
+// criterion asks for one test that covers the role rejection AND the state the
+// accepted call leaves. 401 and 403 are answered before the store is reached — the
+// action keeps its status and no history row is appended — while the admin's 200
+// is the transition really applied: the new status, exactly one history row, and
+// the verified token subject as its actor.
+func TestTransitionRoleGateAndResultingState(t *testing.T) {
+	for _, tc := range []struct {
+		name, role string
+		want       int
+	}{
+		{"unauthenticated is refused", "", http.StatusUnauthorized},
+		{"viewer is refused", "viewer", http.StatusForbidden},
+		{"admin advances the action", "admin", http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &matrixStore{status: state.Propuesta, action: repository.Action{ID: fixedActionID, Status: string(state.Propuesta)}}
+			h, signer := app(t, store)
+			w := requestWith(t, h, http.MethodPost,
+				"/v1/prevention/actions/"+fixedActionID+"/transitions",
+				bearerFor(t, signer, tc.role),
+				`{"to":"asignada","note":"turno noche"}`)
+
+			if w.Code != tc.want {
+				t.Fatalf("answered %d, want %d: %s", w.Code, tc.want, w.Body.String())
+			}
+			if tc.want != http.StatusOK {
+				// State unchanged: nothing reached storage, so the action is exactly
+				// where it was and no history row claims otherwise.
+				if store.transitions != 0 {
+					t.Errorf("a refused request reached storage %d times", store.transitions)
+				}
+				if store.status != state.Propuesta {
+					t.Errorf("a refused request changed the status to %q", store.status)
+				}
+				if len(store.history) != 0 {
+					t.Errorf("a refused request appended history: %+v", store.history)
+				}
+				return
+			}
+			if store.transitions != 1 {
+				t.Fatalf("the route called the store's transition %d times, want 1", store.transitions)
+			}
+			if store.status != state.Asignada {
+				t.Errorf("status %q after the transition, want asignada", store.status)
+			}
+			if store.note != "turno noche" {
+				t.Errorf("note %q must reach storage", store.note)
+			}
+			if len(store.history) != 1 {
+				t.Fatalf("the applied transition appended %d history rows, want 1: %+v", len(store.history), store.history)
+			}
+			entry := store.history[0]
+			if entry.FromStatus != string(state.Propuesta) || entry.ToStatus != string(state.Asignada) {
+				t.Errorf("history recorded %s -> %s", entry.FromStatus, entry.ToStatus)
+			}
+			if entry.ActorSub != "operator-1" {
+				t.Errorf("history actor %q, want the verified token subject", entry.ActorSub)
+			}
+			var got struct {
+				Status string `json:"status"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if got.Status != string(state.Asignada) {
+				t.Errorf("response status %q, want asignada", got.Status)
+			}
+		})
+	}
+}
+
 func TestTransitionRouteRejectsUnknownTargetStateWithoutCallingTheStore(t *testing.T) {
 	for _, target := range []string{"", "PENDIENTE", "pending", "en curso", "asignada "} {
 		t.Run(target, func(t *testing.T) {
@@ -554,13 +626,25 @@ func TestCreateActionAcceptsOmittedOptionalFields(t *testing.T) {
 
 func TestListRouteForwardsFiltersAndNeverReturnsNull(t *testing.T) {
 	for _, tc := range []struct {
-		name, target          string
-		communityCode, status string
+		name, target string
+		want         repository.ListFilters
 	}{
-		{name: "no filter", target: "/v1/prevention/actions", communityCode: "", status: ""},
-		{name: "community", target: "/v1/prevention/actions?community_code=valparaiso", communityCode: "valparaiso", status: ""},
-		{name: "status", target: "/v1/prevention/actions?status=en_curso", communityCode: "", status: "en_curso"},
-		{name: "both", target: "/v1/prevention/actions?community_code=valparaiso&status=devuelta", communityCode: "valparaiso", status: "devuelta"},
+		{name: "no filter", target: "/v1/prevention/actions", want: repository.ListFilters{}},
+		{
+			name:   "community",
+			target: "/v1/prevention/actions?community_code=valparaiso",
+			want:   repository.ListFilters{CommunityCode: "valparaiso"},
+		},
+		{
+			name:   "status",
+			target: "/v1/prevention/actions?status=en_curso",
+			want:   repository.ListFilters{Status: "en_curso"},
+		},
+		{
+			name:   "both",
+			target: "/v1/prevention/actions?community_code=valparaiso&status=devuelta",
+			want:   repository.ListFilters{CommunityCode: "valparaiso", Status: "devuelta"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := &matrixStore{list: nil}
@@ -572,8 +656,8 @@ func TestListRouteForwardsFiltersAndNeverReturnsNull(t *testing.T) {
 			if strings.TrimSpace(w.Body.String()) != "[]" {
 				t.Errorf("an empty list must serialise as [], got %s", w.Body.String())
 			}
-			if store.lastList != [2]string{tc.communityCode, tc.status} {
-				t.Errorf("filters forwarded as %v, want %v", store.lastList, [2]string{tc.communityCode, tc.status})
+			if store.lastListFilters != tc.want {
+				t.Errorf("filters forwarded as %+v, want %+v", store.lastListFilters, tc.want)
 			}
 		})
 	}

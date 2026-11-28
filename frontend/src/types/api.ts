@@ -8,6 +8,38 @@ export type RiskLevel = 'bajo' | 'medio' | 'alto' | 'desconocido';
 
 export const RISK_LEVELS: readonly RiskLevel[] = ['bajo', 'medio', 'alto', 'desconocido'];
 
+// The provenance of the evaluation itself, declared once for the whole page.
+// `BatchCore` is closed on exactly two values: `scheduler` means nobody asked for
+// the run, `manual` means a verified operator did. The union lives here, with the
+// shared payload declarations, so the domain, the transport guard and the view
+// cannot drift into three spellings of the same two words.
+export type EvaluationTrigger = 'scheduler' | 'manual';
+
+export const EVALUATION_TRIGGERS: readonly EvaluationTrigger[] = ['scheduler', 'manual'];
+
+// V1-P-02 / PM-11 — the regional context of one published zone. `priority_status`
+// is closed on two values: `ranked` means the zone holds a position in the
+// published batch, `insufficient` means the rule could not score it and it holds
+// none. The numeric members are nullable for exactly that reason: a zero would
+// read as the lowest priority instead of as the absence of one.
+export type PriorityStatus = 'ranked' | 'insufficient';
+
+export const PRIORITY_STATUSES: readonly PriorityStatus[] = ['ranked', 'insufficient'];
+
+export interface ZonePriority {
+  zone_id: string;
+  risk_level: RiskLevel | string;
+  priority_status: PriorityStatus;
+  risk_score: number | null;
+  exposure_score: number;
+  priority_score: number | null;
+  priority_rank: number | null;
+  total_ranked_zones: number;
+  exposed_assets_count: number;
+  dominant_category: string | null;
+  context_summary: string;
+}
+
 export interface Factor {
   name: string;
   known: boolean;
@@ -40,6 +72,20 @@ export interface RiskBatch {
   data_status?: string;
   scenario_id?: string | null;
   evaluated_at?: string | null;
+  // PM-06 BatchCore provenance: which evaluation produced this batch, and, for a
+  // manual one, the token subject of the operator who asked for it. `evaluated_by`
+  // is null (never an empty string) for a scheduled run, so "nobody asked" stays
+  // distinguishable from a blank actor. Both are optional because a row written
+  // before the provenance columns existed carries neither, and the declaration is
+  // not a runtime guarantee: the transport validates their types and the domain
+  // validates the closed vocabulary before the page shows either.
+  evaluation_trigger?: EvaluationTrigger;
+  evaluated_by?: string | null;
+  // V1-P-02 / PM-11: the regional priority the backend computed over the published
+  // batch. It is optional because only the reads that can see the whole batch
+  // serve it (`latest` and `batches`), and because a batch whose regional context
+  // could not be computed is served without it instead of with an invented one.
+  priority?: ZonePriority | null;
 }
 
 export type GeoGeometry =
@@ -207,6 +253,14 @@ export interface AuditEntry {
 // are not guarantees: every payload is validated at the transport boundary and
 // `action_history` is required by the detail route.
 
+// V1-P-03 — the canonical four-group projection of the eight frozen preventive
+// action statuses. The owner's ratified decision keeps the eight states exactly as
+// they are and publishes this projection on top of them: candidate (propuesta,
+// asignada), in_progress (en_curso, enviada), reviewed (bloqueada, devuelta) and
+// closed (aceptada, cancelada). It is derived from `status` and stored nowhere, so
+// it can never disagree with the state the action is in.
+export type ActionStageGroup = 'candidate' | 'in_progress' | 'reviewed' | 'closed';
+
 export interface PreventiveAction {
   id: string;
   community_code: string;
@@ -214,6 +268,11 @@ export interface PreventiveAction {
   description?: string;
   priority?: string;
   status: string;
+  // The group `status` projects onto. The service sends it on every read; it is
+  // optional here because a payload recorded before the projection existed omits
+  // it, and the page then derives the same group from `status` instead of
+  // inventing one. An undeclared value is shown as it arrived, never translated.
+  stage_group?: ActionStageGroup;
   // Nullable on the wire: the column is `*string`, so an unassigned action
   // carries `null` rather than an absent field.
   assignee?: string | null;

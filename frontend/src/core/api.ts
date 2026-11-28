@@ -19,6 +19,7 @@ import type {
   ActionHistoryEntry,
   AuditEntry,
   BatchCollection,
+  EvaluationTrigger,
   Job,
   ModelRegistry,
   Observation,
@@ -35,10 +36,11 @@ import type {
   ServiceSnapshot,
   SourceProvenance,
   ZoneCollection,
+  ZonePriority,
 } from '../types/api';
 // The closed type catalogues are runtime values: the guards compare the served
 // wire spelling against them, so they cannot travel through `import type`.
-import { OBSERVATION_TYPES, RISK_LEVELS } from '../types/api';
+import { EVALUATION_TRIGGERS, OBSERVATION_TYPES, RISK_LEVELS } from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -106,6 +108,12 @@ const COMPARE_ROUTE = '/v1/risk/compare';
 // lives beside the one function that uses it instead of being a bare literal.
 const AGGREGATE_STATUS_ROUTE = '/v1/status';
 
+// V1-P-06 — the manual publication of the risk cycle. Same reason as the two paths
+// above: `config.routes` lists the routes the retired page already knew and this
+// unit does not extend it, so the path is written once, here, and never as a bare
+// literal at the call site.
+const CYCLE_RUN_ROUTE = '/v1/risk/cycle/run';
+
 // A single bounded deadline for one transport read. The retired page bounded its
 // own status cycle at 10 s and fenced a hung fetch on the job path; the port
 // applies the same bound to every read so no route can hang the view.
@@ -128,6 +136,7 @@ type RequestKind =
   | 'audit'
   | 'createJob'
   | 'job'
+  | 'cycleRun'
   | 'preventiveActions'
   | 'preventiveAction'
   | 'createPreventiveAction'
@@ -370,14 +379,23 @@ function isGeometry(value: unknown): boolean {
 }
 
 function isFactor(value: unknown): boolean {
-  return (
-    record(value) &&
-    nonempty(value.name) &&
-    typeof value.known === 'boolean' &&
-    Number.isFinite(value.value) &&
-    Number.isFinite(value.contribution) &&
-    (value.note === undefined || typeof value.note === 'string')
-  );
+  if (!record(value)) return false;
+  if (!nonempty(value.name) || typeof value.known !== 'boolean') return false;
+  // The contract leaves value and contribution optional, and the classifier omits
+  // them for a variable it could not read. A number that IS present must still be
+  // a real number, so a string or a NaN cannot slip through as a measurement.
+  if (!optionalFiniteNumber(value.value) || !optionalFiniteNumber(value.contribution)) return false;
+  if (value.known === true) {
+    // A known variable carries the numbers the rule measured. Without them it is
+    // not an incomplete reading to be averaged over: it is a shape this client
+    // refuses instead of rendering a value nobody served.
+    if (typeof value.value !== 'number' || typeof value.contribution !== 'number') return false;
+  }
+  return value.note === undefined || typeof value.note === 'string';
+}
+
+function optionalFiniteNumber(value: unknown): boolean {
+  return value === undefined || Number.isFinite(value);
 }
 
 function isPolicy(value: unknown): boolean {
@@ -404,6 +422,90 @@ function nullableUuid(value: unknown): boolean {
   return value === undefined || value === null || (typeof value === 'string' && UUID_PATTERN.test(value));
 }
 
+// The evaluation's provenance, as `BatchCore` declares it. The trigger's closed
+// vocabulary is validated here instead of being tolerated as an arbitrary string:
+// the declaration hands a caller `'scheduler' | 'manual'`, a type predicate must not
+// hand it a value outside that union, and the service writes only those two (the
+// column is NOT NULL with a default). The actor is nullable because a scheduled run
+// records no actor at all. A payload that predates the columns omits both, which
+// stays accepted.
+function isEvaluationTrigger(value: unknown): value is EvaluationTrigger {
+  return EVALUATION_TRIGGERS.some(trigger => trigger === value);
+}
+
+function optionalEvaluationTrigger(value: unknown): boolean {
+  return value === undefined || isEvaluationTrigger(value);
+}
+
+// V1-P-02 / PM-11 — the regional priority member. The status is closed, the three
+// nullable numbers must actually be null when the backend could not place the zone
+// and an integer when it did, and a summary is always a string. A payload that
+// breaks either half is malformed instead of being rendered as a plausible rank.
+function isZonePriority(value: unknown): value is ZonePriority {
+  if (!record(value)) return false;
+  // The level is the closed vocabulary the contract publishes, not free text: a
+  // context that names an undeclared level would be rendered as a classification.
+  if (!nonempty(value.zone_id) || !isRiskLevel(value.risk_level)) return false;
+  if (value.priority_status !== 'ranked' && value.priority_status !== 'insufficient') return false;
+  if (!nullableInteger(value.risk_score) || !nullableInteger(value.priority_score) || !nullableInteger(value.priority_rank)) {
+    return false;
+  }
+  if (!integer(value.exposure_score) || value.exposure_score < 0 || value.exposure_score > 100) return false;
+  if (!integer(value.total_ranked_zones) || value.total_ranked_zones < 0) return false;
+  if (!integer(value.exposed_assets_count) || value.exposed_assets_count < 0) return false;
+  if (!isDominantCategory(value.dominant_category)) return false;
+  if (typeof value.context_summary !== 'string') return false;
+  const placed = value.priority_status === 'ranked';
+  if (placed) {
+    // S3 — a zone the rule could not decide holds no position: `desconocido` is a
+    // level the rule states, not a low one. A `ranked` block naming it contradicts
+    // itself and would print a rank nobody computed.
+    if (value.risk_level === 'desconocido') return false;
+    const allPresent = value.risk_score !== null && value.priority_score !== null && value.priority_rank !== null;
+    return allPresent && isRankedPriority(value);
+  }
+  const allAbsent = value.risk_score === null && value.priority_score === null && value.priority_rank === null;
+  // An insufficient zone holds no position at all, so the three members are
+  // all-or-nothing: a partial block would print a rank nobody computed. The ranked
+  // total may be zero here, because a batch where nothing could be scored is a real
+  // answer and not an invalid one.
+  return allAbsent;
+}
+
+// The five ratified categories a dominant category can name. The vocabulary is
+// closed: the contract publishes exactly these keys, and a value outside it would
+// be printed as a category nobody ratified.
+const DOMINANT_CATEGORIES = ['hospital', 'escuela', 'subestacion', 'telecom', 'vialidad'] as const;
+
+// isDominantCategory accepts the documented absence or one of the ratified keys.
+// Anything else — a retired type, a different casing, a blank string — is refused.
+function isDominantCategory(value: unknown): boolean {
+  return value === null || (typeof value === 'string' && (DOMINANT_CATEGORIES as readonly string[]).includes(value));
+}
+
+// priorityIndex is the documented 0..100 range of every served index.
+function priorityIndex(value: unknown): value is number {
+  return integer(value) && value >= 0 && value <= 100;
+}
+
+// isRankedPriority validates a position: each index inside 0..100, at least one
+// ranked zone, and a rank that exists inside that ranking. A rank outside 1..N
+// would print a position the batch does not have, so it fails closed.
+function isRankedPriority(value: Record<string, unknown>): boolean {
+  if (!priorityIndex(value.risk_score) || !priorityIndex(value.priority_score)) return false;
+  if (!integer(value.total_ranked_zones) || value.total_ranked_zones < 1) return false;
+  const rank = value.priority_rank;
+  return integer(rank) && rank >= 1 && rank <= value.total_ranked_zones;
+}
+
+function integer(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value);
+}
+
+function nullableInteger(value: unknown): boolean {
+  return value === null || integer(value);
+}
+
 function isRiskBatch(value: unknown): value is RiskBatch {
   if (!record(value)) return false;
   if (!nonempty(value.zone_id) || !nonempty(value.id) || !nonempty(value.job_id)) return false;
@@ -418,6 +520,16 @@ function isRiskBatch(value: unknown): value is RiskBatch {
   if (!optionalString(value.published_at) || !optionalString(value.valid_until) || !optionalString(value.requested_at)) return false;
   if (!optionalString(value.model_version) || !optionalString(value.data_status)) return false;
   if (!nullableString(value.scenario_id) || !nullableString(value.evaluated_at)) return false;
+  if (!optionalEvaluationTrigger(value.evaluation_trigger) || !nullableString(value.evaluated_by)) return false;
+  if (value.priority !== undefined && value.priority !== null) {
+    const priority = value.priority;
+    if (!isZonePriority(priority)) return false;
+    // The context must describe this batch: a member naming another zone or another
+    // level is a mismatched join, and printing it would attach a position to a row
+    // the service never computed it for.
+    if (priority.zone_id !== value.zone_id) return false;
+    if (priority.risk_level !== value.risk_level) return false;
+  }
   return true;
 }
 
@@ -1458,6 +1570,80 @@ export async function job(id: string, signal?: AbortSignal): Promise<Outcome<Job
     return failureOutcome(failureSpec('malformed', 'job_mismatch', result.status, result.requestId));
   }
   return { ok: true, data: result.body };
+}
+
+// --- Manual publication of the risk cycle (V1-P-06) -----------------------
+//
+// `POST /v1/risk/cycle/run` is admin-only and declares NO body: the operator who
+// triggered the evaluation is the verified token subject, so a body that named one
+// is refused with 400 `invalid_body` before the cycle starts. This transport
+// therefore sends none — an empty object would also be accepted, but "no body" is
+// the one spelling that cannot look like it carried an actor.
+//
+// The result is one `CycleRunResult`: the source, the window, whether the cycle
+// completed and one entry per configured zone. It fails closed on a payload the
+// view cannot use, so a publication can never be claimed from an unusable answer.
+// The three answers a caller must keep apart stay apart: 401 closes the session
+// and is `unauthorized`, 403 is `forbidden`, and 503 `cycle_unavailable` is an
+// availability failure that keeps its own code and status.
+export interface CycleZoneResult {
+  readonly zone_id: string;
+  readonly published: boolean;
+  // The reason a zone was not published, as the service states it. Absent when the
+  // zone published; a failure without one is never given an invented reason.
+  readonly error?: string;
+}
+
+export interface CycleRunResult {
+  readonly source_id: string;
+  readonly started_at: string;
+  readonly finished_at: string;
+  readonly complete: boolean;
+  readonly zones: readonly CycleZoneResult[];
+}
+
+function isCycleZoneResult(value: unknown): value is CycleZoneResult {
+  return (
+    record(value) &&
+    nonempty(value.zone_id) &&
+    typeof value.published === 'boolean' &&
+    optionalString(value.error)
+  );
+}
+
+// One zone failed when it did not publish, or when it published while reporting an
+// error. `error` carries `omitempty` in the service, so an absent or empty reason is
+// not a failure by itself.
+function cycleZoneFailed(zone: CycleZoneResult): boolean {
+  return !zone.published || (zone.error !== undefined && zone.error !== '');
+}
+
+function isCycleRunResult(value: unknown): value is CycleRunResult {
+  if (!record(value)) return false;
+  if (typeof value.source_id !== 'string' || typeof value.started_at !== 'string') return false;
+  if (typeof value.finished_at !== 'string' || typeof value.complete !== 'boolean') return false;
+  if (!Array.isArray(value.zones) || !value.zones.every(isCycleZoneResult)) return false;
+  // `cycle.Runner` starts `RunResult.Complete` at true and clears it exactly when a
+  // zone fails, so the Go invariant is BICONDITIONAL: complete is true if and only if
+  // every zone published and carries no error. A payload that states otherwise
+  // contradicts itself — a "complete" run reporting a failed zone, or an
+  // "incomplete" run reporting no failure at all — and accepting either would let
+  // the page announce a publication the cycle did not make. The stricter reading is
+  // deliberate; the two allowed combinations are pinned in the transport tests.
+  const failures = (value.zones as readonly CycleZoneResult[]).filter(cycleZoneFailed).length;
+  return value.complete === (failures === 0);
+}
+
+export async function cycleRun(signal?: AbortSignal): Promise<Outcome<CycleRunResult>> {
+  const result = await requestJson(
+    'cycleRun',
+    `${gatewayOrigin}${CYCLE_RUN_ROUTE}`,
+    // No `body`, and therefore no `Content-Type`: the route takes its actor from
+    // the verified token and refuses any body that declares one.
+    { method: 'POST', authenticated: true },
+    signal,
+  );
+  return guardOutcome(result, isCycleRunResult);
 }
 
 // --- Preventive actions (frozen `prevention` contract) ---------------------

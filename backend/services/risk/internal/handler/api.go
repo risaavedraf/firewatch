@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	observations "firewatch.local/contracts/observations/v1"
+	"firewatch.local/risk/internal/engine"
 	"firewatch.local/risk/internal/repository"
 	"firewatch.local/risk/internal/source"
 )
@@ -211,7 +212,12 @@ func latestBatch(store Repository) http.HandlerFunc {
 			respond(w, 404, map[string]string{"code": "no_published_batch", "data_status": "insufficient"})
 			return
 		}
-		respond(w, 200, batches[0])
+		// V1-P-02 / PM-11: the detail read serves the same regional context the
+		// aggregate read computes, so the ficha can state the comuna's position. A
+		// failed aggregate read degrades to the batch without the member instead of
+		// failing a read storage answered.
+		table, _ := regionalRanking(r.Context(), store)
+		respond(w, 200, withPriority(batches[0], table))
 	}
 }
 
@@ -266,9 +272,10 @@ func NewWithInferenceEvidence(store Repository, verifier Verifier, check StatusC
 
 // batchCollection is the aggregate read's body. Batches is never nil, so an empty
 // publication state serialises as {"batches":[]} rather than JSON null: nothing
-// published is an answer, not a failure, and it is never a 404.
+// published is an answer, not a failure, and it is never a 404. Each element is a
+// published batch, optionally carrying the regional context computed for it.
 type batchCollection struct {
-	Batches []repository.Batch `json:"batches"`
+	Batches []any `json:"batches"`
 }
 
 // latestPerZone serves the newest published batch of every zone that has one, so
@@ -288,7 +295,14 @@ func latestPerZone(store Repository) http.HandlerFunc {
 		ordered := make([]repository.Batch, len(batches))
 		copy(ordered, batches)
 		sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].ZoneID < ordered[j].ZoneID })
-		respond(w, 200, batchCollection{Batches: ordered})
+		// The ranking is built from the rows this route is about to answer, so a
+		// zone's position never depends on a second read of a different snapshot.
+		table := engine.Build(ordered, source.SyntheticInfrastructure())
+		body := make([]any, 0, len(ordered))
+		for _, batch := range ordered {
+			body = append(body, withPriority(batch, table))
+		}
+		respond(w, 200, batchCollection{Batches: body})
 	}
 }
 
