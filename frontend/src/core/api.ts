@@ -141,6 +141,7 @@ type RequestKind =
   | 'adoptObservation'
   | 'models'
   | 'simulate'
+  | 'explain'
   | 'users';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
@@ -2126,6 +2127,147 @@ export async function simulateRisk(input: SimulationInput, signal?: AbortSignal)
     return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
   }
   if (result.body.batch_id !== batchId) {
+    return failureOutcome(failureSpec('malformed', 'batch_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
+}
+
+// --- PM-17: explanatory assistant (`POST /v1/risk/explain`) ------------------
+//
+// The route composes a deterministic explanation of one commune's newest published
+// batch and writes nothing: no batch, no outbox event, no alert and no audit row. No
+// language model is called. Four properties travel with this code:
+//   1. the five topics are a closed vocabulary, matched exactly: a served topic
+//      outside the list is a contract change, not a label to pass through;
+//   2. the answer must declare both guardrail statuses — `GRD-I1:PASS` and
+//      `GRD-I2:PASS` — and its synthetic provenance. An answer that does not present
+//      itself as verified is refused here rather than rendered as if it were;
+//   3. the answer must cite the five canonical variables, each with a value and a
+//      contribution if and only if it is measured, so a variable without a reading
+//      can never arrive carrying an invented number;
+//   4. `zone_id`, `batch_id` and `topic` are checked against the request, so a slow
+//      answer for another zone or another batch can never be painted as this one's
+//      explanation.
+
+export const EXPLAIN_TOPICS = ['FACTORES', 'PRIORIDAD', 'TENDENCIA', 'RECOMENDACIONES', 'FUENTES'] as const;
+
+export type ExplainTopic = (typeof EXPLAIN_TOPICS)[number];
+
+// The five canonical variables of the frozen rule, in the rule's order. The
+// assistant cites exactly these; the vocabulary is shared with the counterfactual
+// simulation so the two surfaces cannot name different variables.
+const EXPLAIN_VARIABLES = SIMULATION_VARIABLES;
+
+// The bound the contract declares for the optional question, in characters.
+export const EXPLAIN_QUESTION_LIMIT = 500;
+
+// The two statuses an answer must carry. They are literals here as well as in the
+// service so a document that omits or renames one is refused at the boundary.
+export const EXPLAIN_INPUT_PASS = 'GRD-I1:PASS';
+export const EXPLAIN_OUTPUT_PASS = 'GRD-I2:PASS';
+
+export interface ExplainFactor {
+  name: string;
+  known: boolean;
+  // Omitted when the batch did not measure the variable: a missing reading is never
+  // served as zero, and the page must not draw it as a measurement.
+  value?: number;
+  contribution?: number;
+}
+
+export interface ExplainGuardrails {
+  input: typeof EXPLAIN_INPUT_PASS;
+  output: typeof EXPLAIN_OUTPUT_PASS;
+}
+
+export interface ExplainResult {
+  batch_id: string;
+  zone_id: string;
+  zone_name: string;
+  topic: ExplainTopic;
+  risk_level: string;
+  model_version: string;
+  synthetic: true;
+  answer: string;
+  factors: ExplainFactor[];
+  guardrails: ExplainGuardrails;
+  notice: string;
+}
+
+export interface ExplainInput {
+  readonly zoneId: string;
+  readonly topic: ExplainTopic;
+  // Optional: an absent question asks the topic alone. A provided one is bounded by
+  // `EXPLAIN_QUESTION_LIMIT` and travels as written.
+  readonly question?: string;
+  // The published batch the panel is showing. It is verified against the answer's
+  // echo and never travels in the body: the route always explains the newest one.
+  readonly batchId?: string;
+}
+
+const EXPLAIN_ROUTE = '/v1/risk/explain';
+
+function isExplainTopic(value: unknown): value is ExplainTopic {
+  return typeof value === 'string' && (EXPLAIN_TOPICS as readonly string[]).includes(value);
+}
+
+function isExplainFactor(value: unknown): boolean {
+  if (!record(value) || !nonempty(value.name) || typeof value.known !== 'boolean') return false;
+  if (value.known) return Number.isFinite(value.value) && Number.isFinite(value.contribution);
+  return value.value === undefined && value.contribution === undefined;
+}
+
+// The citation is exactly the five canonical variables in the rule's order: the rows
+// the panel renders are the variables the rule actually evaluated, and a missing or
+// extra one is a contract change rather than a gap to fill in from elsewhere.
+function isExplainResult(value: unknown): value is ExplainResult {
+  if (!record(value) || !record(value.guardrails)) return false;
+  if (!nonempty(value.batch_id) || !nonempty(value.zone_id) || !nonempty(value.zone_name)) return false;
+  if (!nonempty(value.model_version) || !nonempty(value.answer) || !nonempty(value.notice)) return false;
+  if (!isExplainTopic(value.topic) || !isRiskLevel(value.risk_level)) return false;
+  if (value.synthetic !== true) return false;
+  if (value.guardrails.input !== EXPLAIN_INPUT_PASS || value.guardrails.output !== EXPLAIN_OUTPUT_PASS) return false;
+  if (!Array.isArray(value.factors) || value.factors.length !== EXPLAIN_VARIABLES.length) return false;
+  if (!value.factors.every(isExplainFactor)) return false;
+  return value.factors.every((factor, index) => record(factor) && factor.name === EXPLAIN_VARIABLES[index]);
+}
+
+// The request document. The question member is OMITTED rather than sent empty: the
+// service refuses a blank question with GRD-I1, and sending one would invite a
+// refusal the operator never asked for.
+export async function explainRisk(input: ExplainInput, signal?: AbortSignal): Promise<Outcome<ExplainResult>> {
+  const zoneId = input.zoneId.trim();
+  if (zoneId === '' || !isExplainTopic(input.topic)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_explain'));
+  }
+  const question = (input.question ?? '').trim();
+  if ([...question].length > EXPLAIN_QUESTION_LIMIT) {
+    return failureOutcome(failureSpec('malformed', 'invalid_explain'));
+  }
+  const body: Record<string, unknown> = { zone_id: zoneId, topic: input.topic };
+  if (question !== '') body.question = question;
+  const result = await requestJson(
+    'explain',
+    `${gatewayOrigin}${EXPLAIN_ROUTE}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<ExplainResult>(result);
+  if (!isExplainResult(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (result.body.zone_id !== zoneId) {
+    return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
+  }
+  if (result.body.topic !== input.topic) {
+    return failureOutcome(failureSpec('malformed', 'topic_mismatch', result.status, result.requestId));
+  }
+  if (input.batchId !== undefined && result.body.batch_id !== input.batchId) {
     return failureOutcome(failureSpec('malformed', 'batch_mismatch', result.status, result.requestId));
   }
   return { ok: true, data: result.body };

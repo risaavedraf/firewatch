@@ -3,6 +3,8 @@ import {
   audit,
   batches,
   createJob,
+  EXPLAIN_QUESTION_LIMIT,
+  explainRisk,
   history,
   job,
   jobsStatus,
@@ -589,4 +591,192 @@ test('the aggregate read maps 403, 503 and 401 to their own outcomes', async () 
     requestId: 'req-401',
   });
   expect(getSessionSnapshot()).toEqual({ status: 'signed-out', roles: null, reason: 'rejected' });
+});
+
+// --- PM-17: the explanatory assistant ---------------------------------------
+//
+// The route composes the answer locally from the published batch, so the transport
+// owns the four properties the page relies on: a closed request document, the two
+// guardrail statuses, the declared synthetic provenance, and the five canonical
+// variables cited with a value if and only if they were measured.
+
+const EXPLAIN_URL = `${gatewayOrigin}/v1/risk/explain`;
+
+function explainBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    batch_id: 'batch-1',
+    zone_id: '05101',
+    zone_name: 'Valparaíso',
+    topic: 'FACTORES',
+    risk_level: 'alto',
+    model_version: 'academic-rule-v1',
+    synthetic: true,
+    answer: 'Lote batch-1 de la comuna Valparaíso (05101). Nivel registrado: alto.',
+    factors: [
+      { name: 'temperatura', known: true, value: 32.5, contribution: 0.4 },
+      { name: 'humedad_relativa', known: false },
+      { name: 'viento', known: false },
+      { name: 'cobertura_vegetal', known: false },
+      { name: 'incendios_historicos', known: false },
+    ],
+    guardrails: { input: 'GRD-I1:PASS', output: 'GRD-I2:PASS' },
+    notice: 'Procedencia sintética: datos sintéticos.',
+    ...overrides,
+  };
+}
+
+// One canonical citation with a measured variable and four the batch did not read.
+function explainFactors(overrides: Record<string, unknown> = {}): Record<string, unknown>[] {
+  return [
+    { name: 'temperatura', known: true, value: 32.5, contribution: 0.4, ...overrides },
+    { name: 'humedad_relativa', known: false },
+    { name: 'viento', known: false },
+    { name: 'cobertura_vegetal', known: false },
+    { name: 'incendios_historicos', known: false },
+  ];
+}
+
+test('the explain read posts one closed document with the bearer and omits an empty question (PM-17)', async () => {
+  const { fetchStub, token } = await connectedSession();
+
+  const outcome = explainRisk({ zoneId: ' 05101 ', topic: 'FACTORES', question: '   ' });
+  await flush();
+  const calls = fetchStub.callsFor(EXPLAIN_URL);
+  expect(calls).toHaveLength(1);
+  expect((calls[0].init.method ?? 'GET').toUpperCase()).toBe('POST');
+  expect((calls[0].init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+  expect((calls[0].init.headers as Record<string, string>).Authorization).toBe(`Bearer ${token}`);
+  expect((calls[0].init as { cache?: string }).cache).toBe('no-store');
+  // The zone is trimmed once, and the blank question is OMITTED rather than sent:
+  // the service refuses a present but blank question with GRD-I1, and sending one
+  // would invite a refusal the operator never asked for.
+  expect(JSON.parse(String(calls[0].init.body))).toEqual({ zone_id: '05101', topic: 'FACTORES' });
+
+  fetchStub.answer(EXPLAIN_URL, explainBody());
+  const settled = await outcome;
+  expect(settled.ok).toBe(true);
+  if (settled.ok) expect(settled.data.guardrails).toEqual({ input: 'GRD-I1:PASS', output: 'GRD-I2:PASS' });
+});
+
+test('the explain request refuses locally what the contract would refuse, before the fetch', async () => {
+  const { fetchStub } = await connectedSession();
+
+  expect(expectFailure(await explainRisk({ zoneId: '   ', topic: 'FACTORES' })).reason).toBe('invalid_explain');
+  // A topic outside the closed vocabulary cannot be produced by the typed UI, so the
+  // guard is exercised through a cast: a served spelling is never trusted anyway.
+  expect(expectFailure(await explainRisk({ zoneId: '05101', topic: 'CAUSAS' as never })).reason).toBe('invalid_explain');
+  expect(
+    expectFailure(await explainRisk({ zoneId: '05101', topic: 'FACTORES', question: 'a'.repeat(EXPLAIN_QUESTION_LIMIT + 1) }))
+      .reason,
+  ).toBe('invalid_explain');
+  expect(fetchStub.callsFor(EXPLAIN_URL)).toHaveLength(0);
+
+  // The bound is inclusive and counted in characters, so a Spanish question is not
+  // refused for the width of its accents.
+  const atBound = explainRisk({ zoneId: '05101', topic: 'FUENTES', question: 'á'.repeat(EXPLAIN_QUESTION_LIMIT) });
+  await flush();
+  expect(fetchStub.callsFor(EXPLAIN_URL)).toHaveLength(1);
+  fetchStub.answer(EXPLAIN_URL, explainBody({ topic: 'FUENTES' }));
+  expect((await atBound).ok).toBe(true);
+});
+
+test('the explain answer fails closed unless both guardrails passed and the provenance is declared (PM-17)', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const arms: { name: string; body: Record<string, unknown> }[] = [
+    { name: 'an input guardrail that did not pass', body: explainBody({ guardrails: { input: 'GRD-I1:FAIL', output: 'GRD-I2:PASS' } }) },
+    { name: 'an output guardrail that did not pass', body: explainBody({ guardrails: { input: 'GRD-I1:PASS', output: '' } }) },
+    { name: 'missing guardrails', body: explainBody({ guardrails: undefined }) },
+    { name: 'an undeclared synthetic mark', body: explainBody({ synthetic: false }) },
+    { name: 'a synthetic mark served as a string', body: explainBody({ synthetic: 'true' }) },
+    { name: 'a topic outside the enum', body: explainBody({ topic: 'CAUSAS' }) },
+    { name: 'a level outside the vocabulary', body: explainBody({ risk_level: 'extremo' }) },
+    { name: 'an empty batch id', body: explainBody({ batch_id: '' }) },
+    { name: 'an empty answer', body: explainBody({ answer: '   ' }) },
+    { name: 'an empty notice', body: explainBody({ notice: '' }) },
+    { name: 'four cited variables', body: explainBody({ factors: explainFactors().slice(0, 4) }) },
+    {
+      name: 'an unmeasured variable carrying a value',
+      body: explainBody({
+        factors: [explainFactors()[0], { name: 'humedad_relativa', known: false, value: 12 }, ...explainFactors().slice(2)],
+      }),
+    },
+    {
+      name: 'a citation outside the canonical order',
+      body: explainBody({ factors: [explainFactors()[1], explainFactors()[0], ...explainFactors().slice(2)] }),
+    },
+    {
+      name: 'a measured variable without a contribution',
+      body: explainBody({ factors: [{ name: 'temperatura', known: true, value: 32.5 }, ...explainFactors().slice(1)] }),
+    },
+    {
+      name: 'an unmeasured variable with a contribution',
+      body: explainBody({
+        factors: [{ ...explainFactors()[0] }, { name: 'humedad_relativa', known: false, contribution: 0.1 }, ...explainFactors().slice(2)],
+      }),
+    },
+  ];
+
+  for (const arm of arms) {
+    const outcome = explainRisk({ zoneId: '05101', topic: 'FACTORES' });
+    await flush();
+    fetchStub.answer(EXPLAIN_URL, arm.body);
+    // `expectFailure` throws when the arm was accepted, so a regression names itself.
+    expect(expectFailure(await outcome).reason, arm.name).toBe('invalid_shape');
+  }
+});
+
+test('the explain answer is discarded when it echoes another zone, topic or batch (PM-17)', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const otherZone = explainRisk({ zoneId: '05101', topic: 'FACTORES' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, explainBody({ zone_id: '05109' }));
+  expect(expectFailure(await otherZone).reason).toBe('zone_mismatch');
+
+  const otherTopic = explainRisk({ zoneId: '05101', topic: 'PRIORIDAD' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, explainBody({ topic: 'FUENTES' }));
+  expect(expectFailure(await otherTopic).reason).toBe('topic_mismatch');
+
+  const otherBatch = explainRisk({ zoneId: '05101', topic: 'FACTORES', batchId: 'batch-1' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, explainBody({ batch_id: 'batch-2' }));
+  expect(expectFailure(await otherBatch).reason).toBe('batch_mismatch');
+
+  // The matching case is accepted, so the three refusals above are about the echo
+  // and not about a guard that refuses every answer.
+  const matching = explainRisk({ zoneId: '05101', topic: 'FACTORES', batchId: 'batch-1' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, explainBody());
+  expect((await matching).ok).toBe(true);
+});
+
+test('the explain read surfaces each guardrail code as its own failure (PM-17)', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const rejected = explainRisk({ zoneId: '05101', topic: 'FACTORES' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, { code: 'GUARDRAIL_INPUT_REJECTED' }, 422, 'req-422');
+  expect(expectFailure(await rejected)).toEqual({
+    kind: 'unavailable',
+    reason: 'GUARDRAIL_INPUT_REJECTED',
+    status: 422,
+    requestId: 'req-422',
+  });
+
+  const noBatch = explainRisk({ zoneId: '05101', topic: 'FUENTES' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, { code: 'no_published_batch', data_status: 'insufficient' }, 404, 'req-404');
+  expect(expectFailure(await noBatch)).toEqual({
+    kind: 'missing',
+    reason: 'no_published_batch',
+    status: 404,
+    requestId: 'req-404',
+  });
+
+  const blocked = explainRisk({ zoneId: '05101', topic: 'TENDENCIA' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, { code: 'GUARDRAIL_OUTPUT_BLOCKED' }, 503, 'req-503');
+  expect(expectFailure(await blocked).reason).toBe('GUARDRAIL_OUTPUT_BLOCKED');
 });

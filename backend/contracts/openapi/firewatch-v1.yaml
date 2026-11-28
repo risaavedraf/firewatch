@@ -804,6 +804,170 @@ paths:
         '429': {$ref: '#/components/responses/RateLimited'}
         '502': {$ref: '#/components/responses/UpstreamUnavailable'}
         '503': {$ref: '#/components/responses/StorageUnavailable'}
+  /v1/risk/explain:
+    post:
+      operationId: explainRiskResult
+      description: >-
+        Viewer/admin. PM-17 explanatory assistant: a local, fully deterministic
+        explanation of one commune's newest published batch, guarded on the way in
+        by GRD-I1 and on the way out by GRD-I2. No language model is called and no
+        outbound request is made: the answer is a template rendered from the batch,
+        so the same batch and the same topic always produce the same bytes.
+
+        GRD-I1 is decided BEFORE any storage read. The zone must be one of the 38
+        communes of the catalogue (the set /v1/risk/zones serves), the topic must be
+        one of the five operational topics, and the optional question may not be
+        blank, may not exceed 500 characters and may not carry prompt-injection or
+        override patterns, SQL or DDL statements, scripts or markup, or out-of-scope
+        requests for ignition causes this system does not measure and operational
+        commands this service is not allowed to perform. A violation is 422
+        GUARDRAIL_INPUT_REJECTED, and no storage read happened.
+
+        GRD-I2 runs on the composed answer before it is written. The batch, zone,
+        zone name, level, topic, rule version, synthetic provenance, both guardrail
+        statuses and every cited factor must equal the published batch; the text must
+        be the composition of that batch and must carry none of the GRD-I1 patterns;
+        and every figure in it must be anchored in the batch. A verified answer is
+        200. A refusal fails closed with 503 GUARDRAIL_OUTPUT_BLOCKED rather than
+        serving an answer the service could not ground.
+
+        Trend compares the newest published batch with the immediately previous one
+        and says so when there is no previous publication to compare. An unclassified
+        level is reported as undetermined and nothing is inferred from it. Nothing is
+        written: no batch, no outbox event, no alert and no audit row.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ExplainRequest'}
+      responses:
+        '200':
+          description: >-
+            The grounded answer: the batch and commune it used, the stored level and
+            rule version, the declared synthetic provenance, the text, the five
+            canonical variables with their measured values, and the two guardrail
+            statuses. No row was written.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ExplainResponse'}
+        '400':
+          description: >-
+            The body is not one JSON object of at most 8192 bytes with zone_id, topic
+            and at most one question (invalid_explain): a document that is not an
+            object, an unknown member, a duplicate member, trailing input, a missing
+            member, an explicit null, or a member that is not a string are all refused
+            before the guardrail and before storage is read.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404':
+          description: >-
+            The commune has no published batch, so there is nothing to explain. This
+            is the same empty-state answer /v1/risk/latest serves: code and
+            data_status, and no invented level.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, data_status]
+                properties:
+                  code: {type: string, enum: [no_published_batch]}
+                  data_status: {type: string, enum: [insufficient]}
+        '415':
+          description: JSON content type required (json_required).
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '422':
+          description: >-
+            GRD-I1 refused the request (GUARDRAIL_INPUT_REJECTED): a zone outside the
+            38 commune catalogue, a topic outside the five operational topics, a blank
+            question, a question over 500 characters, or a question that fails one of
+            the three scope rules below.
+
+            The first scope rule is a CLOSED vocabulary. A question is tokenised into
+            words and every word must belong to the FireWatch lexicon: Spanish
+            interrogation and reference words (que, cual, como, cuanto, donde, de, el,
+            la, los, un, en, es, son, tiene, hay, este, se, su, al, o, y, con, sin, mas,
+            entre, respecto, explica, indica, muestra, describe, determina, afecta,
+            influye, dime, detalle, resumen and their inflections); the FireWatch
+            operational vocabulary (factor, variable, regla, nivel, riesgo, puntaje,
+            calculo, contribucion, aporte, temperatura, humedad, viento, cobertura,
+            vegetacion, lote, publicacion, registro, lectura, dato, fuente,
+            procedencia, sintetico, semilla, corte, frescura, comuna, zona, sector,
+            prioridad, ranking, exposicion, infraestructura, tendencia, historial,
+            recomendacion, medida, preventiva, accion, mitigacion and their
+            inflections); and the commune named in zone_id, by its name words or its
+            CUT code. Any other word is refused with
+            question_unrecognized_term:<word>. The check is not "does the question
+            contain an approved word" but "does it contain a word this system does not
+            know", so an off-domain subject cannot ride along on an approved one.
+
+            The second scope rule is subject plus anchor. The question must carry a
+            keyword of the selected topic, compared without accents and without regard
+            to case: FACTORES speaks of factors, variables, temperature, humidity,
+            wind, historical fires, cover, vegetation, contribution, rule, level, risk,
+            score and calculation; PRIORIDAD of priority, ordering, ranking, context,
+            infrastructure, exposure, level, risk and batch; TENDENCIA of trend,
+            evolution, change, previous, prior, history, comparison, rise, fall and
+            held; RECOMENDACIONES of recommendation, suggestion, measure, preventive,
+            action, mitigation, do and correspond; and FUENTES of source, provenance,
+            synthetic, seed, cutoff, freshness, origin, datum and reading. A keyword of
+            another topic does not satisfy this one, and a keyword alone is not a
+            subject: the question must also anchor itself in the batch, the commune,
+            the rule, the reading or its result (lote, riesgo, nivel, regla, comuna,
+            zona, sector, lectura, corte, cutoff, evaluacion, prioridad, ranking,
+            exposicion, infraestructura, tendencia, historial, recomendacion,
+            preventiva, fuente, procedencia, semilla, sintetico, aporte, calculo,
+            contribucion, puntaje or the commune of zone_id).
+
+            The third scope rule is single-commune scope. The assistant answers about
+            the zone in zone_id, so a question that names a different commune of the
+            catalogue - by name or by CUT code - is another territory and is refused.
+
+            Beyond scope, a question is refused when it carries a prompt-injection or
+            override pattern, a SQL or DDL statement, a script or markup fragment, a
+            request for an ignition cause this system does not measure, an operational
+            command this service is not allowed to perform, or a live-weather or
+            forecast request: the answer explains the reading a published batch
+            recorded at its own cutoff, so "today", "right now", a prediction and the
+            coming week ask for something no batch contains. Storage was not read.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {$ref: '#/components/responses/UpstreamUnavailable'}
+        '503':
+          description: >-
+            GRD-I2 refused the composed answer (GUARDRAIL_OUTPUT_BLOCKED): the answer
+            did not match the published batch, its text was not the composition of
+            that batch, it carried a forbidden claim, or it cited a figure the batch
+            does not contain. The route fails closed instead of serving it. A commune
+            catalogue that could not be built is guardrails_unavailable, and a storage
+            failure or an unreadable stored factor payload is storage_unavailable.
+          headers:
+            X-Request-ID: {$ref: '#/components/headers/RequestID'}
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
   /v1/risk/executive-summary:
     get:
       operationId: getExecutiveRiskSummary
@@ -3480,6 +3644,144 @@ components:
         known: {type: boolean}
         value: {type: number}
         contribution: {type: number}
+    ExplainTopic:
+      type: string
+      description: >-
+        The five operational topics the explanatory assistant answers. The
+        vocabulary is closed and it is matched exactly: a lowercase spelling or a
+        topic outside the list is refused by GRD-I1.
+      enum: [FACTORES, PRIORIDAD, TENDENCIA, RECOMENDACIONES, FUENTES]
+    ExplainRequest:
+      type: object
+      description: >-
+        The assistant document: one catalogue commune, one topic and an optional
+        bounded question. It is a closed object of at most 8192 bytes; an unknown
+        member, a duplicate member, an explicit null or trailing input is refused
+        with invalid_explain.
+      additionalProperties: false
+      required: [zone_id, topic]
+      properties:
+        zone_id:
+          type: string
+          minLength: 1
+          example: '05101'
+          description: >-
+            Catalogue commune code. The accepted set is the 38 communes of the
+            catalogue, so it is deliberately not an enum: an enum would drift from
+            the asset. A code outside the catalogue, a padded code and the legacy
+            demo zone are refused by GRD-I1 with 422 GUARDRAIL_INPUT_REJECTED.
+        topic: {$ref: '#/components/schemas/ExplainTopic'}
+        question:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: >-
+            Optional operator question, counted in characters. Omitting the member
+            asks the topic alone. A present but blank value, a value over 500
+            characters, a value containing a word outside the closed FireWatch
+            vocabulary, a value without a keyword of its selected topic, a value
+            without a FireWatch anchor, and a value carrying a GRD-I1 pattern are all
+            refused with 422 GUARDRAIL_INPUT_REJECTED. The question is also refused
+            when it names a different commune of the catalogue: this assistant answers
+            about one zone. It never reaches a language model: it only selects and
+            narrows which template the service renders over the published batch, and it
+            cannot ask for live weather or a forecast, because the batch holds the
+            reading recorded at its own cutoff.
+    ExplainFactor:
+      type: object
+      description: >-
+        One canonical variable as cited in an answer. value and contribution are
+        omitted when the batch did not measure the variable: a missing reading is not
+        the number zero, and GRD-I2 refuses a citation that carries one anyway.
+      additionalProperties: false
+      required: [name, known]
+      properties:
+        name: {type: string}
+        known: {type: boolean}
+        value: {type: number}
+        contribution: {type: number}
+    ExplainGuardrailStatus:
+      type: object
+      description: >-
+        The two guardrail statuses every answer carries. They are literals rather
+        than booleans so a reader can see which guardrail passed.
+      additionalProperties: false
+      required: [input, output]
+      properties:
+        input:
+          type: string
+          enum: [GRD-I1:PASS]
+          description: The input guardrail admitted the request before any storage read.
+        output:
+          type: string
+          enum: [GRD-I2:PASS]
+          description: The output guardrail verified the answer against the published batch.
+    ExplainResponse:
+      type: object
+      description: >-
+        One grounded explanation. It is a read: the stored batch and every published
+        row are untouched. The answer cites the batch and the commune it used, states
+        the synthetic provenance and carries both guardrail statuses. It is not a
+        forecast, not a probability, not an official index and not a causal claim
+        about what would start a fire.
+      additionalProperties: false
+      required:
+        - batch_id
+        - zone_id
+        - zone_name
+        - topic
+        - risk_level
+        - model_version
+        - synthetic
+        - answer
+        - factors
+        - guardrails
+        - notice
+      properties:
+        batch_id: {type: string, format: uuid}
+        zone_id: {type: string}
+        zone_name:
+          type: string
+          description: >-
+            The commune name from the zone catalogue, which is the single source of
+            that datum. It is never copied from the request.
+        topic: {$ref: '#/components/schemas/ExplainTopic'}
+        risk_level:
+          type: string
+          enum: [bajo, medio, alto, desconocido]
+          description: >-
+            The level persisted with the batch, quoted unchanged. desconocido is
+            reported as undetermined and no severity is inferred from it.
+        model_version: {type: string}
+        synthetic:
+          type: boolean
+          enum: [true]
+          description: >-
+            Declared provenance of the answer. v1.0 publishes only synthetic rule
+            output, so an answer claiming anything else would be the untrue
+            statement, and GRD-I2 refuses a document that omits the mark.
+        answer:
+          type: string
+          minLength: 1
+          description: >-
+            The composed Spanish explanation. It is a deterministic template over the
+            batch, it cites the batch and the commune, and it states «sin lectura»
+            for every canonical variable the batch did not measure.
+        factors:
+          type: array
+          minItems: 5
+          maxItems: 5
+          description: >-
+            The five canonical variables in the rule's order, with the measured value
+            and contribution of the ones the batch recorded.
+          items: {$ref: '#/components/schemas/ExplainFactor'}
+        guardrails: {$ref: '#/components/schemas/ExplainGuardrailStatus'}
+        notice:
+          type: string
+          minLength: 1
+          description: >-
+            The synthetic provenance notice: local composition from synthetic data,
+            not an observed risk, not a forecast and not an external language model.
     HistoryBucket:
       type: object
       description: >-

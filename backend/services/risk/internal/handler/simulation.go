@@ -148,10 +148,10 @@ type simulationResponse struct {
 	Notice             string               `json:"notice"`
 }
 
-// simulationJSONMember is one member of a JSON object, kept in document order so duplicate
+// requestJSONMember is one member of a JSON object, kept in document order so duplicate
 // names can be detected. encoding/json silently keeps the last of two equal keys,
 // which would let a caller write two different values for one variable.
-type simulationJSONMember struct {
+type requestJSONMember struct {
 	name  string
 	value json.RawMessage
 }
@@ -364,7 +364,7 @@ func parseSimulationRequest(body []byte) (simulationRequest, error) {
 	if len(bytes.TrimSpace(body)) == 0 {
 		return simulationRequest{}, errors.New("simulation body is empty")
 	}
-	members, err := decodeSimulationObject(body)
+	members, err := decodeRequestObject(body)
 	if err != nil {
 		return simulationRequest{}, err
 	}
@@ -406,7 +406,7 @@ func parseSimulationRequest(body []byte) (simulationRequest, error) {
 // canonical variable names the classifier understands, so an unknown name is
 // malformed input rather than a silently ignored request.
 func parseSimulationVariables(raw json.RawMessage) (map[string]*float64, error) {
-	members, err := decodeSimulationObject(raw)
+	members, err := decodeRequestObject(raw)
 	if err != nil {
 		return nil, fmt.Errorf("variables is not an object: %w", err)
 	}
@@ -463,11 +463,15 @@ func parseSimulationValue(raw json.RawMessage) (*float64, error) {
 	return &value, nil
 }
 
-// decodeSimulationObject returns an object's members in document order, refusing a
+// decodeRequestObject returns an object's members in document order, refusing a
 // duplicate name, a document that is not an object, and any trailing input after
 // the closing brace. detection of those three is the reason this does not use the
 // stdlib struct decoder: it accepts all three silently.
-func decodeSimulationObject(document []byte) ([]simulationJSONMember, error) {
+//
+// It is shared by every route that accepts a closed request document (the
+// counterfactual simulation and the explanatory assistant), so the three refusals
+// are written once instead of once per route.
+func decodeRequestObject(document []byte) ([]requestJSONMember, error) {
 	decoder := json.NewDecoder(bytes.NewReader(document))
 	token, err := decoder.Token()
 	if err != nil {
@@ -476,7 +480,7 @@ func decodeSimulationObject(document []byte) ([]simulationJSONMember, error) {
 	if delimiter, ok := token.(json.Delim); !ok || delimiter != '{' {
 		return nil, errors.New("document is not a JSON object")
 	}
-	members := make([]simulationJSONMember, 0, 2)
+	members := make([]requestJSONMember, 0, 2)
 	seen := make(map[string]bool, 2)
 	for decoder.More() {
 		token, err := decoder.Token()
@@ -495,7 +499,7 @@ func decodeSimulationObject(document []byte) ([]simulationJSONMember, error) {
 		if err := decoder.Decode(&value); err != nil {
 			return nil, err
 		}
-		members = append(members, simulationJSONMember{name: name, value: value})
+		members = append(members, requestJSONMember{name: name, value: value})
 	}
 	if _, err := decoder.Token(); err != nil {
 		return nil, err
