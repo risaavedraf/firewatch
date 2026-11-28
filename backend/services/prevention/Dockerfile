@@ -14,6 +14,13 @@ FROM build AS test
 # The production stages do not need it, which is why it is added here and not in
 # the build stage.
 COPY contracts/openapi/ /src/contracts/openapi/
+# The Keycloak realm tests in internal/directory read the development realm by
+# the same repository-relative path, and that document lives under deploy/, which
+# the build context keeps out. .dockerignore re-includes this one file, and this
+# copy puts it where the path resolves - four levels up from internal/directory -
+# so a missing realm still fails the test loudly instead of being skipped. The
+# production stages do not need it.
+COPY deploy/local/firewatch-realm.json /src/deploy/local/firewatch-realm.json
 ENTRYPOINT ["go", "test", "-count=1", "./..."]
 
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab AS runtime

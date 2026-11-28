@@ -37,7 +37,9 @@ type userEntry struct {
 	DisplayName string `json:"display_name"`
 }
 
-// listUsers serves GET /v1/users: admin only.
+// listUsers serves GET /v1/users: a GET read, granted by the ratified D-C matrix to
+// viewer, analista and admin — an analista needs it to resolve who to assign an
+// action to, and the matrix lists «usuarios» among the reads open to all three.
 //
 // The three failure modes are deliberately distinct and none of them is an empty
 // list. An unconfigured directory is this service's own misconfiguration (503
@@ -47,10 +49,9 @@ type userEntry struct {
 // outage for an empty directory.
 func listUsers(dir Directory) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !isAdmin(r.Context()) {
-			fail(w, 403, "forbidden")
-			return
-		}
+		// No narrower guard: the Authorize gate above already decided membership in
+		// the closed role vocabulary, and the ratified matrix grants this GET read
+		// to all three declared roles.
 		// A route mounted without a directory is configured with none: it must fail
 		// closed rather than answer an empty array.
 		if dir == nil {

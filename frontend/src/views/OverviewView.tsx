@@ -19,7 +19,7 @@
 // The element identifiers are the legacy contract preserved for N9; the visible
 // copy is Spanish and is copied from the retired page.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import {
   claimZoneBatchAggregateRead,
@@ -39,24 +39,34 @@ import { zoneLabel } from '../components/map/projection';
 import { ExecutivePanel } from '../components/executive/ExecutivePanel';
 import { useExecutiveSummary } from '../components/executive/useExecutiveSummary';
 import { AerialWorkstation } from '../components/territory/AerialWorkstation';
-import { DataList, Metric, PanelHeading, StatusCopy, UnimplementedNote } from '../components/ui';
+import { SectorCoverageTable } from '../components/territory/SectorCoverage';
+import { DataList, Metric, PanelHeading, StatusCopy } from '../components/ui';
 import '../styles/aerial-workspace.css';
 import '../styles/history-workspace.css';
 import {
   batches,
+  EXPLAIN_QUESTION_LIMIT,
+  EXPLAIN_TOPICS,
+  explainRisk,
   history,
   latest,
   modelVersions,
+  vegetation,
   zones,
+  type ExplainResult,
+  type ExplainTopic,
   type Failure,
   type Outcome,
 } from '../core/api';
 import type { SessionState } from '../core/session';
 import {
   computeFactorBars,
+  environmentDistribution,
   evaluateActiveModel,
   evaluateValidity,
   generateZonePdf,
+  LAND_COVER_BADGE,
+  landCoverView,
   latestOutcome,
   levelLabel,
   presentBatch,
@@ -64,6 +74,7 @@ import {
   priorityRankLabel,
   priorityStatusCopy,
   priorityView,
+  sectorCoverageRows,
   validityLabel,
   zonePdfFilename,
   type ActiveModel,
@@ -77,7 +88,7 @@ import {
   SYNTHETIC_ENVIRONMENT_NOTICE,
   type RecommendationPlan,
 } from '../domain/recommendations';
-import type { RiskBatch, ZoneCollection, ZoneFeature } from '../types/api';
+import type { RiskBatch, VegetationCatalogue, ZoneCollection, ZoneFeature } from '../types/api';
 
 // Copy reproduced from the retired page. The operational-validity label and the
 // synthetic-input notice are deliberately separate: a `published_at` timestamp
@@ -111,6 +122,55 @@ const CANONICAL_FACTOR_SET = new Set(CANONICAL_FACTORS);
 const NO_READING = 'sin lectura';
 const NOT_INFORMED_BY_BATCH = 'no informada en el lote';
 
+// PM-17 — the five operational topics the explanatory assistant accepts, with the
+// Spanish label the selector shows. Only the label is localised: the value that
+// travels is the contract's own spelling, so the closed vocabulary cannot drift.
+const EXPLAIN_TOPIC_LABELS: Record<ExplainTopic, string> = {
+  FACTORES: 'Factores del cálculo',
+  PRIORIDAD: 'Prioridad operativa',
+  TENDENCIA: 'Tendencia entre publicaciones',
+  RECOMENDACIONES: 'Recomendaciones preventivas',
+  FUENTES: 'Fuentes y trazabilidad',
+};
+
+// The rejection notice names the code the service answered, so the reader can tell
+// a scope refusal from an outage. It is the GRD-I1 arm of the panel, and it names
+// the scope rules in the same order the service applies them, so the reader can tell
+// which one applied instead of seeing a generic "no permitido".
+const EXPLAIN_INPUT_REJECTED_COPY =
+  'GRD-I1 rechazó la consulta (GUARDRAIL_INPUT_REJECTED): el tópico, la comuna o la pregunta están fuera del alcance permitido. Cada palabra de la pregunta debe pertenecer al vocabulario de FireWatch —no se admite un término ajeno como «fotosíntesis»—, la pregunta debe usar el vocabulario del tópico elegido y anclarse en el lote, la regla o la lectura, referirse solo a la comuna seleccionada, y preguntar por la lectura del lote publicado, no por el clima de hoy ni por un pronóstico. No se leyó ningún lote y no se compuso ninguna respuesta.';
+
+// One settled exchange with the assistant. A refused answer and an unavailable one
+// are separate states on purpose: the first is a decision about the request, the
+// second is a failure of the exchange, and the page must not present one as the
+// other. Every settled state carries the zone it was asked about, so a selection
+// change derives `idle` instead of needing an effect that clears state.
+type ExplainState =
+  | { kind: 'idle' }
+  | { kind: 'loading'; zone: string }
+  | { kind: 'ready'; zone: string; result: ExplainResult }
+  | { kind: 'rejected'; zone: string; message: string }
+  | { kind: 'failed'; zone: string; message: string };
+
+// The assistant's own failure vocabulary. Each message states which guardrail or
+// which boundary refused the answer, because "no se pudo" would hide whether the
+// request was out of scope or the answer could not be grounded.
+function explainFailureMessage(failure: Failure): string {
+  if (failure.reason === 'no_published_batch') {
+    return 'La comuna no tiene un lote publicado, así que no hay nada que explicar. El asistente no inventa un nivel.';
+  }
+  if (failure.reason === 'GUARDRAIL_OUTPUT_BLOCKED') {
+    return 'La respuesta no superó la verificación GRD-I2 y el servicio la bloqueó. No se muestra ningún texto sin verificar.';
+  }
+  if (failure.reason === 'zone_mismatch' || failure.reason === 'batch_mismatch' || failure.reason === 'topic_mismatch') {
+    return 'La API devolvió una explicación de otra zona, otro lote u otro tópico; se descartó.';
+  }
+  if (failure.kind === 'malformed') {
+    return 'La respuesta del asistente no tiene la forma del contrato; se descartó.';
+  }
+  return failureMessage(failure, 'consultar el asistente');
+}
+
 type CatalogueState = { kind: 'ready'; collection: ZoneCollection } | { kind: 'error' };
 type CataloguePhase = 'idle' | 'loading' | 'ready' | 'error' | 'cleared';
 
@@ -122,6 +182,15 @@ type BatchState =
   | { kind: 'batch'; batch: RiskBatch };
 
 type HistoryState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'ready'; count: number } | { kind: 'failed' };
+
+// V1-P-01 / PM-12 — the land-cover layer. It is ONE read for the whole territory and
+// it is independent of the selected zone, so moving the selection never re-requests
+// it and a failed answer cannot be repaired by clicking another commune.
+type VegetationState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'failed' }
+  | { kind: 'ready'; catalogue: VegetationCatalogue };
 
 interface ValidityView {
   text: string;
@@ -337,6 +406,38 @@ function recommendationStatus(
   }
 }
 
+// V1-P-01 / PM-12 — what the sector panel states. The sentence is built from the
+// rows the layer actually answered: a failed or empty read says so and the table
+// renders no row, because an invented comuna would be a coverage nobody served.
+function vegetationStatus(
+  layer: VegetationState,
+  session: SessionState,
+  signedIn: boolean,
+  sessionClosed: boolean,
+): string {
+  switch (layer.kind) {
+    case 'idle':
+      if (signedIn) return 'Consultando la capa de vegetación…';
+      return sessionClosed
+        ? 'La capa de vegetación se consulta de nuevo al iniciar sesión; no se conserva ninguna lectura anterior.'
+        : idleCopy(session, 'consultar la capa de vegetación');
+    case 'loading':
+      return 'Consultando la capa de vegetación…';
+    case 'failed':
+      return 'No se pudo consultar la capa de vegetación: la API no respondió o la respuesta no cumple el contrato. La tabla queda sin filas y no se sustituye por datos inventados.';
+    case 'ready': {
+      const rows = sectorCoverageRows(layer.catalogue);
+      if (rows.length === 0) {
+        return 'La capa de vegetación respondió sin comunas: la tabla queda sin filas y no se sustituye por datos inventados.';
+      }
+      const distribution = environmentDistribution(layer.catalogue)
+        .map(entry => `${entry.label} ${entry.count}`)
+        .join(', ');
+      return `Capa de cobertura de suelo servida por /v1/risk/vegetation: ${rows.length} comunas del catálogo (${distribution}). Es sintética y declarada, así que no sustituye la variable escalar de cobertura vegetal que lee la regla.`;
+    }
+  }
+}
+
 // Operational validity is a property of the batch window. The label is computed
 // here, never during render: `Date.now()` is impure, and this runs from async
 // callbacks and the bounded timer instead.
@@ -421,6 +522,8 @@ export function OverviewView() {
   const [catalogue, setCatalogue] = useState<CatalogueState | null>(null);
   const [read, setRead] = useState<ReadState | null>(null);
   const [activeModel, setActiveModel] = useState<ActiveModel | null>(null);
+  // V1-P-01 / PM-12 — the land-cover layer read. It is independent of the selection.
+  const [layer, setLayer] = useState<VegetationState>({ kind: 'idle' });
   // PM-01 / T4 — the server summary is one read for the mounted view, owned by
   // the shared hook so the executive route cannot double-request it. Its failure
   // is a stated outcome inside the panel, never zeros.
@@ -429,6 +532,15 @@ export function OverviewView() {
   // PM-14 — el resultado de la única acción de la ficha. Vive en la región viva de
   // la tarjeta, así que un lector de pantalla escucha el guardado o su fallo.
   const [fichaStatus, setFichaStatus] = useState('');
+  // PM-17 — el asistente explicativo. La consulta es siempre explícita: la página no
+  // pide nada por tecleo, y el tópico y la pregunta solo seleccionan qué plantilla
+  // verifica el servicio sobre el lote publicado.
+  const [explainTopic, setExplainTopic] = useState<ExplainTopic>('FACTORES');
+  const [explainQuestion, setExplainQuestion] = useState('');
+  const [explainState, setExplainState] = useState<ExplainState>({ kind: 'idle' });
+  // Un ticket por envío: una respuesta lenta no puede pintarse como la de este lote
+  // después de otra consulta o de un cambio de zona.
+  const explainTicket = useRef(0);
   // Whether a real session was ever established. It separates "never connected"
   // (the count is still unknown, `—`) from "the session was closed" (the count
   // is explicitly uninformed), which the retired page distinguished the same way.
@@ -499,6 +611,28 @@ export function OverviewView() {
     })();
   }, [signedIn]);
 
+  // V1-P-01 / PM-12 — the land-cover layer, one read for the whole territory. Its
+  // failure owns only the sector panel: the map, the batch card and the executive
+  // summary keep whatever their own reads answered. The state is reset when the
+  // session ends, so a closed session never keeps describing a layer.
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    const controller = new AbortController();
+    let active = true;
+    // No `setState` on entry: the pending phase is derived during render, exactly as
+    // the per-zone reads derive theirs, so this effect only settles. Setting it here
+    // would render twice for one read and trip the hooks rule for a cascading render.
+    void (async () => {
+      const result = await vegetation(controller.signal);
+      if (!active) return;
+      setLayer(result.ok ? { kind: 'ready', catalogue: result.data } : { kind: 'failed' });
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [signedIn]);
+
   // One selection reads both endpoints. The transport fences every response by
   // its own sequence and by the token it was issued with, and this effect's
   // cleanup aborts whatever the previous selection started.
@@ -559,6 +693,7 @@ export function OverviewView() {
     setCatalogue(null);
     setRead(null);
     setActiveModel(null);
+    setLayer({ kind: 'idle' });
     setSessionClosed(true);
   }, [signedIn]);
 
@@ -648,6 +783,16 @@ export function OverviewView() {
   // publicado. No se recalcula aquí: si la API no lo sirvió, la ficha lo dice en
   // vez de derivar un puesto del nivel de riesgo.
   const zonePriority = priorityView(batchData?.priority);
+  // V1-P-01 / PM-12 — la cobertura de suelo del lote publicado. Se lee del miembro
+  // que la API adjuntó al lote; no se pide a la capa por la comuna seleccionada,
+  // porque entonces la ficha mostraría un dato que el lote no trajo.
+  const zoneLandCover = landCoverView(batchData?.land_cover);
+  // The pending phase is derived, not stored: an idle layer inside an open session
+  // IS the read in flight, and the settled state is the only one the effect writes.
+  const layerView: VegetationState = layer.kind === 'idle' && signedIn ? { kind: 'loading' } : layer;
+  const sectorRows = layer.kind === 'ready' ? sectorCoverageRows(layer.catalogue) : [];
+  const layerStatus = vegetationStatus(layerView, session, signedIn, sessionClosed);
+  const layerBadge = layer.kind === 'ready' ? LAND_COVER_BADGE : 'SIN CONSULTAR';
   const priorityPlaced = zonePriority.kind === 'ranked';
 
   // T2 — la estación de trabajo. Cada frase es un hecho que esta vista ya leyó: la
@@ -705,6 +850,61 @@ export function OverviewView() {
       // éxito vacío.
       setFichaStatus('No fue posible guardar la ficha PDF en este navegador.');
     }
+  };
+
+  // PM-17 — el estado visible del asistente. Una respuesta asentada pertenece a la
+  // zona sobre la que se preguntó, así que mover la selección deriva `idle` en vez de
+  // volver a etiquetarla para otra comuna. La insignia y el texto distinguen tres
+  // desenlaces que no se pueden confundir: la respuesta verificada por los dos
+  // guardrails, el rechazo de alcance de `GRD-I1` y un intercambio que no se pudo
+  // completar.
+  const currentExplain: ExplainState =
+    explainState.kind === 'idle' || explainState.zone === selectedZone ? explainState : { kind: 'idle' };
+  const explainStateText =
+    currentExplain.kind === 'idle'
+      ? signedIn
+        ? 'Elige un tópico y pulsa «Explicar». El asistente compone el texto desde el lote publicado: no hay modelo de lenguaje y nada se envía por tecleo.'
+        : idleCopy(session, 'consultar el asistente')
+      : currentExplain.kind === 'loading'
+        ? 'Componiendo la explicación desde el lote publicado…'
+        : currentExplain.kind === 'ready'
+          ? `Explicación verificada · ${currentExplain.result.guardrails.input} · ${currentExplain.result.guardrails.output}`
+          : currentExplain.message;
+  const explainBadge =
+    currentExplain.kind === 'ready'
+      ? 'GRD-I1 + GRD-I2'
+      : currentExplain.kind === 'rejected'
+        ? 'GRD-I1 · RECHAZADO'
+        : currentExplain.kind === 'failed'
+          ? 'NO DISPONIBLE'
+          : 'SIN CONSULTAR';
+  const canExplain = signedIn && selectedZone !== '' && currentExplain.kind !== 'loading';
+
+  // El envío es explícito y lleva el lote que la ficha está mostrando: el
+  // transporte verifica que la respuesta cite ese lote y esa comuna, así que una
+  // respuesta lenta de una selección anterior no puede pintarse aquí.
+  const submitExplain = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (!signedIn || selectedZone === '') return;
+    const ticket = explainTicket.current + 1;
+    explainTicket.current = ticket;
+    setExplainState({ kind: 'loading', zone: selectedZone });
+    const outcome = await explainRisk({
+      zoneId: selectedZone,
+      topic: explainTopic,
+      question: explainQuestion,
+      batchId: batchData?.id,
+    });
+    if (explainTicket.current !== ticket) return;
+    if (outcome.ok) {
+      setExplainState({ kind: 'ready', zone: selectedZone, result: outcome.data });
+      return;
+    }
+    if (outcome.failure.reason === 'GUARDRAIL_INPUT_REJECTED') {
+      setExplainState({ kind: 'rejected', zone: selectedZone, message: EXPLAIN_INPUT_REJECTED_COPY });
+      return;
+    }
+    setExplainState({ kind: 'failed', zone: selectedZone, message: explainFailureMessage(outcome.failure) });
   };
 
   const originText = batchData === null ? 'Sin consultar' : batchData.demo === true ? DEMO_ORIGIN : DISCREPANT_ORIGIN;
@@ -928,10 +1128,165 @@ export function OverviewView() {
             </p>
           </div>
           <StatusCopy id="zone-pdf-status">{fichaStatus}</StatusCopy>
-          <UnimplementedNote>
-            Cobertura por sector: la API no publica lecturas ni un porcentaje de cobertura por sector. Su unidad es la
-            comuna (código CUT), así que esta ficha no muestra un porcentaje de cobertura.
-          </UnimplementedNote>
+          {/*
+            V1-P-01 / PM-12 — la cobertura de suelo y el entorno que el lote
+            publicado trae como miembro aditivo. La capa es sintética y declarada,
+            no una medición satelital, y no sustituye la variable escalar
+            `cobertura_vegetal` que la regla leyó: esa sigue en «Factores» y aquí
+            no se recalcula ni se reemplaza.
+          */}
+          <h4>Cobertura de suelo y entorno</h4>
+          <div className="zone-land-cover" id="zone-land-cover" data-status={zoneLandCover.kind}>
+            <span className="neutral-tag" id="zone-land-cover-badge">
+              {LAND_COVER_BADGE}
+            </span>
+            <DataList
+              items={[
+                {
+                  label: 'Clase de entorno',
+                  value: (
+                    <span id="zone-land-cover-environment">
+                      {zoneLandCover.kind === 'present' ? zoneLandCover.environment : '—'}
+                    </span>
+                  ),
+                },
+                {
+                  label: 'NDVI medio',
+                  value: (
+                    <span id="zone-land-cover-ndvi">
+                      {zoneLandCover.kind === 'present' ? zoneLandCover.ndviMean : '—'}
+                    </span>
+                  ),
+                },
+                {
+                  label: 'Rango NDVI',
+                  value: (
+                    <span id="zone-land-cover-range">
+                      {zoneLandCover.kind === 'present' ? zoneLandCover.ndviRange : '—'}
+                    </span>
+                  ),
+                },
+                {
+                  label: 'Clase dominante',
+                  value: (
+                    <span id="zone-land-cover-dominant">
+                      {zoneLandCover.kind === 'present'
+                        ? `${zoneLandCover.dominant.label} (${zoneLandCover.dominant.percent})`
+                        : '—'}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+            <StatusCopy id="zone-land-cover-status">
+              {zoneLandCover.kind === 'present' ? zoneLandCover.summary : zoneLandCover.reason}
+            </StatusCopy>
+          </div>
+        </article>
+
+        {/*
+          PM-17 — el asistente explicativo. Responde solo sobre el lote publicado de la
+          comuna seleccionada, con un texto que el servicio compone por plantilla y
+          verifica con GRD-I1 (entrada) y GRD-I2 (salida). No hay modelo de lenguaje:
+          la página no envía nada por tecleo y el envío es explícito.
+        */}
+        <article className="panel assistant-panel" id="assistant-panel" aria-labelledby="assistant-title">
+          <PanelHeading
+            eyebrow="ASISTENTE EXPLICATIVO"
+            titleId="assistant-title"
+            title="Pregunta sobre este lote"
+            badge={
+              <span className="neutral-tag" id="assistant-badge">
+                {explainBadge}
+              </span>
+            }
+          />
+          <StatusCopy id="assistant-status">{explainStateText}</StatusCopy>
+          <form id="assistant-form" className="assistant-form" onSubmit={submitExplain}>
+            <div className="field">
+              <label htmlFor="assistant-topic">Tópico a explicar</label>
+              <select
+                id="assistant-topic"
+                value={explainTopic}
+                disabled={!signedIn}
+                aria-describedby="assistant-topic-note"
+                onChange={(event) => setExplainTopic(event.target.value as ExplainTopic)}
+              >
+                {EXPLAIN_TOPICS.map((topic) => (
+                  <option key={topic} value={topic}>
+                    {EXPLAIN_TOPIC_LABELS[topic]}
+                  </option>
+                ))}
+              </select>
+              <p className="field-note" id="assistant-topic-note">
+                Cinco tópicos operativos: factores del cálculo, prioridad, tendencia, recomendaciones y fuentes. La
+                pregunta solo admite el vocabulario de FireWatch —un término ajeno la hace rechazar—, debe usar las
+                palabras del tópico elegido y nombrar el lote, la regla o la lectura: sin ese anclaje, o si nombra otra
+                comuna, o si pide el clima de hoy o un pronóstico, se rechaza con GRD-I1 (GUARDRAIL_INPUT_REJECTED)
+                antes de leer ningún lote.
+              </p>
+            </div>
+            <div className="field">
+              <label htmlFor="assistant-question">Pregunta (opcional)</label>
+              <input
+                id="assistant-question"
+                type="text"
+                autoComplete="off"
+                maxLength={EXPLAIN_QUESTION_LIMIT}
+                value={explainQuestion}
+                disabled={!signedIn}
+                aria-describedby="assistant-question-note"
+                onChange={(event) => setExplainQuestion(event.target.value)}
+              />
+              <p className="field-note" id="assistant-question-note">
+                {`Hasta ${EXPLAIN_QUESTION_LIMIT} caracteres. Escríbela solo con el vocabulario de FireWatch y sobre la comuna seleccionada, nombrando el lote, la regla o la lectura: una palabra ajena, un tópico distinto o una pregunta sin ese anclaje se rechaza. La pregunta nunca llega a un modelo de lenguaje: solo elige la plantilla que el servicio verifica sobre el lote publicado, que es la lectura de un corte pasado y no el clima de hoy ni un pronóstico.`}
+              </p>
+            </div>
+            <div className="form-actions">
+              <button id="assistant-submit" className="primary-button" type="submit" disabled={!canExplain}>
+                Explicar
+              </button>
+            </div>
+          </form>
+
+          {currentExplain.kind === 'ready' ? (
+            <div id="assistant-answer">
+              <p id="assistant-guardrails">
+                <span className="neutral-tag" id="assistant-guardrail-input">
+                  {currentExplain.result.guardrails.input}
+                </span>{' '}
+                <span className="neutral-tag" id="assistant-guardrail-output">
+                  {currentExplain.result.guardrails.output}
+                </span>
+              </p>
+              <p id="assistant-citation">{`Lote citado: ${currentExplain.result.batch_id} · ${currentExplain.result.zone_name} (${currentExplain.result.zone_id}) · nivel ${currentExplain.result.risk_level}`}</p>
+              <p id="assistant-answer-text">{currentExplain.result.answer}</p>
+              <ul id="assistant-factors" aria-label="Variables citadas por la respuesta">
+                {currentExplain.result.factors.map((factor) => (
+                  <li key={factor.name}>
+                    {factor.known
+                      ? `${factor.name}: ${factor.value} · contribución ${factor.contribution}`
+                      : `${factor.name}: ${NO_READING}`}
+                  </li>
+                ))}
+              </ul>
+              <p className="panel-note" id="assistant-notice">
+                {currentExplain.result.notice}
+              </p>
+            </div>
+          ) : null}
+
+          {currentExplain.kind === 'rejected' ? (
+            <p id="assistant-rejected">
+              <strong>GRD-I1:</strong> {currentExplain.message}
+            </p>
+          ) : null}
+
+          <p className="panel-note" id="assistant-panel-note">
+            El asistente compone la respuesta localmente desde el lote publicado, cita el lote y la comuna que usó y
+            no inventa variables que el lote no trae. No crea acciones, no publica nada y no llama a ningún proveedor
+            de lenguaje externo.
+          </p>
         </article>
       </div>
 
@@ -942,6 +1297,35 @@ export function OverviewView() {
         lectura agregada. T4 posee el diseño de esta sección.
       */}
       <ExecutivePanel state={executiveState} zoneNames={zoneNames} batchIsDemo={batchData?.demo === true} />
+
+      {/*
+        V1-P-01 / PM-12 — la tabla de sectores. Una fila por comuna del catálogo
+        servido por `/v1/risk/vegetation`, con su clase de entorno, su NDVI medio, su
+        cobertura dominante y su procedencia declarada. Un fallo de ESTA lectura solo
+        posee este panel: no hay filas, el estado lo dice y ningún dato se inventa.
+        Se coloca después del resumen ejecutivo para no mover la banda que T4 fijó
+        como primer hermano tras la vista aérea.
+      */}
+      <article className="panel" id="sector-coverage" aria-labelledby="sector-coverage-title">
+        <PanelHeading
+          eyebrow="COBERTURA VEGETAL"
+          titleId="sector-coverage-title"
+          title="Tabla de sectores"
+          badge={
+            <span className="neutral-tag" id="vegetation-badge">
+              {layerBadge}
+            </span>
+          }
+        />
+        <StatusCopy id="vegetation-status">{layerStatus}</StatusCopy>
+        <SectorCoverageTable rows={sectorRows} />
+        <p className="panel-note" id="sector-coverage-note">
+          Una fila por comuna del catálogo. La capa es sintética y declarada (<code>SINTETICO_SEED_V1</code>): no es
+          una medición satelital, no trae instante de captura y no establece frescura. Es complementaria: la variable
+          escalar <code>cobertura_vegetal</code> sigue siendo el insumo de vegetación entre las cinco variables
+          canónicas del clasificador, y esta tabla no la recalcula ni la sustituye.
+        </p>
+      </article>
 
       <section className="metrics-grid metrics-three" aria-label="Resumen real de la sesión">
         <Metric

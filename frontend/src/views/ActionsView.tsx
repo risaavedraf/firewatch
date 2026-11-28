@@ -39,6 +39,7 @@ import {
   actionStatusLabel,
   assigneeLabel,
   declaresAdminRole,
+  declaresTacticalRole,
   evidenceDecisionLabel,
   isEvidenceReference,
   parseEvidenceReferences,
@@ -147,11 +148,11 @@ const DIRECTORY_READING = 'Leyendo el directorio de usuarios del realm…';
 // expression, and it never names a user the directory did not serve.
 function assigneeStatusCopy(
   signedIn: boolean,
-  admin: boolean,
+  tactical: boolean,
   directory: DirectoryState,
   selected: DirectoryUser | null,
 ): string {
-  if (!signedIn || !admin) {
+  if (!signedIn || !tactical) {
     return 'El selector de responsable se llena con el directorio de usuarios del realm, que exige una sesión autorizada; esta sesión crea la acción sin responsable y el servidor decide la asignación.';
   }
   if (directory.phase === 'failed') {
@@ -357,7 +358,15 @@ export function ActionsView() {
   const signedIn = session.status === 'signed-in';
   // The role is a token FACT, read without verifying the signature. It only
   // decides which affordances this page shows; the server decides the action.
+  //
+  // PM-15 (D-C) splits that gate in two, and the split is the point of the new
+  // role: the TACTICAL half — evaluate, create and assign, upload evidence,
+  // register and adopt, and the workflow steps — is analista+admin; the FINAL half
+  // — the sufficiency decision and cancelling — stays admin alone. The page never
+  // offers a control the server would refuse, and still renders the server's own
+  // 401/403 as the real answer.
   const admin = signedIn && declaresAdminRole(session.roles);
+  const tactical = signedIn && declaresTacticalRole(session.roles);
   // The session INSTANCE, as a non-secret generation. The declared roles cannot
   // describe a replacement that keeps them, so the directory state of this page and
   // the ownership of an in-flight directory read are keyed on this, never on
@@ -570,14 +579,14 @@ export function ActionsView() {
   );
 
   // V1-U-04 — the realm directory behind the assignee selector. It is read only
-  // while the AUTHORIZED create UI is offered (a signed-in session whose token
-  // declares admin); a viewer never asks for it, and the server remains the
-  // authority on whether the read is allowed at all. A failed read is rendered
+  // while the TACTICAL create UI is offered (a signed-in session whose token
+  // declares analista or admin); a viewer never asks for it, and the server remains
+  // the authority on whether the read is allowed at all. A failed read is rendered
   // with its status, code and request id, keeps the unassigned option and offers
   // a retry; it never keeps the identifiers of a list the server did not just
   // serve.
   useEffect(() => {
-    if (!signedIn || !admin) return undefined;
+    if (!signedIn || !tactical) return undefined;
     const controller = new AbortController();
     const generation = sessionGeneration;
     let active = true;
@@ -610,7 +619,7 @@ export function ActionsView() {
       active = false;
       controller.abort();
     };
-  }, [signedIn, admin, directoryRevision, sessionGeneration]);
+  }, [signedIn, tactical, directoryRevision, sessionGeneration]);
 
   function applyFilters(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -712,7 +721,7 @@ export function ActionsView() {
 
   function submitEvidence(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (!signedIn || !admin || writePending || selectedId === '') return;
+    if (!signedIn || !tactical || writePending || selectedId === '') return;
     const criterion = evidenceCriterion.trim();
     const references = parseEvidenceReferences(evidenceReferences);
     if (criterion === '') {
@@ -846,7 +855,7 @@ export function ActionsView() {
   }
 
   function startReassessment(): void {
-    if (!signedIn || !admin || writePending || selected === null) return;
+    if (!signedIn || !tactical || writePending || selected === null) return;
     reassessmentController.current?.abort();
     const controller = new AbortController();
     reassessmentController.current = controller;
@@ -878,7 +887,7 @@ export function ActionsView() {
   }
 
   function retryReassessment(): void {
-    if (!signedIn || !admin || selected === null) return;
+    if (!signedIn || !tactical || selected === null) return;
     // The retry belongs to the action that started the cycle and must be the one
     // currently selected; a retained job is never sent to another action.
     const actionId = reassessment.actionId;
@@ -902,7 +911,7 @@ export function ActionsView() {
   const selectedDirectoryUser = directoryState.users.find(user => user.id === form.assigneeId) ?? null;
   // The honest companion of the control: the state in words, never a name the
   // directory did not serve.
-  const assigneeStatus = assigneeStatusCopy(signedIn, admin, directoryState, selectedDirectoryUser);
+  const assigneeStatus = assigneeStatusCopy(signedIn, tactical, directoryState, selectedDirectoryUser);
 
   // Only the detail of the action currently selected is shown: a late answer for
   // a previous selection is a mismatch, not the new action's detail.
@@ -926,13 +935,23 @@ export function ActionsView() {
   const reassessmentForSelected =
     selected !== null && reassessment.actionId === selected.id ? reassessment : IDLE_REASSESSMENT;
 
+  // The note explains the two halves of the ratified matrix (D-C) in the words the
+  // page actually behaves by, and it never grants anything: the server decides.
+  //
+  // The `analista` case has its own sentence on purpose. It is tactical but not
+  // administrative, so it must not inherit the `viewer` text: saying «tu token
+  // declara el rol viewer» to an analista would be false, and calling the page
+  // read-only to the one role it was added for would hide the controls the server
+  // would accept.
   const roleNote = !signedIn
     ? 'Conecta una sesión para operar: la página no concede permisos.'
     : admin
-      ? 'Tu token declara el rol admin, así que esta página ofrece el alta y las transiciones válidas de la máquina de estados. La firma del token no se verifica aquí: el servidor sigue siendo la única autoridad y su respuesta se muestra tal cual.'
+      ? 'Tu token declara el rol admin, así que esta página ofrece el alta, la evidencia, las observaciones y todas las transiciones de la máquina de estados, incluida la revisión final de evidencia y la cancelación. La firma del token no se verifica aquí: el servidor sigue siendo la única autoridad y su respuesta se muestra tal cual.'
       : session.roles === null
-        ? 'Tu token no declara un rol utilizable, así que el alta y las transiciones quedan deshabilitadas. La página no supone ningún permiso: solicita un token con rol admin. El servidor es la única autoridad y una negativa se mostraría tal cual.'
-        : 'Tu token no declara el rol admin, así que el alta y las transiciones quedan deshabilitadas en esta página. La página no concede permisos: solicita un token con rol admin. El servidor es la única autoridad y una negativa se mostraría tal cual.';
+        ? 'Tu token no declara un rol utilizable, así que el alta y las transiciones quedan deshabilitadas. La página no supone ningún permiso: solicita un token con rol analista o admin. El servidor es la única autoridad y una negativa se mostraría tal cual.'
+        : tactical
+          ? 'Tu token declara el rol analista, así que esta página ofrece el alta y la asignación de acciones, la carga de evidencia, la solicitud de reevaluación y las transiciones tácticas de la máquina de estados: propuesta → asignada, asignada → en_curso, en_curso → enviada, en_curso → bloqueada, bloqueada → en_curso y devuelta → en_curso, que reabre una acción devuelta. La revisión final de evidencia —aprobar con aceptada o rechazar con devuelta— y la cancelación con cancelada requieren el rol admin, y esta página no las habilita para tu rol. La firma del token no se verifica aquí: el servidor sigue siendo la única autoridad y su respuesta se muestra tal cual.'
+          : 'Tu token declara el rol viewer, así que esta página queda en modo lectura: el alta de acciones, la evidencia, las observaciones y las transiciones requieren el rol analista o admin. La revisión final de evidencia (aceptada o devuelta) y la cancelación requieren el rol admin. La página no concede permisos: el servidor es la única autoridad y una negativa se mostraría tal cual.';
 
   return (
     <section className="view" id="actions" data-view="actions" aria-labelledby="actions-title">
@@ -1306,7 +1325,7 @@ export function ActionsView() {
                 {evidence.length === 0 ? (
                   <tr>
                     <td colSpan={4}>
-                      Todavía no hay evidencia registrada. Un administrador define el criterio de suficiencia y registra
+                      Todavía no hay evidencia registrada. El rol analista o admin define el criterio de suficiencia y registra
                       las referencias; la decisión de suficiencia la registra una persona autorizada.
                     </td>
                   </tr>
@@ -1384,7 +1403,7 @@ export function ActionsView() {
               <textarea
                 id="evidence-criterion"
                 value={evidenceCriterion}
-                disabled={!admin || writePending}
+                disabled={!tactical || writePending}
                 onChange={event => setEvidenceCriterion(event.target.value)}
               />
             </label>
@@ -1393,11 +1412,11 @@ export function ActionsView() {
               <textarea
                 id="evidence-references"
                 value={evidenceReferences}
-                disabled={!admin || writePending}
+                disabled={!tactical || writePending}
                 onChange={event => setEvidenceReferences(event.target.value)}
               />
             </label>
-            <button id="record-evidence" className="primary-button" type="submit" disabled={!admin || writePending}>
+            <button id="record-evidence" className="primary-button" type="submit" disabled={!tactical || writePending}>
               Registrar evidencia
             </button>
           </form>
@@ -1447,7 +1466,7 @@ export function ActionsView() {
             <select
               id="reassessment-scenario"
               value={scenarioId}
-              disabled={!admin || writePending}
+              disabled={!tactical || writePending}
               onChange={event => setScenarioId(event.target.value)}
             >
               <option value="">Perfil heredado del servidor</option>
@@ -1463,7 +1482,7 @@ export function ActionsView() {
               id="request-reassessment"
               type="button"
               className="secondary-button"
-              disabled={!admin || writePending || reassessmentForSelected.phase === 'submitting' || reassessmentForSelected.phase === 'polling' || reassessmentForSelected.phase === 'linking'}
+              disabled={!tactical || writePending || reassessmentForSelected.phase === 'submitting' || reassessmentForSelected.phase === 'polling' || reassessmentForSelected.phase === 'linking'}
               onClick={startReassessment}
             >
               Solicitar reevaluación
@@ -1473,7 +1492,7 @@ export function ActionsView() {
                 id="retry-reassessment"
                 type="button"
                 className="secondary-button"
-                disabled={!admin || writePending}
+                disabled={!tactical || writePending}
                 onClick={retryReassessment}
               >
                 Reintentar vinculación
@@ -1527,7 +1546,7 @@ export function ActionsView() {
               id="transition-note"
               type="text"
               value={transitionNote}
-              disabled={!admin}
+              disabled={!tactical}
               onChange={event => setTransitionNote(event.target.value)}
             />
           </label>
@@ -1566,7 +1585,7 @@ export function ActionsView() {
       <article className="panel actions-create" aria-labelledby="action-create-title">
         <PanelHeading eyebrow="ALTA" title="Nueva acción preventiva" titleId="action-create-title" level={2} />
         <p className="panel-note">
-          El alta requiere el rol admin y crea una acción vinculada a la comunidad indicada. El servidor resuelve el
+          El alta requiere el rol analista o admin y crea una acción vinculada a la comunidad indicada. El servidor resuelve el
           responsable en el directorio del realm cuando se elige uno y responde con el estado real.
         </p>
         <form className="actions-form" onSubmit={submitCreate}>
@@ -1585,7 +1604,7 @@ export function ActionsView() {
                   type="text"
                   required
                   value={form.communityCode}
-                  disabled={!admin || writePending}
+                  disabled={!tactical || writePending}
                   onChange={event => setForm(previous => ({ ...previous, communityCode: event.target.value }))}
                 />
               </label>
@@ -1596,7 +1615,7 @@ export function ActionsView() {
                   type="text"
                   required
                   value={form.title}
-                  disabled={!admin || writePending}
+                  disabled={!tactical || writePending}
                   onChange={event => setForm(previous => ({ ...previous, title: event.target.value }))}
                 />
               </label>
@@ -1605,7 +1624,7 @@ export function ActionsView() {
                 <textarea
                   id="create-description"
                   value={form.description}
-                  disabled={!admin || writePending}
+                  disabled={!tactical || writePending}
                   onChange={event => setForm(previous => ({ ...previous, description: event.target.value }))}
                 />
               </label>
@@ -1615,7 +1634,7 @@ export function ActionsView() {
                   id="create-priority"
                   type="text"
                   value={form.priority}
-                  disabled={!admin || writePending}
+                  disabled={!tactical || writePending}
                   onChange={event => setForm(previous => ({ ...previous, priority: event.target.value }))}
                 />
               </label>
@@ -1632,7 +1651,7 @@ export function ActionsView() {
                   // With no directory there is nobody to choose: the artboard disables
                   // the control and keeps creating without a responsible possible, so
                   // the value this form already holds (empty) is what it sends.
-                  disabled={!admin || writePending || directoryState.phase === 'failed'}
+                  disabled={!tactical || writePending || directoryState.phase === 'failed'}
                   // The state of the directory is part of the control's own
                   // description: a keyboard or screen-reader user hears the same
                   // thing a sighted user reads under the form.
@@ -1655,7 +1674,7 @@ export function ActionsView() {
                   id="create-due-date"
                   type="date"
                   value={form.dueDate}
-                  disabled={!admin || writePending}
+                  disabled={!tactical || writePending}
                   onChange={event => setForm(previous => ({ ...previous, dueDate: event.target.value }))}
                 />
               </label>
@@ -1665,7 +1684,7 @@ export function ActionsView() {
               <p id="create-assignee-status" className="status-copy" role="status" aria-live="polite">
                 {assigneeStatus}
               </p>
-              {admin && directoryState.phase === 'failed' ? (
+              {tactical && directoryState.phase === 'failed' ? (
                 <button
                   id="retry-directory"
                   className="secondary-button"
@@ -1678,7 +1697,7 @@ export function ActionsView() {
               ) : null}
             </div>
           </fieldset>
-          <button id="create-action" className="primary-button" type="submit" disabled={!admin || writePending}>
+          <button id="create-action" className="primary-button" type="submit" disabled={!tactical || writePending}>
             Crear acción
           </button>
         </form>

@@ -4,12 +4,13 @@ import {
   ACTION_STATUSES,
   ACTION_TERMINAL_STATUSES,
   actionStatusLabel,
-  declaresAdminRole,
   isActionStatus,
+  isFinalReviewTransition,
   isTransitionAllowed,
   nextStatuses,
   transitionAffordances,
 } from '../../src/domain/prevention';
+import { declaresAdminRole, declaresTacticalRole, effectiveRole } from '../../src/domain/roles';
 
 // S3 — the preventive-action state machine, transcribed from the frozen
 // contract in `odd/tasks/presentation-client-ready.md` §«Contrato congelado de
@@ -115,5 +116,57 @@ describe('prevention role affordance', () => {
 
     const signedOut = transitionAffordances('propuesta', ['admin'], false);
     expect(signedOut.every(item => item.enabled)).toBe(false);
+  });
+
+  // PM-15 (D-C): the matrix is not one gate but two. An analista operates the
+  // tactical workflow — «evalúa y gestiona acciones, sin admin» — and the final
+  // decisions stay administrative. The page must never offer an analista a
+  // control the server would refuse.
+  test('offers an analista the tactical transitions and withholds the final ones', () => {
+    const proposal = transitionAffordances('propuesta', ['analista'], true);
+    expect(proposal.map(item => item.to)).toEqual(['asignada', 'cancelada']);
+    expect(proposal.find(item => item.to === 'asignada')?.enabled).toBe(true);
+    expect(proposal.find(item => item.to === 'cancelada')?.enabled).toBe(false);
+    expect(proposal.find(item => item.to === 'cancelada')?.finalReview).toBe(true);
+
+    // `enviada` offers aceptada and devuelta, both final: neither is offered.
+    const submitted = transitionAffordances('enviada', ['analista'], true);
+    expect(submitted.map(item => item.to)).toEqual(['aceptada', 'devuelta', 'cancelada']);
+    expect(submitted.every(item => item.enabled)).toBe(false);
+    expect(submitted.every(item => item.finalReview)).toBe(true);
+
+    // The workflow steps an analista owns stay enabled.
+    for (const from of ['asignada', 'bloqueada', 'devuelta'] as const) {
+      const affordances = transitionAffordances(from, ['analista'], true);
+      const tactical = affordances.filter(item => !item.finalReview);
+      expect(tactical.length).toBeGreaterThan(0);
+      expect(tactical.every(item => item.enabled)).toBe(true);
+    }
+
+    // An admin keeps both halves, and a multi-role token keeps the strongest role
+    // it holds wherever that role appears in the list.
+    expect(transitionAffordances('propuesta', ['viewer', 'admin'], true).every(item => item.enabled)).toBe(true);
+    expect(transitionAffordances('propuesta', ['analista', 'viewer'], true).find(item => item.to === 'asignada')?.enabled).toBe(true);
+  });
+
+  test('names the final-review targets and derives the effective role by membership', () => {
+    for (const target of ['aceptada', 'devuelta', 'cancelada']) {
+      expect(isFinalReviewTransition(target)).toBe(true);
+    }
+    for (const target of ['propuesta', 'asignada', 'en_curso', 'bloqueada', 'enviada']) {
+      expect(isFinalReviewTransition(target)).toBe(false);
+    }
+
+    expect(effectiveRole(['viewer'])).toBe('viewer');
+    expect(effectiveRole(['analista'])).toBe('analista');
+    expect(effectiveRole(['viewer', 'analista'])).toBe('analista');
+    expect(effectiveRole(['analista', 'admin'])).toBe('admin');
+    expect(effectiveRole(['viewer', 'admin'])).toBe('admin');
+    expect(effectiveRole(['operator'])).toBeNull();
+    expect(effectiveRole(null)).toBeNull();
+    expect(declaresTacticalRole(['analista'])).toBe(true);
+    expect(declaresTacticalRole(['admin'])).toBe(true);
+    expect(declaresTacticalRole(['viewer'])).toBe(false);
+    expect(declaresTacticalRole(['operator'])).toBe(false);
   });
 });

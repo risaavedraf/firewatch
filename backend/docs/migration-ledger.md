@@ -14,7 +14,7 @@ this one, so its versions cannot collide with the two below.
 
 | Module | Versions in the shared ledger | Source |
 | --- | --- | --- |
-| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17, 18, 19, 20 | [risk embed.go](../services/risk/migrations/embed.go):75-93 |
+| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17, 18, 19, 20, 21 | [risk embed.go](../services/risk/migrations/embed.go):75-93 |
 | `prevention` | 9, 11, 14, 15, 16 | [prevention embed.go](../services/prevention/migrations/embed.go):40-48 |
 | `jobs` | 1, 2, 3, 4, 5, 6, 7 | own database, not in this ledger |
 
@@ -30,8 +30,9 @@ The gaps in risk's sequence are deliberate: 9, 11, 14, 15 and 16 belong to
 nothing may be inserted into a gap to "tidy" the sequence. Integrating the two chains
 turned those two reservations into files without moving a number: `risk` keeps 17 for
 its alert table, 18 for the time-led index of the granular history series, 19 for
-PM-08's personal alert state and 20 for PM-06's evaluation actor, and `prevention`
-keeps 15 and 16, so the claims stay disjoint.
+PM-08's personal alert state, 20 for PM-06's evaluation actor and 21 for V1-P-05's
+source quality reviews, and `prevention` keeps 15 and 16, so the claims stay
+disjoint.
 
 ## The rule
 
@@ -47,15 +48,15 @@ keeps 15 and 16, so the claims stay disjoint.
 5. A collision is a test failure, not a review comment. The guard below already
    exists; a reviewer does not need to spot the overlap by eye.
 
-## Next free version = 21
+## Next free version = 22
 
-The highest version claimed in this tree is **20**, `risk`'s
-`backend/services/risk/migrations/020_batch_evaluation_actor.sql`, so the next free
-integer across both services is **21**. PM-05's jobs migration 7 is independent: it
+The highest version claimed in this tree is **21**, `risk`'s
+`backend/services/risk/migrations/021_source_quality_reviews.sql`, so the next free
+integer across both services is **22**. PM-05's jobs migration 7 is independent: it
 lives in the jobs database's own ledger and does not change this determination.
 Prevention's next migration must take version
-21, not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13, 17,
-18, 19 and 20, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
+22, not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13, 17,
+18, 19, 20 and 21, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
 determination the rule asks for: a migration is numbered against the integrated tree,
 never against its own module.
 
@@ -90,6 +91,21 @@ guarantee — a green run in a split tree proves nothing about collisions, and t
 claim only holds where both modules were checked out together.
 
 ## History
+
+Version 21 is V1-P-05's source quality reviews (`021_source_quality_reviews.sql`). It was
+claimed against the integrated tree after 20 was taken by the evaluation actor, and it
+takes the next free integer the previous determination named instead of the next
+integer in risk's own list. It creates one append-only table, `source_quality_reviews`,
+whose CHECK constraints state the closed decision vocabulary (`incorporated`,
+`acknowledged`), the 500-character note bound in CHARACTERS - so the database and the
+API refuse the same notes - and a non-blank source and verified actor. `reviewed_by`
+is the verified token subject, never a client-supplied field, and `reviewed_at` is set
+by the server: a review is a trace of who decided and when, so no default rewrites it.
+The application role holds SELECT and INSERT only, so a later decision is a new row
+and no stored decision is edited or erased. The catalogue of findings those reviews
+answer is not stored: it is the service's closed five-value vocabulary, derived on
+every read from evidence the read already serves, so no row can disagree with the
+evidence that produced it.
 
 Version 20 is PM-06's evaluation actor (`020_batch_evaluation_actor.sql`). It was
 claimed against the integrated tree after 19 was taken by the personal notification

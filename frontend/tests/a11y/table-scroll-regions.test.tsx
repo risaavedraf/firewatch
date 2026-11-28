@@ -330,21 +330,31 @@ test('the pending inventory is a named scroll region and keeps every declared ro
 
   scrollRegionOf(tableIn('#pending tbody'), NAMES.pending);
   expectAllWrappersNamed(1);
-  expect(document.querySelectorAll('#pending-rows tr')).toHaveLength(NOT_IMPLEMENTED.length);
+  // V1-P-05 emptied the inventory: the body carries no capability row, and its one
+  // row is the empty-state message that spans the three columns of the head. A
+  // zero-row body would read as a failed render, which is why the message is a row.
+  expect(NOT_IMPLEMENTED).toHaveLength(0);
+  expect(document.querySelectorAll('#pending-rows tr')).toHaveLength(1);
+  const emptyState = document.querySelectorAll('#pending-rows tr td');
+  expect(emptyState).toHaveLength(1);
+  expect(emptyState[0].getAttribute('colspan')).toBe('3');
   expect(document.querySelectorAll('#pending thead th')).toHaveLength(3);
   // T7 — the new head states the same count the table carries and adds no second
   // scroll region; the inventory stays the only one.
   expect(document.getElementById('pending-count')?.textContent).toBe(String(NOT_IMPLEMENTED.length));
+  expect(document.getElementById('pending-count')?.textContent).toBe('0');
   expect(document.querySelectorAll('#pending-head table, #pending-head .table-wrap')).toHaveLength(0);
 });
 
-test('the session permissions matrix is a named scroll region and keeps its four columns', () => {
+test('the session permissions matrix is a named scroll region and keeps its five columns', () => {
   render(<SessionView />);
 
   scrollRegionOf(tableIn('#permissions-rows'), NAMES.session);
   expectAllWrappersNamed(1);
   expect(document.querySelectorAll('#permissions-rows tr')).toHaveLength(PERMISSION_MATRIX.length);
-  expect(document.querySelectorAll('#permissions table thead th')).toHaveLength(4);
+  // PM-15 (D-C): the matrix carries one column per ratified role, so capability +
+  // viewer + analista + admin + guard.
+  expect(document.querySelectorAll('#permissions table thead th')).toHaveLength(5);
   // T7 — the documentation blocks added under the panels carry lists and steps,
   // not a second table or a second scroll region.
   expect(document.querySelectorAll('#session-verification table, #session-limits table')).toHaveLength(0);

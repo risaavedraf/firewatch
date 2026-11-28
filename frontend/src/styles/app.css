@@ -204,7 +204,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    against the border, which clips the right-aligned values of a data list
    (`model-panel`, `cycle-panel` both shipped that way). `tests/styles/
    layout-padding.test.tsx` reads this rule against the shipped markup. */
-.map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel, .simulator-panel, .simulator-result-panel, .status-panel { padding: 18px; }
+.map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel, .simulator-panel, .simulator-result-panel, .assistant-panel, .status-panel { padding: 18px; }
 .padded { padding: 22px; }
 .status-copy { min-height: 32px; margin: 13px 0 7px; color: var(--muted); font-size: 0.625rem; line-height: 1.6; }
 /* PM-01 — the executive panel. Six labelled blocks, each one a section with its
@@ -801,6 +801,65 @@ footer .icon { width: 13px; height: 13px; }
 
 .simulator-form .form-actions .panel-note {
   margin: 0;
+}
+
+/* PM-17 — the explanatory assistant's form. It reuses the shapes the simulator
+   already established (label above its control, muted note under it) but scoped
+   to this panel, so neither surface restyles the other. */
+.assistant-form .field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  margin-bottom: 12px;
+}
+
+.assistant-form .field label {
+  color: var(--accent);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.assistant-form .field select,
+.assistant-form .field input {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.assistant-form .field-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.5625rem;
+  line-height: 1.65;
+}
+
+.assistant-form .form-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+#assistant-guardrails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 6px;
+}
+
+#assistant-citation {
+  margin: 0 0 8px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+#assistant-answer-text,
+#assistant-factors {
+  overflow-wrap: anywhere;
+}
+
+#assistant-rejected {
+  margin: 8px 0;
+  color: var(--accent);
 }
 
 .simulator-form #simulator-feedback:empty,

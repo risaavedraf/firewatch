@@ -19,8 +19,10 @@ import type {
   ActionHistoryEntry,
   AuditEntry,
   BatchCollection,
+  EnvironmentClass,
   EvaluationTrigger,
   Job,
+  LandCoverBreakdown,
   ModelRegistry,
   Observation,
   ObservationType,
@@ -34,13 +36,31 @@ import type {
   RiskLevel,
   Scenario,
   ServiceSnapshot,
+  QualityFindingCode,
+  QualityFindingDefinition,
   SourceProvenance,
+  SourceQualityEntry,
+  SourceReview,
+  SourceReviewDecision,
+  VegetationCatalogue,
   ZoneCollection,
+  ZoneLandCover,
   ZonePriority,
 } from '../types/api';
 // The closed type catalogues are runtime values: the guards compare the served
 // wire spelling against them, so they cannot travel through `import type`.
-import { EVALUATION_TRIGGERS, OBSERVATION_TYPES, RISK_LEVELS } from '../types/api';
+import {
+  ENVIRONMENT_CLASSES,
+  EVALUATION_TRIGGERS,
+  LAND_COVER_KEYS,
+  OBSERVATION_TYPES,
+  QUALITY_FINDINGS,
+  QUALITY_FINDING_TRAITS,
+  RISK_LEVELS,
+  SOURCE_REVIEW_DECISIONS,
+  SOURCE_REVIEW_NOTE_LIMIT,
+  VEGETATION_SOURCE_LABEL,
+} from '../types/api';
 
 import { getAccessToken, resetSession } from './session';
 
@@ -150,7 +170,10 @@ type RequestKind =
   | 'adoptObservation'
   | 'models'
   | 'simulate'
-  | 'users';
+  | 'explain'
+  | 'users'
+  | 'vegetation'
+  | 'sourceReview';
 
 // The sequence is per kind on purpose: `latest` and `history` are issued
 // together for one selection, so a shared counter would make each treat the
@@ -483,6 +506,84 @@ function isDominantCategory(value: unknown): boolean {
   return value === null || (typeof value === 'string' && (DOMINANT_CATEGORIES as readonly string[]).includes(value));
 }
 
+// --- V1-P-01 / PM-12 — the land-cover layer --------------------------------
+//
+// The page states, in visible text, that the layer is synthetic, that it is a
+// closed scale and that the percentages sum to one hundred. A payload that does
+// not satisfy those claims is unreadable instead of being rendered as if it did:
+// every number below is a claim the reader is asked to trust.
+
+// The tolerance the five percentages are summed with. The producer emits whole
+// points, so the sum is exact; the tolerance only absorbs binary float error in a
+// sum of five decimal values.
+const BREAKDOWN_TOLERANCE = 1e-6;
+
+function isEnvironmentClass(value: unknown): value is EnvironmentClass {
+  return typeof value === 'string' && (ENVIRONMENT_CLASSES as readonly string[]).includes(value);
+}
+
+// fraction is the documented 0.00..1.00 range of every NDVI member.
+function fraction(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+// percentage is the documented 0..100 range of a land-cover share.
+function percentage(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
+}
+
+// The five declared percentages, each in 0..100 and summing to 100. An undeclared
+// key is a contract change rather than a share the view may print, so the object
+// has to carry exactly these five.
+function isLandCoverBreakdown(value: unknown): value is LandCoverBreakdown {
+  if (!record(value)) return false;
+  const keys = Object.keys(value);
+  if (keys.length !== LAND_COVER_KEYS.length) return false;
+  if (!keys.every(key => (LAND_COVER_KEYS as readonly string[]).includes(key))) return false;
+  let total = 0;
+  for (const key of LAND_COVER_KEYS) {
+    const share = value[key];
+    if (!percentage(share)) return false;
+    total += share;
+  }
+  return Math.abs(total - 100) < BREAKDOWN_TOLERANCE;
+}
+
+// isZoneLandCover validates one commune's entry: thousandth-free NDVI inside
+// 0.00..1.00 with min <= mean <= max, an anomaly inside -1.00..1.00, the five
+// percentages, the closed class and the DECLARED synthetic provenance. A block
+// that claims to be an observation is refused: the layer never is one.
+function isZoneLandCover(value: unknown): value is ZoneLandCover {
+  if (!record(value)) return false;
+  if (!nonempty(value.zone_id) || !nonempty(value.zone_name)) return false;
+  const low = value.ndvi_min;
+  const mean = value.ndvi_mean;
+  const high = value.ndvi_max;
+  if (!fraction(low) || !fraction(mean) || !fraction(high)) return false;
+  if (low > mean || mean > high) return false;
+  const anomaly = value.ndvi_anomaly;
+  if (typeof anomaly !== 'number' || !Number.isFinite(anomaly) || anomaly < -1 || anomaly > 1) return false;
+  if (!isLandCoverBreakdown(value.land_cover_breakdown)) return false;
+  if (!isEnvironmentClass(value.environment_class)) return false;
+  if (value.synthetic !== true) return false;
+  return value.source_label === VEGETATION_SOURCE_LABEL;
+}
+
+// isVegetationCatalogue validates the whole answer. A repeated zone is refused
+// because the table would show the same commune twice from one payload.
+function isVegetationCatalogue(value: unknown): value is VegetationCatalogue {
+  if (!record(value)) return false;
+  if (value.source !== VEGETATION_SOURCE_LABEL) return false;
+  if (!Array.isArray(value.zones)) return false;
+  const seen = new Set<string>();
+  for (const entry of value.zones) {
+    if (!isZoneLandCover(entry)) return false;
+    if (seen.has(entry.zone_id)) return false;
+    seen.add(entry.zone_id);
+  }
+  return true;
+}
+
 // priorityIndex is the documented 0..100 range of every served index.
 function priorityIndex(value: unknown): value is number {
   return integer(value) && value >= 0 && value <= 100;
@@ -529,6 +630,13 @@ function isRiskBatch(value: unknown): value is RiskBatch {
     // the service never computed it for.
     if (priority.zone_id !== value.zone_id) return false;
     if (priority.risk_level !== value.risk_level) return false;
+  }
+  if (value.land_cover !== undefined && value.land_cover !== null) {
+    const landCover = value.land_cover;
+    if (!isZoneLandCover(landCover)) return false;
+    // The same mismatched-join rule as priority: an entry naming another commune
+    // would attach a land cover to a row the service never declared it for.
+    if (landCover.zone_id !== value.zone_id) return false;
   }
   return true;
 }
@@ -907,6 +1015,23 @@ export async function batches(signal?: AbortSignal): Promise<Outcome<RiskBatch[]
     collection.push(entry);
   }
   return { ok: true, data: collection };
+}
+
+// --- Land-cover layer -------------------------------------------------------
+//
+// V1-P-01 / PM-12. The path is declared here rather than in `config.routes` for the
+// same reason the granular series is: the transport owns the read it issues for it.
+// The route accepts no parameter at all, so nothing is built into the URL.
+const VEGETATION_ROUTE = '/v1/risk/vegetation';
+
+export async function vegetation(signal?: AbortSignal): Promise<Outcome<VegetationCatalogue>> {
+  const result = await requestJson(
+    'vegetation',
+    `${gatewayOrigin}${VEGETATION_ROUTE}`,
+    { authenticated: true },
+    signal,
+  );
+  return guardOutcome(result, isVegetationCatalogue);
 }
 
 // --- Executive summary ------------------------------------------------------
@@ -1353,12 +1478,20 @@ export async function compare(
 // payload through UNCHANGED. It does not flatten it and it does not decide
 // integrity: `matches: false`, a missing provider or a stale cutoff is a
 // fail-closed decision the domain layer makes on the same body.
+//
+// V1-P-05 adds two REQUIRED members and both are closed vocabularies, so they are
+// proven here instead of being rendered on trust: the five-finding catalogue (its
+// order, each code's kind and severity, and a non-empty description) and each
+// source's findings (non-empty, no repeats, every code declared) with its review
+// (`null` or a coherent one about the same source).
 function isSourceProvenance(value: unknown): value is SourceProvenance {
   if (!record(value)) return false;
   const geography = record(value.geography) ? value.geography : null;
   const provenance = geography && record(geography.provenance) ? geography.provenance : null;
   const integrity = geography && record(geography.integrity) ? geography.integrity : null;
   if (geography === null || provenance === null || integrity === null) return false;
+  if (!isQualityCatalog(value.quality_catalog)) return false;
+  if (!Array.isArray(value.sources) || !value.sources.every(isSourceQualityEntry)) return false;
   return (
     typeof provenance.provider === 'string' &&
     typeof provenance.attribution === 'string' &&
@@ -1371,9 +1504,124 @@ function isSourceProvenance(value: unknown): value is SourceProvenance {
   );
 }
 
+function isQualityFindingCode(value: unknown): value is QualityFindingCode {
+  return typeof value === 'string' && (QUALITY_FINDINGS as readonly string[]).includes(value);
+}
+
+// The catalogue is positional on purpose: the service publishes the ratified
+// order, so a reordered list is refused rather than sorted here. Each entry must
+// carry the kind and severity its code has, which keeps a renamed trait from
+// being painted as a finding the page cannot explain.
+function isQualityCatalog(value: unknown): value is QualityFindingDefinition[] {
+  if (!Array.isArray(value) || value.length !== QUALITY_FINDINGS.length) return false;
+  return value.every((entry, index) => {
+    if (!record(entry)) return false;
+    const code = QUALITY_FINDINGS[index];
+    const traits = QUALITY_FINDING_TRAITS[code];
+    return (
+      entry.code === code &&
+      entry.kind === traits.kind &&
+      entry.severity === traits.severity &&
+      nonempty(entry.description)
+    );
+  });
+}
+
+function isSourceReviewDecision(value: unknown): value is SourceReviewDecision {
+  return typeof value === 'string' && (SOURCE_REVIEW_DECISIONS as readonly string[]).includes(value);
+}
+
+// One stored review. `reviewed_by` and `reviewed_at` are never empty: a review
+// without an actor or an instant is not a decision anybody can be held to.
+function isSourceReview(value: unknown): value is SourceReview {
+  if (!record(value)) return false;
+  if (!nonempty(value.source_id)) return false;
+  if (!isSourceReviewDecision(value.decision)) return false;
+  if (typeof value.note !== 'string' || Array.from(value.note).length > SOURCE_REVIEW_NOTE_LIMIT) return false;
+  if (!nonempty(value.reviewed_by)) return false;
+  if (!nonempty(value.reviewed_at)) return false;
+  return Number.isFinite(Date.parse(value.reviewed_at as string));
+}
+
+function nullableSourceInstant(value: unknown): boolean {
+  return value === null || typeof value === 'string';
+}
+
+function nullableAge(value: unknown): boolean {
+  return value === null || (typeof value === 'number' && Number.isFinite(value) && value >= 0);
+}
+
+// One source: the freshness the cycle always served, its findings and its review.
+// A review about another source is refused here, because painting it as this
+// source's decision would attribute one source's review to another.
+function isSourceQualityEntry(value: unknown): value is SourceQualityEntry {
+  if (!record(value)) return false;
+  if (!nonempty(value.source_id)) return false;
+  if (typeof value.complete !== 'boolean') return false;
+  if (!nullableSourceInstant(value.last_run_at) || !nullableSourceInstant(value.next_run_at)) return false;
+  if (!nullableAge(value.age_seconds)) return false;
+  if (value.last_error !== undefined && typeof value.last_error !== 'string') return false;
+  if (!Array.isArray(value.quality_findings) || value.quality_findings.length === 0) return false;
+  const seen = new Set<string>();
+  for (const finding of value.quality_findings) {
+    if (!isQualityFindingCode(finding) || seen.has(finding)) return false;
+    seen.add(finding);
+  }
+  if (value.review === null) return true;
+  return isSourceReview(value.review) && value.review.source_id === value.source_id;
+}
+
+// The review write's own request refusal. It runs BEFORE the request, so an
+// unhonourable body never reaches the gateway: an empty source, a decision outside
+// the closed pair or a note past the stored bound cannot be stored by definition.
+function sourceReviewRequestFailure(sourceId: string, input: { decision: string; note?: string }): Failure | null {
+  if (typeof sourceId !== 'string' || sourceId.trim() === '') {
+    return failureSpec('malformed', 'invalid_source_review_request');
+  }
+  if (!isSourceReviewDecision(input.decision)) return failureSpec('malformed', 'invalid_source_review_request');
+  const note = input.note ?? '';
+  if (typeof note !== 'string' || Array.from(note).length > SOURCE_REVIEW_NOTE_LIMIT) {
+    return failureSpec('malformed', 'invalid_source_review_request');
+  }
+  return null;
+}
+
 export async function sources(signal?: AbortSignal): Promise<Outcome<SourceProvenance>> {
   const result = await requestJson('sources', `${gatewayOrigin}${routes.sources}`, { authenticated: true }, signal);
   return guardOutcome(result, isSourceProvenance);
+}
+
+// Appends one human decision about one source. The actor is deliberately absent
+// from the body: the bearer token carries it and the server reads it there, so a
+// client cannot attribute a review to anybody. The answer must name the source
+// that was reviewed; a body about another source is refused as `source_mismatch`
+// rather than painted as this decision.
+export async function reviewSource(
+  sourceId: string,
+  input: { decision: SourceReviewDecision; note?: string },
+  signal?: AbortSignal,
+): Promise<Outcome<SourceReview>> {
+  const refusal = sourceReviewRequestFailure(sourceId, input);
+  if (refusal !== null) return failureOutcome<SourceReview>(refusal);
+  const result = await requestJson(
+    'sourceReview',
+    `${gatewayOrigin}${routes.sources}/${encodeURIComponent(sourceId)}/review`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ decision: input.decision, note: input.note ?? '' }),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<SourceReview>(result);
+  if (!isSourceReview(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (result.body.source_id !== sourceId) {
+    return failureOutcome(failureSpec('malformed', 'source_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
 }
 
 export async function riskStatus(signal?: AbortSignal): Promise<Outcome<ServiceSnapshot>> {
@@ -2312,6 +2560,147 @@ export async function simulateRisk(input: SimulationInput, signal?: AbortSignal)
     return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
   }
   if (result.body.batch_id !== batchId) {
+    return failureOutcome(failureSpec('malformed', 'batch_mismatch', result.status, result.requestId));
+  }
+  return { ok: true, data: result.body };
+}
+
+// --- PM-17: explanatory assistant (`POST /v1/risk/explain`) ------------------
+//
+// The route composes a deterministic explanation of one commune's newest published
+// batch and writes nothing: no batch, no outbox event, no alert and no audit row. No
+// language model is called. Four properties travel with this code:
+//   1. the five topics are a closed vocabulary, matched exactly: a served topic
+//      outside the list is a contract change, not a label to pass through;
+//   2. the answer must declare both guardrail statuses — `GRD-I1:PASS` and
+//      `GRD-I2:PASS` — and its synthetic provenance. An answer that does not present
+//      itself as verified is refused here rather than rendered as if it were;
+//   3. the answer must cite the five canonical variables, each with a value and a
+//      contribution if and only if it is measured, so a variable without a reading
+//      can never arrive carrying an invented number;
+//   4. `zone_id`, `batch_id` and `topic` are checked against the request, so a slow
+//      answer for another zone or another batch can never be painted as this one's
+//      explanation.
+
+export const EXPLAIN_TOPICS = ['FACTORES', 'PRIORIDAD', 'TENDENCIA', 'RECOMENDACIONES', 'FUENTES'] as const;
+
+export type ExplainTopic = (typeof EXPLAIN_TOPICS)[number];
+
+// The five canonical variables of the frozen rule, in the rule's order. The
+// assistant cites exactly these; the vocabulary is shared with the counterfactual
+// simulation so the two surfaces cannot name different variables.
+const EXPLAIN_VARIABLES = SIMULATION_VARIABLES;
+
+// The bound the contract declares for the optional question, in characters.
+export const EXPLAIN_QUESTION_LIMIT = 500;
+
+// The two statuses an answer must carry. They are literals here as well as in the
+// service so a document that omits or renames one is refused at the boundary.
+export const EXPLAIN_INPUT_PASS = 'GRD-I1:PASS';
+export const EXPLAIN_OUTPUT_PASS = 'GRD-I2:PASS';
+
+export interface ExplainFactor {
+  name: string;
+  known: boolean;
+  // Omitted when the batch did not measure the variable: a missing reading is never
+  // served as zero, and the page must not draw it as a measurement.
+  value?: number;
+  contribution?: number;
+}
+
+export interface ExplainGuardrails {
+  input: typeof EXPLAIN_INPUT_PASS;
+  output: typeof EXPLAIN_OUTPUT_PASS;
+}
+
+export interface ExplainResult {
+  batch_id: string;
+  zone_id: string;
+  zone_name: string;
+  topic: ExplainTopic;
+  risk_level: string;
+  model_version: string;
+  synthetic: true;
+  answer: string;
+  factors: ExplainFactor[];
+  guardrails: ExplainGuardrails;
+  notice: string;
+}
+
+export interface ExplainInput {
+  readonly zoneId: string;
+  readonly topic: ExplainTopic;
+  // Optional: an absent question asks the topic alone. A provided one is bounded by
+  // `EXPLAIN_QUESTION_LIMIT` and travels as written.
+  readonly question?: string;
+  // The published batch the panel is showing. It is verified against the answer's
+  // echo and never travels in the body: the route always explains the newest one.
+  readonly batchId?: string;
+}
+
+const EXPLAIN_ROUTE = '/v1/risk/explain';
+
+function isExplainTopic(value: unknown): value is ExplainTopic {
+  return typeof value === 'string' && (EXPLAIN_TOPICS as readonly string[]).includes(value);
+}
+
+function isExplainFactor(value: unknown): boolean {
+  if (!record(value) || !nonempty(value.name) || typeof value.known !== 'boolean') return false;
+  if (value.known) return Number.isFinite(value.value) && Number.isFinite(value.contribution);
+  return value.value === undefined && value.contribution === undefined;
+}
+
+// The citation is exactly the five canonical variables in the rule's order: the rows
+// the panel renders are the variables the rule actually evaluated, and a missing or
+// extra one is a contract change rather than a gap to fill in from elsewhere.
+function isExplainResult(value: unknown): value is ExplainResult {
+  if (!record(value) || !record(value.guardrails)) return false;
+  if (!nonempty(value.batch_id) || !nonempty(value.zone_id) || !nonempty(value.zone_name)) return false;
+  if (!nonempty(value.model_version) || !nonempty(value.answer) || !nonempty(value.notice)) return false;
+  if (!isExplainTopic(value.topic) || !isRiskLevel(value.risk_level)) return false;
+  if (value.synthetic !== true) return false;
+  if (value.guardrails.input !== EXPLAIN_INPUT_PASS || value.guardrails.output !== EXPLAIN_OUTPUT_PASS) return false;
+  if (!Array.isArray(value.factors) || value.factors.length !== EXPLAIN_VARIABLES.length) return false;
+  if (!value.factors.every(isExplainFactor)) return false;
+  return value.factors.every((factor, index) => record(factor) && factor.name === EXPLAIN_VARIABLES[index]);
+}
+
+// The request document. The question member is OMITTED rather than sent empty: the
+// service refuses a blank question with GRD-I1, and sending one would invite a
+// refusal the operator never asked for.
+export async function explainRisk(input: ExplainInput, signal?: AbortSignal): Promise<Outcome<ExplainResult>> {
+  const zoneId = input.zoneId.trim();
+  if (zoneId === '' || !isExplainTopic(input.topic)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_explain'));
+  }
+  const question = (input.question ?? '').trim();
+  if ([...question].length > EXPLAIN_QUESTION_LIMIT) {
+    return failureOutcome(failureSpec('malformed', 'invalid_explain'));
+  }
+  const body: Record<string, unknown> = { zone_id: zoneId, topic: input.topic };
+  if (question !== '') body.question = question;
+  const result = await requestJson(
+    'explain',
+    `${gatewayOrigin}${EXPLAIN_ROUTE}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+      authenticated: true,
+    },
+    signal,
+  );
+  if (result.state !== 'ok') return resultFailure<ExplainResult>(result);
+  if (!isExplainResult(result.body)) {
+    return failureOutcome(failureSpec('malformed', 'invalid_shape', result.status, result.requestId));
+  }
+  if (result.body.zone_id !== zoneId) {
+    return failureOutcome(failureSpec('malformed', 'zone_mismatch', result.status, result.requestId));
+  }
+  if (result.body.topic !== input.topic) {
+    return failureOutcome(failureSpec('malformed', 'topic_mismatch', result.status, result.requestId));
+  }
+  if (input.batchId !== undefined && result.body.batch_id !== input.batchId) {
     return failureOutcome(failureSpec('malformed', 'batch_mismatch', result.status, result.requestId));
   }
   return { ok: true, data: result.body };

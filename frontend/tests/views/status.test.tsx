@@ -8,6 +8,7 @@ import { completeLogin, resetSession } from '../../src/core/session';
 import { StatusView } from '../../src/views/StatusView';
 
 import { createFetchStub, createStorageStub, flush, jwt } from '../core/harness';
+import { qualityCatalogFixture } from '../support/source-quality';
 
 // PM-16 — the `#status` board and the aggregate read behind it.
 //
@@ -67,6 +68,7 @@ function sourcesBody(riskInput: unknown = { id: 'open-meteo', display_name: 'Ope
     // The weather source is the active publisher descriptor; `null` is the
     // contracted way of saying this deployment configures none.
     risk_input: riskInput,
+    quality_catalog: qualityCatalogFixture(),
     sources: [],
   };
 }

@@ -3,12 +3,15 @@ import {
   audit,
   batches,
   createJob,
+  EXPLAIN_QUESTION_LIMIT,
+  explainRisk,
   cycleRun,
   history,
   job,
   jobsStatus,
   latest,
   ready,
+  reviewSource,
   riskStatus,
   scenarios,
   sources,
@@ -21,6 +24,7 @@ import { completeLogin, getAccessToken, getSessionSnapshot, resetSession } from 
 import type { Job, RiskBatch, SourceProvenance, ZonePriority } from '../../src/types/api';
 
 import { createCryptoStub, createFetchStub, createStorageStub, createWindowStub, flush, jwt } from './harness';
+import { qualityCatalogFixture, sourceEntryFixture, sourceReviewFixture } from '../support/source-quality';
 
 const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
 
@@ -77,6 +81,8 @@ function sourceBody(): Record<string, unknown> {
       integrity: { algorithm: 'sha256', recorded_sha256: 'c'.repeat(64), computed_sha256: 'c'.repeat(64), matches: true },
     },
     risk_input: { id: 'academic', display_name: 'Perfil académico', synthetic: true },
+    quality_catalog: qualityCatalogFixture(),
+    sources: [sourceEntryFixture()],
   };
 }
 
@@ -1064,4 +1070,408 @@ test('the projection still ranks a payload whose position is consistent', () => 
     context_summary: 'Comuna 05101: prioridad 86 de 100, puesto 1 de 2 del lote publicado.',
   });
   expect(view.kind).toBe('ranked');
+});
+
+// ── V1-P-05 — the closed quality catalogue and the source review ───────────
+//
+// The catalogue is CLOSED: five codes, in the ratified order, each with its kind,
+// its severity and a Spanish description. A sixth code, a reordered list, an empty
+// description or a source carrying an undeclared finding is refused at the boundary
+// instead of being painted as a quality finding the service cannot produce.
+test('the sources read requires the closed quality catalogue and its findings', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const goodRead = sources();
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/sources`, sourceBody());
+  const good = await goodRead;
+  if (!good.ok) throw new Error(`expected a usable catalogue, got ${good.failure.reason}`);
+  expect(good.data.quality_catalog?.map(entry => entry.code)).toEqual([
+    'STALE_CUTOFF',
+    'MISSING_CANONICAL_FACTOR',
+    'OUT_OF_RANGE_CLAMPED',
+    'CHECKSUM_VERIFIED',
+    'SYNTHETIC_FALLBACK',
+  ]);
+  expect(good.data.sources?.[0].quality_findings).toEqual(['CHECKSUM_VERIFIED', 'SYNTHETIC_FALLBACK']);
+  expect(good.data.sources?.[0].review).toBeNull();
+});
+
+test('the sources read refuses a catalogue or a finding the contract does not declare', async () => {
+  const cases: Array<{ name: string; mutate: (body: Record<string, unknown>) => void }> = [
+    {
+      name: 'a missing catalogue',
+      mutate: body => delete body.quality_catalog,
+    },
+    {
+      name: 'a catalogue with an undeclared sixth code',
+      mutate: body => {
+        (body.quality_catalog as unknown[]).push({
+          code: 'INVENTED_FINDING',
+          kind: 'coverage',
+          severity: 'warning',
+          description: 'Un código que el servicio no puede producir.',
+        });
+      },
+    },
+    {
+      name: 'a reordered catalogue',
+      mutate: body => {
+        const catalog = body.quality_catalog as unknown[];
+        body.quality_catalog = [catalog[1], catalog[0], ...catalog.slice(2)];
+      },
+    },
+    {
+      name: 'a definition with an empty description',
+      mutate: body => {
+        (body.quality_catalog as Array<Record<string, unknown>>)[0].description = '';
+      },
+    },
+    {
+      name: 'a definition with an undeclared severity',
+      mutate: body => {
+        (body.quality_catalog as Array<Record<string, unknown>>)[0].severity = 'critical';
+      },
+    },
+    {
+      name: 'a definition whose kind does not belong to its code',
+      mutate: body => {
+        (body.quality_catalog as Array<Record<string, unknown>>)[0].kind = 'integrity';
+      },
+    },
+    {
+      name: 'a source with no findings',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].quality_findings = [];
+      },
+    },
+    {
+      name: 'a source with an undeclared finding',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].quality_findings = ['INVENTED_FINDING'];
+      },
+    },
+    {
+      name: 'a source repeating a finding',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].quality_findings = ['CHECKSUM_VERIFIED', 'CHECKSUM_VERIFIED'];
+      },
+    },
+    {
+      name: 'a review whose source is another source',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ source_id: 'otra-fuente' });
+      },
+    },
+    {
+      name: 'a review with a decision outside the closed pair',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ decision: 'approved' });
+      },
+    },
+    {
+      name: 'a review with no verified actor',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ reviewed_by: '' });
+      },
+    },
+    {
+      name: 'a review with no instant',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ reviewed_at: '' });
+      },
+    },
+    {
+      name: 'a review with an unparseable instant',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ reviewed_at: 'ayer' });
+      },
+    },
+    {
+      name: 'a review whose note exceeds the stored bound',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ note: 'ñ'.repeat(501) });
+      },
+    },
+  ];
+
+  for (const entry of cases) {
+    const { fetchStub } = await connectedSession();
+    const body = sourceBody();
+    entry.mutate(body);
+    const read = sources();
+    await flush();
+    fetchStub.answer(`${gatewayOrigin}/v1/risk/sources`, body);
+    const outcome = await read;
+    expect(outcome.ok, entry.name).toBe(false);
+    if (!outcome.ok) expect(outcome.failure.kind, entry.name).toBe('malformed');
+  }
+});
+
+test('the sources read accepts a 500 character note and a review of this source', async () => {
+  const { fetchStub } = await connectedSession();
+  const body = sourceBody();
+  (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ note: 'ñ'.repeat(500) });
+  const read = sources();
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/sources`, body);
+  const outcome = await read;
+  if (!outcome.ok) throw new Error(`expected the longest accepted note, got ${outcome.failure.reason}`);
+  expect(outcome.data.sources?.[0].review?.note).toHaveLength(500);
+});
+
+test('reviewSource posts the decision and echoes the source it reviewed', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const accepted = reviewSource('fixture-sample', { decision: 'incorporated', note: 'revisado' });
+  await flush();
+  const calls = fetchStub.callsFor(`${gatewayOrigin}/v1/risk/sources/fixture-sample/review`);
+  expect(calls).toHaveLength(1);
+  expect(calls[0].init.method).toBe('POST');
+  expect(JSON.parse(String(calls[0].init.body))).toEqual({ decision: 'incorporated', note: 'revisado' });
+  fetchStub.answer(
+    `${gatewayOrigin}/v1/risk/sources/fixture-sample/review`,
+    sourceReviewFixture({ note: 'revisado' }),
+  );
+  const outcome = await accepted;
+  if (!outcome.ok) throw new Error(`expected the stored review, got ${outcome.failure.reason}`);
+  expect(outcome.data.decision).toBe('incorporated');
+  expect(outcome.data.reviewed_by).toBe('operator@example.test');
+
+  // The answer must name the source that was reviewed: a body about another source
+  // would be a different decision painted as this one.
+  const mismatched = reviewSource('fixture-sample', { decision: 'acknowledged' });
+  await flush();
+  fetchStub.answer(
+    `${gatewayOrigin}/v1/risk/sources/fixture-sample/review`,
+    sourceReviewFixture({ source_id: 'otra-fuente', decision: 'acknowledged' }),
+  );
+  expect(expectFailure(await mismatched).reason).toBe('source_mismatch');
+
+  // A malformed answer is not a stored decision either.
+  const malformed = reviewSource('fixture-sample', { decision: 'acknowledged' });
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/sources/fixture-sample/review`, { decision: 'acknowledged' });
+  expect(expectFailure(await malformed).reason).toBe('invalid_shape');
+});
+
+test('reviewSource refuses an unhonourable request before it reaches the gateway', async () => {
+  const { fetchStub } = await connectedSession();
+  const cases: Array<{ name: string; sourceId: string; input: { decision: string; note?: string } }> = [
+    { name: 'an empty source', sourceId: '  ', input: { decision: 'incorporated' } },
+    { name: 'an unknown decision', sourceId: 'fixture-sample', input: { decision: 'approved' } },
+    { name: 'a note past the stored bound', sourceId: 'fixture-sample', input: { decision: 'incorporated', note: 'ñ'.repeat(501) } },
+  ];
+  for (const entry of cases) {
+    const outcome = await reviewSource(entry.sourceId, entry.input as { decision: 'incorporated'; note?: string });
+    expect(outcome.ok, entry.name).toBe(false);
+    if (!outcome.ok) expect(outcome.failure.kind, entry.name).toBe('malformed');
+  }
+  expect(fetchStub.calls).toHaveLength(0);
+});
+
+test('reviewSource reports the documented refusals the service actually answered', async () => {
+  const { fetchStub } = await connectedSession();
+  const refused = reviewSource('fixture-sample', { decision: 'incorporated' });
+  await flush();
+  fetchStub.answer(
+    `${gatewayOrigin}/v1/risk/sources/fixture-sample/review`,
+    { code: 'invalid_decision', request_id: '00000000-0000-4000-8000-000000000000' },
+    422,
+  );
+  const outcome = await refused;
+  expect(outcome.ok).toBe(false);
+  if (!outcome.ok) {
+    expect(outcome.failure.kind).toBe('unavailable');
+    expect(outcome.failure.status).toBe(422);
+    expect(outcome.failure.reason).toBe('invalid_decision');
+  }
+});
+
+// --- PM-17: the explanatory assistant ---------------------------------------
+//
+// The route composes the answer locally from the published batch, so the transport
+// owns the four properties the page relies on: a closed request document, the two
+// guardrail statuses, the declared synthetic provenance, and the five canonical
+// variables cited with a value if and only if they were measured.
+
+const EXPLAIN_URL = `${gatewayOrigin}/v1/risk/explain`;
+
+function explainBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    batch_id: 'batch-1',
+    zone_id: '05101',
+    zone_name: 'Valparaíso',
+    topic: 'FACTORES',
+    risk_level: 'alto',
+    model_version: 'academic-rule-v1',
+    synthetic: true,
+    answer: 'Lote batch-1 de la comuna Valparaíso (05101). Nivel registrado: alto.',
+    factors: [
+      { name: 'temperatura', known: true, value: 32.5, contribution: 0.4 },
+      { name: 'humedad_relativa', known: false },
+      { name: 'viento', known: false },
+      { name: 'cobertura_vegetal', known: false },
+      { name: 'incendios_historicos', known: false },
+    ],
+    guardrails: { input: 'GRD-I1:PASS', output: 'GRD-I2:PASS' },
+    notice: 'Procedencia sintética: datos sintéticos.',
+    ...overrides,
+  };
+}
+
+// One canonical citation with a measured variable and four the batch did not read.
+function explainFactors(overrides: Record<string, unknown> = {}): Record<string, unknown>[] {
+  return [
+    { name: 'temperatura', known: true, value: 32.5, contribution: 0.4, ...overrides },
+    { name: 'humedad_relativa', known: false },
+    { name: 'viento', known: false },
+    { name: 'cobertura_vegetal', known: false },
+    { name: 'incendios_historicos', known: false },
+  ];
+}
+
+test('the explain read posts one closed document with the bearer and omits an empty question (PM-17)', async () => {
+  const { fetchStub, token } = await connectedSession();
+
+  const outcome = explainRisk({ zoneId: ' 05101 ', topic: 'FACTORES', question: '   ' });
+  await flush();
+  const calls = fetchStub.callsFor(EXPLAIN_URL);
+  expect(calls).toHaveLength(1);
+  expect((calls[0].init.method ?? 'GET').toUpperCase()).toBe('POST');
+  expect((calls[0].init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+  expect((calls[0].init.headers as Record<string, string>).Authorization).toBe(`Bearer ${token}`);
+  expect((calls[0].init as { cache?: string }).cache).toBe('no-store');
+  // The zone is trimmed once, and the blank question is OMITTED rather than sent:
+  // the service refuses a present but blank question with GRD-I1, and sending one
+  // would invite a refusal the operator never asked for.
+  expect(JSON.parse(String(calls[0].init.body))).toEqual({ zone_id: '05101', topic: 'FACTORES' });
+
+  fetchStub.answer(EXPLAIN_URL, explainBody());
+  const settled = await outcome;
+  expect(settled.ok).toBe(true);
+  if (settled.ok) expect(settled.data.guardrails).toEqual({ input: 'GRD-I1:PASS', output: 'GRD-I2:PASS' });
+});
+
+test('the explain request refuses locally what the contract would refuse, before the fetch', async () => {
+  const { fetchStub } = await connectedSession();
+
+  expect(expectFailure(await explainRisk({ zoneId: '   ', topic: 'FACTORES' })).reason).toBe('invalid_explain');
+  // A topic outside the closed vocabulary cannot be produced by the typed UI, so the
+  // guard is exercised through a cast: a served spelling is never trusted anyway.
+  expect(expectFailure(await explainRisk({ zoneId: '05101', topic: 'CAUSAS' as never })).reason).toBe('invalid_explain');
+  expect(
+    expectFailure(await explainRisk({ zoneId: '05101', topic: 'FACTORES', question: 'a'.repeat(EXPLAIN_QUESTION_LIMIT + 1) }))
+      .reason,
+  ).toBe('invalid_explain');
+  expect(fetchStub.callsFor(EXPLAIN_URL)).toHaveLength(0);
+
+  // The bound is inclusive and counted in characters, so a Spanish question is not
+  // refused for the width of its accents.
+  const atBound = explainRisk({ zoneId: '05101', topic: 'FUENTES', question: 'á'.repeat(EXPLAIN_QUESTION_LIMIT) });
+  await flush();
+  expect(fetchStub.callsFor(EXPLAIN_URL)).toHaveLength(1);
+  fetchStub.answer(EXPLAIN_URL, explainBody({ topic: 'FUENTES' }));
+  expect((await atBound).ok).toBe(true);
+});
+
+test('the explain answer fails closed unless both guardrails passed and the provenance is declared (PM-17)', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const arms: { name: string; body: Record<string, unknown> }[] = [
+    { name: 'an input guardrail that did not pass', body: explainBody({ guardrails: { input: 'GRD-I1:FAIL', output: 'GRD-I2:PASS' } }) },
+    { name: 'an output guardrail that did not pass', body: explainBody({ guardrails: { input: 'GRD-I1:PASS', output: '' } }) },
+    { name: 'missing guardrails', body: explainBody({ guardrails: undefined }) },
+    { name: 'an undeclared synthetic mark', body: explainBody({ synthetic: false }) },
+    { name: 'a synthetic mark served as a string', body: explainBody({ synthetic: 'true' }) },
+    { name: 'a topic outside the enum', body: explainBody({ topic: 'CAUSAS' }) },
+    { name: 'a level outside the vocabulary', body: explainBody({ risk_level: 'extremo' }) },
+    { name: 'an empty batch id', body: explainBody({ batch_id: '' }) },
+    { name: 'an empty answer', body: explainBody({ answer: '   ' }) },
+    { name: 'an empty notice', body: explainBody({ notice: '' }) },
+    { name: 'four cited variables', body: explainBody({ factors: explainFactors().slice(0, 4) }) },
+    {
+      name: 'an unmeasured variable carrying a value',
+      body: explainBody({
+        factors: [explainFactors()[0], { name: 'humedad_relativa', known: false, value: 12 }, ...explainFactors().slice(2)],
+      }),
+    },
+    {
+      name: 'a citation outside the canonical order',
+      body: explainBody({ factors: [explainFactors()[1], explainFactors()[0], ...explainFactors().slice(2)] }),
+    },
+    {
+      name: 'a measured variable without a contribution',
+      body: explainBody({ factors: [{ name: 'temperatura', known: true, value: 32.5 }, ...explainFactors().slice(1)] }),
+    },
+    {
+      name: 'an unmeasured variable with a contribution',
+      body: explainBody({
+        factors: [{ ...explainFactors()[0] }, { name: 'humedad_relativa', known: false, contribution: 0.1 }, ...explainFactors().slice(2)],
+      }),
+    },
+  ];
+
+  for (const arm of arms) {
+    const outcome = explainRisk({ zoneId: '05101', topic: 'FACTORES' });
+    await flush();
+    fetchStub.answer(EXPLAIN_URL, arm.body);
+    // `expectFailure` throws when the arm was accepted, so a regression names itself.
+    expect(expectFailure(await outcome).reason, arm.name).toBe('invalid_shape');
+  }
+});
+
+test('the explain answer is discarded when it echoes another zone, topic or batch (PM-17)', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const otherZone = explainRisk({ zoneId: '05101', topic: 'FACTORES' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, explainBody({ zone_id: '05109' }));
+  expect(expectFailure(await otherZone).reason).toBe('zone_mismatch');
+
+  const otherTopic = explainRisk({ zoneId: '05101', topic: 'PRIORIDAD' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, explainBody({ topic: 'FUENTES' }));
+  expect(expectFailure(await otherTopic).reason).toBe('topic_mismatch');
+
+  const otherBatch = explainRisk({ zoneId: '05101', topic: 'FACTORES', batchId: 'batch-1' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, explainBody({ batch_id: 'batch-2' }));
+  expect(expectFailure(await otherBatch).reason).toBe('batch_mismatch');
+
+  // The matching case is accepted, so the three refusals above are about the echo
+  // and not about a guard that refuses every answer.
+  const matching = explainRisk({ zoneId: '05101', topic: 'FACTORES', batchId: 'batch-1' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, explainBody());
+  expect((await matching).ok).toBe(true);
+});
+
+test('the explain read surfaces each guardrail code as its own failure (PM-17)', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const rejected = explainRisk({ zoneId: '05101', topic: 'FACTORES' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, { code: 'GUARDRAIL_INPUT_REJECTED' }, 422, 'req-422');
+  expect(expectFailure(await rejected)).toEqual({
+    kind: 'unavailable',
+    reason: 'GUARDRAIL_INPUT_REJECTED',
+    status: 422,
+    requestId: 'req-422',
+  });
+
+  const noBatch = explainRisk({ zoneId: '05101', topic: 'FUENTES' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, { code: 'no_published_batch', data_status: 'insufficient' }, 404, 'req-404');
+  expect(expectFailure(await noBatch)).toEqual({
+    kind: 'missing',
+    reason: 'no_published_batch',
+    status: 404,
+    requestId: 'req-404',
+  });
+
+  const blocked = explainRisk({ zoneId: '05101', topic: 'TENDENCIA' });
+  await flush();
+  fetchStub.answer(EXPLAIN_URL, { code: 'GUARDRAIL_OUTPUT_BLOCKED' }, 503, 'req-503');
+  expect(expectFailure(await blocked).reason).toBe('GUARDRAIL_OUTPUT_BLOCKED');
 });

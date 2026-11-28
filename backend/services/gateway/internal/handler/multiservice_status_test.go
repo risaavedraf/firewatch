@@ -319,9 +319,10 @@ func TestMultiserviceStatusAggregateMatchesTheContract(t *testing.T) {
 }
 
 // TestMultiserviceStatusEnforcesTheDeclaredRoles pins the policy the contract
-// declares for this exact route: viewer or admin, read from the verified token's
-// realm roles. A caller without either is refused 403 before any upstream is
-// contacted, and a spoofed X-User-Role header grants nothing.
+// declares for this exact route: viewer, analista or admin —the three roles the
+// ratified D-C matrix declares— read from the verified token's realm roles. A
+// caller without any of them is refused 403 before any upstream is contacted, and
+// a spoofed X-User-Role header grants nothing.
 func TestMultiserviceStatusEnforcesTheDeclaredRoles(t *testing.T) {
 	contract := loadContract(t)
 	var upstreamCalls atomic.Int64
@@ -342,7 +343,12 @@ func TestMultiserviceStatusEnforcesTheDeclaredRoles(t *testing.T) {
 		{"no realm role is refused", nil, http.StatusForbidden, 0},
 		{"an unrelated role is refused", []string{"operator"}, http.StatusForbidden, 0},
 		{"viewer is admitted", []string{"viewer"}, http.StatusOK, 4},
+		{"analista is admitted", []string{"analista"}, http.StatusOK, 4},
 		{"admin is admitted", []string{"admin"}, http.StatusOK, 4},
+		// The role decision is membership in the set, never the first recognised
+		// element: the demo realm hands its admin account both viewer and admin.
+		{"viewer before analista is admitted", []string{"viewer", "analista"}, http.StatusOK, 4},
+		{"viewer before admin is admitted", []string{"viewer", "admin"}, http.StatusOK, 4},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			upstreamCalls.Store(0)

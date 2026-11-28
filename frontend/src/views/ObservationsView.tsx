@@ -6,7 +6,7 @@ import { FieldStateCard } from '../components/field-work/FieldStateCard';
 import { PanelHeading } from '../components/ui';
 import { createObservation, observationZones, observations, type Failure, type Outcome } from '../core/api';
 import { getSessionSnapshot, subscribeSession } from '../core/session';
-import { declaresAdminRole } from '../domain';
+import { declaresTacticalRole } from '../domain';
 import {
   OBSERVATION_TYPES,
   type Observation,
@@ -201,7 +201,12 @@ export function ObservationsView() {
   const signedIn = session.status === 'signed-in';
   // The role is a token FACT, read without verifying the signature. It only
   // decides which affordances this page shows; the server decides the action.
-  const admin = signedIn && declaresAdminRole(session.roles);
+  //
+  // PM-15 (D-C): registering and adopting an observation is the TACTICAL half of
+  // the ratified matrix — «evalúa y gestiona acciones, sin admin» — so an analista
+  // operates it and a viewer reads. Nothing on this page decides the final
+  // evidence review, which stays admin alone and is not offered here.
+  const tactical = signedIn && declaresTacticalRole(session.roles);
 
   const [list, setList] = useState<ListState | null>(null);
   const [zones, setZones] = useState<ZonesState | null>(null);
@@ -333,7 +338,7 @@ export function ObservationsView() {
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (!signedIn || !admin || busy) return;
+    if (!signedIn || !tactical || busy) return;
     const description = form.description.trim();
     if (form.zoneId === '' || form.type === '' || form.observedOn === '' || description === '') {
       setNotice('Completa zona, tipo, fecha y descripción antes de guardar la observación.');
@@ -366,8 +371,8 @@ export function ObservationsView() {
   // board 11 draws them differently. The refused read gets the designed card; the
   // empty one keeps its own card below, which is where the filter reset lives.
   const listRefused = listState.phase === 'denied' || listState.phase === 'unavailable';
-  const fieldDisabled = !admin || busy;
-  const submitDisabled = !admin || busy || !zonesReady;
+  const fieldDisabled = !tactical || busy;
+  const submitDisabled = !tactical || busy || !zonesReady;
   const badge = signedIn ? listState.badge : 'SIN CONSULTAR';
   const countLabel =
     listState.phase === 'read'
@@ -379,11 +384,11 @@ export function ObservationsView() {
     listState.phase === 'unconsulted' && notice !== '' ? notice : listState.phase === 'unconsulted' ? idleCopy(session, LIST_ACTION) : listState.message;
   const roleNote = !signedIn
     ? 'Conecta una sesión para registrar observaciones: la página no concede permisos.'
-    : admin
-      ? 'Tu token declara el rol admin, así que esta página ofrece el registro. La firma del token no se verifica aquí: el servidor fija el autor desde el token verificado y decide cada permiso; su respuesta se muestra tal cual.'
+    : tactical
+      ? 'Tu token declara el rol analista o admin, así que esta página ofrece el registro y la adopción de observaciones, que son operación táctica. La firma del token no se verifica aquí: el servidor fija el autor desde el token verificado y decide cada permiso; su respuesta se muestra tal cual.'
       : session.roles === null
         ? 'Tu token no declara un rol utilizable, así que el registro queda deshabilitado. Puedes leer las observaciones; el servidor sigue siendo la única autoridad y su negativa se mostraría tal cual.'
-        : 'Tu token no declara el rol admin, así que el registro queda deshabilitado en esta página. Puedes leer las observaciones; el servidor decide cada permiso y su negativa se mostraría tal cual.';
+        : 'Tu token declara el rol viewer, así que esta página queda en modo lectura: registrar y adoptar observaciones requiere el rol analista o admin. La página no concede permisos; el servidor decide cada uno y su negativa se mostraría tal cual.';
 
   return (
     <section className="view" id="observations" data-view="observations" aria-labelledby="observations-title">
@@ -577,7 +582,7 @@ export function ObservationsView() {
           <p className="panel-note" id="observation-list-note">
             La lista se lee de <code>/v1/prevention/observations</code>, más reciente primero. El filtro es una
             consulta al servicio, no un filtro local, y la atribución de cada fila es la que guardó el servidor. La
-            asociación con un trabajo preventivo la registra el rol admin y el servicio la devuelve en cada lectura.
+            asociación con un trabajo preventivo la registra el rol analista o admin y el servicio la devuelve en cada lectura.
           </p>
 
           <p id="observation-adoption-status" className="status-copy" role="status" aria-live="polite">
@@ -642,7 +647,7 @@ export function ObservationsView() {
                       se cancele después. No asigna a ninguna persona ni cambia el estado del trabajo.
                     </p>
                   </div>
-                ) : admin ? (
+                ) : tactical ? (
                   <button
                     id={`observation-adopt-${entry.id}`}
                     ref={adoptingId === entry.id ? adoptTriggerRef : undefined}
@@ -657,7 +662,7 @@ export function ObservationsView() {
                 {adoptingId === entry.id ? (
                   <ObservationAdoption
                     observation={entry}
-                    canConfirm={admin}
+                    canConfirm={tactical}
                     onCancel={closeAdoption}
                     onLinked={handleLinked}
                   />

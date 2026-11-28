@@ -40,6 +40,49 @@ export interface ZonePriority {
   context_summary: string;
 }
 
+// V1-P-01 / PM-12 — the land-cover layer. It is COMPLEMENTARY to the scalar
+// `cobertura_vegetal` variable of the rule and never replaces it: nothing here is
+// an input of the classifier. The four classes are closed, and the provenance is
+// always the synthetic seed the owner's decision declares.
+export const ENVIRONMENT_CLASSES = ['WUI_ALTA', 'FORESTAL_DENSO', 'MIXTO_RURAL', 'PERIURBANO'] as const;
+
+export type EnvironmentClass = (typeof ENVIRONMENT_CLASSES)[number];
+
+export const VEGETATION_SOURCE_LABEL = 'SINTETICO_SEED_V1';
+
+// The five declared percentages, in the decision's own order. This client
+// reference exists to validate and to label the served split, never to replace it.
+export const LAND_COVER_KEYS = [
+  'bosque_nativo_pct',
+  'plantacion_forestal_pct',
+  'matorral_pastizal_pct',
+  'interfaz_urbano_forestal_pct',
+  'suelo_desnudo_agua_pct',
+] as const;
+
+export type LandCoverKey = (typeof LAND_COVER_KEYS)[number];
+
+// Every member is a percentage in 0..100 and the five sum to exactly 100.
+export type LandCoverBreakdown = Record<LandCoverKey, number>;
+
+export interface ZoneLandCover {
+  zone_id: string;
+  zone_name: string;
+  ndvi_mean: number;
+  ndvi_min: number;
+  ndvi_max: number;
+  ndvi_anomaly: number;
+  land_cover_breakdown: LandCoverBreakdown;
+  environment_class: EnvironmentClass;
+  synthetic: true;
+  source_label: typeof VEGETATION_SOURCE_LABEL;
+}
+
+export interface VegetationCatalogue {
+  source: typeof VEGETATION_SOURCE_LABEL;
+  zones: ZoneLandCover[];
+}
+
 export interface Factor {
   name: string;
   known: boolean;
@@ -86,6 +129,11 @@ export interface RiskBatch {
   // serve it (`latest` and `batches`), and because a batch whose regional context
   // could not be computed is served without it instead of with an invented one.
   priority?: ZonePriority | null;
+  // V1-P-01 / PM-12: the land cover and environment of exactly this batch's
+  // commune. Optional for the same two reasons as `priority`: only `latest` and
+  // `batches` serve it, and a commune the layer does not declare is served
+  // without it. When present its `zone_id` always equals this batch's.
+  land_cover?: ZoneLandCover | null;
 }
 
 export type GeoGeometry =
@@ -138,12 +186,80 @@ export interface SourceProvenance {
     cutoff_semantics: string;
   };
   risk_input?: { synthetic?: boolean; display_name?: string; id?: string } | null;
-  // Per-source cycle state and freshness (front 1, T4). The real payload always
-  // carries a non-null `sources` array of `SourceStatus`; it is typed `unknown`
-  // on purpose, because the transport does not re-shape it and `domain/cycle.ts`
-  // decides what each entry means.
-  sources?: unknown;
+  // V1-P-05 — the CLOSED quality catalogue. Required on every answer, including
+  // one with no source, so the page never infers the vocabulary from whatever
+  // entries happened to arrive.
+  quality_catalog: QualityFindingDefinition[];
+  // Per-source cycle state and freshness (front 1, T4), plus the findings the
+  // service derived and the source's latest review. The transport validates both
+  // closed vocabularies before either reaches a view.
+  sources: SourceQualityEntry[];
   code?: string;
+}
+
+// ── Source quality findings and reviews (V1-P-05) ──────────────────────────
+//
+// The catalogue is CLOSED: five codes, ratified by the owner, published by
+// `GET /v1/risk/sources` and stored nowhere. `QUALITY_FINDINGS` is a runtime value
+// because the transport compares the served spelling against it, and the traits
+// table is the single copy of each code's kind and severity — a catalogue entry that
+// renames either is refused rather than painted.
+export const QUALITY_FINDINGS = [
+  'STALE_CUTOFF',
+  'MISSING_CANONICAL_FACTOR',
+  'OUT_OF_RANGE_CLAMPED',
+  'CHECKSUM_VERIFIED',
+  'SYNTHETIC_FALLBACK',
+] as const;
+
+export type QualityFindingCode = (typeof QUALITY_FINDINGS)[number];
+
+export const QUALITY_FINDING_TRAITS: Readonly<
+  Record<QualityFindingCode, { readonly kind: string; readonly severity: 'warning' | 'info' }>
+> = {
+  STALE_CUTOFF: { kind: 'freshness', severity: 'warning' },
+  MISSING_CANONICAL_FACTOR: { kind: 'coverage', severity: 'warning' },
+  OUT_OF_RANGE_CLAMPED: { kind: 'range', severity: 'warning' },
+  CHECKSUM_VERIFIED: { kind: 'integrity', severity: 'info' },
+  SYNTHETIC_FALLBACK: { kind: 'provenance', severity: 'info' },
+};
+
+export interface QualityFindingDefinition {
+  code: QualityFindingCode;
+  kind: string;
+  severity: 'warning' | 'info';
+  description: string;
+}
+
+// The two decisions the review resource stores. It is closed for the same reason
+// as the findings: a stored decision is what the page and the trace consist of.
+export const SOURCE_REVIEW_DECISIONS = ['incorporated', 'acknowledged'] as const;
+
+export type SourceReviewDecision = (typeof SOURCE_REVIEW_DECISIONS)[number];
+
+// The longest note the resource stores, in characters. The service and its schema
+// state the same bound, so a note this client refuses is a note the database would
+// have refused as well.
+export const SOURCE_REVIEW_NOTE_LIMIT = 500;
+
+export interface SourceReview {
+  source_id: string;
+  decision: SourceReviewDecision;
+  note: string;
+  reviewed_by: string;
+  reviewed_at: string;
+}
+
+export interface SourceQualityEntry {
+  source_id: string;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  complete: boolean;
+  age_seconds: number | null;
+  last_error?: string;
+  quality_findings: QualityFindingCode[];
+  /** The latest review in force, or `null` when nobody reviewed this source. */
+  review: SourceReview | null;
 }
 
 // A dependency states its own readiness under `state` (`ready`, `degraded`, …).

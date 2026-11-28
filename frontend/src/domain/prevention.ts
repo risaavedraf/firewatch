@@ -72,29 +72,54 @@ export function actionStatusLabel(status: string): string {
   return isActionStatus(status) ? LABELS[status] : status;
 }
 
-// The declared `admin` role, read from the token payload WITHOUT verifying its
-// signature. `null`, an empty list and a role-less token are all "not admin":
-// the client never assumes a permission the token did not declare.
-export function declaresAdminRole(roles: readonly string[] | null | undefined): boolean {
-  return roles != null && roles.some(role => role === 'admin');
-}
+// The declared `admin` role and the tactical role pair live in `./roles`, which is
+// the single home of the ratified role vocabulary (D-C). Nothing is re-declared
+// here, so the domain barrel has exactly one definition of each predicate.
+//
+// The affordances below are still only affordances: the server decides.
+import { declaresAdminRole, declaresTacticalRole } from './roles';
 
 export interface TransitionAffordance {
   readonly to: ActionStatus;
   readonly label: string;
   readonly enabled: boolean;
+  // Whether the target belongs to the FINAL half of the ratified matrix, the
+  // half that stays administrative (accepting, sending back and cancelling).
+  readonly finalReview: boolean;
 }
 
-// The controls a view may offer for one action: the valid successors, enabled
-// only for a signed-in session whose token declares `admin`. The server is still
-// the only authority, and every refusal it returns is rendered by the view.
+// isFinalReviewTransition reports whether a declared target is one of the final
+// decisions the ratified D-C matrix keeps for `admin` alone: approving the
+// evidence review (`aceptada`), rejecting it (`devuelta`) and cancelling the
+// action (`cancelada`, which the frozen machine allows from every non-terminal
+// state). Everything else is a tactical workflow step, which an `analista` may
+// perform.
+//
+export function isFinalReviewTransition(to: string): boolean {
+  return to === 'aceptada' || to === 'devuelta' || to === 'cancelada';
+}
+
+// The controls a view may offer for one action: the valid successors, each
+// enabled by the half of the matrix it belongs to — tactical transitions for a
+// signed-in analista or admin, the final ones only for a signed-in admin. The
+// server is still the only authority, and every refusal it returns is rendered by
+// the view.
 export function transitionAffordances(
   fromStatus: string,
   roles: readonly string[] | null | undefined,
   signedIn: boolean,
 ): readonly TransitionAffordance[] {
-  const enabled = signedIn && declaresAdminRole(roles);
-  return nextStatuses(fromStatus).map(to => ({ to, label: actionStatusLabel(to), enabled }));
+  const admin = signedIn && declaresAdminRole(roles);
+  const tactical = signedIn && declaresTacticalRole(roles);
+  return nextStatuses(fromStatus).map(to => {
+    const finalReview = isFinalReviewTransition(to);
+    return {
+      to,
+      label: actionStatusLabel(to),
+      enabled: finalReview ? admin : tactical,
+      finalReview,
+    };
+  });
 }
 
 // ── Evidence and sufficiency ──────────────────────────────────────────────

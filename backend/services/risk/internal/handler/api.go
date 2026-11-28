@@ -9,7 +9,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"firewatch.local/contracts/geo"
 	observations "firewatch.local/contracts/observations/v1"
 	"firewatch.local/risk/internal/engine"
 	"firewatch.local/risk/internal/repository"
@@ -129,19 +131,33 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 	// the Authorize gate and requires no further role check, and it stores nothing.
 	mux.HandleFunc("GET /v1/risk/alerts", listAlerts(store))
 	// The personal notification state is a separate resource next to the timeline,
-	// not a member of it: reading one's own mark is a viewer/admin read scoped by
-	// the verified token subject, and applying a mark is admin-only through
-	// requireAdmin. Neither route edits the PM-07 alert row.
+	// not a member of it: both routes are scoped by the verified token subject, and
+	// both admit the three declared roles. A personal mark is a per-caller
+	// preference, not an administrative action: the ratified D-C matrix answers
+	// «Sí» for viewer, analista and admin on PUT /v1/risk/alerts/{id}/state, so it
+	// carries no requireAdmin. Neither route edits the PM-07 alert row.
 	mux.HandleFunc("GET /v1/risk/alerts/{id}/state", alertStateRead(store))
-	mux.HandleFunc("PUT /v1/risk/alerts/{id}/state", requireAdmin(alertStateMark(store)))
+	mux.HandleFunc("PUT /v1/risk/alerts/{id}/state", alertStateMark(store))
 	// The counterfactual simulation is a viewer/admin read like its neighbours: it
 	// is inside the Authorize gate, requires no further role check, recomputes
 	// locally from the rule the batch recorded and writes no row. No gateway change
 	// is needed: /v1/risk/ is already proxied as a subtree.
 	mux.HandleFunc("POST /v1/risk/simulate", simulate(store))
+	// PM-17 is the explanatory assistant, and it is mounted here for the same
+	// reasons as the simulation above: it is a viewer/admin read inside the
+	// Authorize gate, it composes the answer locally instead of calling any
+	// language model, and it writes nothing. GRD-I1 runs before the single storage
+	// read and GRD-I2 runs on the composed answer, so neither guardrail can be
+	// skipped by a caller. /v1/risk/ is already proxied as a subtree.
+	mux.HandleFunc("POST /v1/risk/explain", explainAnswer(store))
 	mux.HandleFunc("GET /v1/risk/zones", listZones(store))
 	mux.HandleFunc("GET /v1/risk/synthetic-scenarios", listSyntheticScenarios())
 	mux.HandleFunc("GET /v1/risk/infrastructure", listInfrastructure())
+	// PM-12: the land-cover layer is a compiled-in read like its infrastructure
+	// neighbour. It is mounted inside the same Authorize gate, accepts no query
+	// parameter at all, and keeps the scalar `cobertura_vegetal` of the classifier
+	// untouched: the layer is complementary and never an input of the rule.
+	mux.HandleFunc("GET /v1/risk/vegetation", listVegetation())
 	// S4 (PM-16): the inference evidence read. It is mounted inside the same
 	// Authorize gate as every sibling read, and the evaluator it reports was built
 	// from configuration by the process: no parameter of this request reaches the
@@ -151,12 +167,27 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 	// requireAdmin, defined in security.go.
 	mux.HandleFunc("GET /v1/models", listModels(store))
 	mux.HandleFunc("POST /v1/models/{version}/activate", requireAdmin(activateModel(store)))
-	mux.HandleFunc("POST /v1/risk/cycle/run", requireAdmin(cycleRun(runner)))
+	// The manual trigger is a tactical operation, not an administrative one: the
+	// ratified D-C matrix refuses it to a viewer and grants it to analista and
+	// admin, which is what requireTactical decides. The counterfactual simulation
+	// above is deliberately NOT in this group: it writes no row and is a read.
+	mux.HandleFunc("POST /v1/risk/cycle/run", requireTactical(cycleRun(runner)))
 	var provider DescriptorProvider
 	if len(providers) == 1 {
 		provider = providers[0]
 	}
-	mux.HandleFunc("GET /v1/risk/sources", sourcesWithCycle(provider, runner))
+	// V1-P-05: the review resource is derived from the same repository every other
+	// route already uses. Whether the seam is wired is a property of the repository,
+	// so a deployment without review storage serves no review and fails the write
+	// closed instead of implying one exists.
+	reviews := reviewStoreFrom(store)
+	auditor := reviewAuditorFrom(store)
+	mux.HandleFunc("GET /v1/risk/sources", sourcesFromWithCycle(provider, runner, reviews, geo.ComunasProvenanceJSON, geo.ComunasGeoJSON))
+	// The review is a tactical action like the manual cycle: analista and admin may
+	// append a decision to an append-only resource, a viewer is refused 403, and the
+	// actor it records is the verified token subject rather than a field the caller
+	// could name. The ratified D-C matrix names this route explicitly.
+	mux.HandleFunc("POST /v1/risk/sources/{source_id}/review", requireTactical(sourceReview(reviews, auditor, provider, runner, time.Now)))
 	authorized := withErrorRecovery(Authorize(verifier, mux))
 	if classifiers == nil {
 		return authorized
