@@ -36,7 +36,7 @@
 .observations-form .field label,
 .observations-toolbar .field label {
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: .02em;
 }
@@ -57,7 +57,7 @@
 .observations-form .field-meta {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.55;
 }
 
@@ -73,7 +73,7 @@
   border-radius: 8px;
   background: var(--soft);
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.6;
 }
 
@@ -85,7 +85,7 @@
   display: block;
   margin-bottom: 3px;
   color: var(--accent);
-  font-size: 8px;
+  font-size: 0.5rem;
   font-weight: 850;
   letter-spacing: .08em;
 }
@@ -146,12 +146,12 @@
 }
 
 .observation-item-head strong {
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 .observation-date {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -159,7 +159,7 @@
 .observation-zone {
   margin: 2px 0 4px;
   color: var(--accent);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
@@ -167,7 +167,7 @@
 .observation-description {
   margin: 0 0 4px;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -175,7 +175,7 @@
 .observation-meta {
   margin: 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 0.5rem;
   overflow-wrap: anywhere;
 }
 
@@ -239,7 +239,7 @@
 .observation-adoption-title {
   margin: 0;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 .observation-adoption-effect,
@@ -247,7 +247,7 @@
 .observation-adoption-result {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.6;
 }
 
@@ -264,7 +264,7 @@
 
 .observation-adoption .field label {
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: .02em;
 }
@@ -281,7 +281,7 @@
 .observation-adoption .field-note {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.55;
 }
 
@@ -298,7 +298,7 @@
 
 .observation-adoption-confirm label {
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.5;
 }
 
@@ -329,17 +329,17 @@
 .observation-adoption-link p {
   margin: 0;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   overflow-wrap: anywhere;
 }
 
 .observation-adoption-link code {
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 
 .observation-adoption-link .observation-adoption-link-note {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.55;
 }
 

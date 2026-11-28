@@ -396,10 +396,12 @@ test('a view that did not opt into a level keeps its panel headings at level 3',
 // ── Typography the level must not change ───────────────────────────────────
 
 test('the opt-in level keeps the shipped panel title and detail subsection type', () => {
-  // The panel title kept its size and spacing before the level was available.
+  // The panel title kept its size and spacing before the level was available. The
+  // scale is relative now (SC 1.4.4): `0.9375rem` is the same 15 px at a 16 px root,
+  // and it grows with the reader's default font size instead of ignoring it.
   const panelTitle = ruleFor('.panel-heading h3, .panel-heading h2');
   expect(panelTitle).toContain('margin: 0');
-  expect(panelTitle).toContain('font-size: 15px');
+  expect(panelTitle).toContain('font-size: 0.9375rem');
   expect(panelTitle).toContain('letter-spacing: -.3px');
 
   // The global `h2` rule is lighter (600) than `h3` (650), so the primitive's
@@ -407,9 +409,9 @@ test('the opt-in level keeps the shipped panel title and detail subsection type'
   expect(ruleFor('.panel-heading .panel-heading-title')).toContain('font-weight: 650');
 
   // The detail's subsections moved from `h4` to `h3` for the hierarchy; they keep
-  // the type they were rendered with.
+  // the type they were rendered with (11 px at a 16 px root).
   const detailSection = ruleFor('.actions-detail > h3');
-  expect(detailSection).toContain('font-size: 11px');
+  expect(detailSection).toContain('font-size: 0.6875rem');
   expect(detailSection).toContain('font-weight: 700');
   expect(detailSection).toContain('letter-spacing: -.1px');
   expect(detailSection).toContain('margin-bottom: 7px');

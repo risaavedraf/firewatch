@@ -39,7 +39,7 @@
 #history .history-head-intro .subheading {
   max-width: 74ch;
   margin: 4px 0 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.55;
 }
 
@@ -78,7 +78,7 @@
 
 #history .history-scope-bar .filter-label,
 #history .filter-bar .filter-label {
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -86,7 +86,7 @@
 
 #history .history-scope-bar select {
   min-width: 156px;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 #history .filter-bar {
@@ -112,7 +112,7 @@
   align-items: center;
   gap: 6px;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   line-height: 1.4;
 }
@@ -173,7 +173,7 @@
 
 #history .history-empty-card strong {
   color: var(--ink);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 650;
   letter-spacing: -0.2px;
 }
@@ -182,7 +182,7 @@
   max-width: 68ch;
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.65;
 }
 
@@ -248,7 +248,7 @@
 #history .history-export-title {
   margin: 0;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 650;
   letter-spacing: -0.2px;
 }
@@ -270,7 +270,7 @@
 }
 
 #history .history-export .data-list dd code {
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 
 #history .history-export-actions {
@@ -289,7 +289,7 @@
   min-width: 200px;
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.6;
 }
 
@@ -337,7 +337,7 @@
 #overview .model-panel .model-scope h4 {
   margin: 0 0 6px;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -350,7 +350,7 @@
   margin: 0;
   padding-left: 16px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.6;
 }
 
@@ -361,7 +361,7 @@
 
 #overview .model-panel .model-scope code {
   color: var(--accent);
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 
 @media (max-width: 560px) {
