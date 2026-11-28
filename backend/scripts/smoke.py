@@ -93,7 +93,13 @@ def main():
     wait_for(lambda: request(API + "/health/ready")[0] == 204)
     assert request(API + "/v1/jobs")[0] == 401
     assert request(API + "/v1/jobs", "POST", viewer, {"zone_id": "valparaiso-demo"})[0] == 403
-    assert request(API + "/v1/audit", token=viewer)[0] == 403
+    # PM-15 (D-C): the activity register is a GET read, and the ratified matrix
+    # (odd/plan-produccion/16-producto-mandante.md, row «Consultas `GET`») answers
+    # «Sí» for viewer, analista and admin. This assertion used to pin viewer's 403;
+    # it now pins the ratified admission. Creating a job is not a GET query, so
+    # the line above keeps viewer refused on POST /v1/jobs.
+    status, viewer_audit = request(API + "/v1/audit", token=viewer)
+    assert status == 200, f"viewer reading the activity register got {status}"
     assert request(API + "/v1/jobs", "POST", admin, {"zone_id": "unknown"},
                    {"Idempotency-Key": str(uuid.uuid4())})[0] == 400
     key = str(uuid.uuid4())
