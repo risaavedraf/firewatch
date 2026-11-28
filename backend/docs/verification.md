@@ -125,10 +125,39 @@ docker compose --profile observability up -d
 
 The test profile uses dedicated test databases. The smoke script creates synthetic demonstration records and deliberately adds a malformed message to the risk DLQ. It never prints tokens or passwords.
 
+## Ingestion cadence and freshness thresholds — 2026-11-28
+
+The 15-minute ingestion cadence and the freshness bands are established by unit tests in the risk module, not by a cluster run. The ratified thresholds are:
+
+| Band | Age of the newest data (`evaluated_at - cutoff_at`) | Reported consequence |
+|---|---|---|
+| `FRESH` | `age <= 15m` (`<= 900s`) | none |
+| `WARNING` (`DEGRADED`) | `15m < age <= 30m` (`<= 1800s`, two cycles) | none; the band itself is the report |
+| `STALE` | `age > 30m` (`> 1800s`) | finding `STALE_CUTOFF` |
+
+The scheduler's nominal interval is `15m0s` (`900s`) and its per-interval jitter is bounded by `30s`, seeded so a simulated clock replays the same instants. The automatic loop is wired to that contract: `backend/services/risk/internal/cycle/runner.go` waits `scheduler.Schedule.Delay(ordinal)` through an injectable `After` seam, `cycle.DefaultInterval` is an alias of `scheduler.NominalInterval`, and the delay is the **start-to-start** interval because each cycle's own elapsed time is discounted from it (clamped at zero), so a slow ingest does not push every later start past the band. Cycles run serially and never overlap, so the rule is explicit: while a cycle's `elapsed <= Schedule.Delay(ordinal)`, the post-cycle wait is `Delay(ordinal) - elapsed` and start-to-start equals `Schedule.Delay(ordinal)`, inside `[870s, 930s]` (`900s ± 30s`); when one cycle overruns `Schedule.Delay(ordinal)` (the `20m` overrun test), the post-cycle wait clamps to `0s` and the next cycle starts immediately on completion, with no overlap and no carried-over debt. `NextRunAt` in the sources API stays the nominal renewal deadline, because it is a deadline and not the tick phase. A source whose `cutoff_at` is not recorded is reported `STALE` rather than assumed fresh, and an empty or partial retrieval is still refused by the existing validation path.
+
+Reproduce from `backend/services/risk`:
+
+```sh
+GOWORK=off go test ./internal/source/... ./internal/scheduler/... ./internal/cycle/... -count=1
+```
+
+| Check (2026-11-28, Go 1.27.4, Windows host) | Result |
+|---|---|
+| `GOWORK=off go test ./internal/source/... ./internal/scheduler/... ./internal/cycle/... -count=1` | `ok` for `internal/source`, `internal/scheduler` and `internal/cycle`; 61 tests and subtests pass |
+| `GOWORK=off go test ./internal/cycle/ -count=1` | `ok`; the loop's waits stay inside `900s ± 30s`, are not all nominal, follow an injected `5s` bound, produce the exact `900s` grid when jitter is disabled, reproduce for one schedule, and keep start-to-start exact by subtracting a measured cycle runtime (a `45s` cycle waits `Delay(ordinal) - 45s`, so start-to-start equals `Delay(ordinal)` in `[870s, 930s]`); with a `20m` overrun the post-cycle wait clamps to `0s` and the next cycle starts immediately on completion |
+| `GOWORK=off go test ./... -count=1` (whole risk module) | All 13 packages `ok`, zero failures |
+| `gofmt -l internal/source internal/scheduler internal/cycle` | No output |
+
+What these tests establish: the band boundaries (`0s`, `15m`, `15m1s`, `30m`, `30m1s`), the seeded fixture's reproducibility for one seed and cutoff, the substitution of `source.Provider` without changes outside `backend/services/risk/internal/source/`, a sequential 15-minute tick series inside the `±30s` tolerance, and that the automatic cycle loop takes its waits from that schedule rather than from a fixed ticker -measuring each cycle's runtime and discounting it so the scheduled delay stays a start-to-start interval. The unit specification and its recorded runs live in [`odd/tasks/v1-f-01-ingesta-freshness.md`](../../odd/tasks/v1-f-01-ingesta-freshness.md).
+
+What they do not establish: ingestion of a real source, the availability or periodicity of a real feed, or the behaviour of a deployed scheduler in a cluster. The fixture is synthetic and declares itself so in its descriptor and provenance.
+
 ## Not established by these checks
 
 - Kubernetes rollout, cluster failover, recovery from backups or production availability/performance SLAs.
-- Real wildfire inference, model accuracy/calibration, source-data validity or the 15-minute scheduler.
+- Real wildfire inference, model accuracy/calibration or source-data validity.
 - Browser authentication/CSRF behavior, service-mesh encryption or immediate JWT revocation.
 - Infrastructure-image security: the Trivy results above cover the three authored application images, not Keycloak, PostgreSQL, RabbitMQ or Prometheus.
 - Registry publication, signature verification or deployment promotion. The workflows do run on GitHub: on `main` at `0ed07e2`, before the toolchain refresh, the `Backend integration` run was green while the three service runs stopped at the vulnerability-scan command, and their `Build container with provenance and SBOM` and `Scan runtime image` steps were skipped in that run. That is no longer the current state: `c45508e` enables the containerd image store in the job, after which the three service runs complete with both steps successful (recorded at `odd/tasks/security/ci-go-1.27.2-green.md:52`, `:131`), and the `Risk` run `38612773033` on `572c12e` reports steps 8 (`govulncheck`), 10 (`Build container with provenance and SBOM`) and 11 (`Scan runtime image`) as success, checked through the GitHub API by the routing session and not re-queried here. The toolchain refresh above validated both steps locally as well.

@@ -113,5 +113,5 @@ func respond(w http.ResponseWriter, status int, value any) {
 // machine-readable code and the request's correlation id, which is the same
 // literal the X-Request-ID header carries.
 func fail(w http.ResponseWriter, status int, code string) {
-	respond(w, status, map[string]string{"code": code, "request_id": w.Header().Get("X-Request-ID")})
+	writeError(w, status, code)
 }

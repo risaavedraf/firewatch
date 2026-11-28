@@ -322,6 +322,11 @@ func TestHistoryCSVFailureParity(t *testing.T) {
 		{"read unavailable", "?zone_id=05101", map[string]bool{"05101": true}, nil, errors.New("storage unavailable"), http.StatusServiceUnavailable},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// Parity is byte-for-byte, so both reads must be the same request in every
+			// respect the body carries. The correlation id is one of those fields, and
+			// since BH-12 the body never answers an empty one; it is supplied here by
+			// the same middleware production runs, with one literal for both calls.
+			const parityCorrelationID = "8f1d0a52-7b3c-4a19-9e21-8a1b2c3d4e5f"
 			run := func(target string) *httptest.ResponseRecorder {
 				zones := tc.zones
 				if zones == nil {
@@ -332,7 +337,12 @@ func TestHistoryCSVFailureParity(t *testing.T) {
 					listErr:   tc.listErr,
 				}
 				handler, token := authorizedServer(t, "viewer", store)
-				return getZones(t, handler, token, target)
+				request := httptest.NewRequest(http.MethodGet, target, nil)
+				request.Header.Set("Authorization", "Bearer "+token)
+				request.Header.Set("X-Request-ID", parityCorrelationID)
+				response := httptest.NewRecorder()
+				withCorrelationID(handler).ServeHTTP(response, request)
+				return response
 			}
 			jsonResponse := run("/v1/risk/history" + tc.query)
 			csvResponse := run("/v1/risk/history.csv" + tc.query)

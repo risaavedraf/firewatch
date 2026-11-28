@@ -251,22 +251,27 @@ func requestWith(t *testing.T, h http.Handler, method, target, bearer, body stri
 }
 
 // errorBody decodes the shared error shape and fails when it carries anything
-// other than the two documented keys.
+// other than the four documented keys.
 func errorBody(t *testing.T, w *httptest.ResponseRecorder) map[string]string {
 	t.Helper()
 	var raw map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &raw); err != nil {
 		t.Fatalf("error body is not JSON: %v: %s", err, w.Body.String())
 	}
-	if len(raw) != 2 {
-		t.Fatalf("error body must carry exactly code and request_id, got %v", raw)
+	if len(raw) != 4 {
+		t.Fatalf("error body must carry exactly code, category, message and request_id, got %v", raw)
 	}
 	var body struct {
 		Code      string `json:"code"`
+		Category  string `json:"category"`
+		Message   string `json:"message"`
 		RequestID string `json:"request_id"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
+	}
+	if body.Category == "" || body.Message == "" {
+		t.Fatalf("error body carries no category/message: %s", w.Body)
 	}
 	if body.RequestID != w.Header().Get("X-Request-ID") || body.RequestID == "" {
 		t.Fatalf("body request_id %q and header %q must be the same non-empty literal", body.RequestID, w.Header().Get("X-Request-ID"))

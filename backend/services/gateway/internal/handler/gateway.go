@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -177,13 +176,15 @@ func newGateway(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin st
 		// header and the log line below quote this same literal. The bytes are
 		// formatted here because this module has no uuid dependency and this route
 		// does not add one.
-		b := randomID()
-		id := fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+		id := newCorrelationID()
 		r.Header.Set("X-Request-ID", id)
 		w.Header().Set("X-Request-ID", id)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self' http://localhost:8081; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+		// The metrics observer is registered first, so under last-in-first-out it
+		// runs last: it reads the status the response actually committed, including
+		// a 500 written by the panic boundary registered below.
 		defer func() {
 			duration := time.Since(start)
 			slog.Info("request", "request_id", id, "method", r.Method, "duration_ms", duration.Milliseconds())
@@ -196,6 +197,13 @@ func newGateway(verifier Verifier, jobs, risk, prevention *url.URL, webOrigin st
 			}
 			httpMetrics.Observe(status, duration)
 		}()
+		// BH-12: the panic boundary sits inside the request chain, after the
+		// correlation id and the status recorder exist and before anything that
+		// can fail runs. It is registered *after* the metrics observer so that,
+		// under last-in-first-out, it unwinds *first*: the recovered panic is
+		// written as the documented 500 and the observer then records that 500
+		// instead of the unobserved 200 the recorder would otherwise report.
+		defer recoverPanic(w, id, observed)
 		// CORS is fail-closed: an unset origin never matches, and the request
 		// origin is compared exactly, so it is never echoed back unvalidated.
 		crossOrigin := webOrigin != "" && r.Header.Get("Origin") == webOrigin
@@ -348,10 +356,11 @@ func randomID() []byte {
 	b[8] = (b[8] & 0x3f) | 0x80
 	return b
 }
+
+// failure writes the one error body of this gateway; the envelope and the
+// category mapping live in errors.go so every failure answers the same shape.
 func failure(w http.ResponseWriter, status int, code string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]string{"code": code, "request_id": w.Header().Get("X-Request-ID")})
+	writeError(w, status, code)
 }
 
 // rateLimited answers 429 with the Retry-After header and rate_limited body
