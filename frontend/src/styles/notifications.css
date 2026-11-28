@@ -51,7 +51,7 @@
 
 .notification-page-label {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
 }
 
@@ -76,7 +76,7 @@
   border-radius: 4px;
   background: var(--soft);
   color: var(--ink);
-  font-size: 8px;
+  font-size: 0.5rem;
   font-weight: 850;
   letter-spacing: 0.04em;
 }
@@ -100,7 +100,7 @@
 
 .notification-demo,
 .notification-provenance {
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
 }
 
@@ -155,7 +155,7 @@
 
 #notifications .notification-empty h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   letter-spacing: -0.4px;
 }
 
@@ -163,7 +163,7 @@
   max-width: 68ch;
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.65;
 }
 
@@ -174,13 +174,13 @@
   margin: 2px 0 0;
   padding-left: 16px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.65;
 }
 
 #notifications .notification-empty-points code {
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 
 @media (max-width: 720px) {
@@ -209,5 +209,169 @@
 @media (prefers-reduced-motion: reduce) {
   #notifications .notification-empty {
     transition: none;
+  }
+}
+
+/* ── PM-08 · la marca personal de cada alerta ─────────────────────────────── */
+
+/* The mark is a reading with two controls under it: the chip carries the served
+   state in words, the instant repeats the one the service canonised, and the
+   feedback line is that row's live region. No new colours: the chip borrows the
+   declared roles, so `Sin leer`, `Leída` and `Revisada` answer with the same
+   surfaces as the rest of the shell. Measured on their own pairs:
+   unread 7.76:1, read 8.81:1, dismissed 9.11:1, feedback and instant 9.41:1 on
+   `--paper`. The boundary is `--edge-strong` (4.08:1 on `--paper`), the same
+   non-text role the empty card uses. */
+
+#notifications .notification-mark-cell {
+  min-width: 196px;
+}
+
+#notifications .notification-mark {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+/* A completed write may retire the control that fired, so focus moves here. The
+   ring is the global focus role and it is never invisible. */
+#notifications .notification-mark:focus {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.notification-mark-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 5px;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.notification-mark-chip-unread {
+  background: var(--soft);
+  color: var(--muted);
+}
+
+.notification-mark-chip-read {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+
+.notification-mark-chip-dismissed {
+  background: var(--level-neutral-surface);
+  color: var(--level-neutral-text);
+}
+
+.notification-mark-time {
+  color: var(--muted);
+  font-size: 0.5625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.notification-mark-pending {
+  color: var(--muted);
+  font-size: 0.5625rem;
+}
+
+/* The unreadable mark states its own contract code and request id, never a state
+   the service did not serve. */
+.notification-mark-unknown {
+  color: var(--ink);
+  font-size: 0.5625rem;
+  line-height: 1.5;
+}
+
+.notification-mark-unknown code {
+  color: var(--gold);
+  font-size: 0.5625rem;
+}
+
+.notification-mark-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+/* A 26 px target with 6 px between the two controls: the sheet's shipped text
+   button is smaller than this, and the row has two of them side by side. */
+.notification-mark-actions .button-text {
+  min-height: 26px;
+  padding: 4px 7px;
+}
+
+.notification-mark-actions .button-text:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.notification-mark-feedback {
+  max-width: 34ch;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.5625rem;
+  line-height: 1.5;
+}
+
+/* The page's persistent mark announcement. It is mounted unconditionally, so an
+   empty one must not reserve a sentence's height and push the notes down; it is
+   also a focus fallback, so its ring is the global focus role. */
+#notifications .notification-mark-status {
+  min-height: 0;
+  margin: 0 0 8px;
+}
+
+#notifications .notification-mark-status:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The filter card's heading receives focus when the active filter emptied the
+   page, so the reader lands on the explanation instead of losing focus. */
+#notifications .notification-filter-empty h3:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* A page-scoped filter that matched nothing is not the empty register and not an
+   error: the card says which page it speaks for and how to widen it. */
+#notifications .notification-filter-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 16px 18px 18px;
+  border: 1px dashed var(--edge-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+#notifications .notification-filter-empty .eyebrow {
+  margin: 0;
+  color: var(--accent);
+}
+
+#notifications .notification-filter-empty-copy {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.625rem;
+  line-height: 1.65;
+}
+
+@media (max-width: 720px) {
+  #notifications .notification-mark-cell {
+    min-width: 168px;
+  }
+
+  #notifications .notification-filter-empty {
+    padding: 14px 14px 16px;
   }
 }

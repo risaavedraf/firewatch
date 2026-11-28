@@ -23,6 +23,8 @@ Unit V1-D-04. The eight production views are Overview, History, Actions, Sources
 | Rendered-pixel backdrop probe (`FW_MIXED_SURFACES`) | Repo harness, ignored | 2026-11-25 | 1.4.3 on composited and gradient surfaces; 93 samples |
 | @guidepup/virtual-screen-reader | 0.28.0 | 2026-11-25 | Document-order exposure and dynamic announcements |
 | Manual source review | — | 2026-11-25 | Token arithmetic, `aria-hidden` judgement, document metadata |
+| Vitest · jsdom (programmatic WCAG 2.1 gates) | 5.0.4 · 29.1.1 | 2026-11-27 | `tests/a11y/wcag-conformance.test.ts`: relative-unit gate over the 12 shipped stylesheets and `src/components/map/*.tsx` (SC 1.4.4), a 16 px-vs-32 px root size evaluator for every declared size, and relative-luminance contrast over every commune state × three surface roles, with translucent paint composited (SC 1.4.11) |
+| Chrome over the DevTools Protocol (rendered resize matrix) | 158.0.8127.38 | 2026-11-27 | Rendered 1.4.4 evidence: the built application at a 16 px and a 32 px root, 15 routes × 3 viewports plus the sign-in screen × 3, 756 text samples and the document's horizontal overflow at both roots. Served on an ephemeral 127.0.0.1 port from a temporary directory; `window.fetch` replaced by an empty-payload fixture table |
 
 The rendered-pixel probe validates itself against independent arithmetic: it reproduces the documented active-navigation label at 10.32:1, table header at 5.01:1, neutral tag at 4.87:1 (10.51:1 in Actions), sign-in button at 11.65:1 and selected auth tab at 11.92:1.
 
@@ -39,10 +41,10 @@ The rendered-pixel probe validates itself against independent arithmetic: it rep
 | 1.3.5 Identify Input Purpose (AA) | Partly met | Every audited input has a visible label; no `autocomplete` token audit was performed. |
 | 1.4.1 Use of Color (A) | Partly met | Risk levels, statuses and action states pair colour with text. Map fills encode level and the level is also stated in the risk card; the legend and inset text were not reviewed for colour-only reliance. |
 | 1.4.3 Contrast (Minimum) (AA) | Meets (sampled) | axe-core 4.10.3: zero violations across eight views at two widths. Rendered-pixel probe: 93 samples over the sign-in gradients, translucent sidebar surfaces, tags, table headers, eyebrows and navigation; every text surface meets 4.5:1, or 3:1 for large text. The single sub-threshold sample is the decorative `aria-hidden` `⌑` at 4.03:1. The corrected T1 navigation's rendered pairs measured 6.08:1–11.11:1 in Chromium on 2026-11-26; the panel is opaque, so the measured pair is the rendered pair (see the T1 table below). |
-| 1.4.4 Resize Text (AA) | Partly met | Chromium tab zoom at 200% (1280→640 CSS px) passed on all eight routes. Text-only resizing — the actual 1.4.4 condition — is not supported by the current type scale: `src/styles/*.css` carries 123 `font-size` declarations in absolute units and `rem` appears twice, so a browser default-font-size change cannot scale the text. Meeting 1.4.4 means moving the type scale to relative units, which is a design-system change, not a local fix. |
+| 1.4.4 Resize Text (AA) | Meets (Chromium 32 px-root pass + source gate) | Chromium tab zoom at 200% (1280→640 CSS px) passed on all eight routes on 2026-11-25. Text-only resizing is now measured, not argued: headless **Chrome 158.0.8127.38** rendered the built application at a 16 px and a 32 px root on 15 routes × 3 viewports plus the sign-in screen × 3 viewports, and **756 of 756 text samples doubled**, minimum ratio exactly `2.0000`, with **0 px horizontal overflow at either root in all 48 runs**. The type scale is **295** `font-size` declarations (293 baseline → 295 stepped `rem` declarations), none absolute and none fluid: the six `clamp()` headings became `rem` steps, because a `vw`/`dvh` preferred term cannot answer a root-font change (the sign-in hero computed 38.4 px at a 16 px root and only 48 px at 32 px — 1.25×; it now computes 38.4 → 76.8). `tests/a11y/wcag-conformance.test.ts` evaluates every declared size at both roots and fails below 2×, rejects any `px`/`pt`/`pc`/`in`/`cm`/`mm`/`q` token in a `font-size` or `font` value (including `13px !important` and `13 px`), and rejects an inline `fontSize` in `src/components/map/*.tsx`. |
 | 1.4.5 Images of Text (AA) | Meets (sampled) | No raster text in the shell or the audited views; the brand mark is a text glyph, and headings are real text. |
 | 1.4.10 Reflow (AA) | Meets (sampled) | At 320 CSS px all eight routes measured a 320 px document scroll width, and at 200% zoom a 640 px width. Pending, Session and Audit expose one internal horizontal scroller each, reachable with Tab and movable with ArrowRight. The T1 navigation was measured at 1440, 1280, 1024, 720, 390 and 320 CSS px on 2026-11-26 and produced no horizontal page overflow at any of them. |
-| 1.4.11 Non-text Contrast (AA) | Partly met | Focus indicators pass (5.11:1, 44 instances). Several map boundaries and fills are documented below 3:1 against the map surface: medium fill 1.75:1, neutral fill 1.45:1, low fill 2.26:1, unknown fill 1.45:1, medium boundary 2.54:1, neutral boundary 1.95:1. Whether a fill is "required to identify" the level in context is a product judgement this pass does not settle. The corrected T1 navigation's disclosure boundary measures 4.84:1, its focus ring 5.66:1 on the bar and 5.17:1 on the panel; all were read from rendered pixels in Chromium on 2026-11-26. |
+| 1.4.11 Non-text Contrast (AA) | Meets (measured arithmetic over every state) | Focus indicators pass (5.11:1, 44 instances). Every commune risk/state plate and its outline is now computed against the three surface roles the map composites on — `--canvas #0f1922`, `--aerial-water #152934` and the inset thumbnails' lightest gradient stop `--surface-raised #243341` — by `tests/a11y/wcag-conformance.test.ts`. Aerial stage, fill on canvas / water / raised: `bajo` 5.46 / 4.73 / 4.19, `medio` 6.54 / 5.65 / 4.98, `alto` 4.45 / 3.85 / 3.40, `desconocido` 10.83 / 9.16 / 7.88, `neutral` 4.76 / 4.03 / 3.47; outlines 4.99–13.71 for the level families, and 4.49 / 3.79 / 3.27 for the `--edge-strong` boundary the neutral and unread plates share (the lowest figure in the map, still above 3:1). The 2D map paints the same tokens opaque (`bajo` 7.20 / 6.09 / 5.24 … `neutral` 4.76 / 4.03 / 3.47), and the reserved `extreme` role measures 5.38 / 4.55 / 3.91. The two former gaps are closed: `.zone-neutral` measured 1.62 / 1.60 / 1.55 at `fill-opacity: .34` and `.level-desconocido` 1.68 / 1.71 / 1.67 at `.22`, and both now paint the measured token plate (T9). The corrected T1 navigation's disclosure boundary measures 4.84:1, its focus ring 5.66:1 on the bar and 5.17:1 on the panel; all were read from rendered pixels in Chromium on 2026-11-26. |
 | 1.4.12 Text Spacing (AA) | Meets (sampled) | The 1.4.12 override (line height 1.5, letter spacing 0.12em, word spacing 0.16em, paragraph spacing 2em) was applied in Chromium 149.0.7827.55 to the eight views at 1280×720 and 390×844: 16 of 16 samples kept `scrollWidth` equal to the viewport width and lost no content in any element that hides its overflow. Method limit: elements of 4 px or less, `sr-only` nodes and nodes inside a declared scroll container are excluded. |
 | 1.4.13 Content on Hover or Focus (AA) | Meets (source review) | No content appears on hover or on keyboard focus: there is no tooltip, popover or hover-revealed content in `src/`. The product navigation's grouped destinations are a native `<details>` disclosure that opens only on activation (pointer, Enter or Space), so it is not hover- or focus-triggered content. The only `title` attribute is the native tooltip on the map container, which the page does not position or dismiss. |
 
@@ -244,11 +246,15 @@ All four findings are closed. The shell controls the three that share markup; no
 
 ## What still blocks a conformance claim
 
-1. **Text-only resize (1.4.4).** The type scale is absolute: 123 `font-size` declarations in `src/styles/*.css`, `rem` twice. Browser zoom at 200% passes, but the criterion's own condition — text resized without zooming the layout — is not supported. Scope of a fix: move the type scale to relative units and re-verify every view at both widths.
-2. **Map non-text contrast (1.4.11).** Fill and boundary pairs remain below 3:1 (medium 1.75:1, neutral 1.45:1, low 2.26:1). Whether each pair is essential or decorative is a product decision that changes the map palette, not a local style fix.
-3. **State coverage.** Population, loading, error and partial-failure states were sampled, not enumerated. Of the four empty and filter states corrected on 2026-11-25, two have rendered evidence: the History panel filtered to zero offers and restores `Ver todo el periodo` at both widths, and the Actions selector is disabled while `/v1/users` returned 503, with the create control still enabled. The Overview no-lot sentence and the Actions filtered-empty block carry public-DOM tests only.
-4. **Scope and the state behind it.** The criterion table was written for the eight views the application routed then. The three views the merge added — `InfrastructureView`, `ObservationsView` and `NotificationsView` — were scanned on 2026-11-25: 22 axe scans with zero violations, 22 structure samples, 22 text-spacing samples and 6 virtual-reader samples, all passing, after fixing one eyebrow contrast defect each (3.71:1, now the readable token) and the decorative Session glyph (4.03:1). The disposable stack was then rebuilt from the merged tree and the three views were measured again with data — nine alerts, the synthetic catalogue and two observations created through the page — with zero axe violations, no text-spacing loss across six samples and 44 rendered surfaces meeting 1.4.3. Two defects were fixed to get there: the infrastructure breakdown became a named, focusable scroll region, and the base eyebrow token became the readable one. Every other workflow behind those views rests on the merged suites, not on rendered evidence.
-5. **No assistive technology.** A DOM virtual screen reader shows what the accessibility tree exposes and what a mutation announces; it is not NVDA, JAWS, VoiceOver or TalkBack.
+Both code conditions this report used to carry are closed (T9, 2026-11-27): the type scale is relative and
+gated against absolute units (**1.4.4**), and every commune plate and outline measures at least 3:1 against
+the surfaces it composites on (**1.4.11**). No code failure remains open against an applicable A or AA
+criterion. What remains is evidence breadth, not a defect:
+
+1. **State coverage.** Population, loading, error and partial-failure states were sampled, not enumerated. Of the four empty and filter states corrected on 2026-11-25, two have rendered evidence: the History panel filtered to zero offers and restores `Ver todo el periodo` at both widths, and the Actions selector is disabled while `/v1/users` returned 503, with the create control still enabled. The Overview no-lot sentence and the Actions filtered-empty block carry public-DOM tests only.
+2. **Scope and the state behind it.** The criterion table was written for the eight views the application routed then. The three views the merge added — `InfrastructureView`, `ObservationsView` and `NotificationsView` — were scanned on 2026-11-25: 22 axe scans with zero violations, 22 structure samples, 22 text-spacing samples and 6 virtual-reader samples, all passing, after fixing one eyebrow contrast defect each (3.71:1, now the readable token) and the decorative Session glyph (4.03:1). The disposable stack was then rebuilt from the merged tree and the three views were measured again with data — nine alerts, the synthetic catalogue and two observations created through the page — with zero axe violations, no text-spacing loss across six samples and 44 rendered surfaces meeting 1.4.3. Two defects were fixed to get there: the infrastructure breakdown became a named, focusable scroll region, and the base eyebrow token became the readable one. Every other workflow behind those views rests on the merged suites, not on rendered evidence.
+3. **No assistive technology.** A DOM virtual screen reader shows what the accessibility tree exposes and what a mutation announces; it is not NVDA, JAWS, VoiceOver or TalkBack. The same boundary applies to the T9 contrast arithmetic: it is the WCAG 2.1 formula applied to the shipped declarations, not a pixel sample of a composited canvas.
+4. **Rendered text-only resize.** 1.4.4 is now closed on rendered evidence: Chrome 158.0.8127.38 measured every route at a 16 px and a 32 px root (T9), 756 of 756 samples doubling with no horizontal overflow. The fixture set behind that pass answers the gateway with empty payloads, so the views render their empty/unknown states rather than populated tables — a populated, long-content run at a 32 px root has not been made. Browser zoom at 200% was measured in Chromium on 2026-11-25 and is unaffected by this change.
 
 ## How to reproduce
 
@@ -287,7 +293,8 @@ exit 0 with `57` files / `787` tests.
 
 **Not measured for T6.** No axe scan, text-spacing override, browser-zoom pass, virtual screen reader or real
 assistive technology ran for this change, and the workspace was not opened with a live authenticated session.
-**1.4.4** is unchanged (the change adds `font-size` declarations in absolute `px`, as the rest of the scale does).
+**1.4.4** was unchanged by T7 (the change added `font-size` declarations in absolute `px`, as the rest of the scale
+did). **Superseded by T9 (2026-11-27), which converted the whole scale to `rem` and gates it.**
 Long real content and the touch-drag gesture on the internal scroll regions were not exercised, and 2.4.11 was not
 re-measured because the fixtures carry no shell.
 
@@ -384,3 +391,105 @@ gateway/Keycloak session and no real token. Signed-out access is the fixture's g
 configuration. Landscape phones, 768 px and 1280 px were not sampled. **1.3.4 Orientation**, **1.4.12 Text
 Spacing**, **1.4.13 Content on Hover or Focus**, forced colors and print were not re-run: this is a
 presentation-only removal in a rule with no rendered consumer.
+
+## T9 evidence — relative type scale and measured map contrast (2026-11-27)
+
+T9 closes the two code conditions §«What still blocks a conformance claim» carried. It changes no markup, no
+route, no id and no ARIA attribute: it converts the type scale and lifts two map plates, and it adds the gate
+that keeps both measurable. Environment: the repository's own runner — **Vitest 5.0.4** on **jsdom 29.1.1**,
+TypeScript 6.0.3, no browser, no credential, no gateway and no backend. Base branch
+`feat/firewatch-design-migration` at `8c147a3`.
+
+**Tooling, precisely.** `tests/a11y/wcag-conformance.test.ts` reads the shipped `src/styles/*.css` with a brace
+walker that strips comments, keeps `@media` wrappers apart from the rules inside them and merges repeated
+selectors the way the cascade does, and it reads `src/components/map/*.tsx` as source. Contrast is the WCAG 2.1
+relative-luminance formula (`0.2126 R + 0.7152 G + 0.0722 B` over `((c/255 + 0.055) / 1.055) ^ 2.4`) with the
+`(L1 + 0.05) / (L2 + 0.05)` ratio; a translucent plate is composited with `alpha · F + (1 − alpha) · B` in sRGB
+bytes. Nothing is eyeballed and nothing is sampled from a screenshot.
+
+| Criterion | Measurement | Result |
+| --- | --- | --- |
+| 1.4.4 Resize Text | `src/styles/*.css` declared **293** `font-size` declarations, every one in absolute `px` (`rem` appeared only inside the word "removed"). All 12 stylesheets were converted at exactly `px / 16`: 287 single values (`10px` → `0.625rem`, `9px` → `0.5625rem`, `7px` → `0.4375rem`, `9.5px` → `0.59375rem`); the 6 remaining `clamp()` headings kept a `vw`/`dvh` middle in the first pass and were then found by the browser pass to miss 200% — the type scale has **no `clamp()` and no viewport unit left**, and the six are `rem` steps (`.auth-hero h1` 1.5 → 2.2 → 2.4 rem at 600/960 px, `h1` 1.6875 → 2 → 2.3125 rem at 1080/1480 px, `.auth-panel-body h2` 1.1875 rem, `.ops-view-head h2` 1.5 rem), which is where the two extra declarations come from: the stepped scale ends at **295** `font-size` declarations (293 baseline → 295 stepped `rem`). No other property changed: spacing, tracking, radii and borders keep their `px`. The gate evaluates every declared size at a 16 px and a 32 px root on two reference viewports and fails below 2×, rejects any `px`/`pt`/`pc`/`in`/`cm`/`mm`/`q` token in a `font-size` **or `font`** value — `13px !important`, `13 px` and a `font:` shorthand included — and rejects an inline `fontSize` in `src/components/map/*.tsx`. Headless Chrome 158.0.8127.38 then confirmed it on the built app: 15 routes × 3 viewports + the sign-in screen × 3 viewports, 756/756 samples doubled, 0 px horizontal overflow at either root | Meets (gate + rendered 32 px-root pass) |
+| 1.4.11 Non-text Contrast | Every commune state is measured on both maps against the three surface roles it actually composites on: `--canvas #0f1922`, `--aerial-water #152934` and `--surface-raised #243341` (the lightest stop of the inset thumbnails' radial gradient, the hardest surface in the scene). **Before:** `.zone-neutral` at `fill-opacity: .34` measured 1.62 / 1.60 / 1.55 and `.level-desconocido` at `.22` measured 1.68 / 1.71 / 1.67. **After** — aerial stage fill, canvas / water / raised: `bajo` 5.46 / 4.73 / 4.19, `medio` 6.54 / 5.65 / 4.98, `alto` 4.45 / 3.85 / 3.40, `desconocido` 10.83 / 9.16 / 7.88, `neutral` 4.76 / 4.03 / 3.47; the 2D map paints the same tokens opaque (`bajo` 7.20 / 6.09 / 5.24, `medio` 8.78 / 7.43 / 6.39, `alto` 5.80 / 4.91 / 4.22, `neutral` 4.76 / 4.03 / 3.47); the reserved `extreme` role measures 5.38 / 4.55 / 3.91. The **outline** is measured as paint, not as a colour name: the level outlines are `--level-*-line` at **4.99–13.71**, and the two plates that share the system boundary carry `--edge-strong #6b8395`, which measures **4.49 on `--canvas`, 3.79 on `--aerial-water` and 3.27 on `--surface-raised`** — 3.27 is the lowest outline figure anywhere in the map and it clears the 3:1 minimum on every measured surface. Both parts are required to clear 3:1 — the stricter reading of "fill **or** stroke", and the only one that makes the state itself perceivable: the shared `--edge-strong` outline cannot tell `neutral` from `desconocido`, and those two plates still differ from each other by 2.27:1 | Meets (33 measurements, all ≥ 3.0:1, compared unrounded) |
+| 1.4.3 Contrast (Minimum) | The plate fix must not be paid for by text. Every `--level-*-text` on its own `--level-*-surface` and every `--level-*-ink` on its own `--level-*-fill` pair was re-measured: 8.83 / 9.31 / 8.32 / 7.67 / 9.49 / 9.11 and 7.11 / 8.67 / 5.73 / 5.31 / 10.69 / 4.70. No token changed | Meets (12 pairs, all ≥ 4.5:1) |
+| 1.4.10 Reflow | No box, width, padding or border changed — the conversion touches `font-size` only, and `rem` at a 16 px root resolves to the same computed value. No view's content was re-flowed | Not re-measured (unchanged by this task) |
+| 2.5.8 Target Size (Minimum) | No control gained or lost a target: `min-height`/`min-width`/`padding` declarations are untouched | Not re-measured (unchanged by this task) |
+
+**Two map plates changed, and the design record moves with them.** The aerial stage used to dim the unread and
+`desconocido` plates so the illustrative canvas relief showed through. A 3:1 minimum against a near-black
+backdrop is arithmetically impossible for a dark translucent wash — it requires a mid-tone plate — so the dimming
+was removed rather than tuned: `#overview .map-3d .zone-neutral` and `#overview .map-3d .level-desconocido` now
+paint their measured token fill at full strength and keep the `--edge-strong` outline. The three severe levels
+keep `fill-opacity: .84`, so the relief still shows under every published severity. This is a deliberate,
+measured design change, recorded in `VISUAL-BASELINE.md`; it is not a silent restyle.
+
+**Test evidence.** The suite is new (`frontend/tests/a11y/wcag-conformance.test.ts`, 6 tests). RED before the
+product edit: `4 failed | 2 passed (6)`, failing only on the intended contracts — the `293` absolute font sizes the scale
+then carried (the pre-step count; the stepped scale ends at 295), the
+six `clamp()` bounds, the `10px` SVG label and six sub-3:1 plate measurements (`1.55:1`–`1.71:1`). GREEN after:
+`6 passed (6)`; the neighbouring `tests/styles/aerial-workspace.test.tsx` still passes with its opacity guard
+rewritten from `fill-opacity < 0.5` to the measured `>= 0.88` contract, and the two literal px assertions in
+`tests/a11y/heading-hierarchy.test.tsx` were updated to their exact `rem` equivalents (`0.9375rem`,
+`0.6875rem`) — no assertion was weakened or removed. Whole suite: `63 files / 870 passed (870)`;
+`npm run verify` exit 0.
+
+### Correction pass — what the browser found that the source gate could not (2026-11-27)
+
+An independent verification pass ran the built application in Chromium at a 32 px root and reported four
+blockers. All four were reproduced, fixed here, and are now regression-tested.
+
+**1. The `clamp()` headings failed 200% text resize.** The first pass had made only the two *bounds* of each
+`clamp()` relative; a `vw`/`dvh` preferred term does not move when the root font does, so the used size stalled.
+Measured at 1280×800 with the gate's own evaluator: the sign-in hero `clamp(1.5rem, min(3vw, 4.8dvh), 2.5rem)`
+went **38.40 px → 48.00 px (1.25×)**; `clamp(1.5rem, 4.4dvh, 2.5rem)` 35.20 → 48.00 (1.36×); `h1`
+`clamp(1.6875rem, 2.5vw, 2.3125rem)` 32.00 → 54.00 (1.69×); `.ops-view-head h2` `clamp(1.375rem, 2.2vw, 1.5rem)`
+24.00 → 44.00 (1.83×); the phone hero 25.74 → 46.00 (1.79×). The type scale has **no `clamp()` and no viewport
+unit left**: each of the six became `rem` steps at the widths where the clamp used to reach those values, so the
+16 px-root geometry is unchanged and every step doubles. The gate no longer pattern-matches units — it evaluates
+every declared size at a 16 px and a 32 px root on two reference viewports (1280×800, 390×844) and fails anything
+below 2×.
+
+**2. Three mutation escapes in the gate itself.** Each is now a test that fails if the gate regresses:
+
+- a `font-size: 13px !important` (and `13 px`, `12pt`, a `font:` shorthand, a size inside `@media print` or
+  `@supports`) escaped because the scan shared the rule walker and stripped `!important` first. It now reads the
+  raw comment-stripped text for `font-size` **and** `font`, and matches a number-unit pair with optional whitespace.
+- a **2.9999:1** ratio passed because the comparison rounded to two decimals first. `contrast()` now returns the
+  raw float and the gate compares `ratio >= 3`; the fixture pair `#606565` on `--canvas` (2.99946:1, prints as
+  3.00) is asserted to fail.
+- a translucent stroke passed because the gate read the named colour and ignored `stroke-opacity`, `rgba()`,
+  `hsla()` and 8-digit hex. Every paint is now resolved to colour **and** alpha, multiplied by `fill-opacity` /
+  `stroke-opacity`, and composited over the backdrop before the ratio; a 20%-opaque `--edge-strong` outline is
+  asserted to be reported (it measures ~1.13:1, not the 5.79:1 of the opaque colour).
+
+RED was observed before the fix: with the pre-correction gate logic restored and the new tests in place the suite
+reported `4 failed | 6 passed (10)` — the clamp sweep, the spaced unit, the rounded 2.9999 and the translucent
+outline; after the gate and the type scale were corrected it reports `10 passed (10)`.
+
+**3. Doubling the text exposed horizontal overflow, and the fix is measured.** With the headings finally doubling,
+30 of 45 route/viewport runs scrolled horizontally at a 32 px root (101 px at 390, 171 px at 320; none at 1280).
+The offenders were found by walking the live layout in Chromium and each is fixed where it was measured: `nowrap`
+chips that could not break (`.neutral-tag`/`.dataset-badge`/`.admin-tag`/`.count-badge`/`.small-label`,
+`.technical-notice`, `.ops-chip`), a no-wrap shell lead row (`.topbar-lead` — the brand and route block now stack
+the same way they already did at every 16 px-root width), and inline `code` tokens with no break opportunity
+(`overflow-wrap: anywhere`, kept as a safeguard: the measured cause of the last 19 px was `.ops-chip`). Final run:
+**45 of 45 runs with 0 px horizontal overflow at 16 px and at 32 px root.**
+
+**4. Browser environment for the resize evidence.** Headless **Chrome 158.0.8127.38** driven over the Chrome
+DevTools Protocol, serving the built `dist/` on an **ephemeral 127.0.0.1 port** (never the dev server's pinned
+4173) from a per-run `mktemp -d` scratch under the OS temp directory, removed on exit (one Chrome profile
+directory was still locked by an orphaned headless renderer; the process tree was stopped and the scratch then
+removed, leaving no browser process or temp directory behind). The only substitution is `window.fetch`: the token endpoint
+answers a syntactically valid JWT and every gateway call answers `{}`, so the 15 authenticated routes render their
+honest empty/unknown states and the sign-in screen renders signed-out. No credential, gateway, Keycloak or backend
+write was involved. Result: **15 routes × 3 viewports (1280×800, 390×844, 320×800) = 606 text samples and the
+sign-in screen × 3 viewports = 150 samples; 756 of 756 doubled, minimum ratio 2.0000, 0 overflow.**
+
+**Not measured for T9.** No axe scan, no text-spacing override, no virtual screen reader and no real assistive
+technology ran for this change, and the resize matrix used empty gateway payloads, so populated long-content views
+were not re-measured at a 32 px root (the independent pass had richer fixtures and 1,267 samples; this pass has
+756). The 1.4.11 numbers are the WCAG formula applied to the shipped declarations, not a pixel sample of the
+composited canvas: the illustrative relief painted under a plate is genuinely lighter than the measured backdrop,
+so a rendered sample can only read *higher* than the composite measured here, which is why the measurement uses
+the darkest two roles and the lightest inset stop as its bounds. Forced colors, print, landscape phones and the
+views the merge added beyond the eight in the criterion table were not re-sampled.

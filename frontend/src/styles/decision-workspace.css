@@ -80,7 +80,7 @@
   margin: 0;
   max-width: 76ch;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.6;
 }
 
@@ -119,7 +119,7 @@
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   line-height: 1.35;
@@ -160,7 +160,7 @@
 
 .decision-summary__cell strong {
   color: var(--ink);
-  font-size: 25px;
+  font-size: 1.5625rem;
   font-weight: 550;
   letter-spacing: -0.8px;
   line-height: 1.1;
@@ -214,7 +214,7 @@
   align-self: center;
   justify-self: end;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 
 .decision-limits__item > summary .eyebrow {
@@ -223,7 +223,7 @@
 
 .decision-limits__title {
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
 }
 
@@ -241,7 +241,7 @@
   margin: 0;
   padding: 10px 12px 12px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.65;
 }
 
@@ -285,7 +285,7 @@
   min-height: 24px;
   justify-self: start;
   color: var(--accent);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -303,7 +303,7 @@
 
 .decision-links li span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   line-height: 1.6;
 }
 

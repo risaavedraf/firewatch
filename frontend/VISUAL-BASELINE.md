@@ -51,7 +51,7 @@ The level palette is part of the tokens because map fills, legend swatches and c
 | `--level-unknown-fill` / `-line` / `-ink` / `-surface` / `-text` | `#c4cbd1` / `#dde3e7` / `#0c1b24` / `#2b3238` / `#d7dde2` | [`tokens.css`](src/styles/tokens.css) | Map fill for `desconocido` (published, information-insufficient level). |
 | `--level-neutral-fill` / `-line` / `-ink` / `-surface` / `-text` | `#71879a` / `#8fa4b0` / `#0c1b24` / `#22303b` / `#c9d6de` | [`tokens.css`](src/styles/tokens.css) | Map fill when there is no published level at all; neutral tags and count badges. |
 
-Every fill still clears 3:1 against the map floor: `alto` 4.91, `medio` 7.43, `bajo` 6.09, `desconocido` 9.16, neutral 4.03 on `--aerial-water #152934`. The retired literal chip surfaces (`#f7e9e2`, `#f7f0d9`, `#e7f0e6`, `#e3efef`) are gone: those chips read their family's `surface`/`text` pair now.
+Every fill still clears 3:1 against the map floor: `alto` 4.91, `medio` 7.43, `bajo` 6.09, `desconocido` 9.16, neutral 4.03 on `--aerial-water #152934`. T9 measured the *composited* plate on the three surfaces the map actually paints on — `--canvas #0f1922`, `--aerial-water #152934` and the inset gradient's lightest stop `--surface-raised #243341`: `bajo` 5.46 / 4.73 / 4.19, `medio` 6.54 / 5.65 / 4.98, `alto` 4.45 / 3.85 / 3.40, `desconocido` 10.83 / 9.16 / 7.88, neutral 4.76 / 4.03 / 3.47 on the aerial stage, with the level outlines at 4.99–13.71 and the shared `--edge-strong` boundary at 4.49 on `--canvas`, 3.79 on `--aerial-water` and 3.27 on `--surface-raised` (the lowest outline figure in the map), and the reserved `extreme` role 5.38 / 4.55 / 3.91 opaque. `tests/a11y/wcag-conformance.test.ts` recomputes those pairs from the declarations. The retired literal chip surfaces (`#f7e9e2`, `#f7f0d9`, `#e7f0e6`, `#e3efef`) are gone: those chips read their family's `surface`/`text` pair now.
 
 ## Structure tokens
 
@@ -63,7 +63,9 @@ Every fill still clears 3:1 against the map floor: `alto` 4.91, `medio` 7.43, `b
 
 ## Typography
 
-There is **no standalone type scale**: no font-size, line-height or weight token exists. The only typography token is `--font`. Sizes and weights are declared per selector in `app.css` and `auth.css`, with literals only.
+There is **no standalone type scale**: no font-size, line-height or weight token exists. The only typography token is `--font`. Sizes and weights are declared per selector in the stylesheets. **The scale is relative and stepped (T9, corrected):** every one of the **295** `font-size` declarations (293 baseline → 295 stepped `rem` declarations: replacing six `clamp()`s with base + `@media` step rules added two `h1` steps) is `rem` — there is no `clamp()` and no viewport unit left — after an exact `px / 16` conversion, so a 16 px root reproduces the shipped geometry and a larger browser default font scales every size. The six headings that used to be fluid are `rem` steps at the widths where their `clamp()` used to reach those values: page title 27 → 32 → 37 px at ≤1080 / 1081–1479 / ≥1480; auth hero 24 → 35.2 → 38.4 px at ≤600 / 601–959 / ≥960; auth card title 19 px; board head title 24 px. A `px` size in this document is therefore its **16 px-root equivalent**, never a declaration to copy. Measured in Chrome 158.0.8127.38: 756 of 756 text samples doubled at a 32 px root across 15 routes × 3 viewports plus the sign-in screen, with 0 px horizontal overflow.
+
+**Text-heavy chips wrap instead of widening the page (T9 correction).** `.dataset-badge`, `.neutral-tag`, `.admin-tag`, `.count-badge`, `.small-label`, `.technical-notice` and `.ops-chip` declare `white-space: normal` with `overflow-wrap: anywhere`, inline `code` breaks its unbreakable path tokens, and `.topbar-lead` wraps its brand and route block. At a 16 px root every one of those renders exactly as before (their labels fit their boxes); at a 32 px root the label rebreaks instead of pushing the document into a horizontal scroll — before the fix 30 of 45 route/viewport runs scrolled 101–171 px.
 
 **Font families actually in use:** the `--font` stack above; `Georgia, serif` for the brand mark glyph (`app.css`); and `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` for the permissions roles and guard citations (`app.css`). `code` uses the platform monospace default at 11 px.
 
@@ -74,7 +76,7 @@ In-use sizes, with the role they carry:
 | Role | Size / weight / line-height | Source |
 | --- | --- | --- |
 | Body | `14px` / default 400 / `1.5` | `app.css` body |
-| Page title | `clamp(27px, 2.5vw, 37px)` / `600` / `1.18`, tracking `-1.2px` | `app.css` h1 |
+| Page title | `27px` / `32px` / `37px` at ≤1080 / 1081–1479 / ≥1480 / `600` / `1.18`, tracking `-1.2px` | `app.css` h1 |
 | Header title | `18px` / inherits / tracking `-.5px`, `16px` at `≤720px` | `app.css` `.topbar h1` |
 | Panel title | `15px` / `600`-family heading, tracking `-.3px` | `app.css` `.panel-heading h3, h2` |
 | Section heading | `17px` / `600` / tracking `-.3px`; `24px` for `.intro-row h2` | `app.css` h2 |
@@ -83,13 +85,13 @@ In-use sizes, with the role they carry:
 | Smallest label | `7px` / `850` / tracking `.08em` for `.source-label` | `app.css` |
 | Eyebrow / navigation group | `9px` / `800` / tracking `1.4–1.5px` / uppercase | `app.css` `.eyebrow`; `product-nav.css` `.product-nav__group-title`, `.product-nav__panel-title`, `.product-nav__where-label` |
 | Metric value | `25px` / `550` / tracking `-.8px` / `1.1` | `app.css` `.metric > strong` |
-| Auth hero title | `clamp(24px, 4.4dvh, 40px)` / heading / `1.08`, tracking `-.9px` — viewport-height fluid so the entrance stays one screen | `auth.css` `.auth-hero h1` |
-| Auth card title | `clamp(19px, 2.2dvh, 23px)` / heading / tracking `-.5px` | `auth.css` `.auth-panel-body h2` |
+| Auth hero title | `24px` / `35.2px` / `38.4px` at ≤600 / 601–959 / ≥960 / heading / `1.08`, tracking `-.9px` — three `rem` steps: a `dvh` term could not answer a 200% text resize | `auth.css` `.auth-hero h1` |
+| Auth card title | `19px` / heading / tracking `-.5px` | `auth.css` `.auth-panel-body h2` |
 | Auth lead / actions | `12.5–13px` / `650–700` / `1.45–1.55` | `auth.css` |
 
 Weight range in the stylesheets is `500`, `550`, `600`, `650`, `700`, `800`, `850`; `550` and `850` are deliberate intermediate values, not the usual `400/500/700`. Line-height runs from `1.08` (auth hero) to `1.65` (banners and panel footnotes). Tracking runs from `-1.2px` to `1.6px`.
 
-Distinct declaration counts, for future comparison: `app.css` has 20 distinct `font-size` values and `auth.css` has 15, including the fluid `clamp()`/dvh headings. There is no modular ratio to infer from them, and this baseline does not impose one.
+Distinct declaration counts, for future comparison: `app.css` has 20 distinct `font-size` values and `auth.css` has 15. Every value is `rem` and none is fluid (T9 correction); the counts describe the scale, not its unit. There is no modular ratio to infer from them, and this baseline does not impose one.
 
 ## Spacing
 
@@ -226,7 +228,7 @@ S5 — «es el inicio pero se vé cortado porque es muy grande por lo que hay qu
 | `#overview .map-viewport` / `.map-3d-stage` | Stage floor | `min-height: clamp(440px, 62vh, 680px)`, `--aerial-water`, `1px --edge`, radius `10px` / `9px`; `cursor: grab`, `touch-action: none` |
 | `#overview .map-3d-canvas` | Canvas layer | `position: absolute; inset: 0`, `100% × 100%`, `pointer-events: none` — it is scenery below the vector layer |
 | `#overview .map-3d .map-svg` | Accessible vector layer | absolutely positioned over the canvas at the same box; it receives pointer and keyboard, so every comuna stays a `role="button"` path with `aria-pressed` and its `<title>` |
-| `#overview .map-3d .zone-*` | Choropleth and states | the `--level-*-fill` / `-line` tokens, unchanged. A read level is painted at `fill-opacity: .84`; `.zone-neutral` (`.34`) and `.level-desconocido` (`.22`) deliberately sink into the dark relief so no pale plate suggests a severity, and both carry an `--edge-strong` outline. `.zone-hovered` is a `1.8px --accent` stroke, `.zone-selected` a `3px` one, and `:focus-visible` a `3.5px` dashed `--focus` stroke — all measured on the ocean and on any level fill |
+| `#overview .map-3d .zone-*` | Choropleth and states | the `--level-*-fill` / `-line` tokens, unchanged. A published severity is painted at `fill-opacity: .84`, so the relief still shows under it. `.zone-neutral` and `.level-desconocido` paint their token plate at full strength (T9): the old dimming (`.34` and `.22`) let the dark relief through but measured 1.62–1.71:1 against the stage — a 3:1 minimum against a near-black backdrop needs a mid-tone plate — and they now measure 4.03/4.76 and 9.16/10.83 on water/canvas while staying 2.27:1 apart from each other; both keep an `--edge-strong` outline. `.zone-hovered` is a `1.8px --accent` stroke, `.zone-selected` a `3px` one, and `:focus-visible` a `3.5px` dashed `--focus` stroke — all measured on the ocean and on any level fill |
 | `#overview .map-3d-hud` / `-row` | Floating controls | `top/right 10px`, rows of `4px` padding, `1px --edge-strong`, radius `10px`, `rgb(15 25 34 / 78%)` with `backdrop-filter: blur(6px)`, `var(--shadow)`; the row is `pointer-events: auto` so the stage can still be dragged elsewhere |
 | `#overview .map-3d-hud button` | HUD control | `36 × 36` minimum, radius `7px`, `--paper` on `--ink`; pressed is `--accent` on `--surface-raised`; focus ring `2px --focus` inside the row |
 | `#overview .map-3d-layers button` | Layer toggles | the same control pair; pressed state `--accent` |
@@ -468,9 +470,9 @@ in-use sizes (9, 10, 11, 15, 21–24px) and spacing in the existing 4px-derived 
 
 | Selector | Role | Declared values |
 | --- | --- | --- |
-| `.ops-view-head` | Head (14–19) | flex wrap, `gap: 10px 22px`, `14px 18px 15px`, `1px solid --line`, `var(--radius)`, `--paper`, `var(--shadow)`; title `clamp(22px, 2.2vw, 24px)/600`, tracking `-.9px`; lede `78ch` max, `11px/1.6 --muted` |
+| `.ops-view-head` | Head (14–19) | flex wrap, `gap: 10px 22px`, `14px 18px 15px`, `1px solid --line`, `var(--radius)`, `--paper`, `var(--shadow)`; title `24px/600` (a fixed `rem` step since T9 — the old `clamp(22px, 2.2vw, 24px)` computed 44 px at a 32 px root), tracking `-.9px`; lede `78ch` max, `11px/1.6 --muted` |
 | `#jobs`, `#audit`, `#pending` head | In-card head | no surface, `0 0 12px`, bottom `1px solid --line` — the panel modifier already pads, so the head is the panel's own |
-| `.ops-chip` | Scope chip | `4px 8px`, `1px solid --line`, radius `5px`, `--soft` on `--ink`, `9px/700` |
+| `.ops-chip` | Scope chip | `4px 8px`, `1px solid --line`, radius `5px`, `--soft` on `--ink`, `9px/700`; the label wraps (`white-space: normal`, `overflow-wrap: anywhere`) — a `nowrap` chip was the last 19 px of horizontal scroll at a 32 px root |
 | `.ops-layout` / `.ops-stack` / `.ops-side` | Two columns | `minmax(0, 1fr) 340px`, `gap: 16px`, `align-items: start`; columns are grids with `16px` gap and no double panel margin |
 | `.ops-block` | Steps or legend card | `15px 17px 16px`, `1px solid --line`, `var(--radius)`, `--paper`, `var(--shadow)`; title `15px/650` |
 | `.ops-step` | Numbered step (16/17) | `26px` marker column, `9px 0` rows, `1px solid --line` dividers; number `24px` circle `--soft`/`--forest-700` `9px/800` |

@@ -18,7 +18,7 @@
 @import './product-nav.css';
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font); font-size: 0.875rem; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
@@ -30,14 +30,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
    same elements (the map svg and the logout control are both toggled this way). */
 [hidden] { display: none !important; }
 h1, h2, h3, h4, p { margin-top: 0; }
-h1 { font-size: clamp(27px, 2.5vw, 37px); font-weight: 600; line-height: 1.18; letter-spacing: -1.2px; margin-bottom: 11px; }
-h2 { font-size: 17px; font-weight: 600; letter-spacing: -.3px; margin-bottom: 8px; }
-h3 { font-size: 13px; font-weight: 650; margin-bottom: 5px; }
-h4 { font-size: 11px; font-weight: 700; letter-spacing: -.1px; margin-bottom: 7px; }
+h1 { font-size: 2rem; font-weight: 600; line-height: 1.18; letter-spacing: -1.2px; margin-bottom: 11px; }
+h2 { font-size: 1.0625rem; font-weight: 600; letter-spacing: -.3px; margin-bottom: 8px; }
+h3 { font-size: 0.8125rem; font-weight: 650; margin-bottom: 5px; }
+h4 { font-size: 0.6875rem; font-weight: 700; letter-spacing: -.1px; margin-bottom: 7px; }
 p { margin-bottom: 12px; }
 small { display: block; }
 a { color: inherit; text-decoration: none; }
-code { font-size: 11px; }
+/* Inline code carries file paths and guard expressions — one unbroken token of
+   thirty characters or more. At a 16 px root those tokens fit their cell; at a 32 px
+   root the same token is twice as wide and pushed the session view 19 px past a
+   320 px viewport, because an inline box only breaks at whitespace. `anywhere` lets
+   the token break instead of widening the page (SC 1.4.4). */
+code { font-size: 0.6875rem; overflow-wrap: anywhere; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .icon { width: 17px; height: 17px; flex: 0 0 auto; vertical-align: middle; }
 .skip-link { position: fixed; top: -60px; left: 12px; z-index: 60; padding: 12px; border-radius: 8px; background: var(--paper); }
@@ -60,37 +65,42 @@ code { font-size: 11px; }
    (`min-width: 0`), which is what lets a long zone name or the readiness sentence
    wrap inside the row instead of widening the page at 320 px. */
 .topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; min-width: 0; min-height: 56px; padding: 8px 34px; border-bottom: 1px solid var(--line); background: var(--paper); }
-.topbar-lead { display: flex; align-items: center; gap: 14px; min-width: 0; }
+/* The brand and the route block may stack. They sit side by side at every width a
+   16 px root is read at, so wrapping changes nothing there; at a 32 px root the pair
+   is twice as wide and a no-wrap lead pushed the route title past the viewport edge
+   (measured: a 308–333 px right edge in a 305 px viewport at 320×800), which is the
+   horizontal scroll SC 1.4.4 must not introduce. */
+.topbar-lead { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; min-width: 0; }
 .topbar-route { display: grid; gap: 1px; min-width: 0; padding-left: 14px; border-left: 1px solid var(--line); }
 .topbar-utils { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
-.topbar h1 { margin: 0; overflow-wrap: anywhere; color: var(--ink); font-size: 18px; font-weight: 600; letter-spacing: -.5px; line-height: 1.2; }
-.breadcrumbs { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.topbar h1 { margin: 0; overflow-wrap: anywhere; color: var(--ink); font-size: 1.125rem; font-weight: 600; letter-spacing: -.5px; line-height: 1.2; }
+.breadcrumbs { color: var(--muted); font-size: 0.5625rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .brand { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--ink); }
-.brand-mark { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-family: Georgia, serif; font-size: 18px; font-style: italic; }
+.brand-mark { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-family: Georgia, serif; font-size: 1.125rem; font-style: italic; }
 .brand-copy { min-width: 0; }
 .brand strong, .brand small { display: block; }
-.brand strong { color: var(--ink); font-size: 15px; font-weight: 650; letter-spacing: -.5px; line-height: 1.15; }
-.brand small { margin-top: 1px; color: var(--muted); font-size: 8px; font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; }
+.brand strong { color: var(--ink); font-size: 0.9375rem; font-weight: 650; letter-spacing: -.5px; line-height: 1.15; }
+.brand small { margin-top: 1px; color: var(--muted); font-size: 0.5rem; font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; }
 
 /* The territorial context: the scope the product serves and the zone the reader
    selected, in the header instead of in the removed column. */
 .zone-chip { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
-.zone-chip > span { flex: 0 0 auto; color: var(--accent); font-size: 15px; line-height: 1; }
+.zone-chip > span { flex: 0 0 auto; color: var(--accent); font-size: 0.9375rem; line-height: 1; }
 .zone-chip small, .zone-chip strong { display: block; }
-.zone-chip small { color: var(--muted); font-size: 8px; font-weight: 600; letter-spacing: .06em; }
-.zone-chip strong { color: var(--ink); font-size: 10px; font-weight: 700; overflow-wrap: anywhere; }
+.zone-chip small { color: var(--muted); font-size: 0.5rem; font-weight: 600; letter-spacing: .06em; }
+.zone-chip strong { color: var(--ink); font-size: 0.625rem; font-weight: 700; overflow-wrap: anywhere; }
 
 /* Gateway readiness. The live region and its control are preserved from the
    column, but a long status sentence now shares one row with the control: on the
    desktop the sentence takes two small lines at most, and on a phone the card
    takes its own full row. */
 .health-card { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; min-width: 0; padding: 4px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
-.health-head { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 10px; font-weight: 700; }
-.health-card p { flex: 1 1 150px; min-width: 0; max-width: 260px; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.35; }
+.health-head { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 0.625rem; font-weight: 700; }
+.health-card p { flex: 1 1 150px; min-width: 0; max-width: 260px; margin: 0; color: var(--muted); font-size: 0.625rem; line-height: 1.35; }
 .health-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .health-dot.ready { background: #67c99a; }
 .health-dot.down { background: #d77b67; }
-.status-action { min-height: 36px; padding: 4px 10px; border: 1px solid var(--edge-strong); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 10px; font-weight: 650; white-space: nowrap; }
+.status-action { min-height: 36px; padding: 4px 10px; border: 1px solid var(--edge-strong); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 0.625rem; font-weight: 650; white-space: nowrap; }
 .status-action:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .status-action:disabled { cursor: progress; opacity: .6; }
 
@@ -98,32 +108,38 @@ code { font-size: 11px; }
    on every viewport and sits on the header surface, where its ink is measured. */
 .session-card { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
 .session-card > div { min-width: 0; }
-.session-mark { flex: 0 0 auto; color: var(--gold); font-size: 9px; line-height: 1; }
+.session-mark { flex: 0 0 auto; color: var(--gold); font-size: 0.5625rem; line-height: 1; }
 .session-card strong, .session-card small { display: block; }
-.session-card strong { color: var(--ink); font-size: 10px; font-weight: 700; }
-.session-card small { color: var(--muted); font-size: 8.5px; line-height: 1.35; }
-.session-card button { min-height: 36px; margin-left: 2px; padding: 4px 10px; border: 1px solid var(--edge-strong); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 10px; font-weight: 650; white-space: nowrap; }
+.session-card strong { color: var(--ink); font-size: 0.625rem; font-weight: 700; }
+.session-card small { color: var(--muted); font-size: 0.53125rem; line-height: 1.35; }
+.session-card button { min-height: 36px; margin-left: 2px; padding: 4px 10px; border: 1px solid var(--edge-strong); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 0.625rem; font-weight: 650; white-space: nowrap; }
 .session-card button:hover { border-color: var(--accent); color: var(--accent); }
 .icon-button { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--ink); }
 .menu-button { display: none; }
-.update-bar { display: flex; align-items: center; gap: 7px; padding: 16px 34px 0; color: var(--muted); font-size: 10px; }
+.update-bar { display: flex; align-items: center; gap: 7px; padding: 16px 34px 0; color: var(--muted); font-size: 0.625rem; }
 .update-bar .icon { width: 14px; height: 14px; }
 
 main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .intro-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 17px; }
-.intro-row h2 { margin: 0; font-size: 24px; letter-spacing: -1px; }
+.intro-row h2 { margin: 0; font-size: 1.5rem; letter-spacing: -1px; }
 /* The readable forest token is the eyebrow default: every eyebrow sits on a
    light surface, and scoping it per view left later views at 3.7:1. */
-.eyebrow { margin: 0 0 7px; color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+.eyebrow { margin: 0 0 7px; color: var(--accent); font-size: 0.5625rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
 /* The readable forest token applies to every intro row, whichever view renders
    it: the earlier per-view list silently excluded the views added after it. */
-.subheading { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+.subheading { margin: 4px 0 0; color: var(--muted); font-size: 0.6875rem; }
 
 /* ── Badges ─────────────────────────────────────────────────────────────── */
 /* S8 — every badge reads the global roles: the risk families for their own
    meaning, the gold family for the administrative note, the muted tone for a
    neutral count. The light #edf1f2 pill is gone with the light page. */
-.dataset-badge, .neutral-tag, .admin-tag, .count-badge, .small-label { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid transparent; border-radius: 6px; font-size: 8px; font-weight: 850; letter-spacing: .06em; white-space: nowrap; }
+/* A badge wraps instead of widening the page. At the shipped 16 px root its labels
+   fit on one line, so `nowrap` and `normal` render identically; at a 32 px root the
+   same label is twice as wide, and a `nowrap` chip then pushed the whole document
+   into a horizontal scroll (measured: 476 px of content in a 375 px viewport at
+   390×844). SC 1.4.4 asks for the text to resize without losing content, not for the
+   line to stay unbroken. */
+.dataset-badge, .neutral-tag, .admin-tag, .count-badge, .small-label { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid transparent; border-radius: 6px; font-size: 0.5rem; font-weight: 850; letter-spacing: .06em; white-space: normal; overflow-wrap: anywhere; }
 .dataset-badge { color: var(--level-low-text); background: var(--level-low-surface); }
 .dataset-badge i { width: 6px; height: 6px; border-radius: 50%; background: var(--level-low-line); }
 .neutral-tag { color: var(--muted); background: var(--soft); }
@@ -133,29 +149,29 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 
 /* ── Notices ────────────────────────────────────────────────────────────── */
 .warning-banner { display: flex; align-items: center; gap: 12px; margin-bottom: 17px; padding: 13px 15px; border: 1px solid #7a5a3a; border-radius: 10px; background: var(--gold-soft); color: #e8d9a6; }
-.warning-icon { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: 1px solid var(--gold); border-radius: 50%; font-size: 12px; font-weight: 800; }
-.warning-banner p { margin: 0; font-size: 10px; line-height: 1.65; }
+.warning-icon { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: 1px solid var(--gold); border-radius: 50%; font-size: 0.75rem; font-weight: 800; }
+.warning-banner p { margin: 0; font-size: 0.625rem; line-height: 1.65; }
 .warning-banner strong { color: var(--gold); }
-.warning-banner code, .panel-note code { font-size: 9px; }
-.inline-notice { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 22px; padding: 12px 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); color: var(--muted); font-size: 11px; }
+.warning-banner code, .panel-note code { font-size: 0.5625rem; }
+.inline-notice { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 22px; padding: 12px 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); color: var(--muted); font-size: 0.6875rem; }
 .inline-notice .icon { width: 16px; height: 16px; }
 
 /* Honest "not implemented yet" marker. Never used to fake a working action. */
-.unimplemented { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px dashed #8a7a4a; border-radius: 6px; background: #2b2a1e; color: #f0e0b4; font-size: 8px; font-weight: 800; letter-spacing: .06em; }
-.unimplemented-note { margin: 6px 0 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+.unimplemented { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px dashed #8a7a4a; border-radius: 6px; background: #2b2a1e; color: #f0e0b4; font-size: 0.5rem; font-weight: 800; letter-spacing: .06em; }
+.unimplemented-note { margin: 6px 0 0; color: var(--muted); font-size: 0.5625rem; line-height: 1.55; }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 /* A filled control is the accent with the dark ink on it: #94dfda is a light
    tone, and the light ink would measure 1.79:1 on it. The secondary control is
    the raised/soft surface with the readable ink and a 3:1 boundary. */
-.button, .primary-button, .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 34px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 7px; font-size: 10px; font-weight: 700; white-space: nowrap; transition: background .15s; }
+.button, .primary-button, .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 34px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 7px; font-size: 0.625rem; font-weight: 700; white-space: nowrap; transition: background .15s; }
 .primary-button, .button-primary { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
 .primary-button:hover:not(:disabled), .button-primary:hover:not(:disabled) { border-color: #aeeae6; background: #aeeae6; }
 .secondary-button, .button-secondary { border-color: var(--edge-strong); background: var(--soft); color: var(--ink); }
 .secondary-button:hover:not(:disabled), .button-secondary:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-raised); }
 .secondary-button { min-height: 29px; }
 .primary-button:disabled, .secondary-button:disabled, .button:disabled { cursor: not-allowed; opacity: .48; }
-.button-text, .text-button { padding: 4px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--accent); font-size: 10px; text-align: left; white-space: nowrap; }
+.button-text, .text-button { padding: 4px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--accent); font-size: 0.625rem; text-align: left; white-space: nowrap; }
 .button-text:hover, .text-button:hover { background: var(--soft); }
 .full-width { width: 100%; }
 
@@ -163,26 +179,26 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
 .metrics-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .metric { padding: 17px 19px 15px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }
-.metric-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 15px; color: var(--muted); font-size: 11px; }
+.metric-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 15px; color: var(--muted); font-size: 0.6875rem; }
 .metric-top .icon { color: var(--muted); }
-.metric > strong { display: block; font-size: 25px; font-weight: 550; letter-spacing: -.8px; line-height: 1.1; }
-.metric p { margin: 9px 0 0; color: var(--muted); font-size: 10px; }
+.metric > strong { display: block; font-size: 1.5625rem; font-weight: 550; letter-spacing: -.8px; line-height: 1.1; }
+.metric p { margin: 9px 0 0; color: var(--muted); font-size: 0.625rem; }
 .metric-attention { border-color: #7a5a4a; background: #2a2320; }
 .metric-attention > strong, .metric-attention .icon { color: var(--terracotta); }
 
 /* ── Panels ─────────────────────────────────────────────────────────────── */
 .panel { min-width: 0; margin-bottom: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); overflow: hidden; }
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 20px 22px 17px; }
-.panel-heading h3, .panel-heading h2 { margin: 0; font-size: 15px; letter-spacing: -.3px; }
+.panel-heading h3, .panel-heading h2 { margin: 0; font-size: 0.9375rem; letter-spacing: -.3px; }
 /* The primitive's title keeps one visible weight whatever semantic level it is
    asked to render: the global `h2` rule is lighter (600) than `h3` (650), so the
    level alone must not restyle the heading. Scoped to the primitive's own class,
    which leaves the hand-written `#jobs-title` h2 at its shipped weight. */
 .panel-heading .panel-heading-title { font-weight: 650; }
 .panel-heading .eyebrow { margin-bottom: 3px; }
-.panel-heading p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
-.panel-note { margin: 7px 0 12px; color: var(--muted); font-size: 9px; line-height: 1.6; }
-.panel-footnote { margin: 15px 0 0; color: var(--muted); font-size: 10px; line-height: 1.65; }
+.panel-heading p { margin: 3px 0 0; color: var(--muted); font-size: 0.625rem; }
+.panel-note { margin: 7px 0 12px; color: var(--muted); font-size: 0.5625rem; line-height: 1.6; }
+.panel-footnote { margin: 15px 0 0; color: var(--muted); font-size: 0.625rem; line-height: 1.65; }
 /* The panel-body padding. Every `panel <modifier>` a view renders belongs in
    this list: a panel whose modifier is missing here renders its body flush
    against the border, which clips the right-aligned values of a data list
@@ -190,18 +206,18 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
    layout-padding.test.tsx` reads this rule against the shipped markup. */
 .map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel, .simulator-panel, .simulator-result-panel, .status-panel { padding: 18px; }
 .padded { padding: 22px; }
-.status-copy { min-height: 32px; margin: 13px 0 7px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.status-copy { min-height: 32px; margin: 13px 0 7px; color: var(--muted); font-size: 0.625rem; line-height: 1.6; }
 /* PM-01 — the executive panel. Six labelled blocks, each one a section with its
    own heading, so the structure is carried by text and list semantics rather
    than by column order; the grid only decides how they sit side by side. */
 .executive-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 22px; margin-top: 4px; }
 .executive-block { min-width: 0; }
 .executive-block h4 { margin-bottom: 2px; }
-.executive-block h5 { margin: 12px 0 2px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
-.executive-block ul { margin: 6px 0 0; padding-left: 16px; font-size: 10px; line-height: 1.6; }
+.executive-block h5 { margin: 12px 0 2px; color: var(--muted); font-size: 0.5625rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.executive-block ul { margin: 6px 0 0; padding-left: 16px; font-size: 0.625rem; line-height: 1.6; }
 .executive-block li { margin-bottom: 3px; }
-.executive-block p { margin: 4px 0 0; font-size: 10px; }
-.executive-block a { color: var(--accent); font-size: 10px; font-weight: 700; text-decoration: underline; }
+.executive-block p { margin: 4px 0 0; font-size: 0.625rem; }
+.executive-block a { color: var(--accent); font-size: 0.625rem; font-weight: 700; text-decoration: underline; }
 .executive-block a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .executive-block .data-list { margin-top: 4px; }
 .executive-panel #executive-rule-tag { white-space: normal; text-align: right; }
@@ -212,13 +228,13 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 
 /* ── Data lists ─────────────────────────────────────────────────────────── */
 .data-list { display: grid; gap: 0; margin: 12px 0 0; }
-.data-list > div { display: flex; justify-content: space-between; gap: 15px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 9px; }
+.data-list > div { display: flex; justify-content: space-between; gap: 15px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 0.5625rem; }
 .data-list > div:last-child { border-bottom: 0; }
 .data-list dt { color: var(--muted); }
 .data-list dd { max-width: 64%; margin: 0; color: var(--ink); font-weight: 700; text-align: right; overflow-wrap: anywhere; }
 .data-list.compact { margin-top: 5px; }
 .compact > div { padding: 5px 0; }
-.detail-list { margin: 0; font-size: 10px; }
+.detail-list { margin: 0; font-size: 0.625rem; }
 .detail-list > div { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 11px; }
 .detail-list dt { color: var(--muted); white-space: nowrap; }
 .detail-list dd { margin: 0; text-align: right; font-weight: 550; overflow-wrap: anywhere; }
@@ -228,7 +244,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 /* ── Chips ──────────────────────────────────────────────────────────────── */
 /* Each state keeps its own family from the global risk roles, so a pending chip
    and a medium-risk zone share one measured surface instead of two literals. */
-.chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 5px; background: var(--soft); color: var(--muted); font-size: 10px; font-weight: 550; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 5px; background: var(--soft); color: var(--muted); font-size: 0.625rem; font-weight: 550; white-space: nowrap; }
 .chip-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .chip-high, .chip-insufficient { background: var(--level-high-surface); color: var(--level-high-text); }
 .chip-medium, .chip-pending, .chip-queued, .chip-stale { background: var(--level-medium-surface); color: var(--level-medium-text); }
@@ -237,25 +253,25 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 
 /* ── Territorial map ────────────────────────────────────────────────────── */
 .map-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-.map-toolbar label { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
-.map-toolbar select { min-width: 220px; max-width: 100%; height: 34px; padding: 0 9px; border: 1px solid var(--edge-strong); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 10px; }
+.map-toolbar label { color: var(--accent); font-size: 0.5625rem; font-weight: 800; letter-spacing: .06em; }
+.map-toolbar select { min-width: 220px; max-width: 100%; height: 34px; padding: 0 9px; border: 1px solid var(--edge-strong); border-radius: 7px; background: var(--paper); color: var(--ink); font-size: 0.625rem; }
 .map-summary { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin: 0; }
-.map-summary strong { font-size: 10px; }
-.map-summary span { color: var(--muted); font-size: 9px; }
+.map-summary strong { font-size: 0.625rem; }
+.map-summary span { color: var(--muted); font-size: 0.5625rem; }
 /* The map's batch-progress line. It carries the one fact the neutral fill used to
    conflate with "no data", so it keeps the readable ink colour instead of the
    muted note one. It is a live region: the state is announced, not only painted. */
-.map-job-progress { margin: 10px 0 0; color: var(--ink); font-size: 9px; line-height: 1.6; }
+.map-job-progress { margin: 10px 0 0; color: var(--ink); font-size: 0.5625rem; line-height: 1.6; }
 .map-stage { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 10px; margin-top: 12px; }
 .map-viewport { position: relative; min-height: 298px; overflow: hidden; border: 1px solid var(--edge); border-radius: 9px; background: var(--aerial-water); }
 .map-svg { display: block; width: 100%; height: auto; min-height: 298px; }
-.map-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; padding: 20px; color: var(--muted); font-size: 10px; text-align: center; }
+.map-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; padding: 20px; color: var(--muted); font-size: 0.625rem; text-align: center; }
 .map-insets { display: flex; flex-direction: column; gap: 8px; }
 .map-insets:empty { display: none; }
 .map-inset { margin: 0; padding: 6px; border: 1px solid var(--edge); border-radius: 8px; background: var(--surface-raised); }
 .map-inset svg { display: block; width: 100%; height: auto; border-radius: 5px; background: var(--aerial-water); }
-.map-inset figcaption { margin-top: 4px; color: var(--accent); font-size: 8px; font-weight: 700; line-height: 1.35; }
-.map-inset-note { margin: 8px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
+.map-inset figcaption { margin-top: 4px; color: var(--accent); font-size: 0.5rem; font-weight: 700; line-height: 1.35; }
+.map-inset-note { margin: 8px 0 0; color: var(--muted); font-size: 0.5rem; line-height: 1.5; }
 
 /* Order matters: the neutral and level rules must win over the base fill. */
 .zone-shape { stroke-width: 1; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
@@ -274,30 +290,30 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .zone-neutral:focus-visible { stroke: var(--ink); }
 
 .map-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0 0; padding: 0; list-style: none; }
-.map-legend li { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 8px; }
+.map-legend li { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 0.5rem; }
 .legend-swatch { width: 12px; height: 12px; border: 1px solid transparent; border-radius: 3px; }
 .swatch-bajo { background: var(--level-low-fill); border-color: var(--level-low-line); }
 .swatch-medio { background: var(--level-medium-fill); border-color: var(--level-medium-line); }
 .swatch-alto { background: var(--level-high-fill); border-color: var(--level-high-line); }
 .swatch-desconocido { background: var(--level-unknown-fill); border-color: var(--level-unknown-line); }
 .swatch-neutral { background: var(--level-neutral-fill); border-color: var(--level-neutral-line); }
-.map-legend-note { margin: 7px 0 0; color: var(--muted); font-size: 8px; line-height: 1.55; }
+.map-legend-note { margin: 7px 0 0; color: var(--muted); font-size: 0.5rem; line-height: 1.55; }
 .map-source { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
-.map-source p { margin: 0 0 5px; color: var(--muted); font-size: 8px; line-height: 1.55; }
-.source-label { display: inline-block; margin-right: 5px; color: var(--accent); font-size: 7px; font-weight: 850; letter-spacing: .08em; }
+.map-source p { margin: 0 0 5px; color: var(--muted); font-size: 0.5rem; line-height: 1.55; }
+.source-label { display: inline-block; margin-right: 5px; color: var(--accent); font-size: 0.4375rem; font-weight: 850; letter-spacing: .08em; }
 .map-caption { color: var(--muted); }
 
 /* ── Risk panel ─────────────────────────────────────────────────────────── */
 .risk-panel { display: flex; flex-direction: column; }
-.risk-pill { padding: 5px 8px; border-radius: 5px; background: var(--soft); color: var(--accent); font-size: 8px; font-weight: 850; white-space: nowrap; }
+.risk-pill { padding: 5px 8px; border-radius: 5px; background: var(--soft); color: var(--accent); font-size: 0.5rem; font-weight: 850; white-space: nowrap; }
 .risk-state { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); }
-.risk-symbol { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--edge-strong); border-radius: 9px; background: var(--paper); color: var(--muted); font-size: 22px; }
+.risk-symbol { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--edge-strong); border-radius: 9px; background: var(--paper); color: var(--muted); font-size: 1.375rem; }
 .risk-state strong, .risk-state small { display: block; }
-.risk-state strong { font-size: 15px; }
-.risk-state small { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.risk-state strong { font-size: 0.9375rem; }
+.risk-state small { margin-top: 2px; color: var(--muted); font-size: 0.5rem; }
 #risk-policy, #risk-rationale, #risk-factors { overflow-wrap: anywhere; }
 #batch-origin { font-weight: 700; }
-#batch-validity { margin: 0 0 10px; color: var(--muted); font-size: 9px; font-weight: 700; }
+#batch-validity { margin: 0 0 10px; color: var(--muted); font-size: 0.5625rem; font-weight: 700; }
 #sources-status, #pipeline-status { min-height: 32px; }
 .risk-error { color: var(--danger) !important; }
 .risk-good { color: var(--success) !important; }
@@ -310,8 +326,8 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .operational-verdict { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); }
 .operational-verdict-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
 .operational-verdict-head .eyebrow { margin: 0; color: var(--accent); }
-.operational-verdict h4 { margin: 0 0 6px; font-size: 14px; letter-spacing: -.2px; }
-.operational-verdict > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.operational-verdict h4 { margin: 0 0 6px; font-size: 0.875rem; letter-spacing: -.2px; }
+.operational-verdict > p { margin: 0; color: var(--muted); font-size: 0.625rem; line-height: 1.6; }
 .operational-verdict > .panel-note { margin-top: 8px; }
 /* The registry values can be long (a sha256 hash wraps inside its own cell rather
    than widening the panel) and the sentence labels are not truncated. */
@@ -321,7 +337,7 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 /* Factor rows keep their plain text and gain the mockup's proportion bar.
    The bar is only rendered when the batch carries a real `contribution`. */
 #risk-factors { margin: 0; padding: 0; list-style: none; }
-#risk-factors li { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; color: var(--muted); font-size: 10px; }
+#risk-factors li { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; color: var(--muted); font-size: 0.625rem; }
 .factor-track { width: 57px; height: 4px; flex: 0 0 auto; border-radius: 4px; background: #2c3d4d; }
 .factor-track span { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
 
@@ -329,8 +345,8 @@ main { width: min(1500px, 100%); margin: 0 auto; padding: 27px 34px 35px; }
 .table-wrap, .table-scroll { overflow: auto; }
 .table-wrap:focus-visible, .table-scroll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
-th { padding: 11px 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--soft); color: var(--muted); font-size: 9px; font-weight: 550; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
-td { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); color: var(--ink); font-size: 10px; vertical-align: middle; }
+th { padding: 11px 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--soft); color: var(--muted); font-size: 0.5625rem; font-weight: 550; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
+td { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); color: var(--ink); font-size: 0.625rem; vertical-align: middle; }
 tbody tr:hover { background: var(--surface-raised); }
 /* The selected row of the actions table. It is declared after the hover tint on
    purpose: both selectors carry the same specificity, so only a later rule keeps
@@ -345,10 +361,10 @@ tbody tr.is-selected { background: var(--soft); }
 tbody tr.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--forest-700); }
 tr:last-child td { border-bottom: 0; }
 td strong { font-weight: 550; }
-td small { margin-top: 4px; color: var(--muted); font-size: 9px; }
-td code { color: var(--accent); font-size: 10px; }
+td small { margin-top: 4px; color: var(--muted); font-size: 0.5625rem; }
+td code { color: var(--accent); font-size: 0.625rem; }
 td:last-child { overflow-wrap: anywhere; }
-.empty-state { padding: 16px 10px; color: var(--muted); font-size: 10px; text-align: center; }
+.empty-state { padding: 16px 10px; color: var(--muted); font-size: 0.625rem; text-align: center; }
 .history-panel:not(.has-rows) .table-wrap, .history-panel:not(.has-rows) .filter-bar { display: none; }
 /* PM-13 — the export row. It sits outside `.filter-bar` on purpose: a history
    with no rows hides the filter bar, while a header-only export is still a valid
@@ -365,17 +381,17 @@ td:last-child { overflow-wrap: anywhere; }
    list so a reader can move zone by zone, and every interval states its own
    `bucket_start` instead of relying on a shared axis. */
 .history-series-range { margin-bottom: 6px; }
-.history-series-range .data-list dd code { font-size: 9px; }
+.history-series-range .data-list dd code { font-size: 0.5625rem; }
 .history-series { display: grid; gap: 12px; margin: 12px 0 0; padding: 0; list-style: none; }
 .history-series-zone { padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
-.history-series-zone-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 6px; font-size: 10px; }
-.history-series-count { color: var(--muted); font-size: 9px; white-space: nowrap; }
+.history-series-zone-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 6px; font-size: 0.625rem; }
+.history-series-count { color: var(--muted); font-size: 0.5625rem; white-space: nowrap; }
 .history-buckets { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.history-bucket { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 6px 0; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 9px; }
+.history-bucket { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 6px 0; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 0.5625rem; }
 .history-bucket:first-child { border-top: 0; }
-.history-bucket-start code { color: var(--ink); font-size: 9px; }
+.history-bucket-start code { color: var(--ink); font-size: 0.5625rem; }
 .history-bucket-level { color: var(--ink); font-weight: 700; }
-.history-bucket-provenance code { color: var(--accent); font-size: 9px; }
+.history-bucket-provenance code { color: var(--accent); font-size: 0.5625rem; }
 /* The synthetic mark is carried by the word as well as the colour: the text is
    the claim, the colour only repeats it. */
 .history-bucket-demo { color: var(--terracotta); font-weight: 700; }
@@ -383,8 +399,8 @@ td:last-child { overflow-wrap: anywhere; }
    `aria-disabled`, so the keyboard reader does not lose its place. It states the
    same visual state as the `disabled` buttons beside it. */
 .history-export button[aria-disabled="true"]:not(:disabled) { cursor: not-allowed; opacity: .48; }
-.row-index { margin-right: 8px; color: var(--muted); font-size: 9px; }
-.selected-label { color: var(--accent); font-size: 9px; }
+.row-index { margin-right: 8px; color: var(--muted); font-size: 0.5625rem; }
+.selected-label { color: var(--accent); font-size: 0.5625rem; }
 .row-actions { display: flex; align-items: center; gap: 7px; }
 .audit-detail { max-width: 350px; overflow-wrap: anywhere; }
 
@@ -397,12 +413,12 @@ td:last-child { overflow-wrap: anywhere; }
 /* ── Profiles and permissions ──────────────────────────────────────────── */
 /* The role row is a fact read from the token, so it is set apart from the
    surrounding prose and never rendered as a control. */
-.permissions-panel #session-roles { max-width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; letter-spacing: .02em; text-align: left; }
+.permissions-panel #session-roles { max-width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.625rem; letter-spacing: .02em; text-align: left; }
 .permissions-panel #session-roles-badge { font-variant-numeric: tabular-nums; }
 /* The guard column carries `path:line` citations: they wrap inside their own
    cell so a long path never widens the table. */
 .permissions-panel table { min-width: 520px; }
-.permissions-panel td:last-child { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 8px; overflow-wrap: anywhere; }
+.permissions-panel td:last-child { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.5rem; overflow-wrap: anywhere; }
 .permissions-panel td:first-child { font-weight: 700; }
 
 /* ── Filters ────────────────────────────────────────────────────────────── */
@@ -410,51 +426,51 @@ td:last-child { overflow-wrap: anywhere; }
 .search-field { position: relative; display: flex; align-items: center; flex: 1; min-width: 200px; max-width: 340px; }
 .search-field .icon { position: absolute; left: 11px; color: var(--muted); width: 16px; }
 .search-field input { padding-left: 35px; }
-.filter-label { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 10px; }
-.filter-label select { width: auto; font-size: 11px; }
-.result-count { margin-left: auto; color: var(--muted); font-size: 10px; }
-input, select, textarea { width: 100%; min-width: 0; padding: 9px 11px; border: 1px solid var(--edge-strong); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 12px; }
-input::placeholder { color: var(--muted); font-size: 11px; }
+.filter-label { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 0.625rem; }
+.filter-label select { width: auto; font-size: 0.6875rem; }
+.result-count { margin-left: auto; color: var(--muted); font-size: 0.625rem; }
+input, select, textarea { width: 100%; min-width: 0; padding: 9px 11px; border: 1px solid var(--edge-strong); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 0.75rem; }
+input::placeholder { color: var(--muted); font-size: 0.6875rem; }
 #history-query::placeholder { color: var(--muted); }
 .empty { padding: 38px 22px; color: var(--muted); text-align: center; }
 .empty .icon { width: 26px; height: 26px; margin-bottom: 12px; }
-.empty p { font-size: 12px; }
-.quiet-note { padding: 16px 0; color: var(--muted); font-size: 11px; }
+.empty p { font-size: 0.75rem; }
+.quiet-note { padding: 16px 0; color: var(--muted); font-size: 0.6875rem; }
 
 /* ── Quality findings / pipeline ────────────────────────────────────────── */
 .quality-steps { margin: 0; padding-left: 23px; }
 .quality-steps li { padding: 5px 0 8px 8px; color: var(--accent); }
 .quality-finding { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .quality-finding:first-of-type { padding-top: 0; }
-.quality-finding p { margin: 5px 0; color: var(--muted); font-size: 11px; }
+.quality-finding p { margin: 5px 0; color: var(--muted); font-size: 0.6875rem; }
 .pipeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
 .pipeline > div { padding-left: 16px; border-left: 1px solid var(--line); }
-.pipeline span { display: block; margin-bottom: 12px; color: var(--muted); font-size: 11px; }
-.pipeline p { margin-bottom: 5px; color: var(--muted); font-size: 11px; }
+.pipeline span { display: block; margin-bottom: 12px; color: var(--muted); font-size: 0.6875rem; }
+.pipeline p { margin-bottom: 5px; color: var(--muted); font-size: 0.6875rem; }
 
 /* ── Authentication / jobs ─────────────────────────────────────────────── */
 .auth-panel { align-self: start; }
-.lock-mark { color: var(--accent); font-size: 20px; }
-.auth-status { min-height: 14px; margin: 8px 0 0; color: var(--muted); font-size: 9px; }
+.lock-mark { color: var(--accent); font-size: 1.25rem; }
+.auth-status { min-height: 14px; margin: 8px 0 0; color: var(--muted); font-size: 0.5625rem; }
 .token-controls { display: flex; gap: 7px; }
 .token-controls input { height: 37px; }
 .jobs-panel { margin-top: 0; }
 .scenario-field { display: grid; gap: 6px; margin: 0 0 12px; }
-.scenario-field label { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
-.scenario-field select { max-width: 100%; height: 34px; padding: 0 9px; font-size: 10px; }
+.scenario-field label { color: var(--accent); font-size: 0.5625rem; font-weight: 800; letter-spacing: .06em; }
+.scenario-field select { max-width: 100%; height: 34px; padding: 0 9px; font-size: 0.625rem; }
 .scenario-field .panel-note { margin: 0; }
 .job-layout { display: grid; grid-template-columns: minmax(200px, .8fr) minmax(300px, 1.2fr); gap: 20px; margin-top: 13px; }
 .job-layout > div:first-child { padding-right: 16px; border-right: 1px solid var(--line); }
 .job-layout .panel-note { max-width: 360px; margin-top: 0; }
 .job-result { min-width: 0; }
 .job-result .eyebrow { margin-bottom: 0; }
-.job-result > p[role="status"] { min-height: 25px; margin: 3px 0; color: var(--muted); font-size: 9px; }
+.job-result > p[role="status"] { min-height: 25px; margin: 3px 0; color: var(--muted); font-size: 0.5625rem; }
 
 /* ── Footer and toast ──────────────────────────────────────────────────── */
-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 34px; padding: 17px 0 23px; border-top: 1px solid var(--line); color: var(--muted); font-size: 9px; }
-footer button { display: flex; align-items: center; gap: 6px; padding: 6px; border: 0; background: none; color: var(--accent); font-size: 10px; }
+footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 34px; padding: 17px 0 23px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.5625rem; }
+footer button { display: flex; align-items: center; gap: 6px; padding: 6px; border: 0; background: none; color: var(--accent); font-size: 0.625rem; }
 footer .icon { width: 13px; height: 13px; }
-.toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: min(440px, calc(100vw - 32px)); padding: 15px 20px; border: 1px solid var(--edge-strong); border-radius: 9px; background: var(--surface-raised); color: var(--ink); box-shadow: 0 8px 30px rgb(0 0 0 / 42%); font-size: 12px; opacity: 0; transform: translateY(15px); pointer-events: none; transition: opacity .2s, transform .2s; }
+.toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: min(440px, calc(100vw - 32px)); padding: 15px 20px; border: 1px solid var(--edge-strong); border-radius: 9px; background: var(--surface-raised); color: var(--ink); box-shadow: 0 8px 30px rgb(0 0 0 / 42%); font-size: 0.75rem; opacity: 0; transform: translateY(15px); pointer-events: none; transition: opacity .2s, transform .2s; }
 .toast.is-visible { opacity: 1; transform: translateY(0); }
 
 /* ── Preventive actions ─────────────────────────────────────────────────── */
@@ -463,7 +479,7 @@ footer .icon { width: 13px; height: 13px; }
 /* The detail's subsections are `h3` so they sit one level under the detail title
    instead of skipping from `h2` to `h4`. They keep the type they were painted
    with as `h4`: only the semantic level moved. */
-.actions-detail > h3 { margin-bottom: 7px; font-size: 11px; font-weight: 700; letter-spacing: -.1px; }
+.actions-detail > h3 { margin-bottom: 7px; font-size: 0.6875rem; font-weight: 700; letter-spacing: -.1px; }
 .actions-filters .filter-label, .actions-form label { display: grid; gap: 5px; }
 .actions-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin-top: 13px; align-items: start; }
 .actions-form textarea { min-height: 68px; resize: vertical; }
@@ -490,7 +506,7 @@ footer .icon { width: 13px; height: 13px; }
    headline strip, above everything and impossible to miss. It is now a small,
    always-visible link in the update bar that opens the data-status view, where
    the full declaration lives: the statement stays, the shouting stops. */
-.technical-notice { margin-left: auto; padding: 3px 8px; border: 1px dashed #8a7a4a; border-radius: 6px; background: #2b2a1e; color: #f0e0b4; font-size: 8px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; }
+.technical-notice { margin-left: auto; padding: 3px 8px; border: 1px dashed #8a7a4a; border-radius: 6px; background: #2b2a1e; color: #f0e0b4; font-size: 0.5rem; font-weight: 800; letter-spacing: .06em; white-space: normal; overflow-wrap: anywhere; }
 .technical-notice:hover { background: #34331f; }
 
 /* ── Zone comparator (PM-05) ────────────────────────────────────────────── */
@@ -499,27 +515,27 @@ footer .icon { width: 13px; height: 13px; }
    bottom of the card as an `unimplemented-note`: the axis does not exist, and
    the page says so instead of drawing an empty column. */
 .compare-controls { display: flex; flex-wrap: wrap; gap: 12px 18px; margin: 0 0 6px; }
-.compare-controls label { display: grid; gap: 5px; min-width: 220px; color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+.compare-controls label { display: grid; gap: 5px; min-width: 220px; color: var(--accent); font-size: 0.5625rem; font-weight: 800; letter-spacing: .06em; }
 .compare-controls select { max-width: 100%; }
 /* The selection is an `<ol>`: position is the comparison axis, so the number is
    rendered as text and the list marker is removed rather than hidden by colour. */
 .compare-selection { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
 .compare-selection:empty { display: none; }
-.compare-selection li { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); font-size: 10px; }
-.compare-order { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 8px; font-weight: 800; }
+.compare-selection li { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); font-size: 0.625rem; }
+.compare-order { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 0.5rem; font-weight: 800; }
 .compare-selection-label { font-weight: 650; }
 .compare-zones { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 14px; }
 .compare-zone { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); }
-.compare-zone h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: -.2px; }
-.compare-zone h5 { margin: 12px 0 5px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.compare-zone h4 { margin: 0 0 8px; font-size: 0.75rem; letter-spacing: -.2px; }
+.compare-zone h5 { margin: 12px 0 5px; color: var(--muted); font-size: 0.5625rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .compare-level { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-.compare-origin { color: var(--muted); font-size: 9px; }
+.compare-origin { color: var(--muted); font-size: 0.5625rem; }
 /* A null assessment is a stated absence, not a low level: the block is set apart
    from the surrounding data so it cannot be read as a value. */
-.compare-absent { padding: 10px 12px; border: 1px dashed #8a7a4a; border-radius: 7px; background: #2b2a1e; color: #f0e0b4; font-size: 10px; line-height: 1.55; }
+.compare-absent { padding: 10px 12px; border: 1px dashed #8a7a4a; border-radius: 7px; background: #2b2a1e; color: #f0e0b4; font-size: 0.625rem; line-height: 1.55; }
 .compare-absent p { margin: 0; }
-.compare-factors { margin: 0; padding-left: 16px; font-size: 10px; line-height: 1.6; }
-.compare-quiet { color: var(--muted); font-size: 9px; }
+.compare-factors { margin: 0; padding-left: 16px; font-size: 0.625rem; line-height: 1.6; }
+.compare-quiet { color: var(--muted); font-size: 0.5625rem; }
 .compare-zone .data-list dd { max-width: 66%; }
 .compare-history { min-width: 420px; }
 
@@ -530,7 +546,7 @@ footer .icon { width: 13px; height: 13px; }
   footer { margin-inline: 24px; }
   .dashboard-grid { grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 15px; }
   .metric { padding: 15px; }
-  .metric > strong { font-size: 21px; }
+  .metric > strong { font-size: 1.3125rem; }
   .job-layout { gap: 14px; }
 }
 
@@ -544,6 +560,20 @@ footer .icon { width: 13px; height: 13px; }
   .pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* The page title used to be a `clamp(27px, 2.5vw, 37px)`. A `vw` preferred term
+   cannot answer a 200% text resize — the viewport does not change when the reader
+   raises their default font size, so at a 32 px root the clamp computed 54 px from a
+   27 px floor, 1.69× instead of 2× (SC 1.4.4). The range is three `rem` steps
+   instead: 27 px, 32 px and 37 px at a 16 px root, stepping at the widths where the
+   clamp used to reach those values. */
+@media (max-width: 1080px) {
+  h1 { font-size: 1.6875rem; }
+}
+
+@media (min-width: 1480px) {
+  h1 { font-size: 2.3125rem; }
+}
+
 /* S7 — the header is what makes a phone fold fit now that the column is gone. It
    wraps into three compact lines — brand and route, then the territory and the
    session tablet, then the gateway card across both columns — and hides nothing:
@@ -553,24 +583,24 @@ footer .icon { width: 13px; height: 13px; }
   .topbar { gap: 6px 10px; padding: 7px 14px; }
   .topbar-lead { gap: 10px; }
   .topbar-route { padding-left: 10px; }
-  .topbar h1 { font-size: 16px; }
+  .topbar h1 { font-size: 1rem; }
   .topbar-utils { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: 100%; gap: 6px 8px; }
-  .brand-mark { width: 28px; height: 28px; font-size: 16px; }
-  .brand strong { font-size: 13px; }
-  .brand small { font-size: 7px; letter-spacing: .08em; }
+  .brand-mark { width: 28px; height: 28px; font-size: 1rem; }
+  .brand strong { font-size: 0.8125rem; }
+  .brand small { font-size: 0.4375rem; letter-spacing: .08em; }
   .zone-chip { padding: 4px 7px; }
-  .zone-chip > span { font-size: 13px; }
-  .zone-chip small { font-size: 7px; }
+  .zone-chip > span { font-size: 0.8125rem; }
+  .zone-chip small { font-size: 0.4375rem; }
   .health-card { grid-column: 1 / -1; padding: 5px 8px; }
-  .health-card p { flex-basis: 100%; max-width: none; font-size: 9.5px; }
+  .health-card p { flex-basis: 100%; max-width: none; font-size: 0.59375rem; }
   .session-card { flex-wrap: wrap; padding: 4px 8px; }
-  .session-card strong { font-size: 9.5px; }
-  .session-card small { font-size: 8px; }
-  .session-card button { min-height: 36px; padding: 4px 8px; font-size: 9.5px; }
+  .session-card strong { font-size: 0.59375rem; }
+  .session-card small { font-size: 0.5rem; }
+  .session-card button { min-height: 36px; padding: 4px 8px; font-size: 0.59375rem; }
   .update-bar { padding: 14px 16px 0; }
   main { padding: 20px 15px 28px; }
   .intro-row { align-items: flex-start; flex-direction: column; gap: 9px; }
-  .intro-row h2 { font-size: 21px; }
+  .intro-row h2 { font-size: 1.3125rem; }
   .map-panel, .risk-panel, .history-panel, .compare-panel, .auth-panel, .jobs-panel, .sources-panel, .pipeline-panel, .audit-panel, .access-panel, .pending-panel, .model-panel, .cycle-panel, .actions-panel, .notification-panel, .observations-panel, .observations-list-panel, .infrastructure-panel, .executive-panel, .status-panel { padding: 14px; }
   .executive-grid { grid-template-columns: 1fr; }
   .metrics-three { grid-template-columns: 1fr; }
@@ -612,14 +642,14 @@ footer .icon { width: 13px; height: 13px; }
 .infrastructure-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
 .infrastructure-print-note { flex-basis: 100%; margin: 0; text-align: right; }
 .infrastructure-synthetic { display: flex; flex-direction: column; gap: 4px; margin: 12px 0 10px; padding: 13px 15px; border: 2px solid #b58b45; border-left-width: 7px; border-radius: 9px; background: #2b2a1e; color: #f0e0b4; }
-.infrastructure-synthetic strong { font-size: 12px; letter-spacing: .08em; }
-.infrastructure-synthetic span { font-size: 10px; line-height: 1.55; }
-.infrastructure-formula { margin: 0 0 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 7px; background: var(--soft); color: var(--accent); font-size: 10px; line-height: 1.6; }
+.infrastructure-synthetic strong { font-size: 0.75rem; letter-spacing: .08em; }
+.infrastructure-synthetic span { font-size: 0.625rem; line-height: 1.55; }
+.infrastructure-formula { margin: 0 0 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 7px; background: var(--soft); color: var(--accent); font-size: 0.625rem; line-height: 1.6; }
 .infrastructure-map { margin: 14px 0 0; padding: 10px; border: 1px solid var(--edge); border-radius: 9px; background: var(--aerial-water); }
-.infrastructure-map figcaption { margin-bottom: 8px; color: var(--accent); font-size: 10px; font-weight: 700; }
+.infrastructure-map figcaption { margin-bottom: 8px; color: var(--accent); font-size: 0.625rem; font-weight: 700; }
 .infrastructure-map-svg { display: block; width: 100%; height: auto; min-height: 220px; }
 .infrastructure-map-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 9px 0 0; padding: 0; list-style: none; }
-.infrastructure-map-legend li { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 8px; }
+.infrastructure-map-legend li { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 0.5rem; }
 /* The synthetic element hues are dark-adapted markers: the same meaning, measured
    against the map surface they are drawn on (#152934) at 6.2–11:1. */
 .infrastructure-legend-marker { width: 11px; height: 11px; flex: 0 0 auto; background: #cfe0e8; }
@@ -628,14 +658,14 @@ footer .icon { width: 13px; height: 13px; }
 .infrastructure-legend-hospital { border-radius: 1px; background: #e59a8c; transform: rotate(45deg); }
 .infrastructure-legend-hidrante { background: #e0c478; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .infrastructure-legend-ruta { width: 18px; height: 3px; border-radius: 2px; background: #c9a06a; }
-.infrastructure-map-note { margin: 8px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.infrastructure-map-note { margin: 8px 0 0; color: var(--muted); font-size: 0.5625rem; line-height: 1.5; }
 .infrastructure-marker-colegio { fill: #7fb2d8; }
 .infrastructure-marker-vivienda { fill: #8fc58a; }
 .infrastructure-marker-hospital { fill: #e59a8c; }
 .infrastructure-marker-hidrante { fill: #e0c478; }
 .infrastructure-route { fill: none; stroke: #c9a06a; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .infrastructure-table { min-width: 620px; }
-.infrastructure-table caption { padding: 0 0 8px; color: var(--muted); font-size: 9px; line-height: 1.55; text-align: left; }
+.infrastructure-table caption { padding: 0 0 8px; color: var(--muted); font-size: 0.5625rem; line-height: 1.55; text-align: left; }
 .infrastructure-table th, .infrastructure-table td { text-align: right; }
 .infrastructure-table th:first-child, .infrastructure-table td:first-child { text-align: left; }
 .infrastructure-table tbody tr[data-zone] th { font-variant-numeric: tabular-nums; }
@@ -647,8 +677,8 @@ footer .icon { width: 13px; height: 13px; }
 .infrastructure-zone:first-of-type { border-top: 0; }
 .infrastructure-zone h4 { margin-bottom: 3px; }
 .infrastructure-elements { display: grid; gap: 5px; margin: 6px 0 0; padding: 0; list-style: none; }
-.infrastructure-elements li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 10px; }
-.infrastructure-geometry { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9px; }
+.infrastructure-elements li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.625rem; }
+.infrastructure-geometry { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.5625rem; }
 
 /* Print-to-PDF without a library. The browser's own print dialog is the whole
    feature; these rules keep the synthetic label, the provisional formula, the
@@ -684,7 +714,7 @@ footer .icon { width: 13px; height: 13px; }
 .simulator-variable label,
 .simulator-variables legend {
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: .02em;
 }
@@ -698,7 +728,7 @@ footer .icon { width: 13px; height: 13px; }
 .simulator-variable .field-note {
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.5625rem;
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
@@ -747,7 +777,7 @@ footer .icon { width: 13px; height: 13px; }
 }
 
 .simulator-variable-head label {
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 600;
 }
 
@@ -759,7 +789,7 @@ footer .icon { width: 13px; height: 13px; }
 
 .simulator-variable-field input {
   max-width: 100%;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -799,12 +829,12 @@ footer .icon { width: 13px; height: 13px; }
 
 .simulator-level {
   margin: 0;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 700;
 }
 
 .simulator-level .chip {
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
 }
 
@@ -895,18 +925,18 @@ footer .icon { width: 13px; height: 13px; }
    coloured, every row explains itself, and the composed rows (weather source and
    active rule) are visually subordinate to the aggregate they accompany. */
 #status .panel-note { margin: 0 0 14px; }
-#status .data-list dd.status-detail { max-width: 64%; color: var(--muted); font-size: 9px; font-weight: 500; line-height: 1.5; }
+#status .data-list dd.status-detail { max-width: 64%; color: var(--muted); font-size: 0.5625rem; font-weight: 500; line-height: 1.5; }
 #status .status-detail + dd { margin-top: 0; }
 .status-detail { white-space: normal; }
 .status-table { width: 100%; border-collapse: collapse; min-width: 560px; }
-.status-table caption { padding: 0 0 8px; color: var(--muted); font-size: 9px; line-height: 1.55; text-align: left; }
-.status-table th, .status-table td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); font-size: 9px; text-align: left; vertical-align: top; }
-.status-table thead th { color: var(--accent); font-size: 8px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.status-table caption { padding: 0 0 8px; color: var(--muted); font-size: 0.5625rem; line-height: 1.55; text-align: left; }
+.status-table th, .status-table td { padding: 9px 10px; border-bottom: 1px solid var(--line-soft); font-size: 0.5625rem; text-align: left; vertical-align: top; }
+.status-table thead th { color: var(--accent); font-size: 0.5rem; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .status-table tbody th { min-width: 150px; font-weight: 700; }
-.status-table tbody th code { margin-left: 4px; color: var(--muted); font-size: 8px; font-weight: 500; }
+.status-table tbody th code { margin-left: 4px; color: var(--muted); font-size: 0.5rem; font-weight: 500; }
 .status-table tbody td:last-child { color: var(--muted); line-height: 1.55; }
 .status-table tbody tr:last-child th, .status-table tbody tr:last-child td { border-bottom: 0; }
-.status-state { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; font-size: 8px; font-weight: 850; letter-spacing: .05em; white-space: nowrap; }
+.status-state { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid transparent; border-radius: 6px; font-size: 0.5rem; font-weight: 850; letter-spacing: .05em; white-space: nowrap; }
 /* The word is the state; the colour only reinforces it. Each pair is a dark-
    adapted surface with a measured label (8.7–9.5:1). */
 .status-state-ready { color: #a8e6c0; background: #1d3a2e; border-color: #3f6a52; }

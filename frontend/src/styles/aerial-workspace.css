@@ -43,11 +43,11 @@
 
 #overview .intro-row h2 {
   color: var(--ink);
-  font-size: 19px;
+  font-size: 1.1875rem;
 }
 
 #overview .intro-row .subheading {
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 /* ── Composición ───────────────────────────────────────────────────────────
@@ -131,18 +131,24 @@
   min-height: 0;
 }
 
-/* La comuna sin lote publicado es una placa topográfica oscura, nunca un gris
-   plano claro: el relleno neutro compartido se deja ver sobre el relieve pintado
-   en el canvas y su contorno es el borde medido del sistema. */
+/* La comuna sin lote publicado y «Información insuficiente» pintan el relleno
+   medido de su token a plena fuerza, nunca una placa atenuada, y su contorno es el
+   borde medido del sistema. Una placa translúcida sobre el agua no puede alcanzar
+   el 3:1 de 1.4.11: con `fill-opacity` .34 el neutro medía 1.62 sobre `--canvas`
+   (1.60 sobre el agua, 1.55 sobre el degradado de las miniaturas) y el .22 de
+   `desconocido` medía 1.68–1.71. A plena fuerza miden 4.76 · 4.03 · 3.47 y
+   10.83 · 9.16 · 7.88 en esos mismos tres fondos, y las dos placas siguen
+   distinguiéndose entre sí (2.27:1). El relieve topográfico del canvas ya no se ve
+   bajo estas dos — el mínimo 3:1 exige un tono medio, no uno oscuro — y sigue
+   viéndose bajo los tres niveles estrictos, que conservan su `.84`. Medido por
+   `tests/a11y/wcag-conformance.test.ts`. */
 #overview .map-3d .zone-neutral {
-  fill-opacity: 0.34;
   stroke: var(--edge-strong);
 }
 
-/* «Información insuficiente» también es una ausencia de lectura: comparte el
-   relieve oscuro para que ninguna placa clara sugiera una severidad. */
+/* Mismo criterio para «información insuficiente»: ausencia de lectura, placa
+   medida, nunca una placa clara que sugiera una severidad. */
 #overview .map-3d .level-desconocido {
-  fill-opacity: 0.22;
   stroke: var(--edge-strong);
 }
 
@@ -172,7 +178,7 @@
 
 #overview .map-3d-label {
   fill: var(--ink);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   paint-order: stroke;
@@ -238,7 +244,7 @@
   background: var(--paper);
   color: var(--ink);
   font: inherit;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -278,7 +284,7 @@
 }
 
 #overview .map-3d-compass svg { display: block; width: 18px; height: 18px; }
-#overview .map-3d-compass-n { color: var(--accent); font-size: 8px; font-weight: 800; letter-spacing: 0.08em; }
+#overview .map-3d-compass-n { color: var(--accent); font-size: 0.5rem; font-weight: 800; letter-spacing: 0.08em; }
 
 #overview .map-3d-scale { display: inline-grid; gap: 2px; justify-items: start; }
 
@@ -290,7 +296,7 @@
   box-shadow: 0 0 6px rgb(148 223 218 / 55%);
 }
 
-#overview .map-3d-scale-label { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
+#overview .map-3d-scale-label { color: var(--muted); font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.04em; }
 
 #overview .map-3d-layers {
   position: absolute;
@@ -311,7 +317,7 @@
   background: rgb(15 25 34 / 78%);
   color: var(--muted);
   font: inherit;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -339,12 +345,12 @@
   border-radius: 7px;
   background: rgb(8 21 32 / 86%);
   color: var(--ink);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
   line-height: 1.45;
 }
 
-#overview .map-3d-attribution-note { color: var(--muted); font-size: 8.5px; font-weight: 500; }
+#overview .map-3d-attribution-note { color: var(--muted); font-size: 0.53125rem; font-weight: 500; }
 
 /* La instrucción de la cámara es la descripción accesible del mapa, no una capa
    visual más: se anuncia y no ocupa espacio. */
@@ -377,9 +383,9 @@
 }
 
 #overview .map-3d-tooltip p { margin: 0; }
-#overview .map-3d-tooltip-name { color: var(--ink); font-size: 11px; font-weight: 800; }
-#overview .map-3d-tooltip-meta { color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
-#overview .map-3d-tooltip-coords { color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+#overview .map-3d-tooltip-name { color: var(--ink); font-size: 0.6875rem; font-weight: 800; }
+#overview .map-3d-tooltip-meta { color: var(--accent); font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.04em; }
+#overview .map-3d-tooltip-coords { color: var(--muted); font-size: 0.5625rem; font-variant-numeric: tabular-nums; }
 
 /* Los insulares son tarjetas de océano oscuro, acopladas al escenario y nunca
    posicionadas geográficamente contra el continente. */
@@ -410,7 +416,7 @@
   background: radial-gradient(circle at 32% 22%, var(--surface-raised), var(--aerial-water) 72%);
 }
 
-#overview .map-3d-stage .map-inset figcaption { color: var(--accent); font-size: 8px; font-weight: 700; line-height: 1.35; }
+#overview .map-3d-stage .map-inset figcaption { color: var(--accent); font-size: 0.5rem; font-weight: 700; line-height: 1.35; }
 
 
 #overview .aerial-canvas .map-panel {
@@ -458,7 +464,7 @@
 #overview .aerial-rail > h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -475,14 +481,14 @@
 #overview .aerial-block > h4 {
   margin: 0;
   color: var(--accent);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-#overview .aerial-state { margin: 0; color: var(--ink); font-size: 12px; line-height: 1.5; }
-#overview .aerial-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+#overview .aerial-state { margin: 0; color: var(--ink); font-size: 0.75rem; line-height: 1.5; }
+#overview .aerial-note { margin: 0; color: var(--muted); font-size: 0.6875rem; line-height: 1.55; }
 
 /* Los enlaces son el único control de la barra: cada uno nombra su destino en el
    texto visible y lleva el anillo de foco global. El alto de 36 px deja un
@@ -494,7 +500,7 @@
   align-items: center;
   min-height: 36px;
   color: var(--accent);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.4;
   text-decoration: underline;
@@ -503,15 +509,41 @@
 
 #overview .aerial-links a:hover { color: var(--ink); }
 
+/* PM-14 — la ficha PDF. El control es un botón nativo de la tarjeta del lote: su
+   alto de 36 px es un objetivo real y el foco usa el anillo global. El texto se
+   declara en `rem`, no en `px`, para no sumar una unidad absoluta a la escala
+   tipográfica de `V1-D-04`; la nota comparte la fila cuando el ancho lo permite. */
+#overview .ficha-pdf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+#overview .ficha-pdf button {
+  min-height: 36px;
+  border: 1px solid var(--edge-strong);
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+#overview .ficha-pdf button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+#overview .ficha-pdf button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+#overview .ficha-pdf .panel-note { flex: 1 1 22rem; margin: 0; }
+
 #overview .aerial-readings { display: grid; gap: 6px; margin: 0; }
 #overview .aerial-readings > div { display: flex; justify-content: space-between; gap: 12px; }
-#overview .aerial-readings dt { color: var(--muted); font-size: 11px; }
+#overview .aerial-readings dt { color: var(--muted); font-size: 0.6875rem; }
 
 #overview .aerial-readings dd {
   max-width: 62%;
   margin: 0;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   text-align: right;
   overflow-wrap: anywhere;
@@ -551,8 +583,8 @@
   #overview { padding: 10px 10px 14px; }
 
   #overview .intro-row { gap: 6px; margin-bottom: 6px; }
-  #overview .intro-row h2 { font-size: 17px; }
-  #overview .intro-row .subheading { font-size: 10px; }
+  #overview .intro-row h2 { font-size: 1.0625rem; }
+  #overview .intro-row .subheading { font-size: 0.625rem; }
   #overview .aerial-workspace { gap: 10px; margin-bottom: 14px; }
 
   /* El encabezado del mapa pasa a bloque: rótulo, título y chapa, cada uno en su
@@ -565,8 +597,8 @@
     gap: 4px;
   }
 
-  #overview .aerial-canvas .panel-heading .eyebrow { font-size: 8px; letter-spacing: 0.04em; }
-  #overview .aerial-canvas .panel-heading h3 { font-size: 14px; }
+  #overview .aerial-canvas .panel-heading .eyebrow { font-size: 0.5rem; letter-spacing: 0.04em; }
+  #overview .aerial-canvas .panel-heading h3 { font-size: 0.875rem; }
   #overview .aerial-canvas .panel-heading .neutral-tag { display: inline-block; margin-top: 4px; }
   #overview .aerial-canvas .map-toolbar { margin-top: 5px; gap: 5px; }
   #overview .aerial-canvas .map-toolbar select { width: 100%; max-width: none; }
@@ -597,7 +629,7 @@
   #overview .map-3d-hud-row { flex: 0 0 auto; flex-wrap: nowrap; padding: 3px; }
   #overview .map-3d-hud > .map-3d-focus { flex: 0 0 auto; }
   #overview .map-3d-hud-meta { flex: 0 0 auto; }
-  #overview .map-3d-hud button { min-height: 36px; font-size: 10px; }
+  #overview .map-3d-hud button { min-height: 36px; font-size: 0.625rem; }
   #overview .map-3d-layers { top: 8px; left: 8px; max-width: calc(100% - 16px); }
   #overview .map-3d-attribution { left: 8px; right: 8px; bottom: 58px; max-width: none; }
   #overview .map-3d-stage .map-insets { top: 50px; right: 8px; bottom: auto; width: min(140px, 42%); max-height: 36%; }

@@ -114,6 +114,13 @@ export function jobRoute(id: string): string {
   return `/v1/jobs/${encodeURIComponent(id)}`;
 }
 
+// PM-08's personal mark, added beside the read it annotates. The alert id is the
+// canonical uuid the listing served; the segment is encoded anyway so a malformed
+// value cannot smuggle a second path segment into the frozen route.
+export function riskAlertStateRoute(id: string): string {
+  return `${routes.alerts}/${encodeURIComponent(id)}/state`;
+}
+
 export function preventiveActionRoute(id: string): string {
   return `/v1/prevention/actions/${encodeURIComponent(id)}`;
 }
