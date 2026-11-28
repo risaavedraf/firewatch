@@ -77,9 +77,10 @@ export function CoverageRail({ zones, activeZone, onReveal }: CoverageRailProps)
           );
         })}
       </ul>
-      <p className="coverage-rail-note">
-        Abrir una comuna lleva a su desglose en esta misma página. El puntaje del catálogo es un punto por elemento y no
-        es riesgo observado.
+      <p className="coverage-rail-note" id="coverage-rail-scoring">
+        Abrir una comuna lleva a su desglose en esta misma página. El <strong>Exp</strong> de cada comuna es su índice
+        ponderado por categoría: la cobertura de la tabla ratificada sobre 4,15, ponderada por el peso de cada categoría
+        y no por la cantidad de elementos. No es riesgo observado.
       </p>
     </aside>
   );

@@ -4,17 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+
+	"firewatch.local/risk/internal/domain"
 )
 
 // InfrastructureSourceID is the declared origin of the embedded infrastructure
 // catalogue. It is repeated in the response and in the UI/PDF label so a reader
 // can tell the demo fixture from the mandante's real infrastructure catalogue.
 const InfrastructureSourceID = "synthetic_fixture"
-
-// InfrastructurePointsPerElement is the provisional demo weight: one point per
-// element, regardless of type. It describes exposure in the demo only; it is not
-// an approved production weight and it does not change the risk classifier.
-const InfrastructurePointsPerElement = 1
 
 const (
 	infrastructurePoint      = "Point"
@@ -26,6 +23,98 @@ const (
 // so this list is the single place that decides which breakdown keys exist.
 func InfrastructureElementTypes() []string {
 	return []string{"colegio", "vivienda", "hospital", "ruta", "hidrante"}
+}
+
+// InfrastructureCategory is one row of the ratified weighting table: the category,
+// the element-type aliases that fold onto it, its weight and its exposure radius.
+// The values come from the domain rule, never from this package.
+type InfrastructureCategory struct {
+	Category string   `json:"category"`
+	Aliases  []string `json:"aliases"`
+	Weight   float64  `json:"weight"`
+	RadiusKM float64  `json:"radius_km"`
+}
+
+// InfrastructureTypeCategory is this catalogue's own fold of one declared element
+// type onto the ratified table. The PM-11 vocabulary names a school a `colegio` and
+// a route a `ruta`; the ratified table names the same assets `escuela` and
+// `vialidad`, so the fold is published instead of being left for the client to
+// guess.
+type InfrastructureTypeCategory struct {
+	Type     string  `json:"type"`
+	Category string  `json:"category"`
+	Weight   float64 `json:"weight"`
+	RadiusKM float64 `json:"radius_km"`
+}
+
+// InfrastructureWeighting is the published weighting block: the ratified table,
+// the three formulas the indices are computed with, and the two declared types the
+// table does not rate. It replaces the retired one-point-per-element demo policy.
+type InfrastructureWeighting struct {
+	ExposureFormula string                       `json:"exposure_formula"`
+	PriorityFormula string                       `json:"priority_formula"`
+	RiskFormula     string                       `json:"risk_formula"`
+	RiskWeight      float64                      `json:"risk_weight"`
+	ExposureWeight  float64                      `json:"exposure_weight"`
+	WeightSum       float64                      `json:"weight_sum"`
+	Categories      []InfrastructureCategory     `json:"categories"`
+	TypeCategories  []InfrastructureTypeCategory `json:"type_categories"`
+	UnweightedTypes []string                     `json:"unweighted_types"`
+}
+
+// infrastructureTypeCategories folds the catalogue's own vocabulary onto the
+// ratified categories. A type absent from this map keeps its entity, zone and
+// geometry but contributes no weight: the ratified table does not name it, and
+// inventing a weight for it would be a decision nobody ratified.
+var infrastructureTypeCategories = map[string]string{
+	"colegio":  "escuela",
+	"hospital": "hospital",
+	"ruta":     "vialidad",
+}
+
+// InfrastructureWeightingTable builds the published weighting block from the
+// domain rule, so the catalogue, the index and the page cannot disagree.
+func InfrastructureWeightingTable() InfrastructureWeighting {
+	ratified := domain.Categories()
+	categories := make([]InfrastructureCategory, 0, len(ratified))
+	for _, category := range ratified {
+		categories = append(categories, InfrastructureCategory{
+			Category: category.Category,
+			Aliases:  category.Aliases,
+			Weight:   category.Weight,
+			RadiusKM: category.RadiusKM,
+		})
+	}
+
+	typeCategories := make([]InfrastructureTypeCategory, 0, len(infrastructureTypeCategories))
+	unweighted := make([]string, 0, 2)
+	for _, elementType := range InfrastructureElementTypes() {
+		categoryName, weighted := infrastructureTypeCategories[elementType]
+		if !weighted {
+			unweighted = append(unweighted, elementType)
+			continue
+		}
+		category, _ := domain.CategoryOf(categoryName)
+		typeCategories = append(typeCategories, InfrastructureTypeCategory{
+			Type:     elementType,
+			Category: category.Category,
+			Weight:   category.Weight,
+			RadiusKM: category.RadiusKM,
+		})
+	}
+
+	riskWeight, exposureWeight := domain.PriorityWeights()
+	return InfrastructureWeighting{
+		ExposureFormula: domain.ExposureFormula(),
+		PriorityFormula: domain.PriorityFormula(),
+		RiskFormula:     domain.RiskFormula(),
+		RiskWeight:      riskWeight,
+		ExposureWeight:  exposureWeight,
+		WeightSum:       domain.CategoryWeightSum(),
+		Categories:      categories,
+		TypeCategories:  typeCategories,
+		UnweightedTypes: unweighted,
+	}
 }
 
 // InfrastructureCounts is the per-type breakdown of a zone. Every vocabulary
@@ -76,30 +165,52 @@ func (g InfrastructureGeometry) MarshalJSON() ([]byte, error) {
 	}
 }
 
-// InfrastructureZone is one seeded zone with its derived score, breakdown and
-// fictional elements.
+// InfrastructureZoneCategory is one row of a zone's per-category breakdown: the
+// ratified weight and radius, the count of elements the zone declares for that
+// category and the weighted points they contribute.
+type InfrastructureZoneCategory struct {
+	Category       string  `json:"category"`
+	Weight         float64 `json:"weight"`
+	RadiusKM       float64 `json:"radius_km"`
+	Count          int     `json:"count"`
+	WeightedPoints float64 `json:"weighted_points"`
+}
+
+// InfrastructureZone is one seeded zone with its derived exposure index, weighted
+// breakdown and fictional elements.
 type InfrastructureZone struct {
-	ZoneID   string                  `json:"zone_id"`
-	Score    int                     `json:"score"`
-	Counts   InfrastructureCounts    `json:"counts"`
-	Elements []InfrastructureElement `json:"elements"`
+	ZoneID         string  `json:"zone_id"`
+	ExposureScore  int     `json:"exposure_score"`
+	WeightedPoints float64 `json:"weighted_points"`
+	// ExposedAssetsCount is how many fictional assets the zone declares. It is a
+	// count of declared entities, not a severity: a zone with five elements is not
+	// twice as exposed as a zone with two unless the categories say so.
+	ExposedAssetsCount int `json:"exposed_assets_count"`
+	// DominantCategory is the ratified category with the greatest weighted points,
+	// ties broken by the table's own order. It is null when the zone declares no
+	// weighted element, so "none" is never reported as one of the five.
+	DominantCategory *string                      `json:"dominant_category"`
+	Counts           InfrastructureCounts         `json:"counts"`
+	Categories       []InfrastructureZoneCategory `json:"categories"`
+	Elements         []InfrastructureElement      `json:"elements"`
 }
 
 // InfrastructureCatalogue is the frozen response body: the declared origin, the
-// provisional demo weight and the zones ordered by descending score, then
-// ascending zone ID.
+// ratified weighting table and the zones ordered by descending exposure index,
+// then ascending zone ID.
 type InfrastructureCatalogue struct {
-	Source           string               `json:"source"`
-	PointsPerElement int                  `json:"points_per_element"`
-	Zones            []InfrastructureZone `json:"zones"`
+	Source    string                  `json:"source"`
+	Weighting InfrastructureWeighting `json:"weighting"`
+	Zones     []InfrastructureZone    `json:"zones"`
 }
 
-// SyntheticInfrastructure returns the embedded fictional infrastructure
-// catalogue for the PM-11 demo. It reads no database, broker or external
-// service: the entries are compiled in, every element contributes one point, and
-// counts and scores are derived from those same entries.
+// SyntheticInfrastructure returns the embedded fictional infrastructure catalogue
+// for the PM-11 demo. It reads no database, broker or external service: the
+// entries are compiled in, the weights are the ratified table, and counts, the
+// exposure index and the dominant category are derived from those same entries.
 func SyntheticInfrastructure() InfrastructureCatalogue {
 	fixture := infrastructureFixture()
+	weighting := InfrastructureWeightingTable()
 	elementTypes := InfrastructureElementTypes()
 	zones := make([]InfrastructureZone, 0, len(fixture))
 	for _, declared := range fixture {
@@ -110,24 +221,90 @@ func SyntheticInfrastructure() InfrastructureCatalogue {
 		for _, element := range declared.elements {
 			counts[element.Type]++
 		}
-		zones = append(zones, InfrastructureZone{
-			ZoneID:   declared.zoneID,
-			Score:    InfrastructurePointsPerElement * len(declared.elements),
-			Counts:   counts,
-			Elements: declared.elements,
+		zones = append(zones, newInfrastructureZone(declared, counts, weighting))
+	}
+	sortInfrastructureZones(zones)
+	return InfrastructureCatalogue{
+		Source:    InfrastructureSourceID,
+		Weighting: weighting,
+		Zones:     zones,
+	}
+}
+
+// newInfrastructureZone derives the weighted breakdown, the exposure index and the
+// dominant category from one zone's own elements. Nothing here is declared next to
+// the elements it describes.
+func newInfrastructureZone(
+	declared infrastructureZoneFixture,
+	counts InfrastructureCounts,
+	weighting InfrastructureWeighting,
+) InfrastructureZone {
+	countByCategory := make(map[string]int, len(weighting.Categories))
+	for _, element := range declared.elements {
+		category, weighted := infrastructureTypeCategories[element.Type]
+		if !weighted {
+			continue
+		}
+		countByCategory[category]++
+	}
+
+	present := make([]string, 0, len(countByCategory))
+	categories := make([]InfrastructureZoneCategory, 0, len(weighting.Categories))
+	weightedPoints := 0.0
+	for _, row := range weighting.Categories {
+		count := countByCategory[row.Category]
+		points := row.Weight * float64(count)
+		weightedPoints += points
+		if count > 0 {
+			present = append(present, row.Category)
+		}
+		categories = append(categories, InfrastructureZoneCategory{
+			Category:       row.Category,
+			Weight:         row.Weight,
+			RadiusKM:       row.RadiusKM,
+			Count:          count,
+			WeightedPoints: points,
 		})
 	}
+
+	// The table is ordered by descending weight, so a strict comparison keeps the
+	// heavier category on a tie and the first row wins without a second rule.
+	dominant := ""
+	bestPoints := 0.0
+	for _, row := range categories {
+		if row.Count == 0 {
+			continue
+		}
+		if dominant == "" || row.WeightedPoints > bestPoints {
+			dominant = row.Category
+			bestPoints = row.WeightedPoints
+		}
+	}
+
+	zone := InfrastructureZone{
+		ZoneID:             declared.zoneID,
+		ExposureScore:      domain.ExposureScore(present...),
+		WeightedPoints:     weightedPoints,
+		ExposedAssetsCount: len(declared.elements),
+		Counts:             counts,
+		Categories:         categories,
+		Elements:           declared.elements,
+	}
+	if dominant != "" {
+		zone.DominantCategory = &dominant
+	}
+	return zone
+}
+
+// sortInfrastructureZones keeps the documented order a property of this package:
+// descending exposure index, ties broken by ascending zone id.
+func sortInfrastructureZones(zones []InfrastructureZone) {
 	sort.SliceStable(zones, func(i, j int) bool {
-		if zones[i].Score != zones[j].Score {
-			return zones[i].Score > zones[j].Score
+		if zones[i].ExposureScore != zones[j].ExposureScore {
+			return zones[i].ExposureScore > zones[j].ExposureScore
 		}
 		return zones[i].ZoneID < zones[j].ZoneID
 	})
-	return InfrastructureCatalogue{
-		Source:           InfrastructureSourceID,
-		PointsPerElement: InfrastructurePointsPerElement,
-		Zones:            zones,
-	}
 }
 
 // infrastructureZoneFixture is one zone before its score and counts are derived.

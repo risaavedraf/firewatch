@@ -400,7 +400,7 @@ paths:
           description: Latest batch, with current/stale status
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Batch'}
+              schema: {$ref: '#/components/schemas/LatestBatch'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -428,7 +428,10 @@ paths:
     get:
       operationId: listBatches
       description: >-
-        Viewer/admin. Up to 100 batches in descending request-time order.
+        Viewer/admin. Up to 100 batches in descending request-time order. The body
+        is the published batch as that window serves it: it declares no regional
+        priority member, because a stack of older publications has no single
+        regional ranking to state.
       parameters: [{$ref: '#/components/parameters/Zone'}]
       responses:
         '200':
@@ -702,8 +705,10 @@ paths:
         is absent from the array; nothing published at all is an empty array
         with 200, never 404. Each element carries the members the per-zone read
         serves except geometry: the catalogue geometry is served by
-        /v1/risk/zones and is deliberately not repeated here. This is a read
-        route; it takes no parameter and stores nothing.
+        /v1/risk/zones and is deliberately not repeated here. Each element also
+        carries the regional priority context this read computed over the whole
+        batch, since this is the only read that sees every zone at once. This is
+        a read route; it takes no parameter and stores nothing.
       responses:
         '200':
           description: >-
@@ -1182,18 +1187,24 @@ paths:
         Viewer/admin. The embedded fictional infrastructure catalogue for the
         PM-11 demo: one declared entity, zone, geometry and source per element.
         It is not the mandante's real catalogue, no coordinate is a real asset
-        location, and `source` is `synthetic_fixture`. Each element contributes
-        1 provisional demo point regardless of type; the zone score is the sum
-        of its per-type counts and is not a risk classification. Counts always
-        carry all five types, zero included, and are computed from the embedded
-        entries. Zones are ordered by descending score, then ascending zone_id.
-        The route reads no database or broker and does not change the risk
-        classifier.
+        location, and `source` is `synthetic_fixture`. Each zone publishes the
+        exposure index the ratified weighting table produces from its own
+        elements: five weighted categories (weight and radius per category, with
+        the aliases that fold onto each), a normaliser equal to the sum of those
+        weights (4.15), and `exposure_score` as the weighted coverage of the table
+        (`round(100 * sum of present category weights / 4.15)`). A zone that
+        declares no weighted category serves a real zero. Counts always carry all
+        five element types, zero included, and are computed from the embedded
+        entries. Zones are ordered by descending exposure index, then ascending
+        zone_id. The route reads no database or broker and does not change the
+        risk classifier; it publishes the priority formula but computes no
+        priority, because a priority needs the published batch.
       responses:
         '200':
           description: >-
-            Frozen synthetic fixture. Zone IDs are seeded commune codes; the
-            geometry-less legacy valparaiso-demo row is not used.
+            Frozen synthetic fixture with the ratified weighting table. Zone IDs
+            are seeded commune codes; the geometry-less legacy valparaiso-demo
+            row is not used.
           content:
             application/json:
               schema: {$ref: '#/components/schemas/InfrastructureCatalogue'}
@@ -3242,26 +3253,143 @@ components:
       type: object
       description: >-
         Frozen PM-11 demo body. `source` is the declared origin every element
-        shares; `points_per_element` is the provisional demo weight, not an
-        approved production weight.
-      required: [source, points_per_element, zones]
+        shares; `weighting` is the ratified table the exposure index is computed
+        with, published so a reader can recompute every score.
+      required: [source, weighting, zones]
       properties:
         source: {type: string, enum: [synthetic_fixture]}
-        points_per_element:
-          type: integer
-          enum: [1]
-          description: >-
-            Provisional demo weight: exactly one point per element, regardless
-            of type. The client's boundary guard rejects any other value.
+        weighting: {$ref: '#/components/schemas/InfrastructureWeighting'}
         zones:
           type: array
           description: >-
-            Ordered by descending score, then ascending zone_id. One element per
-            seeded zone that carries at least one fictional asset in the fixture.
+            Ordered by descending exposure index, then ascending zone_id. One
+            element per seeded zone that carries at least one fictional asset in
+            the fixture.
           items: {$ref: '#/components/schemas/InfrastructureZone'}
+    InfrastructureWeighting:
+      type: object
+      description: >-
+        The ratified weighting table and the three formulas derived from it. The
+        table is the owner's decision, not a configuration: five categories, each
+        with the aliases that fold onto it, a weight and an exposure radius.
+        `weight_sum` is the sum of those weights and normalises the exposure
+        index, so changing one weight moves every index with it.
+      required:
+        - exposure_formula
+        - priority_formula
+        - risk_formula
+        - risk_weight
+        - exposure_weight
+        - weight_sum
+        - categories
+        - type_categories
+        - unweighted_types
+      properties:
+        exposure_formula: {type: string}
+        priority_formula: {type: string}
+        risk_formula: {type: string}
+        risk_weight: {type: number, enum: [0.7]}
+        exposure_weight: {type: number, enum: [0.3]}
+        weight_sum: {type: number, enum: [4.15]}
+        categories:
+          type: array
+          description: >-
+            The five ratified rows, in the owner's order, heaviest first.
+          minItems: 5
+          maxItems: 5
+          items: {$ref: '#/components/schemas/InfrastructureCategory'}
+        type_categories:
+          type: array
+          description: >-
+            This catalogue's own fold of its five declared element types onto the
+            ratified table. A type absent from this list keeps its entity, zone
+            and geometry but contributes no weight.
+          items: {$ref: '#/components/schemas/InfrastructureTypeCategory'}
+        unweighted_types:
+          type: array
+          description: >-
+            Declared element types the ratified table does not name. They are
+            published as entities with zero weight, not omitted.
+          items: {type: string}
+    InfrastructureCategory:
+      type: object
+      description: >-
+        One ratified weighted category of critical infrastructure. The table below
+        is the owner's decision, not a configuration, and this document repeats it
+        because the served payload must equal it exactly: `hospital` / `salud`
+        weighs `1.00` and reaches `5.0` km; `escuela` / `educacion` weighs `0.90`
+        and reaches `3.0` km; `subestacion` / `agua_potable` weighs `0.85` and
+        reaches `4.0` km; `telecom` / `cuartel_bomberos` weighs `0.75` and reaches
+        `4.0` km; `vialidad` / `puente` weighs `0.65` and reaches `2.5` km. The
+        five weights sum to `4.15`, which is the normaliser of the exposure index:
+        a zone that declares all five categories reaches `100` and a zone that
+        declares none reaches `0`. A row's `weight` and `radius_km` are therefore
+        constrained to the values of that table; the row-to-category pairing is
+        enforced by the client's boundary guard, which recomputes the index from
+        the elements.
+      required: [category, aliases, weight, radius_km]
+      properties:
+        category: {type: string, enum: [hospital, escuela, subestacion, telecom, vialidad]}
+        aliases:
+          type: array
+          description: >-
+            The element-type names that fold onto this category, exactly as
+            ratified: `hospital`/`salud`, `escuela`/`educacion`,
+            `subestacion`/`agua_potable`, `telecom`/`cuartel_bomberos`,
+            `vialidad`/`puente`.
+          minItems: 1
+          maxItems: 2
+          items: {type: string}
+        weight:
+          type: number
+          description: >-
+            Ratified weight: `1.00`, `0.90`, `0.85`, `0.75` or `0.65`. It is the
+            category's contribution to the exposure index, not the number of
+            elements.
+          enum: [1.0, 0.9, 0.85, 0.75, 0.65]
+          minimum: 0
+          maximum: 1
+        radius_km:
+          type: number
+          description: >-
+            Ratified exposure radius in kilometres: `5.0`, `3.0`, `4.0` or `2.5`.
+          enum: [5.0, 3.0, 4.0, 2.5]
+          minimum: 0
+    InfrastructureTypeCategory:
+      type: object
+      description: One declared element type folded onto a ratified category.
+      required: [type, category, weight, radius_km]
+      properties:
+        type: {type: string, enum: [colegio, vivienda, hospital, ruta, hidrante]}
+        category: {type: string, enum: [hospital, escuela, subestacion, telecom, vialidad]}
+        weight: {type: number, minimum: 0, maximum: 1}
+        radius_km: {type: number, minimum: 0}
+    InfrastructureZoneCategory:
+      type: object
+      description: >-
+        One row of a zone's weighted breakdown, always carrying all five ratified
+        categories in table order with the count the zone declares for each.
+      required: [category, weight, radius_km, count, weighted_points]
+      properties:
+        category: {type: string, enum: [hospital, escuela, subestacion, telecom, vialidad]}
+        weight: {type: number, minimum: 0, maximum: 1}
+        radius_km: {type: number, minimum: 0}
+        count: {type: integer, minimum: 0}
+        weighted_points:
+          type: number
+          minimum: 0
+          description: weight multiplied by count.
     InfrastructureZone:
       type: object
-      required: [zone_id, score, counts, elements]
+      required:
+        - zone_id
+        - exposure_score
+        - weighted_points
+        - exposed_assets_count
+        - dominant_category
+        - counts
+        - categories
+        - elements
       properties:
         zone_id:
           type: string
@@ -3269,13 +3397,40 @@ components:
           description: >-
             Seeded catalogue commune code. The fixture never uses the
             geometry-less legacy valparaiso-demo row.
-        score:
+        exposure_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: >-
+            Weighted coverage of the ratified table: 100 only when the zone
+            declares all five categories, 0 when it declares none. It is an
+            exposure index, not a risk classification.
+        weighted_points:
+          type: number
+          minimum: 0
+          description: Sum of weight multiplied by count over the five categories.
+        exposed_assets_count:
           type: integer
           minimum: 0
           description: >-
-            points_per_element multiplied by the zone's fixture element count.
-            It describes demo exposure; it is not a risk classification.
+            How many fictional assets the zone declares. A count of entities, not
+            a severity.
+        dominant_category:
+          type: string
+          nullable: true
+          enum: [hospital, escuela, subestacion, telecom, vialidad]
+          description: >-
+            The ratified category with the greatest weighted points, ties broken
+            by the table's own order. Null when the zone declares no weighted
+            element, so "none" is never reported as one of the five.
         counts: {$ref: '#/components/schemas/InfrastructureCounts'}
+        categories:
+          type: array
+          description: >-
+            All five ratified categories in table order, zero included.
+          minItems: 5
+          maxItems: 5
+          items: {$ref: '#/components/schemas/InfrastructureZoneCategory'}
         elements:
           type: array
           items: {$ref: '#/components/schemas/InfrastructureElement'}
@@ -3427,6 +3582,97 @@ components:
             Server-assigned synthetic evaluation instant, fixed once per
             scenario job; null or absent for legacy jobs. Not an observation
             cutoff, actual source freshness, or forecast horizon.
+    ZonePriority:
+      type: object
+      description: >-
+        V1-P-02 / PM-11 regional context of one published zone. It is computed at
+        read time over the published batch: the exposure index comes from the
+        ratified five-category weighting applied to the zone's declared assets,
+        the risk score is reconstructed from the factor contributions the
+        classifier already persisted, and the priority is
+        `round(0.70 * risk_score + 0.30 * exposure_score)`, clamped to 0..100. The
+        ranking is `priority_score DESC, zone_id ASC` over every zone whose newest
+        published batch could be scored, so a position is reproducible from the
+        same published batch. A zone the rule could not score is served with
+        `priority_status: insufficient` and null `risk_score`, `priority_score`
+        and `priority_rank`: it takes no position and is excluded from
+        `total_ranked_zones`, because a zero would read as the lowest priority
+        instead of as no priority at all. Nothing here changes the classifier, a
+        stored row or the level the batch published.
+      required:
+        - zone_id
+        - risk_level
+        - priority_status
+        - exposure_score
+        - total_ranked_zones
+        - exposed_assets_count
+        - context_summary
+      properties:
+        zone_id:
+          type: string
+          description: Seeded catalogue commune code of the batch this context describes.
+        risk_level:
+          type: string
+          enum: [bajo, medio, alto, desconocido]
+          description: The level the batch itself published, restated for the join.
+        priority_status:
+          type: string
+          enum: [ranked, insufficient]
+          description: >-
+            `ranked` when the zone holds a position in the published batch;
+            `insufficient` when the rule could not score it. The nullable members
+            are null exactly in the second case.
+        risk_score:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: >-
+            round(100 * sum of the published factor contributions), clamped to
+            0..100. Null when the batch published no usable contribution; the
+            classifier is never re-executed to obtain it.
+        exposure_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: >-
+            Weighted coverage of the ratified five-category table for this zone.
+            Zero is a real reading: the catalogue declares no weighted element for
+            the commune.
+        priority_score:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+        priority_rank:
+          type: integer
+          nullable: true
+          minimum: 1
+        total_ranked_zones:
+          type: integer
+          minimum: 0
+          description: >-
+            How many zones of the published batch took a position. Zero when none
+            could be scored.
+        exposed_assets_count:
+          type: integer
+          minimum: 0
+          description: >-
+            How many fictional assets the catalogue declares for the commune.
+        dominant_category:
+          type: string
+          nullable: true
+          enum: [hospital, escuela, subestacion, telecom, vialidad]
+          description: >-
+            The ratified category with the greatest weighted points, ties broken
+            by the table's order; null when the commune declares no weighted
+            element.
+        context_summary:
+          type: string
+          description: >-
+            Spanish sentence naming the served priority, its regional position,
+            the two scores and the dominant category. It states arithmetic, never
+            a forecast or a cause.
     BatchCore:
       type: object
       description: >-
@@ -3574,6 +3820,40 @@ components:
         fail-closed check validates an aggregate element.
       allOf:
         - $ref: '#/components/schemas/BatchCore'
+    LatestBatch:
+      description: >-
+        The per-zone detail read: the published batch with its catalogue geometry
+        and, when this service could compute it, the regional priority context.
+        The bounded history read serves the same batch without that member, because
+        a window of older publications has no single regional ranking to state.
+      allOf:
+        - $ref: '#/components/schemas/Batch'
+        - type: object
+          properties:
+            priority:
+              allOf:
+                - $ref: '#/components/schemas/ZonePriority'
+              description: >-
+                Regional context of exactly this batch. It is joined by
+                `(zone_id, batch_id)`, so a newer publication of the same commune
+                can never lend its position to the batch this route answers. It is
+                absent when the aggregate read that builds the ranking failed, and
+                the page then says the regional context is unavailable instead of
+                claiming a position it could not calculate.
+    PublishedZoneBatch:
+      description: >-
+        One element of the aggregate read: the shared core without geometry, with
+        the regional priority context when this service could compute it.
+      allOf:
+        - $ref: '#/components/schemas/ZoneBatch'
+        - type: object
+          properties:
+            priority:
+              allOf:
+                - $ref: '#/components/schemas/ZonePriority'
+              description: >-
+                Regional context of this published batch, ranked with every other
+                zone of the same read.
     BatchCollection:
       type: object
       description: >-
@@ -3586,7 +3866,7 @@ components:
           description: >-
             One element per zone with at least one published batch, ordered by
             zone_id ascending. A zone with no published batch is absent.
-          items: {$ref: '#/components/schemas/ZoneBatch'}
+          items: {$ref: '#/components/schemas/PublishedZoneBatch'}
     SimulationRequest:
       type: object
       description: >-

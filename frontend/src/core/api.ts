@@ -36,6 +36,7 @@ import type {
   ServiceSnapshot,
   SourceProvenance,
   ZoneCollection,
+  ZonePriority,
 } from '../types/api';
 // The closed type catalogues are runtime values: the guards compare the served
 // wire spelling against them, so they cannot travel through `import type`.
@@ -378,14 +379,23 @@ function isGeometry(value: unknown): boolean {
 }
 
 function isFactor(value: unknown): boolean {
-  return (
-    record(value) &&
-    nonempty(value.name) &&
-    typeof value.known === 'boolean' &&
-    Number.isFinite(value.value) &&
-    Number.isFinite(value.contribution) &&
-    (value.note === undefined || typeof value.note === 'string')
-  );
+  if (!record(value)) return false;
+  if (!nonempty(value.name) || typeof value.known !== 'boolean') return false;
+  // The contract leaves value and contribution optional, and the classifier omits
+  // them for a variable it could not read. A number that IS present must still be
+  // a real number, so a string or a NaN cannot slip through as a measurement.
+  if (!optionalFiniteNumber(value.value) || !optionalFiniteNumber(value.contribution)) return false;
+  if (value.known === true) {
+    // A known variable carries the numbers the rule measured. Without them it is
+    // not an incomplete reading to be averaged over: it is a shape this client
+    // refuses instead of rendering a value nobody served.
+    if (typeof value.value !== 'number' || typeof value.contribution !== 'number') return false;
+  }
+  return value.note === undefined || typeof value.note === 'string';
+}
+
+function optionalFiniteNumber(value: unknown): boolean {
+  return value === undefined || Number.isFinite(value);
 }
 
 function isPolicy(value: unknown): boolean {
@@ -427,6 +437,75 @@ function optionalEvaluationTrigger(value: unknown): boolean {
   return value === undefined || isEvaluationTrigger(value);
 }
 
+// V1-P-02 / PM-11 — the regional priority member. The status is closed, the three
+// nullable numbers must actually be null when the backend could not place the zone
+// and an integer when it did, and a summary is always a string. A payload that
+// breaks either half is malformed instead of being rendered as a plausible rank.
+function isZonePriority(value: unknown): value is ZonePriority {
+  if (!record(value)) return false;
+  // The level is the closed vocabulary the contract publishes, not free text: a
+  // context that names an undeclared level would be rendered as a classification.
+  if (!nonempty(value.zone_id) || !isRiskLevel(value.risk_level)) return false;
+  if (value.priority_status !== 'ranked' && value.priority_status !== 'insufficient') return false;
+  if (!nullableInteger(value.risk_score) || !nullableInteger(value.priority_score) || !nullableInteger(value.priority_rank)) {
+    return false;
+  }
+  if (!integer(value.exposure_score) || value.exposure_score < 0 || value.exposure_score > 100) return false;
+  if (!integer(value.total_ranked_zones) || value.total_ranked_zones < 0) return false;
+  if (!integer(value.exposed_assets_count) || value.exposed_assets_count < 0) return false;
+  if (!isDominantCategory(value.dominant_category)) return false;
+  if (typeof value.context_summary !== 'string') return false;
+  const placed = value.priority_status === 'ranked';
+  if (placed) {
+    // S3 — a zone the rule could not decide holds no position: `desconocido` is a
+    // level the rule states, not a low one. A `ranked` block naming it contradicts
+    // itself and would print a rank nobody computed.
+    if (value.risk_level === 'desconocido') return false;
+    const allPresent = value.risk_score !== null && value.priority_score !== null && value.priority_rank !== null;
+    return allPresent && isRankedPriority(value);
+  }
+  const allAbsent = value.risk_score === null && value.priority_score === null && value.priority_rank === null;
+  // An insufficient zone holds no position at all, so the three members are
+  // all-or-nothing: a partial block would print a rank nobody computed. The ranked
+  // total may be zero here, because a batch where nothing could be scored is a real
+  // answer and not an invalid one.
+  return allAbsent;
+}
+
+// The five ratified categories a dominant category can name. The vocabulary is
+// closed: the contract publishes exactly these keys, and a value outside it would
+// be printed as a category nobody ratified.
+const DOMINANT_CATEGORIES = ['hospital', 'escuela', 'subestacion', 'telecom', 'vialidad'] as const;
+
+// isDominantCategory accepts the documented absence or one of the ratified keys.
+// Anything else — a retired type, a different casing, a blank string — is refused.
+function isDominantCategory(value: unknown): boolean {
+  return value === null || (typeof value === 'string' && (DOMINANT_CATEGORIES as readonly string[]).includes(value));
+}
+
+// priorityIndex is the documented 0..100 range of every served index.
+function priorityIndex(value: unknown): value is number {
+  return integer(value) && value >= 0 && value <= 100;
+}
+
+// isRankedPriority validates a position: each index inside 0..100, at least one
+// ranked zone, and a rank that exists inside that ranking. A rank outside 1..N
+// would print a position the batch does not have, so it fails closed.
+function isRankedPriority(value: Record<string, unknown>): boolean {
+  if (!priorityIndex(value.risk_score) || !priorityIndex(value.priority_score)) return false;
+  if (!integer(value.total_ranked_zones) || value.total_ranked_zones < 1) return false;
+  const rank = value.priority_rank;
+  return integer(rank) && rank >= 1 && rank <= value.total_ranked_zones;
+}
+
+function integer(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value);
+}
+
+function nullableInteger(value: unknown): boolean {
+  return value === null || integer(value);
+}
+
 function isRiskBatch(value: unknown): value is RiskBatch {
   if (!record(value)) return false;
   if (!nonempty(value.zone_id) || !nonempty(value.id) || !nonempty(value.job_id)) return false;
@@ -442,6 +521,15 @@ function isRiskBatch(value: unknown): value is RiskBatch {
   if (!optionalString(value.model_version) || !optionalString(value.data_status)) return false;
   if (!nullableString(value.scenario_id) || !nullableString(value.evaluated_at)) return false;
   if (!optionalEvaluationTrigger(value.evaluation_trigger) || !nullableString(value.evaluated_by)) return false;
+  if (value.priority !== undefined && value.priority !== null) {
+    const priority = value.priority;
+    if (!isZonePriority(priority)) return false;
+    // The context must describe this batch: a member naming another zone or another
+    // level is a mismatched join, and printing it would attach a position to a row
+    // the service never computed it for.
+    if (priority.zone_id !== value.zone_id) return false;
+    if (priority.risk_level !== value.risk_level) return false;
+  }
   return true;
 }
 

@@ -22,6 +22,7 @@ import {
   type InfrastructureCounts,
   type InfrastructureElement,
   type InfrastructureType,
+  type InfrastructureWeighting,
 } from '../../src/core/infrastructure';
 import { completeLogin, resetSession } from '../../src/core/session';
 import { InfrastructureView } from '../../src/views/InfrastructureView';
@@ -32,6 +33,9 @@ const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
 // The dedicated route is pinned as a literal: the view must consume exactly the
 // route the PM-11 contract names, not a shape derived from another endpoint.
 const INFRASTRUCTURE_URL = `${gatewayOrigin}/v1/risk/infrastructure`;
+// The regional context is the aggregate published-batch read the rest of the app
+// already consumes; the infrastructure view joins it to show per-comuna priority.
+const BATCHES_URL = `${gatewayOrigin}/v1/risk/batches`;
 const appCss = readFileSync(resolve(process.cwd(), 'src', 'styles', 'app.css'), 'utf8');
 
 let fetchStub: ReturnType<typeof createFetchStub>;
@@ -63,6 +67,48 @@ function counts(overrides: Partial<InfrastructureCounts> = {}): InfrastructureCo
   };
 }
 
+// The ratified table, spelled as the owner wrote it: five categories, their
+// aliases, their weight and their exposure radius. Every test fixture uses this
+// table so a client that invents a weight is caught by the guard.
+function weighting(): InfrastructureWeighting {
+  return {
+    exposure_formula: 'round(100 × Σ pesos de las categorías presentes ÷ Σ pesos de la tabla)',
+    priority_formula: 'round(0.70 × risk_score + 0.30 × exposure_score)',
+    risk_formula: 'round(100 × Σ contribuciones publicadas del lote)',
+    risk_weight: 0.7,
+    exposure_weight: 0.3,
+    weight_sum: 4.15,
+    categories: [
+      { category: 'hospital', aliases: ['hospital', 'salud'], weight: 1.0, radius_km: 5.0 },
+      { category: 'escuela', aliases: ['escuela', 'educacion'], weight: 0.9, radius_km: 3.0 },
+      { category: 'subestacion', aliases: ['subestacion', 'agua_potable'], weight: 0.85, radius_km: 4.0 },
+      { category: 'telecom', aliases: ['telecom', 'cuartel_bomberos'], weight: 0.75, radius_km: 4.0 },
+      { category: 'vialidad', aliases: ['vialidad', 'puente'], weight: 0.65, radius_km: 2.5 },
+    ],
+    type_categories: [
+      { type: 'colegio', category: 'escuela', weight: 0.9, radius_km: 3.0 },
+      { type: 'hospital', category: 'hospital', weight: 1.0, radius_km: 5.0 },
+      { type: 'ruta', category: 'vialidad', weight: 0.65, radius_km: 2.5 },
+    ],
+    unweighted_types: ['vivienda', 'hidrante'],
+  };
+}
+
+function categoryRows(
+  overrides: Partial<Record<string, number>> = {},
+): InfrastructureCatalogue['zones'][number]['categories'] {
+  return weighting().categories.map(category => {
+    const count = overrides[category.category] ?? 0;
+    return {
+      category: category.category,
+      weight: category.weight,
+      radius_km: category.radius_km,
+      count,
+      weighted_points: category.weight * count,
+    };
+  });
+}
+
 function point(
   id: string,
   type: Exclude<InfrastructureType, 'ruta'>,
@@ -76,15 +122,23 @@ function line(id: string, coordinates: Array<[number, number]>): InfrastructureE
   return { id, type: 'ruta', geometry: { type: 'LineString', coordinates } };
 }
 
+// 05101 declares a school, a hospital, a route, a home and a hydrant: three of the
+// five ratified categories are present, so its weighted coverage is
+// (0.90 + 1.00 + 0.65) / 4.15 = 61 %. The home and the hydrant are declared and
+// carry no weight because the ratified table does not name them.
 function fixture(): InfrastructureCatalogue {
   return {
     source: 'synthetic_fixture',
-    points_per_element: 1,
+    weighting: weighting(),
     zones: [
       {
         zone_id: '05101',
-        score: 5,
+        exposure_score: 61,
+        weighted_points: 2.55,
+        exposed_assets_count: 5,
+        dominant_category: 'hospital',
         counts: counts({ colegio: 1, vivienda: 1, hospital: 1, ruta: 1, hidrante: 1 }),
+        categories: categoryRows({ hospital: 1, escuela: 1, vialidad: 1 }),
         elements: [
           point('colegio-1', 'colegio', -71.62, -33.05),
           point('vivienda-1', 'vivienda', -71.6, -33.03),
@@ -98,8 +152,12 @@ function fixture(): InfrastructureCatalogue {
       },
       {
         zone_id: '05102',
-        score: 1,
+        exposure_score: 0,
+        weighted_points: 0,
+        exposed_assets_count: 1,
+        dominant_category: null,
         counts: counts({ vivienda: 1 }),
+        categories: categoryRows(),
         elements: [point('vivienda-2', 'vivienda', -71.52, -33.0)],
       },
     ],
@@ -141,6 +199,49 @@ async function serve(payload: unknown, status = 200): Promise<void> {
   });
 }
 
+// The regional context is a second, independent read: the aggregate published
+// batch. A test that does not answer it leaves the priority columns explicitly
+// unknown, which is itself an asserted behaviour below.
+async function serveBatches(payload: unknown, status = 200): Promise<void> {
+  await act(async () => {
+    fetchStub.answer(BATCHES_URL, payload, status);
+    await flushMicrotasks();
+  });
+}
+
+function priorityEntry(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    zone_id: '05101',
+    risk_level: 'alto',
+    priority_status: 'ranked',
+    risk_score: 96,
+    exposure_score: 61,
+    priority_score: 86,
+    priority_rank: 1,
+    total_ranked_zones: 3,
+    exposed_assets_count: 5,
+    dominant_category: 'hospital',
+    context_summary: 'Comuna 05101: prioridad 86 de 100, puesto 1 de 3 del lote publicado.',
+    ...overrides,
+  };
+}
+
+function batchBody(zoneID: string, priority: Record<string, unknown> | null): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    zone_id: zoneID,
+    id: `batch-${zoneID}`,
+    job_id: `job-${zoneID}`,
+    demo: true,
+    risk_level: 'alto',
+    factors: [{ name: 'temperatura', known: true, value: 30, contribution: 0.2, note: '' }],
+    rationale: 'Regla académica',
+    policy: { policy_id: 'academic-rule-v1', params_hash: 'hash', parameters: {} },
+    notice: 'Sintético',
+  };
+  if (priority !== null) body.priority = priority;
+  return body;
+}
+
 function text(id: string): string {
   return document.getElementById(id)?.textContent ?? '';
 }
@@ -149,19 +250,61 @@ function rows(): Element[] {
   return [...document.querySelectorAll('#infrastructure-rows tr')];
 }
 
-test('shows a prominent Spanish synthetic-data label, the declared origin and the provisional rule', async () => {
+test('shows a prominent Spanish synthetic-data label, the declared origin and the ratified weighting rule', async () => {
   await openSignedIn();
   await serve(fixture());
 
   expect(text('infrastructure-synthetic')).toMatch(/datos sintéticos de demostración/i);
   expect(text('infrastructure-synthetic')).toMatch(/no es el catálogo real/i);
   expect(text('infrastructure-source')).toContain('synthetic_fixture');
-  expect(text('infrastructure-formula')).toMatch(/un punto por elemento/i);
-  expect(text('infrastructure-formula')).toMatch(/provisional/i);
-  expect(text('infrastructure-formula')).toMatch(/no están aprobados/i);
+  expect(text('infrastructure-formula')).toMatch(/tabla ratificada/i);
+  expect(text('infrastructure-formula')).toMatch(/0\.70/);
+  expect(text('infrastructure-formula')).toMatch(/0\.30/);
+  // The retired provisional policy cannot survive in visible copy: the catalogue
+  // no longer scores one point per element.
+  expect(text('infrastructure-formula')).not.toMatch(/un punto por elemento/i);
 });
 
-test('reads only the dedicated endpoint with the bearer and renders every breakdown with counts and total', async () => {
+test('publishes the ratified five-category weight and radius table', async () => {
+  await openSignedIn();
+  await serve(fixture());
+
+  const table = document.getElementById('infrastructure-weighting') as HTMLElement | null;
+  expect(table).not.toBeNull();
+  const rowsTable = [...(table as HTMLElement).querySelectorAll('tbody tr')];
+  expect(rowsTable.map(row => row.getAttribute('data-category'))).toEqual([
+    'hospital',
+    'escuela',
+    'subestacion',
+    'telecom',
+    'vialidad',
+  ]);
+
+  const expected: Record<string, { weight: string; radius: string; aliases: string }> = {
+    hospital: { weight: '1.00', radius: '5.0', aliases: 'hospital · salud' },
+    escuela: { weight: '0.90', radius: '3.0', aliases: 'escuela · educacion' },
+    subestacion: { weight: '0.85', radius: '4.0', aliases: 'subestacion · agua_potable' },
+    telecom: { weight: '0.75', radius: '4.0', aliases: 'telecom · cuartel_bomberos' },
+    vialidad: { weight: '0.65', radius: '2.5', aliases: 'vialidad · puente' },
+  };
+  for (const row of rowsTable) {
+    const category = row.getAttribute('data-category') ?? '';
+    const want = expected[category];
+    expect(want, `unexpected category ${category}`).toBeDefined();
+    expect(row.querySelector('[data-weight]')?.textContent).toBe(want.weight);
+    expect(row.querySelector('[data-radius]')?.textContent).toBe(want.radius);
+    expect(row.querySelector('[data-aliases]')?.textContent).toBe(want.aliases);
+  }
+
+  // The sum of the table and the fold of the catalogue's own five types are
+  // stated next to it, so the reader can recompute the index.
+  expect(text('infrastructure-weighting-note')).toMatch(/4\.15/);
+  expect(text('infrastructure-weighting-note')).toMatch(/colegio.*escuela/i);
+  expect(text('infrastructure-weighting-note')).toMatch(/vivienda/i);
+  expect(text('infrastructure-weighting-note')).toMatch(/hidrante/i);
+});
+
+test('reads only the dedicated endpoint with the bearer and renders every breakdown with counts and exposure', async () => {
   await openSignedIn();
 
   const calls = fetchStub.callsFor(INFRASTRUCTURE_URL);
@@ -176,12 +319,15 @@ test('reads only the dedicated endpoint with the bearer and renders every breakd
   for (const type of INFRASTRUCTURE_TYPES) {
     expect(first.querySelector(`[data-count="${type}"]`)?.textContent).toBe('1');
   }
-  expect(first.querySelector('[data-total]')?.textContent).toBe('5');
-  expect(rows()[1]?.querySelector('[data-total]')?.textContent).toBe('1');
+  expect(first.querySelector('[data-exposure]')?.textContent).toBe('61');
+  expect(rows()[1]?.querySelector('[data-exposure]')?.textContent).toBe('0');
   expect(text('infrastructure-zone-count')).toBe('2');
   expect(text('infrastructure-element-count')).toBe('6');
-  expect(text('infrastructure-point-total')).toBe('6');
+  expect(text('infrastructure-exposure-max')).toBe('61');
   expect(document.getElementById('infrastructure-zone-05101')).not.toBeNull();
+  // V1-P-02 — the ratified table is five rows and needs no scroll container: the
+  // view keeps exactly one keyboard-reachable table region, the zone breakdown.
+  expect(document.querySelectorAll('#infrastructure .table-wrap')).toHaveLength(1);
   expect(document.querySelector('#infrastructure-elements-05101 [data-element-id="ruta-1"]')).not.toBeNull();
 });
 
@@ -275,16 +421,27 @@ test('states a denied read explicitly and renders no invented rows', async () =>
   expect(text('infrastructure-zone-count')).toBe('—');
 });
 
-test('refuses a payload whose breakdown is incomplete or whose score is not the one-point total', async () => {
+test('refuses a payload whose breakdown is incomplete or whose exposure is not the ratified index', async () => {
   const missingType = structuredClone(fixture()) as unknown as {
     zones: Array<{ counts: Record<string, unknown> }>;
   };
   delete missingType.zones[0]?.counts.hidrante;
   expect(parseInfrastructure(missingType)).toBeNull();
 
-  const wrongTotal = structuredClone(fixture());
-  wrongTotal.zones[0].score = 4;
-  expect(parseInfrastructure(wrongTotal)).toBeNull();
+  // A published index that does not follow from the table is not repaired: the
+  // view would otherwise print a number the rule does not produce.
+  const wrongExposure = structuredClone(fixture());
+  wrongExposure.zones[0].exposure_score = 62;
+  expect(parseInfrastructure(wrongExposure)).toBeNull();
+
+  // A category table that is not the ratified one is refused too.
+  const wrongTable = structuredClone(fixture());
+  wrongTable.weighting.categories[0].weight = 0.95;
+  expect(parseInfrastructure(wrongTable)).toBeNull();
+
+  const wrongAssetCount = structuredClone(fixture());
+  wrongAssetCount.zones[0].exposed_assets_count = 4;
+  expect(parseInfrastructure(wrongAssetCount)).toBeNull();
 
   await openSignedIn();
   await serve(missingType);
@@ -456,7 +613,16 @@ test('T3 opens the chosen commune breakdown with focus, without touching the rou
 test('T3 keeps a commune with no declared elements as an explicit zero, not as a missing reading', async () => {
   await openSignedIn();
   const empty = fixture();
-  empty.zones.push({ zone_id: '05103', score: 0, counts: counts(), elements: [] });
+  empty.zones.push({
+    zone_id: '05103',
+    exposure_score: 0,
+    weighted_points: 0,
+    exposed_assets_count: 0,
+    dominant_category: null,
+    counts: counts(),
+    categories: categoryRows(),
+    elements: [],
+  });
   await serve(empty);
 
   const entry = coverageEntries()[2] as HTMLElement;
@@ -514,4 +680,97 @@ test('T3 renders no coverage stage without a catalogue: the failed read owns its
   expect(text('infrastructure-empty')).toMatch(/sin catálogo disponible/i);
   expect(text('infrastructure-zone-count')).toBe('—');
   expect(document.getElementById('infrastructure-granularity')).not.toBeNull();
+});
+
+// --- V1-P-02 / PM-11: ratified weighting and regional priority --------------
+//
+// The owner replaced the provisional "one point per element" policy with five
+// weighted categories and a 0..100 index, and fixed the regional ranking on the
+// published batch. This view is where the weight table and the per-comuna
+// priority are read, so both facts are asserted here instead of being inferred
+// from the catalogue alone.
+
+test('V1-P-02 shows the per-comuna priority and exposure read from the published batch', async () => {
+  await openSignedIn();
+  await serve(fixture());
+  await serveBatches({
+    batches: [
+      batchBody('05101', priorityEntry()),
+      batchBody('05102', priorityEntry({ zone_id: '05102', priority_rank: 2, priority_score: 20, exposure_score: 0, dominant_category: null })),
+    ],
+  });
+
+  const first = document.querySelector('#infrastructure-rows [data-zone="05101"]') as HTMLElement;
+  expect(first.querySelector('[data-exposure]')?.textContent).toBe('61');
+  expect(first.querySelector('[data-priority]')?.textContent).toBe('86');
+  expect(first.querySelector('[data-rank]')?.textContent).toBe('#1 de 3');
+
+  const second = document.querySelector('#infrastructure-rows [data-zone="05102"]') as HTMLElement;
+  expect(second.querySelector('[data-exposure]')?.textContent).toBe('0');
+  expect(second.querySelector('[data-priority]')?.textContent).toBe('20');
+  expect(second.querySelector('[data-rank]')?.textContent).toBe('#2 de 3');
+
+  // The per-comuna breakdown names the served priority, its position and the
+  // category the ratified table makes dominant, without recomputing anything.
+  const breakdown = text('infrastructure-priority-05101');
+  expect(breakdown).toMatch(/prioridad 86 de 100/i);
+  expect(breakdown).toMatch(/#1 de 3/);
+  expect(breakdown).toMatch(/hospital/i);
+  // The zone with no weighted element says so instead of inventing a category.
+  expect(text('infrastructure-priority-05102')).toMatch(/sin categoría ponderada/i);
+
+  // The two reads are the two documented routes and both carry the bearer.
+  expect(fetchStub.callsFor(BATCHES_URL)).toHaveLength(1);
+  expect(fetchStub.callsFor(INFRASTRUCTURE_URL)).toHaveLength(1);
+});
+
+test('V1-P-02 leaves the priority columns unknown when the regional read did not answer', async () => {
+  await openSignedIn();
+  await serve(fixture());
+  await serveBatches({ code: 'storage_unavailable' }, 503);
+
+  const first = document.querySelector('#infrastructure-rows [data-zone="05101"]') as HTMLElement;
+  for (const attribute of ['data-priority', 'data-rank']) {
+    expect(first.querySelector(`[${attribute}]`)?.textContent).toBe('—');
+  }
+  // The exposure index comes from the catalogue itself, so it survives a failed
+  // regional read: only the priority and the position are unknown.
+  expect(first.querySelector('[data-exposure]')?.textContent).toBe('61');
+  expect(text('infrastructure-priority-05101')).toMatch(/sin contexto regional/i);
+});
+
+test('V1-P-02 does not print a priority the boundary guard could not read', async () => {
+  await openSignedIn();
+  await serve(fixture());
+  await serveBatches({ batches: [batchBody('05101', priorityEntry({ priority_rank: 'first' }))] });
+
+  const first = document.querySelector('#infrastructure-rows [data-zone="05101"]') as HTMLElement;
+  expect(first.querySelector('[data-priority]')?.textContent).toBe('—');
+  expect(first.querySelector('[data-rank]')?.textContent).toBe('—');
+  expect(text('infrastructure-priority-05101')).toMatch(/sin contexto regional/i);
+});
+
+test('V1-P-02 states the ratified priority rule and the granularity next to the index', async () => {
+  await openSignedIn();
+  await serve(fixture());
+
+  const formula = text('infrastructure-formula');
+  expect(formula).toMatch(/round\(0\.70 × risk_score \+ 0\.30 × exposure_score\)/);
+  expect(formula).toMatch(/lote publicado/i);
+  expect(formula).toMatch(/no modifica el clasificador/i);
+  expect(text('infrastructure-weighting-note')).toMatch(/prioridad.*0\.70.*0\.30/i);
+});
+
+test('V1-P-02 the coverage rail states the ratified weighted exposure index', async () => {
+  await openSignedIn();
+  await serve(fixture());
+
+  // The rail's closing note is the last place the retired one-point policy could
+  // survive: it must name the weighted index and the table's normaliser instead.
+  const note = text('coverage-rail-scoring');
+  expect(note).toMatch(/índice ponderado por categoría/i);
+  expect(note).toMatch(/4,15/);
+  expect(note).toMatch(/no es riesgo observado/i);
+  expect(note).not.toMatch(/un punto por elemento/i);
+  expect(note).not.toMatch(/puntaje del catálogo/i);
 });
