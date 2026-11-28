@@ -8,13 +8,15 @@ import (
 	"testing"
 
 	"firewatch.local/contracts/geo"
+	"firewatch.local/risk/internal/domain"
 )
 
-// TestSyntheticInfrastructureScoreIsTheSumOfItsCounts pins the demo formula:
-// every element contributes exactly one point, so a zone score is the number of
-// fixture elements it holds, and each per-type count is derived from those same
-// entries rather than declared next to them.
-func TestSyntheticInfrastructureScoreIsTheSumOfItsCounts(t *testing.T) {
+// TestSyntheticInfrastructureExposureIsTheRatifiedWeightedIndex pins the table
+// the owner ratified and the index derived from it: every zone count is computed
+// from its own elements, every weighted category present raises the exposure
+// index by its ratified weight over the table's 4.15, and the two declared types
+// the table does not name contribute nothing while staying declared.
+func TestSyntheticInfrastructureExposureIsTheRatifiedWeightedIndex(t *testing.T) {
 	catalogue := SyntheticInfrastructure()
 	if catalogue.Source != InfrastructureSourceID {
 		t.Fatalf("source is %q, want the declared %q", catalogue.Source, InfrastructureSourceID)
@@ -22,25 +24,60 @@ func TestSyntheticInfrastructureScoreIsTheSumOfItsCounts(t *testing.T) {
 	if InfrastructureSourceID != "synthetic_fixture" {
 		t.Fatalf("declared source is %q, want synthetic_fixture", InfrastructureSourceID)
 	}
-	if catalogue.PointsPerElement != 1 {
-		t.Fatalf("points per element is %d, want the approved demo weight 1", catalogue.PointsPerElement)
-	}
 	if len(catalogue.Zones) == 0 {
 		t.Fatal("the fixture serves no zone")
 	}
 
-	for _, zone := range catalogue.Zones {
-		if zone.Score != catalogue.PointsPerElement*len(zone.Elements) {
-			t.Errorf(
-				"zone %s score is %d, want %d points for %d elements",
-				zone.ZoneID, zone.Score, catalogue.PointsPerElement*len(zone.Elements), len(zone.Elements),
-			)
+	// The published weighting block is the ratified table and the fixture's own
+	// fold of its five element types, with the two unweighted types named.
+	if len(catalogue.Weighting.Categories) != 5 {
+		t.Fatalf("catalogue publishes %d categories, want the ratified 5", len(catalogue.Weighting.Categories))
+	}
+	if math.Abs(catalogue.Weighting.WeightSum-4.15) > 1e-9 {
+		t.Errorf("catalogue weight sum is %v, want 4.15", catalogue.Weighting.WeightSum)
+	}
+	if math.Abs(catalogue.Weighting.RiskWeight-0.70) > 1e-9 || math.Abs(catalogue.Weighting.ExposureWeight-0.30) > 1e-9 {
+		t.Errorf(
+			"catalogue priority weights are %v/%v, want the ratified 0.70/0.30",
+			catalogue.Weighting.RiskWeight, catalogue.Weighting.ExposureWeight,
+		)
+	}
+	if strings.Join(catalogue.Weighting.UnweightedTypes, ",") != "vivienda,hidrante" {
+		t.Errorf("unweighted types are %v, want vivienda and hidrante", catalogue.Weighting.UnweightedTypes)
+	}
+	// The catalogue's own vocabulary is folded onto the ratified categories in one
+	// published place, and only onto categories the table names.
+	folded := make(map[string]string, len(catalogue.Weighting.TypeCategories))
+	for _, entry := range catalogue.Weighting.TypeCategories {
+		if _, ratified := domain.CategoryOf(entry.Category); !ratified {
+			t.Errorf("type %q folds onto %q, which the ratified table does not name", entry.Type, entry.Category)
 		}
+		if entry.Weight <= 0 {
+			t.Errorf("type %q folds onto a category with weight %v", entry.Type, entry.Weight)
+		}
+		folded[entry.Type] = entry.Category
+	}
+	wantFold := map[string]string{"colegio": "escuela", "hospital": "hospital", "ruta": "vialidad"}
+	if !reflect.DeepEqual(folded, wantFold) {
+		t.Errorf("the published fold is %v, want %v", folded, wantFold)
+	}
+
+	wantExposure := map[string]int{"05101": 61, "05109": 37, "05401": 24, "05801": 16}
+	wantAssets := map[string]int{"05101": 5, "05109": 3, "05401": 2, "05801": 2}
+	wantDominant := map[string]string{"05101": "hospital", "05109": "escuela", "05401": "hospital", "05801": "vialidad"}
+
+	for _, zone := range catalogue.Zones {
 		expected := make(InfrastructureCounts, len(InfrastructureElementTypes()))
 		for _, elementType := range InfrastructureElementTypes() {
 			expected[elementType] = 0
 		}
+		exposed := 0
+		weightedElements := 0
 		for _, element := range zone.Elements {
+			exposed++
+			if _, weighted := infrastructureTypeCategories[element.Type]; weighted {
+				weightedElements++
+			}
 			if _, known := expected[element.Type]; !known {
 				t.Errorf("zone %s element %s has unknown type %q", zone.ZoneID, element.ID, element.Type)
 				continue
@@ -63,16 +100,64 @@ func TestSyntheticInfrastructureScoreIsTheSumOfItsCounts(t *testing.T) {
 		if total != len(zone.Elements) {
 			t.Errorf("zone %s counts sum to %d, want %d elements", zone.ZoneID, total, len(zone.Elements))
 		}
-		if total != zone.Score/catalogue.PointsPerElement {
-			t.Errorf("zone %s counts sum to %d but score is %d", zone.ZoneID, total, zone.Score)
+		if zone.ExposedAssetsCount != exposed {
+			t.Errorf("zone %s declares %d exposed assets, want %d", zone.ZoneID, zone.ExposedAssetsCount, exposed)
+		}
+		if zone.ExposedAssetsCount != wantAssets[zone.ZoneID] {
+			t.Errorf("zone %s asset count is %d, want the fixture's %d", zone.ZoneID, zone.ExposedAssetsCount, wantAssets[zone.ZoneID])
+		}
+
+		// The per-category breakdown always carries the five ratified rows, in
+		// table order, with the count taken from the elements and the weight and
+		// radius taken from the table instead of restated in the fixture.
+		if len(zone.Categories) != len(catalogue.Weighting.Categories) {
+			t.Errorf("zone %s carries %d category rows, want 5", zone.ZoneID, len(zone.Categories))
+		}
+		weighted := 0.0
+		counted := 0
+		for index, row := range zone.Categories {
+			ratified := catalogue.Weighting.Categories[index]
+			if row.Category != ratified.Category {
+				t.Errorf("zone %s category %d is %q, want %q", zone.ZoneID, index, row.Category, ratified.Category)
+			}
+			if math.Abs(row.Weight-ratified.Weight) > 1e-12 || math.Abs(row.RadiusKM-ratified.RadiusKM) > 1e-12 {
+				t.Errorf(
+					"zone %s category %q carries weight %v radius %v, want %v and %v",
+					zone.ZoneID, row.Category, row.Weight, row.RadiusKM, ratified.Weight, ratified.RadiusKM,
+				)
+			}
+			weighted += row.Weight * float64(row.Count)
+			counted += row.Count
+		}
+		if counted != weightedElements {
+			t.Errorf(
+				"zone %s category rows count %d elements, want the %d weighted elements",
+				zone.ZoneID, counted, weightedElements,
+			)
+		}
+		if math.Abs(zone.WeightedPoints-weighted) > 1e-9 {
+			t.Errorf("zone %s weighted points are %v, want %v", zone.ZoneID, zone.WeightedPoints, weighted)
+		}
+		if zone.ExposureScore != wantExposure[zone.ZoneID] {
+			t.Errorf("zone %s exposure is %d, want the ratified index %d", zone.ZoneID, zone.ExposureScore, wantExposure[zone.ZoneID])
+		}
+		if zone.ExposureScore < 0 || zone.ExposureScore > 100 {
+			t.Errorf("zone %s exposure %d is outside 0..100", zone.ZoneID, zone.ExposureScore)
+		}
+		if zone.DominantCategory == nil {
+			t.Errorf("zone %s has no dominant category", zone.ZoneID)
+			continue
+		}
+		if *zone.DominantCategory != wantDominant[zone.ZoneID] {
+			t.Errorf("zone %s dominant category is %q, want %q", zone.ZoneID, *zone.DominantCategory, wantDominant[zone.ZoneID])
 		}
 	}
 }
 
 // TestSyntheticInfrastructureZonesAreOrdered pins the frozen ordering contract:
-// descending score, then ascending zone ID. The fixture deliberately lists the
-// zones in another order, and two of them tie, so a stable sort alone would not
-// pass and insertion order cannot leak into the response.
+// descending exposure index, then ascending zone ID. The fixture deliberately
+// lists the zones in another order, so insertion order cannot leak into the
+// response.
 func TestSyntheticInfrastructureZonesAreOrdered(t *testing.T) {
 	catalogue := SyntheticInfrastructure()
 	got := make([]string, 0, len(catalogue.Zones))
@@ -81,24 +166,41 @@ func TestSyntheticInfrastructureZonesAreOrdered(t *testing.T) {
 	}
 	want := []string{"05101", "05109", "05401", "05801"}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("zone order is %v, want %v (descending score, then ascending ID)", got, want)
-	}
-	if catalogue.Zones[2].Score != catalogue.Zones[3].Score {
-		t.Fatalf(
-			"the fixture no longer exercises the score tie-break: %d and %d",
-			catalogue.Zones[2].Score, catalogue.Zones[3].Score,
-		)
+		t.Fatalf("zone order is %v, want %v (descending exposure, then ascending ID)", got, want)
 	}
 	for index := 1; index < len(catalogue.Zones); index++ {
 		previous, current := catalogue.Zones[index-1], catalogue.Zones[index]
-		ordered := previous.Score > current.Score ||
-			(previous.Score == current.Score && previous.ZoneID < current.ZoneID)
+		ordered := previous.ExposureScore > current.ExposureScore ||
+			(previous.ExposureScore == current.ExposureScore && previous.ZoneID < current.ZoneID)
 		if !ordered {
-			t.Errorf("zone %s (score %d) precedes %s (score %d)", previous.ZoneID, previous.Score, current.ZoneID, current.Score)
+			t.Errorf(
+				"zone %s (exposure %d) precedes %s (exposure %d)",
+				previous.ZoneID, previous.ExposureScore, current.ZoneID, current.ExposureScore,
+			)
 		}
 	}
 	if !reflect.DeepEqual(catalogue, SyntheticInfrastructure()) {
 		t.Error("two calls answered different catalogues")
+	}
+}
+
+// TestSortInfrastructureZonesBreaksTiesByZoneID pins the tie-break the fixture no
+// longer exercises on its own: two zones with the same exposure index are served
+// in ascending zone-id order, whatever order they were assembled in.
+func TestSortInfrastructureZonesBreaksTiesByZoneID(t *testing.T) {
+	zones := []InfrastructureZone{
+		{ZoneID: "05801", ExposureScore: 37},
+		{ZoneID: "05109", ExposureScore: 61},
+		{ZoneID: "05401", ExposureScore: 37},
+		{ZoneID: "05101", ExposureScore: 61},
+	}
+	sortInfrastructureZones(zones)
+	got := make([]string, 0, len(zones))
+	for _, zone := range zones {
+		got = append(got, zone.ZoneID)
+	}
+	if want := []string{"05101", "05109", "05401", "05801"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("sorted order is %v, want %v", got, want)
 	}
 }
 

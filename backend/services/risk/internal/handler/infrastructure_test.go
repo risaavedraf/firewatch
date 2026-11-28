@@ -44,8 +44,9 @@ func TestInfrastructureAuthorization(t *testing.T) {
 }
 
 // TestInfrastructureBodyIsTheFrozenSyntheticCatalogue pins the frozen wire body:
-// the declared source, one point per element, the descending-score/ascending-ID
-// order, a complete five-key breakdown and RFC 7946 geometry per element type.
+// the declared source, the ratified weighting table, the descending-exposure/
+// ascending-ID order, a complete five-key breakdown and RFC 7946 geometry per
+// element type.
 func TestInfrastructureBodyIsTheFrozenSyntheticCatalogue(t *testing.T) {
 	base, token := authorizedServer(t, "viewer", &fakeStore{})
 	w := request(t, base, token, "/v1/risk/infrastructure")
@@ -54,7 +55,7 @@ func TestInfrastructureBodyIsTheFrozenSyntheticCatalogue(t *testing.T) {
 	}
 
 	catalogue := decodeJSONObject(t, "catalogue", w.Body.Bytes())
-	requireJSONKeys(t, "catalogue", catalogue, "source", "points_per_element", "zones")
+	requireJSONKeys(t, "catalogue", catalogue, "source", "weighting", "zones")
 
 	var declaredSource string
 	if err := json.Unmarshal(catalogue["source"], &declaredSource); err != nil {
@@ -63,12 +64,58 @@ func TestInfrastructureBodyIsTheFrozenSyntheticCatalogue(t *testing.T) {
 	if declaredSource != "synthetic_fixture" {
 		t.Errorf("source is %q, want synthetic_fixture", declaredSource)
 	}
-	var pointsPerElement int
-	if err := json.Unmarshal(catalogue["points_per_element"], &pointsPerElement); err != nil {
-		t.Fatalf("decode points_per_element: %v", err)
+
+	// The weighting block publishes the ratified table and nothing else: five rows,
+	// the sums and the pair, plus the fold of this catalogue's own vocabulary.
+	weighting := decodeJSONObject(t, "weighting", catalogue["weighting"])
+	requireJSONKeys(
+		t, "weighting", weighting,
+		"exposure_formula", "priority_formula", "risk_formula",
+		"risk_weight", "exposure_weight", "weight_sum",
+		"categories", "type_categories", "unweighted_types",
+	)
+	var categories []json.RawMessage
+	if err := json.Unmarshal(weighting["categories"], &categories); err != nil {
+		t.Fatalf("decode categories: %v", err)
 	}
-	if pointsPerElement != 1 {
-		t.Errorf("points_per_element is %d, want the provisional demo weight 1", pointsPerElement)
+	wantCategories := []struct {
+		category string
+		weight   float64
+		radiusKM float64
+	}{
+		{category: "hospital", weight: 1.00, radiusKM: 5.0},
+		{category: "escuela", weight: 0.90, radiusKM: 3.0},
+		{category: "subestacion", weight: 0.85, radiusKM: 4.0},
+		{category: "telecom", weight: 0.75, radiusKM: 4.0},
+		{category: "vialidad", weight: 0.65, radiusKM: 2.5},
+	}
+	if len(categories) != len(wantCategories) {
+		t.Fatalf("weighting serves %d categories, want %d", len(categories), len(wantCategories))
+	}
+	for index, rawCategory := range categories {
+		category := decodeJSONObject(t, "category", rawCategory)
+		requireJSONKeys(t, "category", category, "category", "aliases", "weight", "radius_km")
+		var name string
+		var weight, radiusKM float64
+		if err := json.Unmarshal(category["category"], &name); err != nil {
+			t.Fatalf("decode category name: %v", err)
+		}
+		if err := json.Unmarshal(category["weight"], &weight); err != nil {
+			t.Fatalf("decode category weight: %v", err)
+		}
+		if err := json.Unmarshal(category["radius_km"], &radiusKM); err != nil {
+			t.Fatalf("decode category radius: %v", err)
+		}
+		want := wantCategories[index]
+		if name != want.category {
+			t.Errorf("category %d is %q, want %q", index, name, want.category)
+		}
+		if weight != want.weight || radiusKM != want.radiusKM {
+			t.Errorf(
+				"category %q serves weight %v radius %v, want %v and %v",
+				name, weight, radiusKM, want.weight, want.radiusKM,
+			)
+		}
 	}
 
 	var zones []json.RawMessage
@@ -76,34 +123,73 @@ func TestInfrastructureBodyIsTheFrozenSyntheticCatalogue(t *testing.T) {
 		t.Fatalf("decode zones: %v", err)
 	}
 	wantZones := []struct {
-		id    string
-		score int
+		id       string
+		exposure int
+		assets   int
 	}{
-		{id: "05101", score: 5},
-		{id: "05109", score: 3},
-		{id: "05401", score: 2},
-		{id: "05801", score: 2},
+		{id: "05101", exposure: 61, assets: 5},
+		{id: "05109", exposure: 37, assets: 3},
+		{id: "05401", exposure: 24, assets: 2},
+		{id: "05801", exposure: 16, assets: 2},
 	}
 	if len(zones) != len(wantZones) {
 		t.Fatalf("served %d zones, want %d", len(zones), len(wantZones))
 	}
 	for index, rawZone := range zones {
 		zone := decodeJSONObject(t, "zone", rawZone)
-		requireJSONKeys(t, "zone", zone, "zone_id", "score", "counts", "elements")
+		requireJSONKeys(
+			t, "zone", zone,
+			"zone_id", "exposure_score", "weighted_points", "exposed_assets_count",
+			"dominant_category", "counts", "categories", "elements",
+		)
 
 		var zoneID string
+		var exposure, assets int
 		if err := json.Unmarshal(zone["zone_id"], &zoneID); err != nil {
 			t.Fatalf("decode zone_id: %v", err)
 		}
-		var score int
-		if err := json.Unmarshal(zone["score"], &score); err != nil {
-			t.Fatalf("decode score: %v", err)
+		if err := json.Unmarshal(zone["exposure_score"], &exposure); err != nil {
+			t.Fatalf("decode exposure_score: %v", err)
 		}
-		if zoneID != wantZones[index].id || score != wantZones[index].score {
+		if err := json.Unmarshal(zone["exposed_assets_count"], &assets); err != nil {
+			t.Fatalf("decode exposed_assets_count: %v", err)
+		}
+		if zoneID != wantZones[index].id || exposure != wantZones[index].exposure {
 			t.Errorf(
-				"zone %d is %s with score %d, want %s with score %d",
-				index, zoneID, score, wantZones[index].id, wantZones[index].score,
+				"zone %d is %s with exposure %d, want %s with exposure %d",
+				index, zoneID, exposure, wantZones[index].id, wantZones[index].exposure,
 			)
+		}
+		if assets != wantZones[index].assets {
+			t.Errorf("zone %s declares %d assets, want %d", zoneID, assets, wantZones[index].assets)
+		}
+
+		categories := zone["categories"]
+		var categoryRows []json.RawMessage
+		if err := json.Unmarshal(categories, &categoryRows); err != nil {
+			t.Fatalf("decode categories of zone %s: %v", zoneID, err)
+		}
+		if len(categoryRows) != len(wantCategories) {
+			t.Errorf("zone %s carries %d category rows, want %d", zoneID, len(categoryRows), len(wantCategories))
+		}
+		for rowIndex, rawRow := range categoryRows {
+			row := decodeJSONObject(t, "zone category", rawRow)
+			requireJSONKeys(t, "zone category", row, "category", "weight", "radius_km", "count", "weighted_points")
+			var rowCategory string
+			var rowWeight float64
+			if err := json.Unmarshal(row["category"], &rowCategory); err != nil {
+				t.Fatalf("decode category row name: %v", err)
+			}
+			if err := json.Unmarshal(row["weight"], &rowWeight); err != nil {
+				t.Fatalf("decode category row weight: %v", err)
+			}
+			wantRow := wantCategories[rowIndex]
+			if rowCategory != wantRow.category || rowWeight != wantRow.weight {
+				t.Errorf(
+					"zone %s category row %d is %s weight %v, want %s weight %v",
+					zoneID, rowIndex, rowCategory, rowWeight, wantRow.category, wantRow.weight,
+				)
+			}
 		}
 
 		counts := decodeJSONObject(t, "counts", zone["counts"])
@@ -126,8 +212,8 @@ func TestInfrastructureBodyIsTheFrozenSyntheticCatalogue(t *testing.T) {
 		if countsTotal != len(elements) {
 			t.Errorf("zone %s counts sum to %d but serves %d elements", zoneID, countsTotal, len(elements))
 		}
-		if score != pointsPerElement*len(elements) {
-			t.Errorf("zone %s score %d is not %d point(s) for %d elements", zoneID, score, pointsPerElement, len(elements))
+		if assets != len(elements) {
+			t.Errorf("zone %s declares %d assets but serves %d elements", zoneID, assets, len(elements))
 		}
 
 		seenCounts := make(map[string]int, len(elements))
@@ -241,10 +327,18 @@ func TestInfrastructureEndpointIsDocumented(t *testing.T) {
 func TestInfrastructureContractPinsTheProducerShape(t *testing.T) {
 	contract := loadContract(t)
 	catalogue := contract.Components.Schemas["InfrastructureCatalogue"]
+	weighting := contract.Components.Schemas["InfrastructureWeighting"]
+	zone := contract.Components.Schemas["InfrastructureZone"]
 	geometry := contract.Components.Schemas["InfrastructureGeometry"]
 	element := contract.Components.Schemas["InfrastructureElement"]
 	if catalogue == nil || catalogue.Value == nil {
 		t.Fatal("the contract documents no InfrastructureCatalogue schema")
+	}
+	if weighting == nil || weighting.Value == nil {
+		t.Fatal("the contract documents no InfrastructureWeighting schema")
+	}
+	if zone == nil || zone.Value == nil {
+		t.Fatal("the contract documents no InfrastructureZone schema")
 	}
 	if geometry == nil || geometry.Value == nil {
 		t.Fatal("the contract documents no InfrastructureGeometry schema")
@@ -252,9 +346,16 @@ func TestInfrastructureContractPinsTheProducerShape(t *testing.T) {
 	if element == nil || element.Value == nil {
 		t.Fatal("the contract documents no InfrastructureElement schema")
 	}
-	weight := catalogue.Value.Properties["points_per_element"]
-	if weight == nil || weight.Value == nil {
-		t.Fatal("the contract documents no points_per_element schema")
+	weightSum := weighting.Value.Properties["weight_sum"]
+	riskWeight := weighting.Value.Properties["risk_weight"]
+	exposure := zone.Value.Properties["exposure_score"]
+	dominant := zone.Value.Properties["dominant_category"]
+	for name, property := range map[string]*openapi3.SchemaRef{
+		"weight_sum": weightSum, "risk_weight": riskWeight, "exposure_score": exposure, "dominant_category": dominant,
+	} {
+		if property == nil || property.Value == nil {
+			t.Fatalf("the contract documents no %s schema", name)
+		}
 	}
 
 	// JSON numbers decode as float64, and that is what the client's parser sees, so
@@ -277,8 +378,16 @@ func TestInfrastructureContractPinsTheProducerShape(t *testing.T) {
 		body     any
 		rejected bool
 	}{
-		{name: "the provisional weight of one point", schema: weight.Value, body: float64(1)},
-		{name: "a weight other than the provisional one", schema: weight.Value, body: float64(2), rejected: true},
+		{name: "the ratified weight sum", schema: weightSum.Value, body: float64(4.15)},
+		{name: "a weight sum that is not the ratified one", schema: weightSum.Value, body: float64(4.2), rejected: true},
+		{name: "the ratified risk weight", schema: riskWeight.Value, body: float64(0.7)},
+		{name: "a risk weight that is not the ratified one", schema: riskWeight.Value, body: float64(0.6), rejected: true},
+		{name: "an exposure index inside the documented range", schema: exposure.Value, body: 61},
+		{name: "an exposure index above 100", schema: exposure.Value, body: 101, rejected: true},
+		{name: "a negative exposure index", schema: exposure.Value, body: -1, rejected: true},
+		{name: "a dominant category the table names", schema: dominant.Value, body: "hospital"},
+		{name: "a dominant category the table does not name", schema: dominant.Value, body: "vivienda", rejected: true},
+		{name: "no dominant category", schema: dominant.Value, body: nil},
 		{name: "a Point position of two numbers", schema: geometry.Value, body: geometryBody("Point", position(-71.5, -33.1))},
 		{name: "a Point position of three numbers", schema: geometry.Value, body: geometryBody("Point", []any{-71.5, -33.1, 12.5}), rejected: true},
 		{name: "a Point position of one number", schema: geometry.Value, body: geometryBody("Point", []any{-71.5}), rejected: true},

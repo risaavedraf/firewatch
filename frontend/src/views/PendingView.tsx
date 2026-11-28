@@ -45,7 +45,16 @@ export type UnimplementedCapability = {
 // the service on every read, accepted as the `stage_group` filter, and rendered
 // as a chip and as a filter control in `#actions`. The entry declared that those
 // states existed in no contract, so it leaves the inventory and the count is the
-// three rows that remain.
+// two rows that remain.
+//
+// V1-P-02 / PM-11 retired «Contexto y prioridad por sector»: the risk service now
+// computes the regional priority of every published zone with the ratified
+// weighted table of five critical-infrastructure categories and the 0..100 index
+// (`round(0.70 × risk_score + 0.30 × exposure_score)`), ranks the published batch
+// by `priority_score DESC, zone_id ASC`, and serves it as the batch's `priority`
+// member. `#overview` renders it in the zone detail card and `#infrastructure`
+// publishes the weight table with the per-comuna index, so the capability the row
+// declared absent is answered and the row leaves the inventory.
 // eslint-disable-next-line react-refresh/only-export-components
 export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
   {
@@ -53,12 +62,6 @@ export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
     reason:
       'La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.',
     location: 'Tabla de sectores',
-  },
-  {
-    capability: 'Contexto y prioridad por sector',
-    reason:
-      'El backend clasifica la zona con el lote publicado y no calcula prioridad regional ni contexto por comuna.',
-    location: 'Ficha de detalle de la zona',
   },
   {
     capability: 'Revisar e incorporar registros, y hallazgos de calidad',

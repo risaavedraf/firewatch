@@ -12,7 +12,7 @@ import { gatewayOrigin, issuer, pkceTransactionKey, routes } from '../../src/con
 import { routes as declaredRoutes } from '../../src/app/routes';
 import { clearZoneState, getSelectedZone, getSelectedZoneLabel, getZoneLevels, reportJobProgress } from '../../src/app/store';
 import { completeLogin, getSessionSnapshot, resetSession } from '../../src/core/session';
-import type { RiskBatch, ZoneCollection, ZoneFeature } from '../../src/types/api';
+import type { RiskBatch, ZoneCollection, ZoneFeature, ZonePriority } from '../../src/types/api';
 import { OverviewView } from '../../src/views/OverviewView';
 import { createFetchStub, createStorageStub, flush, jwt } from '../core/harness';
 
@@ -1716,4 +1716,93 @@ test('the model panel states its scope over the real registry facts only (T5)', 
   expect(panel.querySelector('table')).toBeNull();
   expect(panel).not.toHaveTextContent(/temp_max|humidity_rel|precip_sum|radiation_sol/);
   expect(panel).not.toHaveTextContent(/CONAF|Dataverse|ERA5|NASA POWER/);
+});
+
+// --- V1-P-02 / PM-11: regional priority inside the zone detail card ---------
+//
+// The owner ratified the weighted five-category table and the 0..100 priority
+// index, and fixed the regional ranking on the published batch. The backend
+// computes both and serves them as the batch's `priority` member; the detail card
+// states them and, when the API did not serve them, says so instead of printing a
+// position nobody calculated.
+
+function priority(overrides: Partial<ZonePriority> = {}): ZonePriority {
+  return {
+    zone_id: '05101',
+    risk_level: 'alto',
+    priority_status: 'ranked',
+    risk_score: 96,
+    exposure_score: 61,
+    priority_score: 86,
+    priority_rank: 1,
+    total_ranked_zones: 4,
+    exposed_assets_count: 5,
+    dominant_category: 'hospital',
+    context_summary:
+      'Comuna 05101: prioridad 86 de 100, puesto 1 de 4 del lote publicado. Riesgo 96 de 100 y exposición 61 de 100 sobre 5 elementos ficticios declarados; la categoría dominante es hospital (peso 1.00, radio 5.0 km).',
+    ...overrides,
+  };
+}
+
+test('V1-P-02 renders the served priority, its regional rank and the context summary', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', batch('05101', 'batch-1', 'job-1', { priority: priority() }));
+
+  expect(screen.getByRole('heading', { name: 'Prioridad regional' })).toBeInTheDocument();
+  expect(textOf('zone-priority-score')).toBe('86');
+  expect(textOf('zone-priority-rank')).toBe('#1 de 4');
+  expect(textOf('zone-priority-exposure')).toBe('61');
+  expect(textOf('zone-priority-assets')).toBe('5');
+  expect(textOf('zone-priority-summary')).toMatch(/prioridad 86 de 100/);
+  expect(textOf('zone-priority-summary')).toMatch(/exposición 61 de 100/);
+  expect(textOf('zone-priority-status')).toMatch(/riesgo 96 de 100/i);
+  // The card states the served facts and nothing more: no recomputed index and no
+  // claim about a category the API did not name.
+  expect(textOf('zone-priority-status')).toMatch(/hospital/i);
+});
+
+test('V1-P-02 states the absence when the API served no regional context', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone('05101', batch('05101', 'batch-1', 'job-1'));
+
+  for (const id of ['zone-priority-score', 'zone-priority-rank', 'zone-priority-exposure', 'zone-priority-assets']) {
+    expect(textOf(id), `missing ${id}`).toBe('—');
+  }
+  expect(textOf('zone-priority-status')).toMatch(/sin contexto regional/i);
+  expect(textOf('zone-priority-status')).toMatch(/no publicó/i);
+  // No context means no summary paragraph at all: an empty one would read as a
+  // sentence the API never served.
+  expect(document.getElementById('zone-priority-summary')).toBeNull();
+});
+
+test('V1-P-02 does not claim a position for a zone the ranking could not place', async () => {
+  await openSignedIn();
+  await serveCatalogue(catalogue([feature('05101', 'Valparaíso')]));
+  await serveZone(
+    '05101',
+    batch('05101', 'batch-1', 'job-1', {
+      risk_level: 'desconocido',
+      priority: priority({
+        risk_level: 'desconocido',
+        priority_status: 'insufficient',
+        risk_score: null,
+        priority_score: null,
+        priority_rank: null,
+        total_ranked_zones: 0,
+        exposed_assets_count: 2,
+        dominant_category: null,
+        context_summary:
+          'Comuna 05101: sin puesto regional porque el lote publicado no trae contribuciones usables o su nivel es desconocido. Exposición 61 de 100 sobre 2 elementos ficticios declarados.',
+      }),
+    }),
+  );
+
+  expect(textOf('zone-priority-score')).toBe('—');
+  expect(textOf('zone-priority-rank')).toBe('—');
+  // The exposure index is still a served number, so it survives.
+  expect(textOf('zone-priority-exposure')).toBe('61');
+  expect(textOf('zone-priority-summary')).toMatch(/sin puesto regional/);
+  expect(textOf('zone-priority-status')).toMatch(/no se le asigna puesto/i);
 });

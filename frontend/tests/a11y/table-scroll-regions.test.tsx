@@ -203,8 +203,10 @@ test('every actions table is a named, focusable scroll region and keeps its colu
   scrollRegionOf(document.getElementById('action-reassessments'), NAMES.actionReassessments);
   expectAllWrappersNamed(5);
 
-  // The correction adds focus and a name; it does not touch the tables.
-  expect(document.querySelectorAll('#actions-table thead th')).toHaveLength(7);
+  // The correction adds focus and a name; it does not touch the tables. V1-P-03
+  // added the «Etapa» column (`stage_group`), so the action table carries eight
+  // columns: the stage chip is a real column of the row, not a second table.
+  expect(document.querySelectorAll('#actions-table thead th')).toHaveLength(8);
   expect(document.querySelectorAll('#actions-table tbody tr')).toHaveLength(1);
   expect(document.querySelector('#actions-table tbody tr td')?.textContent).toContain('Despeje de vegetación');
   expect(document.querySelectorAll('#action-history tbody tr')).toHaveLength(1);
@@ -254,6 +256,12 @@ test('the audit register is a named scroll region only while the service returne
 // The infrastructure breakdown arrived with the merge using the plain
 // `div.table-wrap` the audit already flagged elsewhere: a scroll container no
 // keyboard user can reach. It carries the same contract as the rest.
+//
+// V1-P-02 / PM-11 replaced the provisional one-point-per-element catalogue with
+// the ratified five-category weighting and a derived exposure index, so the
+// fixture serves that shape: the client's boundary guard refuses any other table
+// (and any index the table does not produce) as unreadable, and this suite would
+// then have no table to inspect.
 test('the infrastructure breakdown is a named, focusable scroll region', async () => {
   const INFRA_URL = `${gatewayOrigin}/v1/risk/infrastructure`;
   await connect();
@@ -263,12 +271,44 @@ test('the infrastructure breakdown is a named, focusable scroll region', async (
   await act(async () => {
     fetchStub.answer(INFRA_URL, {
       source: 'synthetic_fixture',
-      points_per_element: 1,
+      weighting: {
+        exposure_formula: 'round(100 × Σ pesos de las categorías presentes ÷ Σ pesos de la tabla)',
+        priority_formula: 'round(0.70 × risk_score + 0.30 × exposure_score)',
+        risk_formula: 'round(100 × Σ contribuciones publicadas del lote)',
+        risk_weight: 0.7,
+        exposure_weight: 0.3,
+        weight_sum: 4.15,
+        categories: [
+          { category: 'hospital', aliases: ['hospital', 'salud'], weight: 1.0, radius_km: 5.0 },
+          { category: 'escuela', aliases: ['escuela', 'educacion'], weight: 0.9, radius_km: 3.0 },
+          { category: 'subestacion', aliases: ['subestacion', 'agua_potable'], weight: 0.85, radius_km: 4.0 },
+          { category: 'telecom', aliases: ['telecom', 'cuartel_bomberos'], weight: 0.75, radius_km: 4.0 },
+          { category: 'vialidad', aliases: ['vialidad', 'puente'], weight: 0.65, radius_km: 2.5 },
+        ],
+        type_categories: [
+          { type: 'colegio', category: 'escuela', weight: 0.9, radius_km: 3.0 },
+          { type: 'hospital', category: 'hospital', weight: 1.0, radius_km: 5.0 },
+          { type: 'ruta', category: 'vialidad', weight: 0.65, radius_km: 2.5 },
+        ],
+        unweighted_types: ['vivienda', 'hidrante'],
+      },
       zones: [
         {
           zone_id: '05101',
-          score: 1,
+          // One school: the only weighted category present, so the exposure index
+          // is round(100 × 0.90 ÷ 4.15) = 22 and the weighted points are 0.90.
+          exposure_score: 22,
+          weighted_points: 0.9,
+          exposed_assets_count: 1,
+          dominant_category: 'escuela',
           counts: { colegio: 1, vivienda: 0, hospital: 0, ruta: 0, hidrante: 0 },
+          categories: [
+            { category: 'hospital', weight: 1.0, radius_km: 5.0, count: 0, weighted_points: 0 },
+            { category: 'escuela', weight: 0.9, radius_km: 3.0, count: 1, weighted_points: 0.9 },
+            { category: 'subestacion', weight: 0.85, radius_km: 4.0, count: 0, weighted_points: 0 },
+            { category: 'telecom', weight: 0.75, radius_km: 4.0, count: 0, weighted_points: 0 },
+            { category: 'vialidad', weight: 0.65, radius_km: 2.5, count: 0, weighted_points: 0 },
+          ],
           elements: [
             { id: 'colegio-1', type: 'colegio', geometry: { type: 'Point', coordinates: [-71.62, -33.05] } },
           ],
@@ -280,6 +320,8 @@ test('the infrastructure breakdown is a named, focusable scroll region', async (
 
   const table = document.getElementById('infrastructure-zones') as HTMLElement;
   scrollRegionOf(table, 'Desglose por zona de infraestructura');
+  // The ratified table is rendered without a scroll wrapper (five rows fit), so
+  // the zone breakdown stays the view's only keyboard-reachable table region.
   expectAllWrappersNamed(1);
   expect(document.querySelectorAll('#infrastructure-rows tr')).toHaveLength(1);
 });

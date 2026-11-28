@@ -17,6 +17,29 @@ export type EvaluationTrigger = 'scheduler' | 'manual';
 
 export const EVALUATION_TRIGGERS: readonly EvaluationTrigger[] = ['scheduler', 'manual'];
 
+// V1-P-02 / PM-11 — the regional context of one published zone. `priority_status`
+// is closed on two values: `ranked` means the zone holds a position in the
+// published batch, `insufficient` means the rule could not score it and it holds
+// none. The numeric members are nullable for exactly that reason: a zero would
+// read as the lowest priority instead of as the absence of one.
+export type PriorityStatus = 'ranked' | 'insufficient';
+
+export const PRIORITY_STATUSES: readonly PriorityStatus[] = ['ranked', 'insufficient'];
+
+export interface ZonePriority {
+  zone_id: string;
+  risk_level: RiskLevel | string;
+  priority_status: PriorityStatus;
+  risk_score: number | null;
+  exposure_score: number;
+  priority_score: number | null;
+  priority_rank: number | null;
+  total_ranked_zones: number;
+  exposed_assets_count: number;
+  dominant_category: string | null;
+  context_summary: string;
+}
+
 export interface Factor {
   name: string;
   known: boolean;
@@ -58,6 +81,11 @@ export interface RiskBatch {
   // validates the closed vocabulary before the page shows either.
   evaluation_trigger?: EvaluationTrigger;
   evaluated_by?: string | null;
+  // V1-P-02 / PM-11: the regional priority the backend computed over the published
+  // batch. It is optional because only the reads that can see the whole batch
+  // serve it (`latest` and `batches`), and because a batch whose regional context
+  // could not be computed is served without it instead of with an invented one.
+  priority?: ZonePriority | null;
 }
 
 export type GeoGeometry =

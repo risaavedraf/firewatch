@@ -16,17 +16,22 @@ import { InfrastructureMap } from '../components/map/InfrastructureMap';
 import { CoverageRail } from '../components/territory/CoverageRail';
 import { coveragePhrase, zoneCoverage } from '../components/territory/zone-coverage';
 import { Metric, PanelHeading, StatusCopy, TableWrap } from '../components/ui';
-import type { Failure } from '../core/api';
+import { batches, type Failure } from '../core/api';
 import {
+  INFRASTRUCTURE_RATIFIED_TABLE,
   INFRASTRUCTURE_TYPES,
   infrastructure,
+  infrastructureCategoryLabel,
   infrastructureCountRows,
   infrastructureElementCount,
   infrastructureGeometrySummary,
-  infrastructureScoreTotal,
+  infrastructureMaxExposure,
   infrastructureTypeLabel,
   type InfrastructureCatalogue,
+  type InfrastructureWeighting,
 } from '../core/infrastructure';
+import { priorityLineCopy, priorityNumber, priorityRankLabel, priorityView, type PriorityView } from '../domain';
+import type { ZonePriority } from '../types/api';
 import '../styles/territorial-coverage.css';
 
 type InfrastructureState =
@@ -41,6 +46,19 @@ type InfrastructureState =
 type ReadState =
   | { kind: 'ready'; catalogue: InfrastructureCatalogue }
   | { kind: 'failed'; message: string };
+
+// V1-P-02 — the regional context is a second, independent read: the aggregate
+// published batch. A failed or absent answer leaves every priority column as an
+// explicit unknown instead of turning the whole catalogue into a failure.
+type PriorityRead =
+  | { kind: 'idle' }
+  | { kind: 'ready'; byZone: Map<string, ZonePriority> }
+  | { kind: 'failed' };
+
+function priorityOf(read: PriorityRead, zoneID: string): PriorityView {
+  if (read.kind !== 'ready') return priorityView(null);
+  return priorityView(read.byZone.get(zoneID));
+}
 
 const IDLE_ACTION = 'consultar la infraestructura sintética';
 const LOADING_STATUS = 'Consultando el catálogo sintético de infraestructura…';
@@ -112,6 +130,58 @@ function statusFor(state: InfrastructureState, sessionReason: string): string {
   }
 }
 
+// V1-P-02 / PM-11 — la tabla ratificada, publicada en la página. Los valores
+// mostrados son la referencia ratificada del cliente y el servidor los repite en
+// `weighting`; una respuesta que declare otra tabla es rechazada en el borde, así
+// que las dos no pueden divergir sin que la lectura se marque ilegible.
+function WeightingTable({ weighting }: { weighting: InfrastructureWeighting | null }) {
+  const weightSum = weighting === null ? '4.15' : weighting.weight_sum.toFixed(2);
+  const fold =
+    weighting === null
+      ? 'colegio → escuela · hospital → hospital · ruta → vialidad'
+      : weighting.type_categories.map(entry => `${entry.type} → ${entry.category}`).join(' · ');
+  return (
+    <section className="infrastructure-weighting" aria-labelledby="infrastructure-weighting-title">
+      <h3 id="infrastructure-weighting-title">Tabla ponderada ratificada</h3>
+      {/*
+        Cinco filas y cuatro columnas caben sin desplazamiento, así que esta tabla
+        no lleva el envoltorio con rol de región: agregaría un segundo destino de
+        Tab y una región con nombre propio a la vista sin necesidad. Conserva su
+        caption, sus encabezados de columna y su encabezado de fila.
+      */}
+      <table id="infrastructure-weighting" className="infrastructure-weighting-table">
+        <caption>
+          Cinco categorías de infraestructura crítica con su peso y su radio de exposición. Los pesos son los
+          ratificados: no cambian por comuna ni según el número de elementos.
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Categoría</th>
+            <th scope="col">Alias</th>
+            <th scope="col">Peso</th>
+            <th scope="col">Radio</th>
+          </tr>
+        </thead>
+        <tbody>
+          {INFRASTRUCTURE_RATIFIED_TABLE.map(row => (
+            <tr key={row.category} data-category={row.category}>
+              <th scope="row">{infrastructureCategoryLabel(row.category)}</th>
+              <td data-aliases>{row.aliases.join(' · ')}</td>
+              <td data-weight>{row.weight.toFixed(2)}</td>
+              <td data-radius>{row.radiusKm.toFixed(1)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="panel-note" id="infrastructure-weighting-note">
+        Suma de pesos {weightSum}: normaliza el índice de exposición. Plegado del catálogo sobre la tabla: {fold}. Los
+        tipos que la tabla no nombra —vivienda e hidrante— quedan declarados con entidad, zona y geometría, y aportan 0
+        al índice. La prioridad usa la pareja ratificada 0.70 / 0.30 sobre el lote publicado.
+      </p>
+    </section>
+  );
+}
+
 export function InfrastructureView() {
   const session = useSessionState();
   const signedIn = session.status === 'signed-in';
@@ -120,6 +190,7 @@ export function InfrastructureView() {
   // nadie más: no toca el store, no reescribe el hash del router y no cambia la
   // zona seleccionada en Territorio.
   const [activeZone, setActiveZone] = useState('');
+  const [priorityRead, setPriorityRead] = useState<PriorityRead>({ kind: 'idle' });
 
   useEffect(() => {
     if (!signedIn) return undefined;
@@ -133,6 +204,22 @@ export function InfrastructureView() {
         return;
       }
       setRead({ kind: 'ready', catalogue: outcome.data });
+    });
+    // The regional priority is read on the same signal so a closed session or a
+    // changed zone cannot leave a half-applied pair of answers on screen.
+    void batches(controller.signal).then(outcome => {
+      if (!active) return;
+      if (!outcome.ok) {
+        if (outcome.failure.reason === 'aborted' || outcome.failure.reason === 'superseded') return;
+        setPriorityRead({ kind: 'failed' });
+        return;
+      }
+      const byZone = new Map<string, ZonePriority>();
+      for (const batch of outcome.data) {
+        if (batch.priority === undefined || batch.priority === null) continue;
+        byZone.set(batch.zone_id, batch.priority);
+      }
+      setPriorityRead({ kind: 'ready', byZone });
     });
     return () => {
       active = false;
@@ -149,7 +236,8 @@ export function InfrastructureView() {
   const printable = state.kind === 'ready';
   const zoneCount = catalogue === null ? '—' : String(catalogue.zones.length);
   const elementCount = catalogue === null ? '—' : String(infrastructureElementCount(catalogue));
-  const pointTotal = catalogue === null ? '—' : String(infrastructureScoreTotal(catalogue));
+  const highestExposure = catalogue === null ? null : infrastructureMaxExposure(catalogue);
+  const maxExposure = highestExposure === null ? '—' : String(highestExposure);
   // `idle` is only the first render before the effect starts. Once a session
   // exists the view is already on its way to the read, so it must not say
   // "connect a token" as if the session were missing.
@@ -230,15 +318,25 @@ export function InfrastructureView() {
             hallazgo operativo.
           </span>
           <span id="infrastructure-source">
-            Origen declarado: <code>synthetic_fixture</code> · 1 punto por elemento.
+            Origen declarado: <code>synthetic_fixture</code> · tabla ponderada de cinco categorías.
           </span>
         </div>
 
+        {/*
+          V1-P-02 / PM-11 — la regla ratificada, dicha en la página: cinco
+          categorías con peso y radio, un índice de exposición que es la cobertura
+          ponderada de esa tabla y una prioridad 70/30 sobre el lote publicado. La
+          política provisional de un punto por elemento queda retirada.
+        */}
         <p className="infrastructure-formula" id="infrastructure-formula">
-          <strong>Regla provisional:</strong> un punto por elemento, sin importar su tipo; el total de cada zona es la
-          suma de sus conteos por tipo. Estos pesos son provisionales, no están aprobados para uso operativo y no
-          modifican el clasificador de riesgo ni el estado de ninguna zona.
+          <strong>Tabla ratificada:</strong> la tabla ponderada de cinco categorías define el peso y el radio de cada tipo
+          de infraestructura crítica. La exposición de una comuna (0..100) es la cobertura ponderada de esa tabla, y la
+          prioridad territorial se calcula sobre el lote publicado como{' '}
+          <code>round(0.70 × risk_score + 0.30 × exposure_score)</code>. No modifica el clasificador de riesgo, no
+          designa zonas críticas y no es una medición de campo.
         </p>
+
+        <WeightingTable weighting={catalogue === null ? null : catalogue.weighting} />
 
         <StatusCopy id="infrastructure-status">{status}</StatusCopy>
 
@@ -256,11 +354,11 @@ export function InfrastructureView() {
             note="Elementos del fixture con entidad, tipo, zona y geometría declarada."
           />
           <Metric
-            label="Puntos provisionales"
+            label="Exposición máxima"
             icon="attention"
             attention
-            value={<span id="infrastructure-point-total">{pointTotal}</span>}
-            note="Suma de un punto por elemento. Prioridad provisional: no es riesgo observado."
+            value={<span id="infrastructure-exposure-max">{maxExposure}</span>}
+            note="Índice 0..100 de la comuna con mayor cobertura ponderada de la tabla ratificada."
           />
         </section>
 
@@ -304,8 +402,9 @@ export function InfrastructureView() {
             <TableWrap label="Desglose por zona de infraestructura">
               <table id="infrastructure-zones" className="infrastructure-table">
                 <caption>
-                  Desglose por zona del fixture sintético. Cada elemento aporta un punto; el total es la suma de los
-                  conteos. Cada zona es una comuna por código CUT y ninguna fila es una lectura de sector.
+                  Desglose por zona del fixture sintético. Cada elemento se declara con su tipo; la exposición es la
+                  cobertura ponderada de la tabla ratificada y la prioridad es la que el backend calculó sobre el lote
+                  publicado. Cada zona es una comuna por código CUT y ninguna fila es una lectura de sector.
                 </caption>
                 <thead>
                   <tr>
@@ -315,23 +414,34 @@ export function InfrastructureView() {
                         {infrastructureTypeLabel(type)}
                       </th>
                     ))}
-                    <th scope="col">Total</th>
+                    <th scope="col">Exposición</th>
+                    <th scope="col">Prioridad</th>
+                    <th scope="col">Puesto</th>
                   </tr>
                 </thead>
                 <tbody id="infrastructure-rows">
-                  {catalogue.zones.map(zone => (
-                    <tr key={zone.zone_id} id={`infrastructure-zone-row-${zone.zone_id}`} data-zone={zone.zone_id}>
-                      <th scope="row">{zone.zone_id}</th>
-                      {infrastructureCountRows(zone).map(row => (
-                        <td key={row.type} data-count={row.type} className="infrastructure-count">
-                          {row.count}
+                  {catalogue.zones.map(zone => {
+                    const view = priorityOf(priorityRead, zone.zone_id);
+                    return (
+                      <tr key={zone.zone_id} id={`infrastructure-zone-row-${zone.zone_id}`} data-zone={zone.zone_id}>
+                        <th scope="row">{zone.zone_id}</th>
+                        {infrastructureCountRows(zone).map(row => (
+                          <td key={row.type} data-count={row.type} className="infrastructure-count">
+                            {row.count}
+                          </td>
+                        ))}
+                        <td data-exposure={zone.exposure_score} className="infrastructure-exposure">
+                          {zone.exposure_score}
                         </td>
-                      ))}
-                      <td data-total={zone.score} className="infrastructure-total">
-                        {zone.score}
-                      </td>
-                    </tr>
-                  ))}
+                        <td data-priority={view.kind === 'ranked' ? view.priorityScore : '—'} className="infrastructure-priority">
+                          {view.kind === 'ranked' ? priorityNumber(view.priorityScore) : '—'}
+                        </td>
+                        <td data-rank={view.kind === 'ranked' ? view.rank : '—'} className="infrastructure-rank">
+                          {view.kind === 'ranked' ? priorityRankLabel(view.rank, view.total) : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </TableWrap>
@@ -348,10 +458,16 @@ export function InfrastructureView() {
                   data-active={activeZone === entry.zone.zone_id ? 'true' : undefined}
                 >
                   <h4 id={`infrastructure-zone-title-${entry.zone.zone_id}`}>
-                    Zona {entry.zone.zone_id} · {entry.zone.score} puntos provisionales
+                    Zona {entry.zone.zone_id} · exposición {entry.zone.exposure_score} de 100
                   </h4>
                   <p className="panel-note">
                     {entry.counts.map(row => `${row.label}: ${row.count}`).join(' · ')}
+                  </p>
+                  {/* V1-P-02 — la prioridad regional de esta comuna, tal como la
+                      sirvió el lote publicado. Si la lectura no respondió, la línea
+                      lo dice y no se inventa ni prioridad ni puesto. */}
+                  <p className="infrastructure-priority-line" id={`infrastructure-priority-${entry.zone.zone_id}`}>
+                    {priorityLineCopy(priorityOf(priorityRead, entry.zone.zone_id))}
                   </p>
                   {/* La cobertura que la barra resume se repite aquí, en el
                       destino del enlace: tipos declarados por el fixture, no
@@ -421,10 +537,19 @@ export function InfrastructureView() {
                     </dd>
                   </div>
                   <div>
-                    <dt>Puntos provisionales</dt>
+                    <dt>Exposición ponderada</dt>
                     <dd>
-                      Un punto por elemento, sin importar el tipo. No se deriva del nivel de riesgo ni modifica el
-                      clasificador.
+                      La cobertura de las cinco categorías ratificadas, con el peso de cada una sobre la suma 4.15. No
+                      se deriva del nivel de riesgo ni modifica el clasificador; una comuna sin elementos ponderados
+                      vale 0, que es un cero real y no un dato faltante.
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Prioridad territorial</dt>
+                    <dd>
+                      La calcula el backend sobre el lote publicado: <code>round(0.70 × risk_score + 0.30 ×
+                      exposure_score)</code>. El puesto es regional y usa ese orden, nunca una comparación hecha en esta
+                      página.
                     </dd>
                   </div>
                 </dl>
