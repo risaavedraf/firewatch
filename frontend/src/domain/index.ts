@@ -6,6 +6,7 @@ export * from './risk-level';
 export * from './validity';
 export * from './batch';
 export * from './factors';
+export * from './zonePdf';
 export * from './provenance';
 export * from './readiness';
 export * from './history';
