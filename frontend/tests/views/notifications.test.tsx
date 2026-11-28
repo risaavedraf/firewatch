@@ -269,6 +269,51 @@ test('the pager keeps a previous-page cursor history instead of restarting from 
   expect(document.querySelector('button#notifications-prev')).toBeDisabled();
 });
 
+// A later page and the whole register are different facts. The same card cannot
+// claim "there are no registered alerts" when the previous page showed rows: the
+// list is cursor-paginated and this page merely came back empty.
+test('an empty page reached by paging says this page is empty instead of claiming the register is empty', async () => {
+  await connect();
+  render(<NotificationsView />);
+  await waitFor(() => expect(fetchStub.callsFor(`${ALERTS_URL}?order=desc`)).toHaveLength(1));
+  await answerAlerts(`${ALERTS_URL}?order=desc`, {
+    items: [alertFixture()],
+    next_cursor: 'cursor-page-2',
+  });
+
+  await userEvent.click(document.querySelector('button#notifications-next') as HTMLButtonElement);
+  await waitFor(() =>
+    expect(fetchStub.callsFor(`${ALERTS_URL}?order=desc&cursor=cursor-page-2`)).toHaveLength(1),
+  );
+  await answerAlerts(`${ALERTS_URL}?order=desc&cursor=cursor-page-2`, { items: [], next_cursor: null });
+
+  const card = document.querySelector('#notifications .notification-empty');
+  expect(card).not.toBeNull();
+  const cardText = card?.textContent ?? '';
+  // The false global claim is the defect this test exists for.
+  expect(cardText).not.toMatch(/No hay alertas de cambio de nivel registradas/i);
+  expect(cardText).toMatch(/esta página/i);
+  // It says how to get back, and the pager keeps offering it.
+  expect(cardText).toMatch(/Anterior/);
+  expect(document.querySelector('button#notifications-prev')).toBeEnabled();
+
+  // The page-scoped status line and the focus contract are unchanged.
+  expect(document.getElementById('notifications-status')).toHaveTextContent(/página 2/i);
+  expect(document.getElementById('notifications-status')).toHaveTextContent(/lista vacía/i);
+  expect(document.activeElement?.id).toBe('notifications-status');
+
+  // Going back restores the populated page and its real rows.
+  await userEvent.click(document.querySelector('button#notifications-prev') as HTMLButtonElement);
+  await waitFor(() => expect(fetchStub.callsFor(`${ALERTS_URL}?order=desc`)).toHaveLength(2));
+  await answerAlerts(`${ALERTS_URL}?order=desc`, {
+    items: [alertFixture()],
+    next_cursor: 'cursor-page-2',
+  });
+  await waitFor(() => expect(document.querySelectorAll('#notifications-rows tr')).toHaveLength(1));
+  expect(document.getElementById('notifications-page')).toHaveTextContent('Página 1');
+  expect(document.querySelector('#notifications .notification-empty')).toBeNull();
+});
+
 test('an empty page reached by paging keeps "Anterior" available', async () => {
   await connect();
   render(<NotificationsView />);
@@ -284,7 +329,9 @@ test('an empty page reached by paging keeps "Anterior" available', async () => {
   );
   await answerAlerts(`${ALERTS_URL}?order=desc&cursor=cursor-page-2`, { items: [], next_cursor: null });
 
-  expect(document.getElementById('notifications-empty-title')).toHaveTextContent('Sin notificaciones');
+  // A later empty page is not "Sin notificaciones": it says this page is empty and
+  // keeps the way back. The initial-page message is covered by its own test.
+  expect(document.getElementById('notifications-empty-title')).toHaveTextContent(/esta página no tiene alertas/i);
   expect(document.getElementById('notifications-page')).toHaveTextContent('Página 2');
   expect(document.querySelector('button#notifications-prev')).toBeEnabled();
   expect(document.querySelector('button#notifications-next')).toBeDisabled();
@@ -392,4 +439,46 @@ test('a failed read is stated with its HTTP status and retry, and is never shown
     next_cursor: null,
   });
   await waitFor(() => expect(document.getElementById('notifications-table')).not.toBeNull());
+});
+
+// ── T4 · the approved board's empty-state hierarchy ────────────────────────
+//
+// `design/firewatch-v1-vuelo/09-notificaciones.html` states the real empty state
+// as a designed card: a dashed mark, the eyebrow "SIN DATOS · ESTADO REAL", the
+// title, the explanation and what would fill the list. The production page keeps
+// its real read, its order control, its pager and its status line; the board's
+// invented preview rows stay out.
+
+test('the real empty state keeps the board card and explains what would fill it', async () => {
+  await connect();
+  render(<NotificationsView />);
+  await waitFor(() => expect(fetchStub.callsFor(`${ALERTS_URL}?order=desc`)).toHaveLength(1));
+  await act(async () => {
+    fetchStub.answer(`${ALERTS_URL}?order=desc`, { items: [], next_cursor: null });
+    await flush();
+  });
+
+  const title = document.getElementById('notifications-empty-title');
+  expect(title?.textContent).toBe('Sin notificaciones');
+  const card = document.querySelector('#notifications .notification-empty');
+  expect(card).not.toBeNull();
+  expect(card?.querySelector('.notification-empty-mark')).not.toBeNull();
+  expect(card?.querySelector('.notification-empty-mark')?.getAttribute('aria-hidden')).toBe('true');
+  expect(card?.querySelector('.eyebrow')?.textContent).toBe('SIN DATOS · ESTADO REAL');
+
+  // What would fill the list and what the page does not do are real statements
+  // about this contract, not the board's "PM-07 does not exist yet" copy.
+  const points = [...(card?.querySelectorAll('.notification-empty-points li') ?? [])].map(node =>
+    node.textContent ?? '',
+  );
+  expect(points).toHaveLength(2);
+  expect(points[0]).toMatch(/cambio de nivel/i);
+  expect(points[0]).toMatch(/\/v1\/risk\/alerts|servicio/i);
+  expect(points[1]).toMatch(/no crea, no marca/i);
+  expect(points[1]).toMatch(/no envía/i);
+
+  // The real read and its status are untouched: the card never replaces them.
+  expect(document.getElementById('notifications-status')).toHaveTextContent(/lista vacía/i);
+  expect(document.querySelectorAll('#notifications [aria-pressed]')).toHaveLength(0);
+  expect(document.querySelector('#notifications .notification-scenario')).toBeNull();
 });

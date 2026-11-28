@@ -1,0 +1,619 @@
+/* T2 — la vista aérea del territorio. Composición; la paleta es global (T10).
+ *
+ * Todo va bajo `#overview`, así que el mapa, la estación de trabajo y la ficha de
+ * resultado son la composición de esta ruta y de ninguna otra.
+ *
+ * S8 — «los nuevos colores globalres»: este archivo ya no declara la paleta. Hasta
+ * T10 la declaraba en `body:has(#overview)` y re-coloreaba a mano la barra del
+ * producto, la columna lateral, la cabecera, la barra de actualización y el pie,
+ * de modo que solo el mapa se veía como el tablero. Ahora esos roles están en
+ * `tokens.css` `:root` (`--aerial-water`, `--paper`, `--surface-raised`, `--ink`,
+ * `--muted`, `--edge`, `--edge-strong`, `--accent`, `--focus`) y todas las rutas
+ * los leen. Lo único que queda aquí es la composición del tablero y las reglas de
+ * los elementos que existen solo en esta ruta (lienzo, estación de trabajo,
+ * lectura), más el aire que deja entrar al mapa en el primer pliegue.
+ *
+ * Nada de aquí cambia el comportamiento del mapa: `MapPanel` sigue siendo el
+ * mismo componente y este archivo solo le da más superficie y una sola columna
+ * cuando la ventana no da para dos. Los rellenos de nivel tampoco se tocan: son
+ * los tokens compartidos, y el mapa y la leyenda prometen el mismo color.
+ */
+
+/* ── Consola de la ruta ────────────────────────────────────────────────────
+ *
+ * La vista se convierte en la consola del tablero: la superficie de agua con su
+ * límite, el aire interior del tablero y los paneles apoyados encima. El borde y
+ * el radio le dan el marco que el tablero tiene; no hay degradados ni sombras
+ * decorativas. */
+#overview {
+  padding: 12px 16px 18px;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--aerial-water);
+}
+
+/* Los títulos de la ruta mantienen su jerarquía: la vista sigue siendo el `h2`
+   de la página y las notas quedan en el tono medido. La cabecera se comprime
+   porque el mapa tiene que alcanzar el primer pliegue: el título es el mismo,
+   ocupa menos alto. */
+#overview .intro-row {
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+#overview .intro-row h2 {
+  color: var(--ink);
+  font-size: 19px;
+}
+
+#overview .intro-row .subheading {
+  font-size: 11px;
+}
+
+/* ── Composición ───────────────────────────────────────────────────────────
+ *
+ * El mapa es la pista flexible y la estación de trabajo la columna acotada: el
+ * lienzo manda y la barra se lee como instrumento de apoyo. */
+#overview .aerial-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 336px);
+  grid-template-areas:
+    "canvas rail"
+    "result rail";
+  align-items: start;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+#overview .aerial-canvas { grid-area: canvas; min-width: 0; }
+
+/* La ficha del último lote es la lectura de esta vista y ocupa la misma columna
+   que el mapa, debajo. Es el propio `article.panel.risk-panel`, así que conserva
+   su relleno y su contrato y solo pierde el margen que la separaba del panel
+   anterior. */
+#overview .aerial-result { grid-area: result; min-width: 0; margin-bottom: 0; }
+
+/* ── El lienzo ─────────────────────────────────────────────────────────────
+ *
+ * T12 — el mapa esquemático pasa a ser un escenario 3D interactivo. El piso es
+ * relativo a la ventana (`clamp(440px, 62vh, 680px)`), así que el mapa llena el
+ * primer pliegue sin desbordarlo, y la columna liberada por S7 le da todo el ancho.
+ *
+ * El canvas pinta océano, batimetría, relieve y extrusión; el SVG que ya existía
+ * conserva el contrato accesible y comparte la misma cámara. Las reglas de relleno
+ * de nivel NO se redeclaran aquí: el lienzo lee los mismos tokens que la leyenda. */
+#overview .aerial-canvas .map-stage {
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 8px;
+}
+
+#overview .aerial-canvas .map-viewport {
+  min-height: clamp(440px, 62vh, 680px);
+  background: var(--aerial-water);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+}
+
+/* El escenario comparte el piso con su viewport para que canvas, capa vectorial y
+   controles flotantes vivan siempre en la misma caja. */
+#overview .map-3d {
+  position: relative;
+}
+
+#overview .map-3d-stage {
+  position: relative;
+  min-height: clamp(440px, 62vh, 680px);
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--aerial-water);
+  cursor: grab;
+  touch-action: none;
+}
+
+#overview .map-3d-stage[data-dragging="pan"] { cursor: grabbing; }
+#overview .map-3d-stage[data-dragging="orbit"] { cursor: ew-resize; }
+
+#overview .map-3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* La capa vectorial es la que recibe el puntero y el teclado; el canvas queda
+   debajo como escenografía. */
+#overview .map-3d .map-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* La comuna sin lote publicado es una placa topográfica oscura, nunca un gris
+   plano claro: el relleno neutro compartido se deja ver sobre el relieve pintado
+   en el canvas y su contorno es el borde medido del sistema. */
+#overview .map-3d .zone-neutral {
+  fill-opacity: 0.34;
+  stroke: var(--edge-strong);
+}
+
+/* «Información insuficiente» también es una ausencia de lectura: comparte el
+   relieve oscuro para que ninguna placa clara sugiera una severidad. */
+#overview .map-3d .level-desconocido {
+  fill-opacity: 0.22;
+  stroke: var(--edge-strong);
+}
+
+#overview .map-3d .level-bajo,
+#overview .map-3d .level-medio,
+#overview .map-3d .level-alto {
+  fill-opacity: 0.84;
+}
+
+#overview .map-3d .zone-hovered {
+  stroke: var(--accent);
+  stroke-width: 1.8;
+}
+
+#overview .map-3d .zone-selected {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+/* El foco del teclado se ve sobre el océano y sobre cualquier relleno de nivel. */
+#overview .map-3d .zone-shape:focus-visible {
+  outline: none;
+  stroke: var(--focus);
+  stroke-width: 3.5;
+  stroke-dasharray: 7 3;
+}
+
+#overview .map-3d-label {
+  fill: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  paint-order: stroke;
+  stroke: var(--aerial-water);
+  stroke-width: 2.6px;
+  stroke-linejoin: round;
+  pointer-events: none;
+  user-select: none;
+}
+
+#overview .map-3d-beacon {
+  pointer-events: none;
+}
+
+#overview .map-3d-beacon line {
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-dasharray: 3 3;
+}
+
+#overview .map-3d-beacon circle {
+  fill: var(--accent);
+  stroke: var(--aerial-water);
+  stroke-width: 2;
+}
+
+/* ── HUD flotante ─────────────────────────────────────────────────────────
+ *
+ * Los controles son cristal sobre el mapa: se agrupan en filas y no capturan el
+ * arrastre salvo en los botones, así que el escenario se sigue pudiendo mover. */
+#overview .map-3d-hud {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+  pointer-events: none;
+}
+
+#overview .map-3d-hud-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 10px;
+  background: rgb(15 25 34 / 78%);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+}
+
+#overview .map-3d-hud button {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#overview .map-3d-hud button:hover { border-color: var(--accent); color: var(--accent); }
+#overview .map-3d-hud button[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-raised); color: var(--accent); }
+#overview .map-3d-hud button:disabled { opacity: 0.55; cursor: not-allowed; }
+#overview .map-3d-hud button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+#overview .map-3d-hud > .map-3d-focus {
+  justify-self: end;
+  border-color: var(--edge-strong);
+  background: rgb(15 25 34 / 80%);
+  backdrop-filter: blur(6px);
+}
+
+#overview .map-3d-hud-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 7px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 10px;
+  background: rgb(15 25 34 / 78%);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+#overview .map-3d-compass {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--accent);
+  transition: transform 120ms ease-out;
+}
+
+#overview .map-3d-compass svg { display: block; width: 18px; height: 18px; }
+#overview .map-3d-compass-n { color: var(--accent); font-size: 8px; font-weight: 800; letter-spacing: 0.08em; }
+
+#overview .map-3d-scale { display: inline-grid; gap: 2px; justify-items: start; }
+
+#overview .map-3d-scale-bar {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 6px rgb(148 223 218 / 55%);
+}
+
+#overview .map-3d-scale-label { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
+
+#overview .map-3d-layers {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: calc(100% - 200px);
+}
+
+#overview .map-3d-layers button {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 999px;
+  background: rgb(15 25 34 / 78%);
+  color: var(--muted);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+
+#overview .map-3d-layers button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+#overview .map-3d-layers button:hover { color: var(--ink); }
+#overview .map-3d-layers button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* La chapa de atribución declara en el propio mapa que el relieve es ilustrativo:
+   no es un DEM ni una medición del terreno. */
+#overview .map-3d-attribution {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  z-index: 4;
+  display: grid;
+  gap: 1px;
+  max-width: calc(100% - 210px);
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  background: rgb(8 21 32 / 86%);
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+#overview .map-3d-attribution-note { color: var(--muted); font-size: 8.5px; font-weight: 500; }
+
+/* La instrucción de la cámara es la descripción accesible del mapa, no una capa
+   visual más: se anuncia y no ocupa espacio. */
+#overview .map-3d-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* La ficha flotante del puntero no es una región viva: la misma identidad ya
+   viaja en el selector y en el nombre accesible de cada comuna. */
+#overview .map-3d-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  max-width: 210px;
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: rgb(15 25 34 / 93%);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  will-change: transform;
+}
+
+#overview .map-3d-tooltip p { margin: 0; }
+#overview .map-3d-tooltip-name { color: var(--ink); font-size: 11px; font-weight: 800; }
+#overview .map-3d-tooltip-meta { color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
+#overview .map-3d-tooltip-coords { color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+
+/* Los insulares son tarjetas de océano oscuro, acopladas al escenario y nunca
+   posicionadas geográficamente contra el continente. */
+#overview .map-3d-stage .map-insets {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 3;
+  display: grid;
+  gap: 6px;
+  width: min(190px, 44%);
+  max-height: 48%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#overview .map-3d-stage .map-inset {
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: rgb(8 21 32 / 86%);
+  box-shadow: 0 8px 18px rgb(0 0 0 / 42%);
+}
+
+#overview .map-3d-stage .map-inset svg {
+  border-radius: 5px;
+  background: radial-gradient(circle at 32% 22%, var(--surface-raised), var(--aerial-water) 72%);
+}
+
+#overview .map-3d-stage .map-inset figcaption { color: var(--accent); font-size: 8px; font-weight: 700; line-height: 1.35; }
+
+
+#overview .aerial-canvas .map-panel {
+  margin-bottom: 0;
+  padding: 12px;
+}
+
+/* La tarjeta del mapa lleva su propio encabezado y su propia barra de consulta.
+   Compactarlos es lo que deja al lienzo entrar en el primer pliegue de 900 px,
+   que es la diferencia entre «el mapa es el lienzo» y «el mapa es otra tarjeta». */
+#overview .aerial-canvas .panel-heading {
+  padding: 8px 12px 6px;
+}
+
+#overview .aerial-canvas .map-toolbar {
+  margin-top: 5px;
+  gap: 8px;
+}
+
+#overview .aerial-canvas .map-toolbar select {
+  min-width: 0;
+  max-width: 320px;
+  height: 32px;
+}
+
+/* ── La estación de trabajo ────────────────────────────────────────────────
+ *
+ * Se apoya en el panel elevado, con el acento en sus rótulos: es el instrumento
+ * que dice qué solicitud está en curso y a qué ruta ir para resolverla. Se queda
+ * a la vista mientras la ficha se lee. */
+#overview .aerial-rail {
+  grid-area: rail;
+  position: sticky;
+  top: calc(var(--product-nav-h, 48px) + 16px);
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 16px;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+}
+
+#overview .aerial-rail > h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#overview .aerial-block {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+#overview .aerial-block > h4 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#overview .aerial-state { margin: 0; color: var(--ink); font-size: 12px; line-height: 1.5; }
+#overview .aerial-note { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+
+/* Los enlaces son el único control de la barra: cada uno nombra su destino en el
+   texto visible y lleva el anillo de foco global. El alto de 36 px deja un
+   objetivo cómodo sin convertir la barra en una lista de botones. */
+#overview .aerial-links { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+
+#overview .aerial-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+#overview .aerial-links a:hover { color: var(--ink); }
+
+#overview .aerial-readings { display: grid; gap: 6px; margin: 0; }
+#overview .aerial-readings > div { display: flex; justify-content: space-between; gap: 12px; }
+#overview .aerial-readings dt { color: var(--muted); font-size: 11px; }
+
+#overview .aerial-readings dd {
+  max-width: 62%;
+  margin: 0;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* El anillo de foco del producto se eligió contra papel; sobre el agua y el panel
+   su par medido es el rol global de foco. Se cambia solo el color: ancho y
+   desplazamiento siguen siendo los del contrato de la aplicación. */
+#overview :focus-visible {
+  outline-color: var(--focus);
+}
+
+/* ── Una columna ───────────────────────────────────────────────────────────
+ *
+ * Mapa, estación de trabajo y resultado, en ese orden. La barra deja de fijarse
+ * porque ya no hay una segunda columna contra la que quedarse. */
+@media (max-width: 1100px) {
+  #overview .aerial-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "canvas"
+      "rail"
+      "result";
+  }
+
+  #overview .aerial-rail { position: static; }
+
+  #overview .aerial-canvas .map-viewport,
+  #overview .map-3d-stage { min-height: 420px; }
+}
+
+/* El pliegue de 390×844 es el pliegue del mapa: la ruta se compacta sin ocultar
+   ninguna fila, ningún rótulo ni ningún control, y sin cambiar el orden de
+   lectura. El armazón ya no está aquí: la columna lateral no existe (S7) y las
+   filas compartidas leen la paleta global, así que lo que queda es la ruta. */
+@media (max-width: 720px) {
+  #overview { padding: 10px 10px 14px; }
+
+  #overview .intro-row { gap: 6px; margin-bottom: 6px; }
+  #overview .intro-row h2 { font-size: 17px; }
+  #overview .intro-row .subheading { font-size: 10px; }
+  #overview .aerial-workspace { gap: 10px; margin-bottom: 14px; }
+
+  /* El encabezado del mapa pasa a bloque: rótulo, título y chapa, cada uno en su
+     línea completa, en vez de repartir el ancho con la chapa y partir el título. */
+  #overview .aerial-canvas .map-panel { padding: 10px; }
+
+  #overview .aerial-canvas .panel-heading {
+    display: block;
+    padding: 6px 8px 4px;
+    gap: 4px;
+  }
+
+  #overview .aerial-canvas .panel-heading .eyebrow { font-size: 8px; letter-spacing: 0.04em; }
+  #overview .aerial-canvas .panel-heading h3 { font-size: 14px; }
+  #overview .aerial-canvas .panel-heading .neutral-tag { display: inline-block; margin-top: 4px; }
+  #overview .aerial-canvas .map-toolbar { margin-top: 5px; gap: 5px; }
+  #overview .aerial-canvas .map-toolbar select { width: 100%; max-width: none; }
+
+  /* Los insulares apilados bajo el mapa, como ya hacía el mapa en pantalla
+     estrecha: dos pistas aquí dejarían el lienzo en un tercio del ancho. */
+  #overview .aerial-canvas .map-stage { grid-template-columns: minmax(0, 1fr); }
+  #overview .aerial-canvas .map-viewport,
+  #overview .map-3d-stage { min-height: 340px; }
+
+  /* El HUD se reparte en las dos esquinas sin tapar el mapa: controles a la
+     derecha, capas a la izquierda; ambos conservan un objetivo táctil real. */
+  #overview .map-3d-hud {
+    top: auto;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    max-width: none;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    pointer-events: auto;
+  }
+  #overview .map-3d-hud-row { flex: 0 0 auto; flex-wrap: nowrap; padding: 3px; }
+  #overview .map-3d-hud > .map-3d-focus { flex: 0 0 auto; }
+  #overview .map-3d-hud-meta { flex: 0 0 auto; }
+  #overview .map-3d-hud button { min-height: 36px; font-size: 10px; }
+  #overview .map-3d-layers { top: 8px; left: 8px; max-width: calc(100% - 16px); }
+  #overview .map-3d-attribution { left: 8px; right: 8px; bottom: 58px; max-width: none; }
+  #overview .map-3d-stage .map-insets { top: 50px; right: 8px; bottom: auto; width: min(140px, 42%); max-height: 36%; }
+  #overview .map-3d-stage .map-inset svg { max-height: 72px; }
+
+  #overview .aerial-rail { padding: 13px; }
+  #overview .aerial-links a { min-height: 40px; }
+}
+
+/* Movimiento: la ruta no anima nada propio, y lo que el producto anime por
+   defecto (transiciones de estado, desplazamiento suave) se apaga aquí. */
+@media (prefers-reduced-motion: reduce) {
+  #overview,
+  #overview * {
+    transition: none;
+    animation: none;
+    scroll-behavior: auto;
+  }
+}

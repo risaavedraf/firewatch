@@ -36,11 +36,14 @@ import {
 import { idleCopy } from '../app/sessionCopy';
 import { MapPanel, type MapLoadState, type ZoneLevelLookup } from '../components/map/MapPanel';
 import { zoneLabel } from '../components/map/projection';
-import { ExecutivePanel, type ExecutiveSummaryState } from '../components/executive/ExecutivePanel';
+import { ExecutivePanel } from '../components/executive/ExecutivePanel';
+import { useExecutiveSummary } from '../components/executive/useExecutiveSummary';
+import { AerialWorkstation } from '../components/territory/AerialWorkstation';
 import { DataList, Metric, PanelHeading, StatusCopy, UnimplementedNote } from '../components/ui';
+import '../styles/aerial-workspace.css';
+import '../styles/history-workspace.css';
 import {
   batches,
-  executiveSummary,
   history,
   latest,
   modelVersions,
@@ -58,8 +61,10 @@ import {
   presentBatch,
   validityLabel,
   type ActiveModel,
+  type BatchPresentation,
   type FactorBar,
 } from '../domain';
+import type { JobProgress } from '../domain/job-progress';
 import {
   DIRECT_OBSERVATION,
   planRecommendations,
@@ -335,6 +340,44 @@ function computeValidity(batch: BatchState): ValidityView {
   return { text: validityLabel(decision), nextDelayMs: decision.nextDelayMs };
 }
 
+// T2 — what the workstation may say about the session's single batch request. It
+// reports only what the jobs view published through the store, named with the
+// catalogue's own label, and it never infers progress from the collection: an
+// unread zone is not a pending one, and a pending one is not a missing reading.
+function batchRequestText(progress: JobProgress, progressZone: string, session: SessionState): string {
+  const zone = progressZone === '' ? 'la zona seleccionada' : progressZone;
+  switch (progress.kind) {
+    case 'processing':
+      return `Lote en proceso para ${zone}: el servicio todavía no publica su nivel.`;
+    case 'unconfirmed':
+      return `Lote solicitado para ${zone} sin confirmación de publicación.`;
+    case 'failed':
+      return `La solicitud de lote para ${zone} falló.`;
+    default:
+      return session.status === 'signed-in'
+        ? 'Sin solicitud en curso: esta sesión no tiene un lote en proceso.'
+        : idleCopy(session, 'solicitar y seguir un lote');
+  }
+}
+
+// T2 — the kind of answer the selected zone's read settled on, never its level.
+// The level and its evidence belong to the card beside the map; repeating a
+// classification in two places is how two claims start to disagree.
+function batchResultText(batch: BatchState, presentation: BatchPresentation | null): string {
+  switch (batch.kind) {
+    case 'idle':
+      return 'Sin consultar';
+    case 'loading':
+      return 'Consultando el último lote';
+    case 'none':
+      return 'Sin lote publicado';
+    case 'failed':
+      return 'No disponible';
+    case 'batch':
+      return presentation !== null && presentation.valid ? 'Lote publicado' : 'Lote no disponible';
+  }
+}
+
 export function OverviewView() {
   const session = useSessionState();
   const selectedZone = useSelectedZone();
@@ -347,9 +390,10 @@ export function OverviewView() {
   const [catalogue, setCatalogue] = useState<CatalogueState | null>(null);
   const [read, setRead] = useState<ReadState | null>(null);
   const [activeModel, setActiveModel] = useState<ActiveModel | null>(null);
-  // PM-01 — the executive summary is one session-scoped read. `null` while it is
-  // in flight; a failure is stored as a stated outcome, never as zeros.
-  const [executive, setExecutive] = useState<ExecutiveSummaryState | null>(null);
+  // PM-01 / T4 — the server summary is one read for the mounted view, owned by
+  // the shared hook so the executive route cannot double-request it. Its failure
+  // is a stated outcome inside the panel, never zeros.
+  const executiveState = useExecutiveSummary(signedIn);
   const [sessionClosed, setSessionClosed] = useState(false);
   // Whether a real session was ever established. It separates "never connected"
   // (the count is still unknown, `—`) from "the session was closed" (the count
@@ -467,40 +511,6 @@ export function OverviewView() {
     };
   }, [signedIn]);
 
-  // PM-01 — one read of the server's executive summary, alongside the catalogue
-  // and the registry: it answers the whole territory, so it is not tied to the
-  // selected zone and a new selection never re-issues it. A failed or superseded
-  // answer is stated inline and owns only that section; the transport's deadline
-  // is what bounds a hung read, so the panel cannot spin forever.
-  useEffect(() => {
-    if (!signedIn) return undefined;
-    const controller = new AbortController();
-    let active = true;
-    void (async () => {
-      const outcome = await executiveSummary(controller.signal);
-      if (!active) return;
-      if (outcome.ok) {
-        setExecutive({ kind: 'ready', summary: outcome.data });
-        return;
-      }
-      // A superseded, aborted or unauthorized answer belongs to a request this
-      // view already replaced, or is the session's own verdict: neither is a
-      // failure of the summary this page should print.
-      if (
-        outcome.failure.reason === 'superseded' ||
-        outcome.failure.reason === 'aborted' ||
-        outcome.failure.kind === 'unauthorized'
-      ) {
-        return;
-      }
-      setExecutive({ kind: 'failed', message: failureMessage(outcome.failure, 'consultar el resumen ejecutivo') });
-    })();
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [signedIn]);
-
   // Ending a session clears everything the private view was describing. The
   // shared zone state is cleared here as well so the view stays honest even when
   // it is mounted without the session binding installed at application start.
@@ -515,7 +525,6 @@ export function OverviewView() {
     setCatalogue(null);
     setRead(null);
     setActiveModel(null);
-    setExecutive(null);
     setSessionClosed(true);
   }, [signedIn]);
 
@@ -602,6 +611,23 @@ export function OverviewView() {
   const factorRows = overviewFactorRows(factorBars);
   const showFactorOmission = presentation !== null && presentation.omissions.includes('factores');
 
+  // T2 — la estación de trabajo. Cada frase es un hecho que esta vista ya leyó: la
+  // única solicitud de lote de la sesión, la zona compartida, el tipo de respuesta
+  // del último lote y cuántas comunas tienen un nivel realmente leído. Ninguna
+  // crea una solicitud, ninguna inventa un número y ninguna repite el nivel: la
+  // clasificación se queda en la ficha que la sostiene.
+  const selectedZoneName = selectedZone === '' ? '' : zoneNames.get(selectedZone) ?? selectedZone;
+  const progressZoneName = jobProgress.zone === '' ? '' : zoneNames.get(jobProgress.zone) ?? jobProgress.zone;
+  const workstation = {
+    requestText: batchRequestText(jobProgress, progressZoneName, session),
+    // El mapa ya anuncia el progreso de la zona que muestra; la barra solo toma
+    // la región viva cuando esa solicitud no es la que el mapa está contando.
+    announceRequest: jobProgress.zone !== '' && jobProgress.zone !== selectedZone,
+    zoneText: selectedZoneName === '' ? 'Sin seleccionar' : selectedZoneName,
+    resultText: batchResultText(currentBatch, presentation),
+    levelsText: !signedIn ? 'Sin consultar' : cataloguePhase === 'loading' ? '—' : String(levels.size),
+  };
+
   // PM-18 — the catalogue composes from the payload the card already accepted. A
   // batch the fail-closed guard rejected has no validated level, so the catalogue
   // is told exactly that: it falls back to the closed pair and names the level as
@@ -656,15 +682,6 @@ export function OverviewView() {
             : 'NO DECLARADO';
   const modelStatusText = activeModel === null ? 'Sin consultar el registro de modelos.' : activeModel.label;
 
-  // PM-01 — the panel's state. A signed-out view is idle (it never shows a number
-  // it did not read); a signed-in view with no settled answer is loading, and
-  // every settled answer is either the summary or a stated failure.
-  const executiveState: ExecutiveSummaryState = !signedIn
-    ? { kind: 'idle' }
-    : executive !== null
-      ? executive
-      : { kind: 'loading' };
-
   return (
     <section className="view" id="overview" data-view="overview" aria-labelledby="overview-title">
       <div className="intro-row">
@@ -679,24 +696,34 @@ export function OverviewView() {
       </div>
 
       {/*
-        PM-01 — the executive panel opens the view: it is the server's
-        territory-wide answer, and its failure owns only this section, so the
-        metrics, the map and the batch card keep working below it.
+        T2 — la vista aérea. El tablero aprobado pone el mapa como lienzo, una
+        estación de trabajo a su lado y la lectura junto al lienzo; esta
+        composición hace exactamente eso con los datos que la vista ya lee. El
+        mapa abre la composición, la barra de trabajo se apoya en su columna y la
+        ficha del último lote queda en la misma columna que el mapa, debajo.
       */}
-      <ExecutivePanel state={executiveState} zoneNames={zoneNames} batchIsDemo={batchData?.demo === true} />
+      <div className="aerial-workspace">
+        <section className="aerial-canvas" aria-label="Mapa de trabajo del territorio">
+          <MapPanel
+            collection={mapCollection}
+            loadState={mapState}
+            selectedCode={selectedZone}
+            zoneLevels={zoneLevelLookup}
+            onSelect={selectZone}
+            sessionReason={session.reason}
+            jobProgress={jobProgress}
+          />
+        </section>
 
-      <section className="dashboard-grid" aria-label="Estado del riesgo y ubicación">
-        <MapPanel
-          collection={mapCollection}
-          loadState={mapState}
-          selectedCode={selectedZone}
-          zoneLevels={zoneLevelLookup}
-          onSelect={selectZone}
-          sessionReason={session.reason}
-          jobProgress={jobProgress}
+        <AerialWorkstation
+          requestText={workstation.requestText}
+          announceRequest={workstation.announceRequest}
+          zoneText={workstation.zoneText}
+          resultText={workstation.resultText}
+          levelsText={workstation.levelsText}
         />
 
-        <article className="panel risk-panel">
+        <article className="panel risk-panel aerial-result">
           <PanelHeading
             eyebrow="ESTADO DEL RIESGO"
             title="Último lote publicado"
@@ -757,7 +784,7 @@ export function OverviewView() {
               </ul>
             </>
           ) : (
-            <p className="panel-note">No hay factores disponibles para este sector.</p>
+            <p className="panel-note">No hay factores disponibles para esta comuna.</p>
           )}
           <h4>Cómo lo calculó la regla</h4>
           <p id="risk-rationale">{rationaleText}</p>
@@ -772,11 +799,19 @@ export function OverviewView() {
             ]}
           />
           <UnimplementedNote>
-            Cobertura por sector: la API no publica un porcentaje de cobertura por comuna, así que esta ficha no lo
-            muestra.
+            Cobertura por sector: la API no publica lecturas ni un porcentaje de cobertura por sector. Su unidad es la
+            comuna (código CUT), así que esta ficha no muestra un porcentaje de cobertura.
           </UnimplementedNote>
         </article>
-      </section>
+      </div>
+
+      {/*
+        PM-01 — el resumen del servidor sigue siendo la respuesta de todo el
+        territorio y su fallo solo posee esta sección. T2 lo coloca después de la
+        vista aérea: el mapa abre la ruta y el resumen del servidor queda como su
+        lectura agregada. T4 posee el diseño de esta sección.
+      */}
+      <ExecutivePanel state={executiveState} zoneNames={zoneNames} batchIsDemo={batchData?.demo === true} />
 
       <section className="metrics-grid metrics-three" aria-label="Resumen real de la sesión">
         <Metric
@@ -828,6 +863,13 @@ export function OverviewView() {
           }
         />
         <StatusCopy id="model-status">{modelStatusText}</StatusCopy>
+        {/*
+          T5 — board 20 states the status first, then the scope of the screen,
+          then what it does not publish. The registry serves two version facts and
+          a synthetic mark; it serves no variable inventory, no units, no metrics
+          and no source table, so those are named as absent instead of drawn. The
+          two rows and their identifiers are the shipped ones.
+        */}
         <dl className="data-list compact">
           <div>
             <dt>Versión activa (registro)</dt>
@@ -840,6 +882,23 @@ export function OverviewView() {
             <dd id="model-batch-version">{batchField(batchData?.model_version)}</dd>
           </div>
         </dl>
+        <div className="model-scope">
+          <h4>Qué sí y qué no hace esta ficha</h4>
+          <ul id="model-scope">
+            <li>
+              <strong>Una lectura:</strong> el registro de modelos por <code>/v1/models</code>; la versión del lote llega
+              con el lote publicado que esta página ya leyó.
+            </li>
+            <li>
+              <strong>Ninguna métrica:</strong> no enumera variables, unidades ni métricas del modelo, y no ejecuta la
+              regla ni reproduce su cálculo.
+            </li>
+            <li>
+              <strong>Ningún dato simulado:</strong> no escribe nada, no publica un lote y no presenta una versión como
+              la que clasificó un lote que no la nombra.
+            </li>
+          </ul>
+        </div>
         <p className="panel-note" id="model-panel-note">
           La marca sintética se reproduce tal como el servicio la declara. Una versión sin marca declarada se muestra
           como no declarada; la página no la supone no sintética. La fila del registro es la versión que el registro

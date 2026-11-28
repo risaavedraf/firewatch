@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { idleCopy, rejectedSessionCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
 import { PanelHeading, StatusCopy } from '../components/ui';
+import { OperationsStateList, OperationsViewHead } from '../components/operations/OperationsPrimitives';
 import { evaluateEffectiveClassifier, type ActiveRuleEvidence } from '../core/active-rule';
 import {
   aggregateStatus,
@@ -15,6 +16,7 @@ import {
 } from '../core/api';
 import type { SessionState } from '../core/session';
 import type { SourceProvenance } from '../types/api';
+import '../styles/operations-workspace.css';
 
 // PM-16 — the single operational board (`#status`).
 //
@@ -64,6 +66,11 @@ const STATE_REASONS: Record<ServiceState, string> = {
 };
 
 const IDLE_ACTION = 'consultar el estado de los servicios';
+
+// The five states the aggregate can serve, in the order the board lists them.
+// The legend only repeats the labels and reasons the table already renders, so a
+// state the contract does not declare can never appear here.
+const STATE_ORDER: readonly ServiceState[] = ['ready', 'degraded', 'unknown', 'unauthorized', 'not_configured'];
 
 // The gateway row is not one of the four probed services: the contract states the
 // gateway is reachable whenever a body exists, and the aggregate reports it
@@ -322,16 +329,29 @@ export function StatusView() {
 
   return (
     <section className="view" id="status" data-view="status" aria-labelledby="status-title">
-      <p className="eyebrow">SERVICIOS Y AGREGADO</p>
-      <h2 id="status-title">Estado de servicios</h2>
-      <p className="panel-note" id="status-scope">
-        Una lectura acotada del agregado <code>/v1/status</code> del gateway, compuesta con la fuente meteorológica de{' '}
-        <code>/v1/risk/sources</code> y la regla activa de <code>/v1/models</code>. Esta página no ejecuta
-        comprobaciones propias, no consulta métricas ni telemetría, no emite alertas y no sustituye la vigilancia de
-        CONAF ni de SENAPRED.
-      </p>
+      {/* Board 16's head: the question, the scope it can answer and the two facts
+          that keep it from reading as a health check of its own. */}
+      <OperationsViewHead
+        id="status-head"
+        eyebrow="SERVICIOS Y AGREGADO"
+        title="Estado de servicios"
+        titleId="status-title"
+        lede={
+          <span id="status-scope">
+            Una lectura acotada del agregado <code>/v1/status</code> del gateway, compuesta con la fuente meteorológica
+            de <code>/v1/risk/sources</code> y la regla activa de <code>/v1/models</code>. Esta página no ejecuta
+            comprobaciones propias, no consulta métricas ni telemetría, no emite alertas y no sustituye la vigilancia
+            de CONAF ni de SENAPRED.
+          </span>
+        }
+      >
+        <span className="ops-chip">Sin comprobaciones propias</span>
+        <span className="ops-chip">Agregado del gateway</span>
+      </OperationsViewHead>
 
-      <article className="panel status-panel" aria-labelledby="status-verdict-title">
+      <div className="ops-layout">
+        <div className="ops-stack">
+          <article className="panel status-panel" aria-labelledby="status-verdict-title">
         <PanelHeading
           eyebrow="AGREGADO DEL GATEWAY"
           title="Veredicto operativo"
@@ -387,9 +407,9 @@ export function StatusView() {
             ? `Lectura parcial: no se pudo comprobar ${partial.join(' ni ')}. El veredicto de arriba solo refleja el agregado del gateway y estas filas no se rellenan con valores inventados.`
             : 'Las tres lecturas de esta página compusieron el tablero: el agregado del gateway, la fuente meteorológica y la regla activa.'}
         </p>
-      </article>
+          </article>
 
-      <article className="panel status-panel" aria-labelledby="status-services-title">
+          <article className="panel status-panel" aria-labelledby="status-services-title">
         <PanelHeading
           eyebrow="CUATRO SUPERFICIES DECLARADAS"
           title="Servicios"
@@ -443,7 +463,22 @@ export function StatusView() {
                 : `${failureText(aggregateFailure ?? { kind: 'unavailable', reason: 'unavailable' }, 'el agregado `/v1/status`')} Sin cuerpo no hay filas que mostrar: esta vista no fabrica un estado por servicio.`}
           </StatusCopy>
         )}
-      </article>
+          </article>
+        </div>
+
+        {/* Board 16's side column: the five states the aggregate can serve, in
+            words. It is a legend of the table below, not a second probe. */}
+        <aside className="ops-side">
+          <OperationsStateList
+            id="status-states"
+            titleId="status-states-title"
+            eyebrow="ESTADOS Y LÍMITES"
+            title="Qué declara cada estado"
+            items={STATE_ORDER.map(state => ({ label: STATE_LABELS[state], detail: STATE_REASONS[state] }))}
+            note="Cada fila de la tabla repite una de estas palabras; el color solo la refuerza. Ningún estado se deduce de una comprobación propia de esta página."
+          />
+        </aside>
+      </div>
     </section>
   );
 }

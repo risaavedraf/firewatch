@@ -8,6 +8,7 @@ import { gatewayOrigin, issuer, pkceTransactionKey } from '../../src/config';
 import { completeLogin, resetSession } from '../../src/core/session';
 import { PanelHeading } from '../../src/components/ui';
 import { ActionsView } from '../../src/views/ActionsView';
+import { ExecutiveView } from '../../src/views/ExecutiveView';
 import { AuditView } from '../../src/views/AuditView';
 import { PendingView } from '../../src/views/PendingView';
 import { SessionView } from '../../src/views/SessionView';
@@ -40,6 +41,7 @@ import { createCryptoStub, createFetchStub, createStorageStub, flush, jwt } from
 
 const ACTIONS_URL = `${gatewayOrigin}/v1/prevention/actions`;
 const AUDIT_URL = `${gatewayOrigin}/v1/audit`;
+const EXECUTIVE_URL = `${gatewayOrigin}/v1/risk/executive-summary`;
 const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
 const ADMIN_TOKEN = jwt({ realm_access: { roles: ['admin'] } });
 
@@ -236,6 +238,14 @@ test('the audit view opens at level 2 under the shell h1', async () => {
     'audit-title',
   );
   expect(document.querySelector('#audit .eyebrow')).toHaveTextContent('COORDINACIÓN');
+
+  // T7 — the head stays inside the card the panel modifier pads, and the new
+  // response legend is a section of the register one level below it.
+  expect(document.getElementById('audit-head')?.contains(document.getElementById('audit-title'))).toBe(true);
+  expect(screen.getByRole('heading', { level: 3, name: 'Qué declara cada respuesta' })).toHaveAttribute(
+    'id',
+    'audit-states-title',
+  );
 });
 
 test('the pending view opens at level 2 under the shell h1', () => {
@@ -247,6 +257,58 @@ test('the pending view opens at level 2 under the shell h1', () => {
     'pending-title',
   );
   expect(document.querySelector('#pending .eyebrow')).toHaveTextContent('ALCANCE DE ESTA ENTREGA');
+  // T7 — the board 19 head is the panel's own head, so the title keeps its place
+  // and its level; only the lede and the count were added under it.
+  expect(document.getElementById('pending-head')?.querySelector('h2#pending-title')).not.toBeNull();
+});
+
+// T4 — the executive route opens at level 2 and composes the server panel under
+// it: the view states where the reader is, the panel states what it read, and the
+// blocks below are the panel's sections. The levels band moved the counts into a
+// list, so the band's own heading is what keeps the descent coherent.
+test('the executive view opens at level 2 and keeps the server panel under it', async () => {
+  await connect();
+  const { container } = render(<ExecutiveView />);
+  await waitFor(() => expect(fetchStub.callsFor(EXECUTIVE_URL)).toHaveLength(1));
+  await act(async () => {
+    fetchStub.answer(EXECUTIVE_URL, {
+      coverage: { catalogue_zones: 3, zones_without_batch: 1, stale_zones: 0, demo_zones: 0 },
+      levels: { alto: 1, medio: 1, bajo: 0, desconocido: 0 },
+      delta: {
+        zones_compared: 1,
+        zones_changed: 0,
+        zones_without_previous: 1,
+        zones_incomparable: 0,
+        transitions: [],
+      },
+      predominant_variables: [{ name: 'viento', zones: 1 }],
+      critical_zones: { count: 1, zone_ids: ['05101'] },
+      active_alerts: { count: 0 },
+    });
+    await flush();
+  });
+
+  const view = container.querySelector('#executive') as HTMLElement;
+  expectCoherentHierarchy(view, 'executive');
+  expect(screen.getByRole('heading', { level: 2, name: 'Panel ejecutivo' })).toHaveAttribute(
+    'id',
+    'executive-view-title',
+  );
+  expect(screen.getByRole('heading', { level: 3, name: 'Panel ejecutivo' })).toHaveAttribute(
+    'id',
+    'executive-title',
+  );
+  for (const name of [
+    'Niveles',
+    'Cobertura',
+    'Variación reciente',
+    'Variables predominantes',
+    'Zonas críticas',
+    'Alertas registradas',
+  ]) {
+    expect(screen.getByRole('heading', { level: 4, name }), name).toBeInTheDocument();
+  }
+  expect(document.querySelector('#executive .eyebrow')).toHaveTextContent('PANEL EJECUTIVO');
 });
 
 test('the session view opens at level 2 and keeps the permissions matrix under its own panel', async () => {
@@ -272,6 +334,19 @@ test('the session view opens at level 2 and keeps the permissions matrix under i
   for (const id of ['session-roles', 'permissions-rows', 'account-console']) {
     expect(document.getElementById(id), id).not.toBeNull();
   }
+
+  // T7 — the view head owns the level-2 title, and the two documentation blocks
+  // added under the panels are level-3 sections, so the descent stays one step
+  // at a time after the matrix's level-4 heading.
+  expect(document.getElementById('session-head')?.querySelector('h2#session-title')).not.toBeNull();
+  expect(screen.getByRole('heading', { level: 3, name: 'Cómo se verifica el rol' })).toHaveAttribute(
+    'id',
+    'session-verification-title',
+  );
+  expect(screen.getByRole('heading', { level: 3, name: 'Qué no hace esta vista' })).toHaveAttribute(
+    'id',
+    'session-limits-title',
+  );
 });
 
 // ── The primitive and the views that did not opt in ────────────────────────
@@ -308,6 +383,9 @@ test('a view that did not opt into a level keeps its panel headings at level 3',
     'id',
     'sources-title',
   );
+  // T7 — the board 15 head carries the view title; the panels below it keep the
+  // default level the primitive shipped.
+  expect(document.getElementById('sources-head')?.querySelector('h2#sources-title')).not.toBeNull();
   // PM-16 renamed this panel to its operational verdict; the heading level is
   // still the default one, which is what this case pins.
   for (const name of ['Fuentes y procedencia', 'Servicios y veredicto operativo', 'Frescura y última ejecución']) {

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { idleCopy } from '../app/sessionCopy';
-import { PanelHeading, TableWrap } from '../components/ui';
+import { TableWrap } from '../components/ui';
+import { OperationsStateList, OperationsViewHead } from '../components/operations/OperationsPrimitives';
 import { useSessionState } from '../app/store';
 import { audit, type Outcome } from '../core/api';
 import type { SessionState } from '../core/session';
 import type { AuditEntry } from '../types/api';
+import '../styles/operations-workspace.css';
 
 // N8b — the activity register (S13/S17/S1/S2). `/v1/audit` is admin-only and
 // accepts no parameter: the service bounds the answer itself, so the panel sends
@@ -158,17 +160,26 @@ function AuditRegister({ session }: { session: SessionState }) {
   return (
     <section className="view" id="audit" data-view="audit" aria-labelledby="audit-title">
       <article className="panel audit-panel">
-        <PanelHeading
+        {/* Board 18's head lives inside the register card: the panel modifier owns
+            the padding, so the head states the question and the access rule
+            without nesting a second card. */}
+        <OperationsViewHead
+          id="audit-head"
           eyebrow="COORDINACIÓN"
           title="Registro de actividad"
           titleId="audit-title"
-          level={2}
-          badge={
-            <span className="neutral-tag" id="audit-badge">
-              {state.badge}
-            </span>
+          lede={
+            <>
+              Los datos que <code>/v1/audit</code> entrega hoy, con la identidad verificada del actor y el detalle
+              cuando el servicio los capturó. La vista no pagina, no filtra y no ordena.
+            </>
           }
-        />
+        >
+          <span className="admin-tag">Solo admin</span>
+          <span className="neutral-tag" id="audit-badge">
+            {state.badge}
+          </span>
+        </OperationsViewHead>
         <p
           id="audit-status"
           className={state.phase === 'read' ? 'status-copy risk-good' : 'status-copy'}
@@ -223,6 +234,37 @@ function AuditRegister({ session }: { session: SessionState }) {
             Actualizar registro
           </button>
         </div>
+
+        {/* Board 18 gives this legend its own side column; the register is an
+            eight-column table that needs the full panel width, so the legend sits
+            under it instead. Measured: beside the table it forced a horizontal
+            scrollbar at 1440, and below it the table fits without one. It is the
+            same list, and it is still text: no table, no control. */}
+      <OperationsStateList
+        id="audit-states"
+        titleId="audit-states-title"
+        eyebrow="ESTADOS DEL REGISTRO"
+        title="Qué declara cada respuesta"
+        items={[
+          {
+            label: 'Leído',
+            detail: 'Eventos devueltos por /v1/audit, con los identificadores que el servicio entrega.',
+          },
+          {
+            label: 'Sin permiso · 403',
+            detail: 'Motivo y request_id visibles; la vista no se oculta y no se simulan eventos.',
+          },
+          {
+            label: 'No disponible',
+            detail: 'Respuesta ilegible o error de lectura; no se muestran eventos parciales.',
+          },
+          {
+            label: 'Vacío',
+            detail: 'El servicio devolvió cero eventos; es una lectura real y no un error.',
+          },
+        ]}
+        note="Un 403 se muestra como sin permiso, con el motivo y el request_id; un registro vacío no se convierte en una caída."
+      />
       </article>
     </section>
   );

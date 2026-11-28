@@ -246,6 +246,9 @@ test('the audit register is a named scroll region only while the service returne
   expectAllWrappersNamed(1);
   expect(document.querySelectorAll('#audit-table thead th')).toHaveLength(8);
   expect(document.querySelectorAll('#audit-table tbody tr')).toHaveLength(1);
+  // T7 — the response legend added beside the register is text, not a second
+  // table and not a second scroll container.
+  expect(document.querySelectorAll('#audit-states table, #audit-states .table-wrap')).toHaveLength(0);
 });
 
 // The infrastructure breakdown arrived with the merge using the plain
@@ -287,6 +290,10 @@ test('the pending inventory is a named scroll region and keeps every declared ro
   expectAllWrappersNamed(1);
   expect(document.querySelectorAll('#pending-rows tr')).toHaveLength(NOT_IMPLEMENTED.length);
   expect(document.querySelectorAll('#pending thead th')).toHaveLength(3);
+  // T7 — the new head states the same count the table carries and adds no second
+  // scroll region; the inventory stays the only one.
+  expect(document.getElementById('pending-count')?.textContent).toBe(String(NOT_IMPLEMENTED.length));
+  expect(document.querySelectorAll('#pending-head table, #pending-head .table-wrap')).toHaveLength(0);
 });
 
 test('the session permissions matrix is a named scroll region and keeps its four columns', () => {
@@ -296,6 +303,9 @@ test('the session permissions matrix is a named scroll region and keeps its four
   expectAllWrappersNamed(1);
   expect(document.querySelectorAll('#permissions-rows tr')).toHaveLength(PERMISSION_MATRIX.length);
   expect(document.querySelectorAll('#permissions table thead th')).toHaveLength(4);
+  // T7 — the documentation blocks added under the panels carry lists and steps,
+  // not a second table or a second scroll region.
+  expect(document.querySelectorAll('#session-verification table, #session-limits table')).toHaveLength(0);
 });
 
 test('the history table is a named scroll region and keeps the hidden-until-rows contract', async () => {
@@ -315,5 +325,12 @@ test('the history table is a named scroll region and keeps the hidden-until-rows
   scrollRegionOf(tableIn('#history-rows'), NAMES.history);
   expectAllWrappersNamed(1);
   expect(document.querySelectorAll('#history-rows tr')).toHaveLength(1);
-  expect(document.querySelectorAll('#history thead th')).toHaveLength(3);
+  // The five visible columns of the migrated board 05 table, in order. The
+  // assertion names them instead of counting them: a column that changes place
+  // or label is a change to what the reader is told, and the served fields behind
+  // them (request instant, publication instant, level, data status, batch id) are
+  // five different facts.
+  const historyTable = tableIn('#history-rows') as HTMLTableElement;
+  const headers = [...historyTable.querySelectorAll('thead th')].map(cell => (cell.textContent ?? '').trim());
+  expect(headers).toEqual(['Solicitado', 'Publicado', 'Nivel', 'Estado', 'Lote']);
 });

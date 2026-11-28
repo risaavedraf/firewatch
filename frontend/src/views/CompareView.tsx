@@ -17,6 +17,7 @@ import {
   type Outcome,
 } from '../core/api';
 import { levelLabel } from '../domain';
+import '../styles/decision-workspace.css';
 import type { ObservationZone, RiskLevel } from '../types/api';
 
 // PM-05 — the zone comparator. One `GET /v1/risk/compare` answers two or three
@@ -366,171 +367,197 @@ export function CompareView() {
 
   return (
     <section className="view" id="compare" data-view="compare" aria-labelledby="compare-title">
-      <div className="intro-row">
+      {/* T4 — the approved board's head: what the question is, in one sentence,
+          with the scope stated beside it. */}
+      <div className="intro-row decision-head">
         <div>
-          <p className="eyebrow">PREVENCIÓN</p>
+          <p className="eyebrow">PM-05 · COMPARACIÓN ENTRE COMUNAS</p>
           <h2 id="compare-title">Comparador de zonas</h2>
+          <p className="subheading">
+            Dos o tres comunas del catálogo en una sola llamada: nivel, aporte de cada variable e historial en la misma
+            ventana. La unidad del contrato es la comuna (código CUT).
+          </p>
         </div>
-        <span className="count-badge" id="compare-count">
-          {selection.length}
-        </span>
+        <div className="decision-head__chips">
+          <span className="neutral-tag">SOLO LECTURA</span>
+          <span className="count-badge" id="compare-count">
+            {selection.length}
+          </span>
+        </div>
       </div>
 
-      <article className="panel compare-panel">
-        <PanelHeading eyebrow="COMPARACIÓN MÚLTIPLE" title="Riesgo, variables e historial en una sola llamada" />
+      {/* The board's two columns: the left panel owns the question (which zones,
+          which window) and the right one owns the answer. Both are real panels
+          with their own heading, so the reading is never a fragment of the
+          controls. */}
+      <div className="compare-layout">
+        <article className="panel compare-panel compare-picker-panel">
+          <PanelHeading eyebrow="SELECCIÓN" title="Elige 2 o 3 zonas" />
 
-        <p className="panel-note">
-          Una sola llamada a <code>/v1/risk/compare</code> compara dos o tres zonas en riesgo, variables e historial. La
-          ventana es la del tope del endpoint, {windowText} para la granularidad elegida, y no se interpolan intervalos
-          ni se rellenan huecos. El orden elegido es el orden de la comparación.
-        </p>
+          <p className="panel-note">
+            Una sola llamada a <code>/v1/risk/compare</code> compara dos o tres zonas en riesgo, variables e historial.
+            La ventana es la del tope del endpoint, {windowText} para la granularidad elegida, y no se interpolan
+            intervalos ni se rellenan huecos. El orden elegido es el orden de la comparación.
+          </p>
 
-        <div className="compare-controls">
-          <label htmlFor="compare-zone-picker">
-            Añadir zona
-            <select
-              id="compare-zone-picker"
-              value=""
-              // The picker only ADDS: the chosen order lives in the ordered list
-              // below, so a duplicate cannot be selected and a fourth zone cannot
-              // be added, instead of being rejected after the choice.
-              disabled={!signedIn || catalogue.kind !== 'ready' || selectionFull || zones.length === 0}
-              aria-describedby="compare-catalogue-status"
-              onChange={event => addZone(event.target.value)}
-            >
-              <option value="">
-                {selectionFull ? 'Ya hay tres zonas elegidas' : 'Selecciona una zona del catálogo'}
-              </option>
-              {zones
-                .filter(zone => !selection.includes(zone.code))
-                .map(zone => (
-                  <option key={zone.code} value={zone.code}>
-                    {zoneLabel(zone.code, zones)}
+          <div className="compare-controls">
+            <label htmlFor="compare-zone-picker">
+              Añadir zona
+              <select
+                id="compare-zone-picker"
+                value=""
+                // The picker only ADDS: the chosen order lives in the ordered list
+                // below, so a duplicate cannot be selected and a fourth zone cannot
+                // be added, instead of being rejected after the choice.
+                disabled={!signedIn || catalogue.kind !== 'ready' || selectionFull || zones.length === 0}
+                aria-describedby="compare-catalogue-status"
+                onChange={event => addZone(event.target.value)}
+              >
+                <option value="">
+                  {selectionFull ? 'Ya hay tres zonas elegidas' : 'Selecciona una zona del catálogo'}
+                </option>
+                {zones
+                  .filter(zone => !selection.includes(zone.code))
+                  .map(zone => (
+                    <option key={zone.code} value={zone.code}>
+                      {zoneLabel(zone.code, zones)}
+                    </option>
+                  ))}
+              </select>
+            </label>
+
+            <label htmlFor="compare-granularity">
+              Granularidad
+              <select
+                id="compare-granularity"
+                value={granularity}
+                aria-describedby="compare-window"
+                onChange={event => {
+                  const next = COMPARISON_GRANULARITIES.find(entry => entry === event.target.value);
+                  if (next === undefined) return;
+                  setGranularity(next);
+                  // The stored answer belongs to the previous granularity, so it is
+                  // dropped rather than shown under the new one while the read is
+                  // in flight.
+                  setStored(null);
+                }}
+              >
+                {COMPARISON_GRANULARITIES.map(entry => (
+                  <option key={entry} value={entry}>
+                    {GRANULARITY_LABELS[entry]} ({GRANULARITY_WINDOWS[entry]})
                   </option>
                 ))}
-            </select>
-          </label>
+              </select>
+            </label>
+          </div>
 
-          <label htmlFor="compare-granularity">
-            Granularidad
-            <select
-              id="compare-granularity"
-              value={granularity}
-              aria-describedby="compare-window"
-              onChange={event => {
-                const next = COMPARISON_GRANULARITIES.find(entry => entry === event.target.value);
-                if (next === undefined) return;
-                setGranularity(next);
-                // The stored answer belongs to the previous granularity, so it is
-                // dropped rather than shown under the new one while the read is
-                // in flight.
-                setStored(null);
-              }}
+          <p
+            id="compare-catalogue-status"
+            className={catalogue.kind === 'failure' ? 'status-copy risk-error' : 'status-copy'}
+            role="status"
+            aria-live="polite"
+          >
+            {catalogueMessage}
+          </p>
+          {catalogue.kind === 'failure' ? (
+            <button
+              id="compare-catalogue-retry"
+              className="secondary-button"
+              type="button"
+              onClick={() => setCatalogueRevision(value => value + 1)}
             >
-              {COMPARISON_GRANULARITIES.map(entry => (
-                <option key={entry} value={entry}>
-                  {GRANULARITY_LABELS[entry]} ({GRANULARITY_WINDOWS[entry]})
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+              Reintentar el catálogo
+            </button>
+          ) : null}
 
-        <p
-          id="compare-catalogue-status"
-          className={catalogue.kind === 'failure' ? 'status-copy risk-error' : 'status-copy'}
-          role="status"
-          aria-live="polite"
-        >
-          {catalogueMessage}
-        </p>
-        {catalogue.kind === 'failure' ? (
-          <button
-            id="compare-catalogue-retry"
-            className="secondary-button"
-            type="button"
-            onClick={() => setCatalogueRevision(value => value + 1)}
+          <ol
+            id="compare-selection"
+            className="compare-selection"
+            aria-label="Zonas seleccionadas, en el orden de la comparación"
           >
-            Reintentar el catálogo
-          </button>
-        ) : null}
+            {selection.map((code, index) => {
+              const label = zoneLabel(code, zones);
+              return (
+                <li key={code}>
+                  <span className="compare-order" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                  <span className="compare-selection-label">{label}</span>
+                  <button
+                    type="button"
+                    className="button-text"
+                    onClick={() => removeZone(code)}
+                    aria-label={`Quitar ${label}`}
+                  >
+                    Quitar
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </article>
 
-        <ol
-          id="compare-selection"
-          className="compare-selection"
-          aria-label="Zonas seleccionadas, en el orden de la comparación"
-        >
-          {selection.map((code, index) => {
-            const label = zoneLabel(code, zones);
-            return (
-              <li key={code}>
-                <span className="compare-order" aria-hidden="true">
-                  {index + 1}
-                </span>
-                <span className="compare-selection-label">{label}</span>
-                <button
-                  type="button"
-                  className="button-text"
-                  onClick={() => removeZone(code)}
-                  aria-label={`Quitar ${label}`}
-                >
-                  Quitar
-                </button>
-              </li>
-            );
-          })}
-        </ol>
+        <article className="panel compare-panel compare-reading-panel">
+          <PanelHeading
+            eyebrow="LECTURA COMPARADA"
+            title="Riesgo, variables e historial"
+            badge={
+              <span className="neutral-tag" id="compare-count-badge">
+                {selection.length} de {COMPARISON_MAX_ZONES}
+              </span>
+            }
+          />
 
-        <p
-          id="compare-window"
-          className="panel-note"
-        >
-          {ready
-            ? `Ventana aceptada por la API: desde ${status.data.from} hasta ${status.data.to}, granularidad ${status.data.granularity}.`
-            : `Ventana solicitada: ${windowText}, la del tope del endpoint para esta granularidad.`}
-        </p>
+          <p id="compare-window" className="panel-note">
+            {ready
+              ? `Ventana aceptada por la API: desde ${status.data.from} hasta ${status.data.to}, granularidad ${status.data.granularity}.`
+              : `Ventana solicitada: ${windowText}, la del tope del endpoint para esta granularidad.`}
+          </p>
 
-        <p
-          id="compare-state"
-          className={status.kind === 'failure' ? 'status-copy risk-error' : 'status-copy'}
-          role="status"
-          aria-live="polite"
-        >
-          {compareStatusMessage(status, idleCopy(session, COMPARE_ACTION))}
-        </p>
-        {status.kind === 'failure' ? (
-          <button
-            id="compare-retry"
-            className="secondary-button"
-            type="button"
-            onClick={() => setRevision(value => value + 1)}
+          <p
+            id="compare-state"
+            className={status.kind === 'failure' ? 'status-copy risk-error' : 'status-copy'}
+            role="status"
+            aria-live="polite"
           >
-            Reintentar la comparación
-          </button>
-        ) : null}
+            {compareStatusMessage(status, idleCopy(session, COMPARE_ACTION))}
+          </p>
+          {status.kind === 'failure' ? (
+            <button
+              id="compare-retry"
+              className="secondary-button"
+              type="button"
+              onClick={() => setRevision(value => value + 1)}
+            >
+              Reintentar la comparación
+            </button>
+          ) : null}
 
-        <div id="compare-zones" className="compare-zones">
-          {zonesWithData.map(zone => {
-            const label = zoneLabel(zone.zone_id, zones);
-            const headingId = `compare-zone-${zone.zone_id}`;
-            return (
-              <section className="compare-zone" key={zone.zone_id} aria-labelledby={headingId} data-zone={zone.zone_id}>
-                <h4 id={headingId}>
-                  {label}
-                  {zone.assessment !== null ? ` · ${levelLabel(zone.assessment.risk_level)}` : ' · sin evaluación publicada'}
-                </h4>
-                <AssessmentBlock zone={zone} />
-                <HistoryBlock zone={zone} label={label} />
-              </section>
-            );
-          })}
-        </div>
+          <div id="compare-zones" className="compare-zones">
+            {zonesWithData.map(zone => {
+              const label = zoneLabel(zone.zone_id, zones);
+              const headingId = `compare-zone-${zone.zone_id}`;
+              return (
+                <section className="compare-zone" key={zone.zone_id} aria-labelledby={headingId} data-zone={zone.zone_id}>
+                  <h4 id={headingId}>
+                    {label}
+                    {zone.assessment !== null
+                      ? ` · ${levelLabel(zone.assessment.risk_level)}`
+                      : ' · sin evaluación publicada'}
+                  </h4>
+                  <AssessmentBlock zone={zone} />
+                  <HistoryBlock zone={zone} label={label} />
+                </section>
+              );
+            })}
+          </div>
 
-        <UnimplementedNote>
-          Prioridad: se sumará a la comparación cuando PM-11 tenga pesos aceptados. Hoy esa medida no existe en el
-          servicio, así que esta vista no ofrece un cuarto eje vacío.
-        </UnimplementedNote>
-      </article>
+          <UnimplementedNote>
+            Prioridad: se sumará a la comparación cuando PM-11 tenga pesos aceptados. Hoy esa medida no existe en el
+            servicio, así que esta vista no ofrece un cuarto eje vacío.
+          </UnimplementedNote>
+        </article>
+      </div>
     </section>
   );
 }

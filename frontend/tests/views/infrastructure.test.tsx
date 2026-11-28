@@ -13,6 +13,7 @@ import { resolve } from 'node:path';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
+import { routes } from '../../src/app/routes';
 import { gatewayOrigin, issuer, pkceTransactionKey } from '../../src/config';
 import {
   INFRASTRUCTURE_TYPES,
@@ -203,6 +204,28 @@ test('draws the fictional points and route lines and names every type in the leg
   }
 });
 
+// S7/S8 — «que el mapa sea interactivo como lo diseñamos, que resalte». The plate is
+// now a dark cartographic surface, and the chart grid that gives it that reading is
+// decoration: it carries no place, it is not announced, and it adds no focusable
+// target. The figures stay the only content of the drawing.
+test('the chart grid is decoration behind the figures, not a basemap or a control', async () => {
+  await openSignedIn();
+  await serve(fixture());
+
+  const svg = document.getElementById('infrastructure-map-svg') as unknown as SVGSVGElement;
+  const grid = svg.querySelector('.infrastructure-map-graticule');
+  const shapes = svg.querySelector('.infrastructure-map-shapes');
+  expect(grid).not.toBeNull();
+  expect(shapes).not.toBeNull();
+  expect(grid?.getAttribute('aria-hidden')).toBe('true');
+  expect(grid?.querySelectorAll('line').length).toBeGreaterThan(0);
+  // The grid paints first, so it can never cover a published geometry.
+  expect(grid?.nextElementSibling).toBe(shapes);
+  // No new target: the drawing stays a figure, and the legend/rows keep the only
+  // controls of the map region.
+  expect(svg.querySelectorAll('[tabindex], a, button').length).toBe(0);
+});
+
 test('prints through the browser and the print stylesheet keeps the synthetic label, formula and table', async () => {
   await openSignedIn();
   await serve(fixture());
@@ -276,4 +299,219 @@ test('without a session it issues no read and states the requirement', async () 
   expect(fetchStub.calls).toHaveLength(0);
   expect(text('infrastructure-status')).toMatch(/conecta un token/i);
   expect(rows()).toHaveLength(0);
+});
+
+// --- T3: territorial coverage composition ----------------------------------
+//
+// T3 ports the layout and hierarchy of the approved territorial boards
+// (`design/firewatch-v1-vuelo/04-cobertura-territorial.html` and
+// `21-lecturas-por-sector.html`) into this real view: the map becomes the canvas
+// of a coverage stage, a rail lists every comuna with the type coverage the
+// catalogue actually declares, and two reading panels sit under the breakdown.
+//
+// What the boards state as prototype hypotheses is stated here as the real
+// granularity: the catalogue is served per comuna (CUT code), the service
+// publishes no sector reading, and a zero belongs to the fixture instead of
+// being a missing value. No board control without served data is simulated.
+
+const declaredHashes = new Set<string>(routes.map(route => route.hash));
+
+function follows(first: Element, second: Element): boolean {
+  return (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+
+function headings(): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>('#infrastructure h2, #infrastructure h3, #infrastructure h4')];
+}
+
+function coverageEntries(): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>('#coverage-list li')];
+}
+
+test('T3 composes the coverage stage: map canvas, commune rail and reading panels in order', async () => {
+  await openSignedIn();
+  await serve(fixture());
+
+  const stage = document.querySelector('#infrastructure .coverage-stage');
+  expect(stage, 'the coverage stage is missing').not.toBeNull();
+
+  const canvas = stage?.querySelector('.coverage-canvas') as Element;
+  const rail = screen.getByRole('complementary', { name: 'Cobertura por comuna' });
+  const table = document.getElementById('infrastructure-zones') as Element;
+  const breakdown = document.getElementById('infrastructure-breakdown') as Element;
+  const detail = stage?.parentElement?.querySelector('.coverage-detail') as Element;
+
+  // The map is the canvas: the shipped figure keeps its own ids and legend.
+  expect(canvas.querySelector('#infrastructure-map')).not.toBeNull();
+  expect(canvas.querySelector('#infrastructure-map-svg')).not.toBeNull();
+  expect(canvas.querySelector('#infrastructure-map-legend')).not.toBeNull();
+
+  // Reading order is the composition: canvas, rail, the per-type table, the
+  // breakdown the rail links to, and finally the reading panels.
+  expect(follows(canvas, rail), 'the rail must follow the map canvas').toBe(true);
+  expect(follows(rail, table), 'the table must follow the rail').toBe(true);
+  expect(follows(table, breakdown), 'the breakdown must follow the table').toBe(true);
+  expect(follows(breakdown, detail), 'the reading panels must follow the breakdown').toBe(true);
+
+  // The shell owns the only h1, so the view opens at h2 and no heading inside
+  // it descends more than one level at a time.
+  expect(screen.getByRole('heading', { level: 2, name: 'Infraestructura prioritaria' })).toHaveAttribute(
+    'id',
+    'infrastructure-title',
+  );
+  const levels = headings().map(heading => Number(heading.tagName.slice(1)));
+  expect(levels[0]).toBe(2);
+  levels.forEach((level, index) => {
+    if (index === 0) return;
+    expect(level, `${headings()[index].textContent} jumps to level ${level}`).toBeLessThanOrEqual(levels[index - 1] + 1);
+  });
+  expect(screen.getByRole('heading', { level: 3, name: 'Cobertura por comuna' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 3, name: /Granularidad, cobertura y puntaje/ })).toBeInTheDocument();
+});
+
+test('T3 names the real granularity instead of reading commune results as sectors', async () => {
+  await openSignedIn();
+  await serve(fixture());
+
+  // The stage states what a zone of this catalogue is and what it is not.
+  expect(text('coverage-granularity')).toMatch(/comuna/i);
+  expect(text('coverage-granularity')).toMatch(/c[oó]digo CUT/i);
+  expect(text('coverage-granularity')).toMatch(/no publica una lectura por sector/i);
+
+  // The reading panel repeats the distinction in its own words: granularity,
+  // coverage and score are different facts.
+  const reading = text('coverage-reading');
+  expect(reading).toMatch(/comuna, por c[oó]digo CUT/i);
+  expect(reading).toMatch(/no publica lecturas por sector/i);
+  expect(reading).toMatch(/cobertura de tipos/i);
+  expect(reading).toMatch(/un conteo en cero/i);
+
+  // No zone, row or entry is labelled as a sector reading.
+  const zonesText = [...document.querySelectorAll<HTMLElement>('#infrastructure-rows th[scope="row"]')]
+    .map(cell => (cell.textContent ?? '').trim())
+    .join(' | ');
+  expect(zonesText).toBe('05101 | 05102');
+  expect(text('coverage-list')).not.toMatch(/sector/i);
+  expect(document.querySelector('#infrastructure-zones thead')?.textContent ?? '').not.toMatch(/sector/i);
+});
+
+test('T3 lists every commune with the type coverage it declares and links to its breakdown', async () => {
+  await openSignedIn();
+  await serve(fixture());
+
+  const entries = coverageEntries();
+  expect(entries.map(entry => entry.getAttribute('data-zone'))).toEqual(['05101', '05102']);
+  expect(text('coverage-rail-count')).toBe('2');
+
+  // 05101 declares all five types; 05102 declares only one.
+  const full = entries[0] as HTMLElement;
+  expect(full.textContent).toMatch(/5 de 5 tipos/);
+  expect(full.textContent).toMatch(/Colegio/);
+  expect(full.textContent).toMatch(/Hidrante/);
+  const partial = entries[1] as HTMLElement;
+  expect(partial.textContent).toMatch(/1 de 5 tipos/);
+  expect(partial.textContent).toMatch(/Vivienda/);
+  expect(partial.textContent).not.toMatch(/Hospital/);
+
+  // The five-slot figure is decorative: the sentence carries the meaning.
+  for (const entry of entries) {
+    const dots = entry.querySelectorAll('.coverage-dot');
+    expect(dots).toHaveLength(5);
+    expect(entry.querySelector('.coverage-dots')).toHaveAttribute('aria-hidden', 'true');
+  }
+  expect(full.querySelectorAll('.coverage-dot.is-on')).toHaveLength(5);
+  expect(partial.querySelectorAll('.coverage-dot.is-on')).toHaveLength(1);
+
+  // Each entry is a native button that opens the real breakdown of that comuna
+  // inside this page. It is not an anchor: the hash belongs to the router, so an
+  // in-page `#hash` would send the whole view to the fallback route.
+  for (const entry of entries) {
+    const zone = entry.getAttribute('data-zone') ?? '';
+    const button = entry.querySelector('button') as HTMLButtonElement;
+    expect(button.getAttribute('type')).toBe('button');
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(entry.querySelector('a')).toBeNull();
+    expect(document.getElementById(`infrastructure-zone-${zone}`)).not.toBeNull();
+  }
+  expect(document.getElementById('coverage-entry-05101')).not.toBeNull();
+  expect(text('infrastructure-zone-coverage-05102')).toMatch(/1 de 5 tipos/);
+});
+
+test('T3 opens the chosen commune breakdown with focus, without touching the router hash', async () => {
+  await openSignedIn();
+  await serve(fixture());
+  const hashBefore = window.location.hash;
+
+  const button = document.getElementById('coverage-entry-05102') as HTMLButtonElement;
+  fireEvent.click(button);
+
+  expect(button).toHaveAttribute('aria-pressed', 'true');
+  expect(document.getElementById('coverage-entry-05101')).toHaveAttribute('aria-pressed', 'false');
+  // The reading the button promised is the one that receives the focus.
+  expect(document.activeElement).toBe(document.getElementById('infrastructure-zone-05102'));
+  expect(document.getElementById('infrastructure-zone-05102')).toHaveAttribute('data-active', 'true');
+  expect(window.location.hash).toBe(hashBefore);
+});
+
+test('T3 keeps a commune with no declared elements as an explicit zero, not as a missing reading', async () => {
+  await openSignedIn();
+  const empty = fixture();
+  empty.zones.push({ zone_id: '05103', score: 0, counts: counts(), elements: [] });
+  await serve(empty);
+
+  const entry = coverageEntries()[2] as HTMLElement;
+  expect(entry.textContent).toMatch(/0 de 5 tipos/);
+  expect(entry.textContent).toMatch(/sin elementos declarados/i);
+  expect(entry.querySelectorAll('.coverage-dot.is-on')).toHaveLength(0);
+  expect(text('infrastructure-zone-coverage-05103')).toMatch(/0 de 5 tipos/);
+  expect(document.getElementById('infrastructure-elements-05103')).toBeNull();
+  expect(screen.getByText('La zona no informa elementos.')).toBeInTheDocument();
+});
+
+test('T3 offers only declared routes and simulates none of the prototype controls', async () => {
+  await openSignedIn();
+  await serve(fixture());
+
+  const detail = document.querySelector('#infrastructure .coverage-detail') as HTMLElement;
+  const links = [...detail.querySelectorAll('a')];
+  expect(links.length).toBeGreaterThan(0);
+  for (const link of links) {
+    const href = link.getAttribute('href') ?? '';
+    expect(declaredHashes.has(href), `${href} is not a declared route`).toBe(true);
+    expect((link.textContent ?? '').trim().length).toBeGreaterThan(0);
+  }
+  for (const hash of ['#history', '#compare', '#sources']) {
+    expect(links.map(link => link.getAttribute('href')), `missing ${hash}`).toContain(hash);
+  }
+
+  // The boards' cut-off slider, camera controls, commune request queue and mock
+  // sector rows have no served data behind them and must not appear here.
+  expect(document.querySelectorAll('#infrastructure input[type="range"]')).toHaveLength(0);
+  const railButtons = [...document.querySelectorAll<HTMLButtonElement>('#infrastructure .coverage-rail button')];
+  expect(railButtons).toHaveLength(coverageEntries().length);
+  for (const button of railButtons) expect(button.getAttribute('type')).toBe('button');
+  expect(document.querySelectorAll('#infrastructure .coverage-rail a')).toHaveLength(0);
+  const viewText = document.getElementById('infrastructure')?.textContent ?? '';
+  expect(viewText).not.toMatch(/seleccionar todas/i);
+  expect(viewText).not.toMatch(/fecha de corte/i);
+  expect(viewText).not.toMatch(/vista cenital|girar el mapa/i);
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('#infrastructure a[href]')) {
+    expect(link.getAttribute('href')).not.toMatch(/^https?:/i);
+  }
+  // No invented geometry: the only drawing surface is the real catalogue map,
+  // plus the shipped metric icons.
+  const drawings = [...document.querySelectorAll('#infrastructure svg')];
+  expect(drawings.length).toBeGreaterThan(0);
+  expect(drawings.every(svg => svg.id === 'infrastructure-map-svg' || svg.classList.contains('icon'))).toBe(true);
+});
+
+test('T3 renders no coverage stage without a catalogue: the failed read owns its empty state', async () => {
+  await openSignedIn();
+  await serve({ code: 'forbidden' }, 403);
+
+  expect(document.querySelector('#infrastructure .coverage-stage')).toBeNull();
+  expect(document.querySelector('#infrastructure .coverage-detail')).toBeNull();
+  expect(text('infrastructure-empty')).toMatch(/sin catálogo disponible/i);
+  expect(text('infrastructure-zone-count')).toBe('—');
+  expect(document.getElementById('infrastructure-granularity')).not.toBeNull();
 });

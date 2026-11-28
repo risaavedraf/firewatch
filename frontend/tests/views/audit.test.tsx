@@ -409,3 +409,35 @@ test('a rejected token is named in the register, never as a first visit (S2)', a
   expect(text('audit-status')).not.toBe('Conecta un token autorizado para consultar el registro de actividad.');
   expect(text('audit-status')).toMatch(/rechazó el token/i);
 });
+
+// ── T7 — board 18's head and the four answers the register can give ────────
+// Board 18 puts the head inside the register card and lists what each response
+// declares. The production register keeps the title inside the card (its panel
+// owns the padding) and the list names exactly the four branches the view can
+// render: read, 403, unavailable and the real empty answer.
+test('the register keeps its head inside the panel and states its four answers (T7)', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<AuditView />);
+
+  const panel = document.querySelector('article.panel.audit-panel');
+  const head = document.getElementById('audit-head');
+  expect(panel).not.toBeNull();
+  expect(head).not.toBeNull();
+  expect(panel?.querySelector('#audit-head h2#audit-title')).not.toBeNull();
+  expect(head?.querySelector('.eyebrow')).toHaveTextContent('COORDINACIÓN');
+  expect(head).toHaveTextContent('Solo admin');
+  // The badge keeps its own id and only states what the register observed.
+  expect(document.getElementById('audit-badge')).not.toBeNull();
+
+  const states = document.getElementById('audit-states');
+  expect(states).not.toBeNull();
+  expect(states?.querySelectorAll('li')).toHaveLength(4);
+  expect(states).toHaveTextContent(/Leído/);
+  expect(states).toHaveTextContent(/Sin permiso · 403/);
+  expect(states).toHaveTextContent(/No disponible/);
+  expect(states).toHaveTextContent(/Vacío/);
+  // The register is still one table with one named scroll region.
+  expect(document.querySelectorAll('#audit .table-wrap')).toHaveLength(1);
+
+  await answerAudit([]);
+});

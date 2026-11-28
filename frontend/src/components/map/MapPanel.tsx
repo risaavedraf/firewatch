@@ -20,6 +20,13 @@
 // panel never infers progress from the collection — the caller hands it the fact
 // as `jobProgress`, and the live region in `#map-job-progress` states that the
 // batch is being produced instead of letting the neutral vocabulary speak for it.
+//
+// T12 — the frame itself is now the interactive 3D aerial stage (`AerialMap3D`):
+// the stage owns the camera and paints the immersive Canvas scene, while the SVG
+// it renders keeps this panel's contract — one `role="button"` path per served
+// comuna, the zone classes, `#map-svg`, `#map-location`, `#map-coordinates`,
+// `#map-empty`, `#map-insets` and the honest empty states. This panel still fetches
+// nothing and decides nothing: it only hands the served catalogue down.
 
 import { useMemo } from 'react';
 
@@ -28,8 +35,8 @@ import { idleCopy } from '../../app/sessionCopy';
 import type { SessionState } from '../../core/session';
 import { mapProgressState, type JobProgress } from '../../domain/job-progress';
 import type { RiskLevel, ZoneCollection } from '../../types/api';
-import { buildMapLayout, countVertices, DETACHED_LONGITUDE, geometryBounds, zoneLabel, type MapFrame, type ProjectedZone } from './projection';
-import { zoneShapeClasses } from './zone-classes';
+import { AerialMap3D } from './AerialMap3D';
+import { buildMapLayout, countVertices, DETACHED_LONGITUDE, geometryBounds, zoneLabel, type MapFrame } from './projection';
 
 // How the caller describes the catalogue read. `idle` is "there is nothing to
 // ask for yet" (typically no token), `loading` is a read in flight, `ready` is
@@ -60,8 +67,6 @@ export interface MapPanelProps {
   jobProgress: JobProgress;
 }
 
-const MAINLAND_SVG_LABEL = 'Comunas seleccionables: clic, Enter o Espacio';
-const INSETS_LABEL = 'Territorios insulares representados en recuadros aparte, fuera de su posición geográfica';
 const LEGEND_LABEL = 'Leyenda de niveles de riesgo';
 
 // Reproduced verbatim from the retired page: this is the provenance the source
@@ -81,12 +86,9 @@ const LEGEND_STATES: ReadonlyArray<{ swatch: string; label: string }> = [
   { swatch: 'swatch-neutral', label: 'Sin evaluación para esta zona' },
 ];
 
-// An `Enter` or `Space` keydown selects, because the shape is a `role="button"`
-// and a pointer-only map would be unusable with a keyboard. `preventDefault`
-// stops the page scrolling on Space, exactly as the retired page did.
-function isActivationKey(key: string): boolean {
-  return key === 'Enter' || key === ' ';
-}
+// An `Enter` or `Space` keydown selects, because each shape is a `role="button"`
+// and a pointer-only map would be unusable with a keyboard. The behavior lives in
+// `AerialMap3D`, which owns the camera and the vector layer.
 
 // The view's own action phrase; the reason branch lives in `sessionCopy`, so
 // this panel never re-implements it.
@@ -136,48 +138,18 @@ export function MapPanel({ collection, loadState, selectedCode, zoneLevels, onSe
 
   const mainland: MapFrame | null = layout.mainland && layout.mainland.shapes.length > 0 ? layout.mainland : null;
   const showEmpty = mainland === null;
-  // TypeScript's `SVGProps` does not declare the global `hidden` attribute, yet
-  // the legacy contract (and the N9 readback) requires the SVG to carry exactly
-  // that attribute until there is a mainland frame. Spreading keeps the runtime
-  // attribute the retired page had while staying type-safe at the call site.
-  const hiddenAttribute: { hidden?: boolean } = mainland === null ? { hidden: true } : {};
   const emptyMessage = mainland
     ? ''
     : layout.insetCount > 0
       ? 'El catálogo no informa geometrías continentales; se muestran solo los territorios insulares.'
       : emptyMessageFor(loadState, hasZones, idleCopy({ reason: sessionReason }, IDLE_ACTION));
 
-  const renderShape = (shape: ProjectedZone, key: string) => {
-    const selected = shape.code !== '' && shape.code === selectedCode;
-    const level = zoneLevels.levelFor(shape.code);
-    return (
-      <path
-        key={key}
-        className={zoneShapeClasses(level, selected).join(' ')}
-        d={shape.path}
-        data-zone={shape.code}
-        role="button"
-        tabIndex={0}
-        aria-label={shape.label}
-        aria-pressed={selected}
-        onClick={() => onSelect(shape.code)}
-        onKeyDown={event => {
-          if (!isActivationKey(event.key)) return;
-          event.preventDefault();
-          onSelect(shape.code);
-        }}
-      >
-        <title>{shape.label}</title>
-      </path>
-    );
-  };
-
   return (
     <article className="panel map-panel">
       <PanelHeading
         eyebrow="ZONAS ANALIZADAS · REGIÓN DE VALPARAÍSO"
         title="Vista territorial de las comunas"
-        badge={<span className="neutral-tag">Proyección esquemática</span>}
+        badge={<span className="neutral-tag">Mapa 3D · relieve ilustrativo</span>}
       />
 
       <div className="map-toolbar">
@@ -214,43 +186,22 @@ export function MapPanel({ collection, loadState, selectedCode, zoneLevels, onSe
         </p>
       )}
 
+      {/* T12 — the aerial stage. The canvas paints the immersive scene and the
+          `#map-svg` layer keeps the accessible contract; the island insets are drawn
+          by the stage with the same camera, and both remain deterministic in the
+          SVG so the tests and a screen reader keep the whole catalogue. */}
       <div className="map-stage">
         <div className="map-viewport">
-          <svg
-            id="map-svg"
-            className="map-svg"
-            role="group"
-            aria-label={MAINLAND_SVG_LABEL}
-            viewBox={mainland ? mainland.viewBox : undefined}
-            preserveAspectRatio={mainland ? 'xMidYMid meet' : undefined}
-            {...hiddenAttribute}
-          >
-            <title id="map-title">Mapa esquemático de las comunas de la Región de Valparaíso</title>
-            <desc id="map-desc">
-              Cada comuna se dibuja con una proyección esquemática propia, sin mapa base ni teselas. Cada comuna con un
-              lote publicado conserva su color según el último lote de esa zona, aunque no esté seleccionada; el gris
-              neutro significa que esa comuna no tiene lote publicado.
-            </desc>
-            {mainland ? <g className="zone-layer">{mainland.shapes.map((shape, index) => renderShape(shape, `${shape.code}-${index}`))}</g> : null}
-          </svg>
-          <p id="map-empty" className="map-empty" role="status" aria-live="polite" hidden={!showEmpty}>
-            {emptyMessage}
-          </p>
+          <AerialMap3D
+            mainland={mainland}
+            insets={layout.insets}
+            selectedCode={selectedCode}
+            zoneLevels={zoneLevels}
+            onSelect={onSelect}
+            emptyMessage={emptyMessage}
+            showEmpty={showEmpty}
+          />
         </div>
-        <aside className="map-insets" id="map-insets" aria-label={INSETS_LABEL}>
-          {layout.insets.map((frame, frameIndex) => {
-            const shape = frame.shapes[0];
-            if (!shape) return null;
-            return (
-              <figure className="map-inset" key={`${shape.code}-${frameIndex}`}>
-                <svg viewBox={frame.viewBox} preserveAspectRatio="xMidYMid meet" role="group" aria-label={shape.label}>
-                  <g className="zone-layer">{renderShape(shape, `${shape.code}-${frameIndex}`)}</g>
-                </svg>
-                <figcaption>{shape.label}</figcaption>
-              </figure>
-            );
-          })}
-        </aside>
       </div>
 
       <p className="map-inset-note">
@@ -269,8 +220,9 @@ export function MapPanel({ collection, loadState, selectedCode, zoneLevels, onSe
       </ul>
       <p className="map-legend-note">
         Cada comuna con un lote publicado conserva su color según el último lote de esa zona, aunque no esté
-        seleccionada; el gris neutro significa que esa comuna no tiene lote publicado. El contorno indica la selección.
-        El color requiere un lote con campos de clasificación válidos; geografía real no significa riesgo observado.
+        seleccionada; el relieve topográfico oscuro significa que esa comuna no tiene lote publicado. El contorno aqua
+        indica la selección. El color requiere un lote con campos de clasificación válidos; geografía real no significa
+        riesgo observado.
       </p>
 
       <div className="map-source">
@@ -284,7 +236,8 @@ export function MapPanel({ collection, loadState, selectedCode, zoneLevels, onSe
         </p>
         <p className="map-caption">
           Atribución y restricción declaradas por la fuente IDE Chile. Cartografía esquemática para una vista regional:
-          no es un mapa base ni una proyección cartográfica, y no sustituye a la cartografía oficial.
+          no es un mapa base, ni un DEM, ni una proyección cartográfica oficial, y no sustituye a la cartografía
+          oficial. El relieve 3D y el sombreado son ilustrativos.
         </p>
       </div>
     </article>

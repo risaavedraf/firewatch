@@ -81,6 +81,16 @@ function statusCopy(session: SessionState, launched: Launch | null): string {
   return '';
 }
 
+// The entrance's own state, in the words the screen can honestly use. It is not
+// a session: this screen only exists while there is no established one, so the
+// label reports the round trip this component observed and nothing else.
+function entranceState(session: SessionState): string {
+  if (session.status === 'signing-in') return 'Regresando de Keycloak';
+  if (session.reason === 'rejected') return 'Sesión rechazada';
+  if (session.reason === 'login-failed') return 'Acceso no completado';
+  return 'Sin sesión';
+}
+
 export function AuthView({ googleLogin = googleLoginEnabled }: { googleLogin?: boolean } = {}) {
   const session = useSessionState();
   const [intent, setIntent] = useState<AuthorizationIntent>(initialIntent);
@@ -144,14 +154,21 @@ export function AuthView({ googleLogin = googleLoginEnabled }: { googleLogin?: b
         <div className="auth-hero-copy">
           <p className="auth-kicker">Región de Valparaíso · Ámbito regional</p>
           <h1 id="auth-hero-title">El riesgo territorial de incendio, comuna por comuna.</h1>
-          <p>
-            Consulta el estado de cada zona, el historial de lotes publicados, la procedencia de las fuentes y las
-            acciones preventivas, con cada permiso validado por el servidor.
+          {/* Board 14 states the entrance's state before the explanation. These
+              chips report the round trip this screen actually observes; neither
+              of them claims a session, a role or a permission. */}
+          <div className="auth-chips" id="auth-state" role="group" aria-label="Estado de la entrada">
+            <span className="auth-chip">{entranceState(session)}</span>
+            <span className="auth-chip">Entrada sin credenciales</span>
+          </div>
+          <p className="auth-hero-lede">
+            Estado de cada zona, historial de lotes, procedencia de las fuentes y acciones preventivas, con cada permiso
+            validado por el servidor.
           </p>
           <ul className="auth-features">
             <li>
               <span aria-hidden="true">01</span>
-              Mapa de la región con el último lote vigente de cada comuna.
+              Mapa regional con el último lote vigente por comuna.
             </li>
             <li>
               <span aria-hidden="true">02</span>
@@ -170,6 +187,7 @@ export function AuthView({ googleLogin = googleLoginEnabled }: { googleLogin?: b
       </section>
 
       <main className="auth-main" id="content">
+        <div className="auth-main-stack">
         <div className="auth-card">
           <div className="auth-tabs" role="tablist" aria-label="Acceso a FireWatch">
             {TABS.map(tab => {
@@ -272,6 +290,72 @@ export function AuthView({ googleLogin = googleLoginEnabled }: { googleLogin?: b
             FireWatch nunca ve tu contraseña: se escribe solo en Keycloak. El token de acceso permanece en memoria
             mientras la página está abierta; no se guardan tokens ni se envían cookies.
           </p>
+        </div>
+
+        {/* Board 14's side column, kept as reference text under the card: the
+            contract this screen cannot change and the states it can really show.
+            Both blocks are closed by default — the entrance is one card, not a
+            card plus two panels — and carry no credential field, no control and
+            no simulated round trip. */}
+        <details className="auth-disclosure">
+          <summary className="auth-disclosure-summary">Contrato y estados del acceso</summary>
+          <div className="auth-disclosure-body">
+            <section className="auth-facts-panel" id="auth-facts" aria-labelledby="auth-facts-title">
+              <p className="auth-facts-eyebrow">CONTRATO ACTUAL</p>
+              <h2 id="auth-facts-title">Qué hace el producto real</h2>
+              <dl className="auth-facts">
+                <div>
+                  <dt>Proveedor de identidad</dt>
+                  <dd>Keycloak · Authorization Code + PKCE</dd>
+                </div>
+                <div>
+                  <dt>Credenciales</dt>
+                  <dd>Se escriben solo en Keycloak; FireWatch nunca las pide</dd>
+                </div>
+                <div>
+                  <dt>Token</dt>
+                  <dd>En memoria; no se persiste ni viaja en cookie</dd>
+                </div>
+                <div>
+                  <dt>Roles</dt>
+                  <dd>Los asigna el reino y el servidor los verifica en cada petición</dd>
+                </div>
+                <div>
+                  <dt>Límite de la página</dt>
+                  <dd>Es una puerta de presentación, no una frontera de autorización</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="auth-facts-panel" id="auth-states" aria-labelledby="auth-states-title">
+              <p className="auth-facts-eyebrow">ESTADOS DE LA ENTRADA</p>
+              <h2 id="auth-states-title">Qué se puede ver</h2>
+              <ul className="auth-state-list">
+                <li>
+                  <strong>Sin sesión</strong> <span>· esta pantalla, con los dos recorridos disponibles.</span>
+                </li>
+                <li>
+                  <strong>Regresando de Keycloak</strong>{' '}
+                  <span>· «Completando el acceso…» mientras se canjea el código.</span>
+                </li>
+                <li>
+                  <strong>Sesión rechazada</strong>{' '}
+                  <span>· vuelve a la entrada con el motivo y sin conservar el token.</span>
+                </li>
+                <li>
+                  <strong>Cancelado</strong> <span>· el intento no se completó; puedes intentarlo de nuevo.</span>
+                </li>
+                <li>
+                  <strong>Error de credenciales</strong>{' '}
+                  <span>· no se muestra: la página nunca recibe la credencial.</span>
+                </li>
+              </ul>
+              <p className="auth-facts-note">
+                La pantalla no simula los estados del producto; los nombra para que el diseño no los oculte.
+              </p>
+            </section>
+          </div>
+        </details>
         </div>
       </main>
     </div>

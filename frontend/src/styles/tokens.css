@@ -1,54 +1,175 @@
-/* FireWatch design tokens.
+/* FireWatch design tokens — the aerial night palette, globally.
 
-   Verbatim port of the palette the page already shipped (approved with the
-   visual system commit 1ec9c8c): the same forest palette, canvas/paper,
-   terracotta and gold accents, radius, shadow and type stack. The level
-   palette is part of the tokens because the map fills, the legend swatches and
-   the chips all read from it, and a legend that drifts from the map would
-   misdescribe the map. */
+   S8 — «mejorar los colores que ya vimos que solo se vé en mapa, tiene que ser los
+   nuevos colores globalres». The palette T2 introduced for `#overview` is now the
+   one palette of the application: the slate/ocean surfaces, the high-contrast ink
+   and the aqua accent are declared once, here, and every sheet reads them. The
+   former cream/forest defaults are retired — not aliased — because a view that
+   missed the migration was exactly what left the map as the only dark screen.
 
-/* FireWatch page — design system ported from the retired mockup
-   (tmp/gateway-frontend-separation-1791858059/frontend/styles/{tokens,app}.css,
-   preserved at odd/urgent/rediseno-pagina/referencia-mockup/).
-   Only presentation changed: every identifier, class hook and behaviour that
-   proposal.js depends on is kept. */
+   Every value is an explicit hex literal on purpose. Contrast is COMPUTED from
+   these declarations by `tests/styles/global-palette.test.tsx`, and a `var()`
+   chain would hide the measured value from that arithmetic. Measured pairs (WCAG
+   2.1, relative luminance):
+
+     ink    #f4f1eb on canvas 15.75 · water 13.32 · paper 14.33 · soft 11.82 · raised 11.46
+     muted  #b8c8d2 on canvas 10.34 · water  8.74 · paper  9.41 · soft  7.76 · raised  7.53
+     accent #94dfda on canvas 11.69 · water  9.89 · paper 10.63 · soft  8.77 · raised  8.51
+     accent-ink #0c1b24 on accent #94dfda: 11.54 (a filled accent control never
+     carries the light ink: #f4f1eb on #94dfda is 1.79)
+     edge   #647b8a boundaries: canvas 4.01 · water 3.39 · paper 3.65 · soft 3.01
+     edge-strong #6b8395 boundaries: canvas 4.49 · water 3.79 · paper 4.08 · soft 3.37 · raised 3.27
+     focus  #94dfda indicator: 8.51 at its worst measured surface (raised)
+
+   The board's `--edge` (#647b8a) measures 2.92 on the raised role — one step under
+   the 3:1 non-text minimum — so a boundary painted *on raised* uses
+   `--edge-strong`, the same one-step correction T2 had already made for its route
+   edge. `--line` is a container/row separator, not a control boundary. */
 
 :root {
-  color-scheme: light;
-  --forest-950: #102c2d;
-  --forest-900: #173c3b;
-  --forest-700: #285e56;
-  --forest-500: #638579;
-  --canvas: #f5f5ef;
-  --paper: #fffefa;
-  --ink: #233b39;
-  /* Darkened from the ported #65756e for WCAG AA. The measured browser check
-     put the ported value at 4.44:1 on the canvas, 4.39:1 on the table-header
-     surface and 4.27:1 on the #edf1f2 tag background: all below the 4.5:1
-     normal-text minimum at these 8-12 px sizes. This keeps the hue and reaches
-     4.87:1 in the worst of those cases. */
-  --muted: #5c6c65;
-  --line: #dde3da;
-  --soft: #eef1e9;
-  --terracotta: #a74d34;
-  --terracotta-soft: #f7e9e2;
-  --gold: #85691e;
-  --gold-soft: #f7f0d9;
+  color-scheme: dark;
+
+  /* Surfaces, darkest first. */
+  --canvas: #0f1922;
+  --aerial-water: #152934;
+  --paper: #17222b;
+  --soft: #21313f;
+  --surface-raised: #243341;
+
+  /* Text. */
+  --ink: #f4f1eb;
+  --muted: #b8c8d2;
+
+  /* Lines, boundaries and the focus indicator. */
+  --line: #354b5c;
+  --line-soft: #2a3a47;
+  --edge: #647b8a;
+  --edge-strong: #6b8395;
+  --accent: #94dfda;
+  --focus: #94dfda;
+  /* The ink a filled accent control is labelled with. */
+  --accent-ink: #0c1b24;
+
+  /* Legacy aliases. Other sheets still name the old roles, so the names survive —
+     but mapped to the dark-harmonious tones, never to the cream/forest literals:
+       forest-950  strong text on a dark surface (it was the darkest green)
+       forest-900  the old column/button surface (it was the deepest green)
+       forest-700  the readable accent those sheets paint as text and links
+       forest-500  secondary text and glyphs
+     `--gold` and `--terracotta` keep their warm meaning on their `-soft` surfaces. */
+  --forest-950: #f4f1eb;
+  --forest-900: #17222b;
+  --forest-700: #94dfda;
+  --forest-500: #b8c8d2;
+  --terracotta: #f0a184;
+  --terracotta-soft: #3b2a24;
+  --gold: #e5c87e;
+  --gold-soft: #33301f;
+
   --radius: 12px;
-  --shadow: 0 3px 14px rgb(24 52 40 / 3%);
+  --shadow: 0 12px 28px rgb(0 0 0 / 34%);
   --font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-/* Level palette. The legend swatches below mirror these exact colours. */
+/* ── Risk roles ─────────────────────────────────────────────────────────────
+   One family per severity, dark-adapted as a family: the `fill` is the map shape
+   and the legend swatch, the `line` its outline, the `ink` the text painted on
+   that fill, and the `surface`/`text` pair is what a chip, a badge or a status
+   row is painted with. Kept together so the map and the legend cannot drift, and
+   declared once so a view cannot recolour the vocabulary the map speaks.
+
+   Measured (graphics ≥ 3:1 on the map; text ≥ 4.5:1 on its own surface):
+
+     low     #72b1a1 on water 6.09 · ink 7.11 · text on surface 8.83
+     medium  #d7b16a on water 7.43 · ink 8.67 · text on surface 9.31
+     high    #d97962 on water 4.91 · ink 5.73 · text on surface 8.32
+     extreme #d96f56 on water 4.55 · ink 5.31 · text on surface 7.67
+     unknown #c4cbd1 on water 9.16 · ink 10.69 · text on surface 9.49
+     neutral #71879a on water 4.03 · ink 4.70 · text on surface 9.11
+
+   `extreme` is the top severity role the palette reserves; the API currently
+   serves `bajo`, `medio`, `alto` and `desconocido`, and no view invents the level
+   it did not receive. */
 :root {
-  --level-low-fill: #84ab8e;
-  --level-low-line: #5c8467;
-  --level-medium-fill: #d0b756;
-  --level-medium-line: #a99850;
-  --level-high-fill: #c77454;
-  --level-high-line: #b36647;
-  --level-unknown-fill: #c3cbcd;
-  --level-unknown-line: #6b7a80;
-  --level-neutral-fill: #e6ecea;
-  --level-neutral-line: #9fb3ab;
+  --level-low-fill: #72b1a1;
+  --level-low-line: #8fcbb8;
+  --level-low-ink: #0c1b24;
+  --level-low-surface: #1c3733;
+  --level-low-text: #a6e3d0;
+
+  --level-medium-fill: #d7b16a;
+  --level-medium-line: #e0c478;
+  --level-medium-ink: #0c1b24;
+  --level-medium-surface: #332c1b;
+  --level-medium-text: #e8d29a;
+
+  --level-high-fill: #d97962;
+  --level-high-line: #e5988a;
+  --level-high-ink: #0c1b24;
+  --level-high-surface: #3a2420;
+  --level-high-text: #f4b6a6;
+
+  --level-extreme-fill: #d96f56;
+  --level-extreme-line: #f0a088;
+  --level-extreme-ink: #0c1b24;
+  --level-extreme-surface: #3d1f1a;
+  --level-extreme-text: #f2a894;
+
+  --level-unknown-fill: #c4cbd1;
+  --level-unknown-line: #dde3e7;
+  --level-unknown-ink: #0c1b24;
+  --level-unknown-surface: #2b3238;
+  --level-unknown-text: #d7dde2;
+
+  --level-neutral-fill: #71879a;
+  --level-neutral-line: #8fa4b0;
+  --level-neutral-ink: #0c1b24;
+  --level-neutral-surface: #22303b;
+  --level-neutral-text: #c9d6de;
+
+  /* Semantic text roles the sheets paint as words, never as the only signal. */
+  --danger: #f4b6a6;
+  --success: #8ee0b4;
+  --info-surface: #1c333c;
+  --info-text: #a9dbe8;
+}
+
+/* ── Print ──────────────────────────────────────────────────────────────────
+   A dark console is a screen, not a page. The views that print for a handover
+   (service status, synthetic infrastructure) keep their own black-on-white
+   overrides in `app.css`; this block is the paper palette every other rule
+   inherits, so a token-driven card cannot print its dark surface and its light
+   ink. Measured on white: ink 18.88, muted 12.63, accent 9.41, gold 9.7,
+   terracotta 8.6. */
+@media print {
+  :root {
+    color-scheme: light;
+    --canvas: #ffffff;
+    --aerial-water: #ffffff;
+    --paper: #ffffff;
+    --soft: #f4f4f4;
+    --surface-raised: #ffffff;
+    --ink: #111111;
+    --muted: #333333;
+    --line: #999999;
+    --line-soft: #bbbbbb;
+    --edge: #666666;
+    --edge-strong: #555555;
+    --accent: #0b4f4a;
+    --focus: #0b4f4a;
+    --accent-ink: #ffffff;
+    --forest-950: #111111;
+    --forest-900: #ffffff;
+    --forest-700: #0b4f4a;
+    --forest-500: #333333;
+    --terracotta: #8a2f1c;
+    --terracotta-soft: #ffffff;
+    --gold: #5b4712;
+    --gold-soft: #ffffff;
+    --danger: #7a2417;
+    --success: #1c5735;
+    --info-surface: #ffffff;
+    --info-text: #1f4055;
+    --shadow: none;
+  }
 }

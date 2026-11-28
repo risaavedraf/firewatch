@@ -140,3 +140,28 @@ test('the view offers no button, link or interactive control for any listed capa
   );
   expect(interactive).toHaveLength(0);
 });
+
+// ── T7 — board 19's head, with the real count and no prototype links ───────
+// Board 19 opens the inventory with its scope and its count. The production
+// count is the five rows the list really carries, not the board's seven, and the
+// board's links to prototype screens are not ported: this page states absences
+// and offers no control that would imply the capability exists.
+test('the inventory states its real count and scope without adding a control (T7)', () => {
+  render(<PendingView />);
+
+  const head = document.getElementById('pending-head');
+  expect(head).not.toBeNull();
+  expect(head?.querySelector('h2#pending-title')).not.toBeNull();
+  expect(head?.querySelector('.eyebrow')).toHaveTextContent('ALCANCE DE ESTA ENTREGA');
+  expect(head).toHaveTextContent(/no tienen respaldo en el backend actual/i);
+  expect(head).toHaveTextContent('Solo lectura');
+
+  // The count is the exported list's own length: a stale number would be a false
+  // statement about the delivery.
+  expect(document.getElementById('pending-count')).toHaveTextContent(String(NOT_IMPLEMENTED.length));
+  expect(head).toHaveTextContent(String(NOT_IMPLEMENTED.length));
+
+  expect(document.getElementById('pending-note')).toHaveTextContent(/no cierra ninguna fila/i);
+  // Still nothing to press or follow: the inventory is a statement.
+  expect(document.querySelectorAll('#pending button, #pending a, #pending summary')).toHaveLength(0);
+});

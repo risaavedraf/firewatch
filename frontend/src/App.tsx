@@ -8,6 +8,7 @@ import { ActionsView } from './views/ActionsView';
 import { AuditView } from './views/AuditView';
 import { AuthView } from './views/AuthView';
 import { CompareView } from './views/CompareView';
+import { ExecutiveView } from './views/ExecutiveView';
 import { HistoryView } from './views/HistoryView';
 import { InfrastructureView } from './views/InfrastructureView';
 import { JobsView } from './views/JobsView';
@@ -22,6 +23,7 @@ import { StatusView } from './views/StatusView';
 
 const views: Record<ViewId, () => ReactElement> = {
   overview: OverviewView,
+  executive: ExecutiveView,
   infrastructure: InfrastructureView,
   history: HistoryView,
   compare: CompareView,

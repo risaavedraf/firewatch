@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { idleCopy, rejectedSessionCopy } from '../app/sessionCopy';
 import { useSessionState } from '../app/store';
 import { PanelHeading, UnimplementedNote } from '../components/ui';
+import { OperationsViewHead } from '../components/operations/OperationsPrimitives';
 import { timing } from '../config';
 import { evaluateEffectiveClassifier, type ActiveRuleEvidence } from '../core/active-rule';
 import { jobsStatus, modelRegistry, ready, riskStatus, sources, type Failure } from '../core/api';
@@ -19,6 +20,7 @@ import {
 } from '../domain';
 import { evaluateGatewayProbe, type GatewayProbeDecision } from '../domain/readiness';
 import { evaluateOperationalStatus } from '../domain/operational-status';
+import '../styles/operations-workspace.css';
 
 // N8b — the sources + services view. It carries the scope declaration (S15), the
 // provenance fields reproduced verbatim, the restriction text untouched, an
@@ -314,8 +316,19 @@ export function SourcesView() {
 
   return (
     <section className="view" id="sources" data-view="sources" aria-labelledby="sources-title">
-      <p className="eyebrow">PROCEDENCIA Y SERVICIOS</p>
-      <h2 id="sources-title">Fuentes y servicios</h2>
+      {/* Board 15 opens with the head: what this page answers, and the two scope
+          facts it can state before any read. Both chips are statements about the
+          input and the route, so neither can read as a successful check. */}
+      <OperationsViewHead
+        id="sources-head"
+        eyebrow="PROCEDENCIA Y SERVICIOS"
+        title="Fuentes y servicios"
+        titleId="sources-title"
+        lede="De dónde viene la capa, qué integridad declara el servicio y qué se puede comprobar desde esta página. La procedencia y la restricción se reproducen literales; nada se reinterpreta."
+      >
+        <span className="ops-chip">Entrada sintética</span>
+        <span className="ops-chip">Procedencia del servidor</span>
+      </OperationsViewHead>
       <div className="warning-banner" role="note" aria-label="Alcance de los datos de esta página">
         <span className="warning-icon" aria-hidden="true">
           !
@@ -329,137 +342,144 @@ export function SourcesView() {
         </p>
       </div>
 
-      <article className="panel sources-panel">
-        <PanelHeading
-          eyebrow="PROCEDENCIA GEOGRÁFICA"
-          title="Fuentes y procedencia"
-          badge={
-            <span className="neutral-tag" id="sources-badge">
-              {badge}
-            </span>
-          }
-        />
-        <p id="sources-status" className={statusClass} role="status" aria-live="polite">
-          {provenanceStatusText(phase, provenance, provenanceFailure, idleCopy(session, 'consultar la procedencia'))}
-        </p>
-        <dl className="data-list">
-          <div>
-            <dt>Proveedor</dt>
-            <dd id="sources-provider">{accepted ? accepted.provider : field(undefined)}</dd>
-          </div>
-          <div>
-            <dt>Atribución</dt>
-            <dd id="sources-attribution">{accepted ? accepted.attribution : field(undefined)}</dd>
-          </div>
-          <div>
-            <dt>Restricción</dt>
-            <dd id="sources-restriction">{accepted ? accepted.restriction : field(undefined)}</dd>
-          </div>
-          <div>
-            <dt>Registros de la capa</dt>
-            <dd id="sources-record-count">{accepted ? accepted.recordCount : field(undefined)}</dd>
-          </div>
-          <div>
-            <dt>Hash derivado (sha256)</dt>
-            <dd id="sources-derived-sha256">{accepted ? accepted.derivedSha256 : field(undefined)}</dd>
-          </div>
-          <div>
-            <dt>Integridad declarada</dt>
-            <dd id="sources-integrity">{accepted ? accepted.integrityLabel : field(undefined)}</dd>
-          </div>
-          <div>
-            <dt>Corte de fuente</dt>
-            <dd id="sources-cutoff">{accepted ? accepted.cutoffLabel : field(undefined)}</dd>
-          </div>
-          <div>
-            <dt>Entrada de riesgo</dt>
-            <dd id="sources-input">{accepted ? accepted.riskInputLabel : field(undefined)}</dd>
-          </div>
-        </dl>
-        <UnimplementedNote>
-          Hallazgos de calidad: <code>/v1/risk/sources</code> publica la procedencia y la integridad reales, no un
-          catálogo de hallazgos de calidad. Las acciones preventivas sí existen y viven en su propia vista{' '}
-          (<a href="#actions">#actions</a>).
-        </UnimplementedNote>
-      </article>
-
-      <article className="panel pipeline-panel" id="pipeline" aria-labelledby="pipeline-title">
-        <PanelHeading
-          eyebrow="ESTADO COMPROBABLE"
-          titleId="pipeline-title"
-          title="Servicios y veredicto operativo"
-          badge={
-            <span className="neutral-tag" id="pipeline-badge">
-              {pipeline !== null ? pipeline.badge : 'SIN VERIFICAR'}
-            </span>
-          }
-        />
-        <p id="pipeline-status" className={pipelineClass} role="status" aria-live="polite">
-          {pipelineStatus}
-        </p>
-        <dl className="data-list compact">
-          <div>
-            <dt>Servicio de riesgo</dt>
-            <dd id="pipeline-risk">{riskDecision !== null ? riskDecision.label : 'Sin verificar'}</dd>
-          </div>
-          <div>
-            <dt>Servicio de trabajos</dt>
-            <dd id="pipeline-jobs">{jobsDecision !== null ? jobsDecision.label : 'Sin verificar'}</dd>
-          </div>
-          <div>
-            <dt>Gateway</dt>
-            <dd id="pipeline-gateway">{gatewayEvidence}</dd>
-          </div>
-          <div>
-            <dt>Fuente meteorológica</dt>
-            <dd id="operational-weather">{WEATHER_INTEGRATION}</dd>
-          </div>
-          <div>
-            <dt>Regla activa</dt>
-            <dd id="operational-rule">{ruleVersion}</dd>
-          </div>
-          <div>
-            <dt>Hash de parámetros</dt>
-            <dd id="operational-rule-hash">{ruleHash}</dd>
-          </div>
-          <div>
-            <dt>Tipo efectivo</dt>
-            <dd id="operational-rule-kind">{ruleKind}</dd>
-          </div>
-          <div>
-            <dt>Frescura reportada</dt>
-            <dd id="operational-freshness">{freshness}</dd>
-          </div>
-        </dl>
-        <p className="panel-note" id="operational-rule-evidence">
-          {ruleEvidence}
-        </p>
-        <div className="operational-verdict">
-          <div className="operational-verdict-head">
-            <p className="eyebrow">VEREDICTO OPERATIVO</p>
-            <span className="neutral-tag" id="operational-verdict-badge">
-              {verdict.badge}
-            </span>
-          </div>
-          <h4 id="operational-verdict-title">{verdict.title}</h4>
-          <p id="operational-verdict">{verdict.text}</p>
-          {/* The only verification announcement. Its text is derived from the
-              verdict state, so a 30 s refresh that reaches the same verdict does
-              not mutate this node (no repeated announcement), while a transition
-              updates it once. It names the verdict only: the visible paragraph is
-              not a live region, and the service/provenance paragraphs keep their
-              own regions for their own facts. */}
-          <p className="sr-only" id="operational-verdict-announcement" role="status" aria-live="polite">
-            {verdict.state === 'unconsulted' || verdict.state === 'loading'
-              ? ''
-              : `Veredicto operativo: ${verdict.title}.`}
-          </p>
-          <p className="panel-note" id="operational-scope">
-            Esta vista no consulta métricas ni telemetría y no abre una segunda pantalla de salud: solo lee los
-            contratos listados. La sonda del gateway es una comprobación propia y no acredita los servicios
-            autenticados.
-          </p>
+      {/* Board 15's composition: the provenance answer is the main column, and
+          the checkable service state and the ingest cycle sit at the side. The
+          panels are the same three, with the same ids and the same content. */}
+      <div className="ops-layout">
+        <div className="ops-stack">
+          <article className="panel sources-panel">
+            <PanelHeading
+              eyebrow="PROCEDENCIA GEOGRÁFICA"
+              title="Fuentes y procedencia"
+              badge={
+                <span className="neutral-tag" id="sources-badge">
+                  {badge}
+                </span>
+              }
+            />
+            <p id="sources-status" className={statusClass} role="status" aria-live="polite">
+              {provenanceStatusText(phase, provenance, provenanceFailure, idleCopy(session, 'consultar la procedencia'))}
+            </p>
+            <dl className="data-list">
+              <div>
+                <dt>Proveedor</dt>
+                <dd id="sources-provider">{accepted ? accepted.provider : field(undefined)}</dd>
+              </div>
+              <div>
+                <dt>Atribución</dt>
+                <dd id="sources-attribution">{accepted ? accepted.attribution : field(undefined)}</dd>
+              </div>
+              <div>
+                <dt>Restricción</dt>
+                <dd id="sources-restriction">{accepted ? accepted.restriction : field(undefined)}</dd>
+              </div>
+              <div>
+                <dt>Registros de la capa</dt>
+                <dd id="sources-record-count">{accepted ? accepted.recordCount : field(undefined)}</dd>
+              </div>
+              <div>
+                <dt>Hash derivado (sha256)</dt>
+                <dd id="sources-derived-sha256">{accepted ? accepted.derivedSha256 : field(undefined)}</dd>
+              </div>
+              <div>
+                <dt>Integridad declarada</dt>
+                <dd id="sources-integrity">{accepted ? accepted.integrityLabel : field(undefined)}</dd>
+              </div>
+              <div>
+                <dt>Corte de fuente</dt>
+                <dd id="sources-cutoff">{accepted ? accepted.cutoffLabel : field(undefined)}</dd>
+              </div>
+              <div>
+                <dt>Entrada de riesgo</dt>
+                <dd id="sources-input">{accepted ? accepted.riskInputLabel : field(undefined)}</dd>
+              </div>
+            </dl>
+            <UnimplementedNote>
+              Hallazgos de calidad: <code>/v1/risk/sources</code> publica la procedencia y la integridad reales, no un
+              catálogo de hallazgos de calidad. Las acciones preventivas sí existen y viven en su propia vista{' '}
+              (<a href="#actions">#actions</a>).
+            </UnimplementedNote>
+          </article>
         </div>
+
+        <aside className="ops-side">
+          <article className="panel pipeline-panel" id="pipeline" aria-labelledby="pipeline-title">
+            <PanelHeading
+              eyebrow="ESTADO COMPROBABLE"
+              titleId="pipeline-title"
+              title="Servicios y veredicto operativo"
+              badge={
+                <span className="neutral-tag" id="pipeline-badge">
+                  {pipeline !== null ? pipeline.badge : 'SIN VERIFICAR'}
+                </span>
+              }
+            />
+            <p id="pipeline-status" className={pipelineClass} role="status" aria-live="polite">
+              {pipelineStatus}
+            </p>
+            <dl className="data-list compact">
+              <div>
+                <dt>Servicio de riesgo</dt>
+                <dd id="pipeline-risk">{riskDecision !== null ? riskDecision.label : 'Sin verificar'}</dd>
+              </div>
+              <div>
+                <dt>Servicio de trabajos</dt>
+                <dd id="pipeline-jobs">{jobsDecision !== null ? jobsDecision.label : 'Sin verificar'}</dd>
+              </div>
+              <div>
+                <dt>Gateway</dt>
+                <dd id="pipeline-gateway">{gatewayEvidence}</dd>
+              </div>
+              <div>
+                <dt>Fuente meteorológica</dt>
+                <dd id="operational-weather">{WEATHER_INTEGRATION}</dd>
+              </div>
+              <div>
+                <dt>Regla activa</dt>
+                <dd id="operational-rule">{ruleVersion}</dd>
+              </div>
+              <div>
+                <dt>Hash de parámetros</dt>
+                <dd id="operational-rule-hash">{ruleHash}</dd>
+              </div>
+              <div>
+                <dt>Tipo efectivo</dt>
+                <dd id="operational-rule-kind">{ruleKind}</dd>
+              </div>
+              <div>
+                <dt>Frescura reportada</dt>
+                <dd id="operational-freshness">{freshness}</dd>
+              </div>
+            </dl>
+            <p className="panel-note" id="operational-rule-evidence">
+              {ruleEvidence}
+            </p>
+            <div className="operational-verdict">
+              <div className="operational-verdict-head">
+                <p className="eyebrow">VEREDICTO OPERATIVO</p>
+                <span className="neutral-tag" id="operational-verdict-badge">
+                  {verdict.badge}
+                </span>
+              </div>
+              <h4 id="operational-verdict-title">{verdict.title}</h4>
+              <p id="operational-verdict">{verdict.text}</p>
+              {/* The only verification announcement. Its text is derived from the
+                  verdict state, so a 30 s refresh that reaches the same verdict does
+                  not mutate this node (no repeated announcement), while a transition
+                  updates it once. It names the verdict only: the visible paragraph is
+                  not a live region, and the service/provenance paragraphs keep their
+                  own regions for their own facts. */}
+              <p className="sr-only" id="operational-verdict-announcement" role="status" aria-live="polite">
+                {verdict.state === 'unconsulted' || verdict.state === 'loading'
+                  ? ''
+                  : `Veredicto operativo: ${verdict.title}.`}
+              </p>
+              <p className="panel-note" id="operational-scope">
+                Esta vista no consulta métricas ni telemetría y no abre una segunda pantalla de salud: solo lee los
+                contratos listados. La sonda del gateway es una comprobación propia y no acredita los servicios
+                autenticados.
+              </p>
+            </div>
       </article>
 
       <article className="panel cycle-panel" id="cycle" aria-labelledby="cycle-title">
@@ -502,7 +522,9 @@ export function SourcesView() {
             <dd id="cycle-last-error">{cycle !== null && cycle.available && cycle.lastError !== '' ? cycle.lastError : 'Sin error informado'}</dd>
           </div>
         </dl>
-      </article>
+          </article>
+        </aside>
+      </div>
     </section>
   );
 }
