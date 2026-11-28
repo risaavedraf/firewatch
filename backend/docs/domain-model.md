@@ -10,8 +10,10 @@ read from a migrated database, not from the migration tree. The basis is the
 isolated compose project `fw-schema-inv` (`postgis/postgis:17-3.5`: PostgreSQL
 17.5 with PostGIS 3.5.2), migrated from zero from HEAD `54d7ea1` plus the
 prevention assignment migration, where the catalog holds 22 relations and 138
-columns. Seventeen of those relations and 117 of those columns are the service
-domain, and those seventeen are this document's complete entity list. The other
+columns. `020_batch_evaluation_actor.sql` adds two columns to `batches` (15 → 17),
+so the column totals this document now describes are 140 in the catalog and 119 in
+the service domain. Seventeen of those relations and 119 of those columns are the
+service domain, and those seventeen are this document's complete entity list. The other
 five are out of domain scope and are not modelled: the two
 `schema_migrations` bookkeeping ledgers (`jobs` and `risk`) and the three PostGIS
 extension relations (`geography_columns`, `geometry_columns`,
@@ -104,19 +106,19 @@ geometry.
 - **Notes.** `kind` is constrained to `comuna` or `demo`. This table is a copy, not
   a shared catalogue: the jobs and risk databases each hold their own.
 
-### `risk.public.batches` — 15 columns
+### `risk.public.batches` — 17 columns
 
 The persisted risk assessment and publication: one classified batch of one zone,
-with the level, the factors that produced it, the rationale and the policy that
-was in force.
+with the level, the factors that produced it, the rationale, the policy that was in
+force and who triggered the evaluation.
 
 - **Identity.** `id` (`batches_pkey`); the business identity is `job_id`, which is
   `UNIQUE` and `NOT NULL`, so one job yields at most one batch.
 - **Lifecycle.** Inserted once when the risk service finishes one acquisition and
-  classification — an explicitly requested job or an automatic cycle — together
-  with its inbox mark and, for a requested job, its completion event; afterwards
-  it is append-only, because the service role holds `SELECT` and `INSERT` only, so
-  a correction is a new batch, never an edit.
+  classification — an explicitly requested job, an automatic cycle or a manual cycle
+  run — together with its inbox mark and, for a requested job, its completion event;
+  afterwards it is append-only, because the service role holds `SELECT` and `INSERT`
+  only, so a correction is a new batch, never an edit.
 - **Notes.** `model_version` is the behaviour that produced the level, not a
   label; `risk_level` is the closed vocabulary `bajo`, `medio`, `alto`,
   `desconocido`; `policy_ref` carries `policy_id` and `params_hash` when it exists;
@@ -124,6 +126,13 @@ was in force.
   deadline derived from `requested_at`. `location` is a stored point consulted
   only for the legacy demo zone — every other zone is served from
   `zones.geometry` — so it is a map payload, not an observed location.
+  `evaluation_trigger` is the provenance of the evaluation itself: `scheduler` for
+  the automatic cycle and every queued job delivery, `manual` for an operator's
+  explicit request through `POST /v1/risk/cycle/run`. `evaluated_by` is that
+  operator's verified token subject, and NULL for a scheduled evaluation: the actor
+  is identity the gate proved, never a field of the request, and the two columns are
+  constrained together so a scheduled row cannot claim one and a manual row cannot
+  exist without one.
 
 ### `risk.public.inbox` — 2 columns
 
@@ -372,7 +381,7 @@ places and a mermaid entity identifier is global to the diagram.
 | `JOBS_INBOX` | `jobs.public.inbox` | 2 |
 | `JOBS_OUTBOX` | `jobs.public.outbox` | 5 |
 | `JOBS_ZONES` | `jobs.public.zones` | 4 |
-| `RISK_BATCHES` | `risk.public.batches` | 15 |
+| `RISK_BATCHES` | `risk.public.batches` | 17 |
 | `RISK_INBOX` | `risk.public.inbox` | 2 |
 | `RISK_MODELS` | `risk.public.models` | 7 |
 | `RISK_OUTBOX` | `risk.public.outbox` | 5 |
@@ -467,6 +476,8 @@ erDiagram
         jsonb policy_ref
         text scenario_id
         timestamptz evaluated_at
+        text evaluation_trigger
+        text evaluated_by
     }
     RISK_INBOX {
         uuid id PK
@@ -578,10 +589,10 @@ The counts below come from the inventory, not from the migrations.
   `models`, `outbox`, `readings`, `zones` in `risk.public`; `actions`,
   `action_evidence`, `action_evidence_review`, `action_history`,
   `action_reassessment`, `directory_users` in `prevention`.
-- **Columns.** 29 + 42 + 46 = 117. Inventory: 138 − 2 (the two ledgers, one column
-  each) − 19 (7 + 7 + 5 PostGIS columns) = 117. ERD attribute lines:
-  6 + 2 + 12 + 5 + 4 = 29 in `jobs`; 15 + 2 + 7 + 5 + 8 + 5 = 42 in `risk.public`;
-  12 + 3 + 6 + 7 + 7 + 11 = 46 in `prevention`; 117 in total. Each entity block's
+- **Columns.** 29 + 44 + 46 = 119. Inventory: 140 − 2 (the two ledgers, one column
+  each) − 19 (7 + 7 + 5 PostGIS columns) = 119. ERD attribute lines:
+  6 + 2 + 12 + 5 + 4 = 29 in `jobs`; 17 + 2 + 7 + 5 + 8 + 5 = 44 in `risk.public`;
+  12 + 3 + 6 + 7 + 7 + 11 = 46 in `prevention`; 119 in total. Each entity block's
   line count equals the column count in its heading and in the mapping table.
 - **Primary keys.** The catalog has 19; 2 belong to the ledgers and 1 to
   `spatial_ref_sys`, leaving 16, and the ERD marks 16 `PK`. The seventeenth

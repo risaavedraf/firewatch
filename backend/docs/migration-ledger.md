@@ -14,7 +14,7 @@ this one, so its versions cannot collide with the two below.
 
 | Module | Versions in the shared ledger | Source |
 | --- | --- | --- |
-| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17, 18, 19 | [risk embed.go](../services/risk/migrations/embed.go):72-89 |
+| `risk` | 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 17, 18, 19, 20 | [risk embed.go](../services/risk/migrations/embed.go):75-93 |
 | `prevention` | 9, 11, 14, 15, 16 | [prevention embed.go](../services/prevention/migrations/embed.go):40-48 |
 | `jobs` | 1, 2, 3, 4, 5, 6, 7 | own database, not in this ledger |
 
@@ -29,9 +29,9 @@ The gaps in risk's sequence are deliberate: 9, 11, 14, 15 and 16 belong to
 `prevention` — 15 is PM-09's field observations and 16 is PM-10's adoption link — and
 nothing may be inserted into a gap to "tidy" the sequence. Integrating the two chains
 turned those two reservations into files without moving a number: `risk` keeps 17 for
-its alert table, 18 for the time-led index of the granular history series and 19 for
-PM-08's personal alert state, and `prevention` keeps 15 and 16, so the claims stay
-disjoint.
+its alert table, 18 for the time-led index of the granular history series, 19 for
+PM-08's personal alert state and 20 for PM-06's evaluation actor, and `prevention`
+keeps 15 and 16, so the claims stay disjoint.
 
 ## The rule
 
@@ -47,15 +47,15 @@ disjoint.
 5. A collision is a test failure, not a review comment. The guard below already
    exists; a reviewer does not need to spot the overlap by eye.
 
-## Next free version = 20
+## Next free version = 21
 
-The highest version claimed in this tree is **19**, `risk`'s
-`backend/services/risk/migrations/019_risk_alert_state.sql`, so the next free
-integer across both services is **20**. PM-05's jobs migration 7 is independent: it
+The highest version claimed in this tree is **20**, `risk`'s
+`backend/services/risk/migrations/020_batch_evaluation_actor.sql`, so the next free
+integer across both services is **21**. PM-05's jobs migration 7 is independent: it
 lives in the jobs database's own ledger and does not change this determination.
 Prevention's next migration must take version
-20, not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13, 17,
-18 and 19, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
+21, not the next integer in its own list: `risk` holds 12 (`012_readings.sql`), 13, 17,
+18, 19 and 20, and `prevention` holds 9, 11, 14, 15 and 16. This paragraph is the
 determination the rule asks for: a migration is numbered against the integrated tree,
 never against its own module.
 
@@ -90,6 +90,18 @@ guarantee — a green run in a split tree proves nothing about collisions, and t
 claim only holds where both modules were checked out together.
 
 ## History
+
+Version 20 is PM-06's evaluation actor (`020_batch_evaluation_actor.sql`). It was
+claimed against the integrated tree after 19 was taken by the personal notification
+state, and it takes the next free integer the previous determination named instead of
+the next integer in risk's own list. It is additive on `batches`: two columns, one
+`CHECK` and no rewrite. `evaluation_trigger` is `NOT NULL DEFAULT 'scheduler'` so the
+rows written before it existed keep an honest value instead of a backfilled claim, and
+`evaluated_by` stays `NULL` for a scheduled evaluation. The `CHECK` refuses
+`(scheduler, actor)` and `(manual, NULL)` - and any blank actor - so the provenance
+cannot contradict itself even if a future writer forgot the rule. The application role
+keeps the table-level `SELECT`/`INSERT` grant from 001, so no new grant is added and
+no rewrite of a stored trigger or actor becomes possible.
 
 Version 19 is PM-08's personal notification state (`019_risk_alert_state.sql`). It was
 claimed against the integrated tree after 18 was taken by the time-led history index,
