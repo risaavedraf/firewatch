@@ -39,6 +39,7 @@ import { zoneLabel } from '../components/map/projection';
 import { ExecutivePanel } from '../components/executive/ExecutivePanel';
 import { useExecutiveSummary } from '../components/executive/useExecutiveSummary';
 import { AerialWorkstation } from '../components/territory/AerialWorkstation';
+import { SectorCoverageTable } from '../components/territory/SectorCoverage';
 import { DataList, Metric, PanelHeading, StatusCopy, UnimplementedNote } from '../components/ui';
 import '../styles/aerial-workspace.css';
 import '../styles/history-workspace.css';
@@ -47,6 +48,7 @@ import {
   history,
   latest,
   modelVersions,
+  vegetation,
   zones,
   type Failure,
   type Outcome,
@@ -54,9 +56,12 @@ import {
 import type { SessionState } from '../core/session';
 import {
   computeFactorBars,
+  environmentDistribution,
   evaluateActiveModel,
   evaluateValidity,
   generateZonePdf,
+  LAND_COVER_BADGE,
+  landCoverView,
   latestOutcome,
   levelLabel,
   presentBatch,
@@ -64,6 +69,7 @@ import {
   priorityRankLabel,
   priorityStatusCopy,
   priorityView,
+  sectorCoverageRows,
   validityLabel,
   zonePdfFilename,
   type ActiveModel,
@@ -77,7 +83,7 @@ import {
   SYNTHETIC_ENVIRONMENT_NOTICE,
   type RecommendationPlan,
 } from '../domain/recommendations';
-import type { RiskBatch, ZoneCollection, ZoneFeature } from '../types/api';
+import type { RiskBatch, VegetationCatalogue, ZoneCollection, ZoneFeature } from '../types/api';
 
 // Copy reproduced from the retired page. The operational-validity label and the
 // synthetic-input notice are deliberately separate: a `published_at` timestamp
@@ -122,6 +128,15 @@ type BatchState =
   | { kind: 'batch'; batch: RiskBatch };
 
 type HistoryState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'ready'; count: number } | { kind: 'failed' };
+
+// V1-P-01 / PM-12 — the land-cover layer. It is ONE read for the whole territory and
+// it is independent of the selected zone, so moving the selection never re-requests
+// it and a failed answer cannot be repaired by clicking another commune.
+type VegetationState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'failed' }
+  | { kind: 'ready'; catalogue: VegetationCatalogue };
 
 interface ValidityView {
   text: string;
@@ -337,6 +352,38 @@ function recommendationStatus(
   }
 }
 
+// V1-P-01 / PM-12 — what the sector panel states. The sentence is built from the
+// rows the layer actually answered: a failed or empty read says so and the table
+// renders no row, because an invented comuna would be a coverage nobody served.
+function vegetationStatus(
+  layer: VegetationState,
+  session: SessionState,
+  signedIn: boolean,
+  sessionClosed: boolean,
+): string {
+  switch (layer.kind) {
+    case 'idle':
+      if (signedIn) return 'Consultando la capa de vegetación…';
+      return sessionClosed
+        ? 'La capa de vegetación se consulta de nuevo al iniciar sesión; no se conserva ninguna lectura anterior.'
+        : idleCopy(session, 'consultar la capa de vegetación');
+    case 'loading':
+      return 'Consultando la capa de vegetación…';
+    case 'failed':
+      return 'No se pudo consultar la capa de vegetación: la API no respondió o la respuesta no cumple el contrato. La tabla queda sin filas y no se sustituye por datos inventados.';
+    case 'ready': {
+      const rows = sectorCoverageRows(layer.catalogue);
+      if (rows.length === 0) {
+        return 'La capa de vegetación respondió sin comunas: la tabla queda sin filas y no se sustituye por datos inventados.';
+      }
+      const distribution = environmentDistribution(layer.catalogue)
+        .map(entry => `${entry.label} ${entry.count}`)
+        .join(', ');
+      return `Capa de cobertura de suelo servida por /v1/risk/vegetation: ${rows.length} comunas del catálogo (${distribution}). Es sintética y declarada, así que no sustituye la variable escalar de cobertura vegetal que lee la regla.`;
+    }
+  }
+}
+
 // Operational validity is a property of the batch window. The label is computed
 // here, never during render: `Date.now()` is impure, and this runs from async
 // callbacks and the bounded timer instead.
@@ -421,6 +468,8 @@ export function OverviewView() {
   const [catalogue, setCatalogue] = useState<CatalogueState | null>(null);
   const [read, setRead] = useState<ReadState | null>(null);
   const [activeModel, setActiveModel] = useState<ActiveModel | null>(null);
+  // V1-P-01 / PM-12 — the land-cover layer read. It is independent of the selection.
+  const [layer, setLayer] = useState<VegetationState>({ kind: 'idle' });
   // PM-01 / T4 — the server summary is one read for the mounted view, owned by
   // the shared hook so the executive route cannot double-request it. Its failure
   // is a stated outcome inside the panel, never zeros.
@@ -499,6 +548,28 @@ export function OverviewView() {
     })();
   }, [signedIn]);
 
+  // V1-P-01 / PM-12 — the land-cover layer, one read for the whole territory. Its
+  // failure owns only the sector panel: the map, the batch card and the executive
+  // summary keep whatever their own reads answered. The state is reset when the
+  // session ends, so a closed session never keeps describing a layer.
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    const controller = new AbortController();
+    let active = true;
+    // No `setState` on entry: the pending phase is derived during render, exactly as
+    // the per-zone reads derive theirs, so this effect only settles. Setting it here
+    // would render twice for one read and trip the hooks rule for a cascading render.
+    void (async () => {
+      const result = await vegetation(controller.signal);
+      if (!active) return;
+      setLayer(result.ok ? { kind: 'ready', catalogue: result.data } : { kind: 'failed' });
+    })();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [signedIn]);
+
   // One selection reads both endpoints. The transport fences every response by
   // its own sequence and by the token it was issued with, and this effect's
   // cleanup aborts whatever the previous selection started.
@@ -559,6 +630,7 @@ export function OverviewView() {
     setCatalogue(null);
     setRead(null);
     setActiveModel(null);
+    setLayer({ kind: 'idle' });
     setSessionClosed(true);
   }, [signedIn]);
 
@@ -648,6 +720,16 @@ export function OverviewView() {
   // publicado. No se recalcula aquí: si la API no lo sirvió, la ficha lo dice en
   // vez de derivar un puesto del nivel de riesgo.
   const zonePriority = priorityView(batchData?.priority);
+  // V1-P-01 / PM-12 — la cobertura de suelo del lote publicado. Se lee del miembro
+  // que la API adjuntó al lote; no se pide a la capa por la comuna seleccionada,
+  // porque entonces la ficha mostraría un dato que el lote no trajo.
+  const zoneLandCover = landCoverView(batchData?.land_cover);
+  // The pending phase is derived, not stored: an idle layer inside an open session
+  // IS the read in flight, and the settled state is the only one the effect writes.
+  const layerView: VegetationState = layer.kind === 'idle' && signedIn ? { kind: 'loading' } : layer;
+  const sectorRows = layer.kind === 'ready' ? sectorCoverageRows(layer.catalogue) : [];
+  const layerStatus = vegetationStatus(layerView, session, signedIn, sessionClosed);
+  const layerBadge = layer.kind === 'ready' ? LAND_COVER_BADGE : 'SIN CONSULTAR';
   const priorityPlaced = zonePriority.kind === 'ranked';
 
   // T2 — la estación de trabajo. Cada frase es un hecho que esta vista ya leyó: la
@@ -932,6 +1014,60 @@ export function OverviewView() {
             Cobertura por sector: la API no publica lecturas ni un porcentaje de cobertura por sector. Su unidad es la
             comuna (código CUT), así que esta ficha no muestra un porcentaje de cobertura.
           </UnimplementedNote>
+          {/*
+            V1-P-01 / PM-12 — la cobertura de suelo y el entorno que el lote
+            publicado trae como miembro aditivo. La capa es sintética y declarada,
+            no una medición satelital, y no sustituye la variable escalar
+            `cobertura_vegetal` que la regla leyó: esa sigue en «Factores» y aquí
+            no se recalcula ni se reemplaza.
+          */}
+          <h4>Cobertura de suelo y entorno</h4>
+          <div className="zone-land-cover" id="zone-land-cover" data-status={zoneLandCover.kind}>
+            <span className="neutral-tag" id="zone-land-cover-badge">
+              {LAND_COVER_BADGE}
+            </span>
+            <DataList
+              items={[
+                {
+                  label: 'Clase de entorno',
+                  value: (
+                    <span id="zone-land-cover-environment">
+                      {zoneLandCover.kind === 'present' ? zoneLandCover.environment : '—'}
+                    </span>
+                  ),
+                },
+                {
+                  label: 'NDVI medio',
+                  value: (
+                    <span id="zone-land-cover-ndvi">
+                      {zoneLandCover.kind === 'present' ? zoneLandCover.ndviMean : '—'}
+                    </span>
+                  ),
+                },
+                {
+                  label: 'Rango NDVI',
+                  value: (
+                    <span id="zone-land-cover-range">
+                      {zoneLandCover.kind === 'present' ? zoneLandCover.ndviRange : '—'}
+                    </span>
+                  ),
+                },
+                {
+                  label: 'Clase dominante',
+                  value: (
+                    <span id="zone-land-cover-dominant">
+                      {zoneLandCover.kind === 'present'
+                        ? `${zoneLandCover.dominant.label} (${zoneLandCover.dominant.percent})`
+                        : '—'}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+            <StatusCopy id="zone-land-cover-status">
+              {zoneLandCover.kind === 'present' ? zoneLandCover.summary : zoneLandCover.reason}
+            </StatusCopy>
+          </div>
         </article>
       </div>
 
@@ -942,6 +1078,35 @@ export function OverviewView() {
         lectura agregada. T4 posee el diseño de esta sección.
       */}
       <ExecutivePanel state={executiveState} zoneNames={zoneNames} batchIsDemo={batchData?.demo === true} />
+
+      {/*
+        V1-P-01 / PM-12 — la tabla de sectores. Una fila por comuna del catálogo
+        servido por `/v1/risk/vegetation`, con su clase de entorno, su NDVI medio, su
+        cobertura dominante y su procedencia declarada. Un fallo de ESTA lectura solo
+        posee este panel: no hay filas, el estado lo dice y ningún dato se inventa.
+        Se coloca después del resumen ejecutivo para no mover la banda que T4 fijó
+        como primer hermano tras la vista aérea.
+      */}
+      <article className="panel" id="sector-coverage" aria-labelledby="sector-coverage-title">
+        <PanelHeading
+          eyebrow="COBERTURA VEGETAL"
+          titleId="sector-coverage-title"
+          title="Tabla de sectores"
+          badge={
+            <span className="neutral-tag" id="vegetation-badge">
+              {layerBadge}
+            </span>
+          }
+        />
+        <StatusCopy id="vegetation-status">{layerStatus}</StatusCopy>
+        <SectorCoverageTable rows={sectorRows} />
+        <p className="panel-note" id="sector-coverage-note">
+          Una fila por comuna del catálogo. La capa es sintética y declarada (<code>SINTETICO_SEED_V1</code>): no es
+          una medición satelital, no trae instante de captura y no establece frescura. Es complementaria: la variable
+          escalar <code>cobertura_vegetal</code> sigue siendo el insumo de vegetación entre las cinco variables
+          canónicas del clasificador, y esta tabla no la recalcula ni la sustituye.
+        </p>
+      </article>
 
       <section className="metrics-grid metrics-three" aria-label="Resumen real de la sesión">
         <Metric

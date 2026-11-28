@@ -19,3 +19,5 @@ export * from './model';
 export * from './job-progress';
 // V1-P-02 / PM-11 — how the served regional priority is read and stated.
 export * from './priority';
+// V1-P-01 / PM-12 — how the served land-cover layer is read and stated.
+export * from './vegetation';

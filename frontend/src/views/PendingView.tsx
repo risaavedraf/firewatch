@@ -55,14 +55,16 @@ export type UnimplementedCapability = {
 // member. `#overview` renders it in the zone detail card and `#infrastructure`
 // publishes the weight table with the per-comuna index, so the capability the row
 // declared absent is answered and the row leaves the inventory.
+//
+// V1-P-01 / PM-12 retired «Cobertura y entorno por sector»: `GET
+// /v1/risk/vegetation` publishes the land-cover layer of every catalogue commune
+// —NDVI, the five-class split and the environment class, all declared as synthetic
+// (`SINTETICO_SEED_V1`)— and `latest`/`batches` attach that entry as `land_cover`.
+// `#overview` renders it in the sector table and in the zone detail card, so the
+// last of the two original entries leaves the inventory and the count is one. The
+// layer is complementary: the scalar `cobertura_vegetal` of the rule is untouched.
 // eslint-disable-next-line react-refresh/only-export-components
 export const NOT_IMPLEMENTED: readonly UnimplementedCapability[] = [
-  {
-    capability: 'Cobertura y entorno por sector',
-    reason:
-      'La API no publica cobertura ni entorno por comuna: solo el catálogo, el lote publicado y sus factores.',
-    location: 'Tabla de sectores',
-  },
   {
     capability: 'Revisar e incorporar registros, y hallazgos de calidad',
     reason:
