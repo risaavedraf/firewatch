@@ -183,10 +183,11 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 	reviews := reviewStoreFrom(store)
 	auditor := reviewAuditorFrom(store)
 	mux.HandleFunc("GET /v1/risk/sources", sourcesFromWithCycle(provider, runner, reviews, geo.ComunasProvenanceJSON, geo.ComunasGeoJSON))
-	// The review is an admin action like the manual cycle: it appends a decision to
-	// an append-only resource, and the actor it records is the verified token
-	// subject rather than a field the caller could name.
-	mux.HandleFunc("POST /v1/risk/sources/{source_id}/review", requireAdmin(sourceReview(reviews, auditor, provider, runner, time.Now)))
+	// The review is a tactical action like the manual cycle: analista and admin may
+	// append a decision to an append-only resource, a viewer is refused 403, and the
+	// actor it records is the verified token subject rather than a field the caller
+	// could name. The ratified D-C matrix names this route explicitly.
+	mux.HandleFunc("POST /v1/risk/sources/{source_id}/review", requireTactical(sourceReview(reviews, auditor, provider, runner, time.Now)))
 	authorized := withErrorRecovery(Authorize(verifier, mux))
 	if classifiers == nil {
 		return authorized

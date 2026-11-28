@@ -1607,7 +1607,7 @@ paths:
     post:
       operationId: reviewRiskSource
       description: >-
-        Admin. Appends one human decision about one source to an append-only
+        Tactical: analista or admin; a viewer is refused 403. Appends one human decision about one source to an append-only
         resource, and answers the row it stored.
 
         `source_id` must name a source this deployment serves: the active

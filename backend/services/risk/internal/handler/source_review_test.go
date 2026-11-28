@@ -217,14 +217,18 @@ func TestSourceQualityFindingsFollowTheServedEvidence(t *testing.T) {
 	}
 }
 
-// The review is a write: only the admin role reaches it, and the actor it records
-// is the verified token subject - never a field of the body, which is refused.
-func TestSourceReviewRequiresAdminAndUsesTheVerifiedSubject(t *testing.T) {
+// The review is a tactical write: analista and admin reach it, a viewer is refused
+// 403, and the actor it records is the verified token subject - never a field of
+// the body, which is refused. The ratified D-C matrix names this route explicitly
+// (viewer No, analista Si, admin Si), which is why the guard is requireTactical and
+// not requireAdmin; the viewer arm still has to be refused.
+func TestSourceReviewRequiresTacticalRoleAndUsesTheVerifiedSubject(t *testing.T) {
 	for _, tc := range []struct {
 		name, role, subject, token string
 		want                       int
 	}{
 		{"admin", "admin", "operator@example.test", "", http.StatusOK},
+		{"analista", "analista", "analyst@example.test", "", http.StatusOK},
 		{"viewer", "viewer", "viewer@example.test", "", http.StatusForbidden},
 		{"unknown role", "operator", "operator@example.test", "", http.StatusForbidden},
 		{"missing token", "admin", "operator@example.test", "-", http.StatusUnauthorized},
