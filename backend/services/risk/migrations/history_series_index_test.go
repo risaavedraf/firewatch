@@ -61,8 +61,9 @@ func TestRiskHistorySeriesIndexIsAdditiveAndTimeLed(t *testing.T) {
 }
 
 // TestRiskHistorySeriesIndexClaimsTheNextFreeLedgerVersion pins the history
-// migration at 18, followed by the personal alert-state migration at 19. The
-// prevention service's reservations remain unchanged.
+// migration at 18, followed by the personal alert-state migration at 19 and PM-06's
+// evaluation actor at 20. The prevention service's reservations remain unchanged,
+// and the next free integer the ledger names is 21.
 func TestRiskHistorySeriesIndexClaimsTheNextFreeLedgerVersion(t *testing.T) {
 	owned := map[int]bool{}
 	highest := 0
@@ -75,8 +76,8 @@ func TestRiskHistorySeriesIndexClaimsTheNextFreeLedgerVersion(t *testing.T) {
 	if !owned[18] {
 		t.Error("risk does not register version 18; the time-led index would never be created")
 	}
-	if highest != 19 {
-		t.Errorf("risk's highest registered version is %d, want 19; the ledger claim and this migration disagree", highest)
+	if highest != 20 {
+		t.Errorf("risk's highest registered version is %d, want 20; the ledger claim and this migration disagree", highest)
 	}
 	for _, reservedBySibling := range []int{9, 11, 14, 15, 16} {
 		if owned[reservedBySibling] {

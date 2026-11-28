@@ -128,13 +128,17 @@ Six relations, 30 columns. `jobs` owns its database and its own
 
 ## Service `risk` (database `risk`, schema `public`)
 
-Seven service relations, 43 columns. Two columns are `USER-DEFINED
+Seven service relations, 45 columns. Two columns are `USER-DEFINED
 public.geometry`: `batches.location` and `zones.geometry`; the catalog's
 `geometry_columns` view renders them as `POINT`/4326 and `GEOMETRY`/4326. The
 `models_single_active` unique partial index is a uniqueness key and is listed with
-`models`; other indexes are out of scope.
+`models`; other indexes are out of scope. These seven are the relations inventoried
+here, so the column total counts those only: `020_batch_evaluation_actor.sql` moved
+`batches` from 15 to 17 columns, and the two relations created later by
+`017_risk_alerts.sql` and `019_risk_alert_state.sql` are not part of this
+enumeration.
 
-### `public.batches` — 15 columns
+### `public.batches` — 17 columns
 
 | Column | Type | Nullable | Default |
 | --- | --- | --- | --- |
@@ -153,6 +157,16 @@ public.geometry`: `batches.location` and `zones.geometry`; the catalog's
 | `policy_ref` | `jsonb` | yes | — |
 | `scenario_id` | `text` | yes | — |
 | `evaluated_at` | `timestamp with time zone` | yes | — |
+| `evaluation_trigger` | `text` | no | `'scheduler'::text` |
+| `evaluated_by` | `text` | yes | — |
+
+`evaluation_trigger` and `evaluated_by` record who triggered the evaluation:
+`evaluation_trigger` is `scheduler` for the automatic cycle and every queued job
+delivery, and `manual` for an explicit operator request; `evaluated_by` carries the
+verified token subject of that operator and is NULL for a scheduled evaluation. A
+`CHECK` (`batches_evaluation_actor_check`) refuses the inconsistent pairs, so a
+scheduled row cannot claim an actor and a manual row cannot exist without a
+non-blank one.
 
 **Keys.**
 

@@ -24,18 +24,22 @@ import (
 // minutes the system ingests, validates, classifies and publishes.
 const DefaultInterval = 15 * time.Minute
 
-// Publisher is the publication seam. Its single method runs the whole
-// ingest-to-persist path for one zone as an INTERNAL, automatic publication: the
-// batch is persisted but no job completion is emitted, because an automatic
-// cycle is not a job and Jobs never stored the id the cycle mints.
+// Publisher is the publication seam. Its methods run the whole ingest-to-persist
+// path for one zone, and each one names the origin it publishes: PublishScheduled
+// is the INTERNAL automatic publication (the batch is persisted but no job
+// completion is emitted, because an automatic cycle is not a job and Jobs never
+// stored the id the cycle mints), and PublishManual is a run a verified operator
+// asked for, which records that operator as the evaluation's actor.
 //
-// The seam is a method of its own instead of a flag on the explicit job
-// publication, so the cycle cannot accidentally settle a job and the decision is
-// never derived from the actor string: a request whose ActorID happens to read
-// "cycle-scheduler" still settles its job when it arrives as a real delivery,
-// and a scheduled publication never does.
+// The seams are methods of their own instead of a flag on the explicit job
+// publication, so the cycle cannot accidentally settle a job, every manual run
+// carries an identity the API gate already proved, and the decision is never
+// derived from the actor string: a request whose ActorID happens to read
+// "cycle-scheduler" still settles its job when it arrives as a real delivery, and
+// a scheduled publication never does.
 type Publisher interface {
 	PublishScheduled(ctx context.Context, request v1.Event) error
+	PublishManual(ctx context.Context, request v1.Event, actor string) error
 }
 
 // DescriptorProvider is the read-only description of the active source, used to
@@ -150,13 +154,48 @@ func (r *Runner) id() string {
 	return "unconfigured"
 }
 
-// RunOnce executes one full cycle synchronously: each configured zone is
-// published in order through the scheduled seam, a zone failure is recorded
-// without aborting the rest, and the resulting state is kept for Statuses. Every
-// zone's batch is persisted, and no zone reports a job completion, because no
-// job row exists for an automatic cycle. Running it is idempotent with respect to
-// its inputs: the clock and identifier generator decide every timestamp and id.
+// RunOnce executes one full cycle synchronously because the 15 minute schedule
+// fired: every configured zone is published through the scheduled seam, a zone
+// failure is recorded without aborting the rest, and the resulting state is kept
+// for Statuses. Every zone's batch is persisted, no zone reports a job completion,
+// and no zone records an actor, because nobody asked for this run. Running it is
+// idempotent with respect to its inputs: the clock and identifier generator decide
+// every timestamp and id.
 func (r *Runner) RunOnce(ctx context.Context) RunResult {
+	return r.run(ctx, evaluationOrigin{})
+}
+
+// RunManual executes one full cycle synchronously because a verified operator asked
+// for it through POST /v1/risk/cycle/run. It publishes exactly as the automatic
+// tick does - same validation, classification and policy checks, and still no job
+// completion, because a manual run is not a job either - with one difference: every
+// persisted batch records the manual origin and the verified token subject as its
+// actor.
+//
+// actor is the subject Authorize put on the request context after verifying the
+// token, never a field of the request. A run without one is refused before any zone
+// is published or any row is written: a blank actor is not an identity, and the
+// schema refuses the pair anyway.
+func (r *Runner) RunManual(ctx context.Context, actor string) RunResult {
+	return r.run(ctx, evaluationOrigin{manual: true, actor: actor})
+}
+
+// evaluationOrigin is who asked for one cycle run, in the vocabulary the
+// persistence seam records. It is unexported and built only by the two entry points
+// above, so a caller cannot configure an origin the runner does not own.
+type evaluationOrigin struct {
+	// manual reports that the run came from the manual trigger. The automatic tick
+	// leaves it false.
+	manual bool
+	// actor is the verified token subject of a manual run and stays empty for the
+	// scheduler.
+	actor string
+}
+
+// run is the single loop both entry points share, so the automatic tick and the
+// manual trigger cannot diverge in what they validate, classify or persist. Only
+// the origin - and therefore the persistence seam and the recorded actor - differs.
+func (r *Runner) run(ctx context.Context, origin evaluationOrigin) RunResult {
 	result := RunResult{
 		SourceID:  r.id(),
 		StartedAt: r.now().UTC(),
@@ -166,6 +205,16 @@ func (r *Runner) RunOnce(ctx context.Context) RunResult {
 	if r.publisher == nil {
 		result.Complete = false
 		result.Zones = append(result.Zones, ZoneResult{ZoneID: "", Error: "cycle publisher is not configured"})
+		result.FinishedAt = r.now().UTC()
+		r.record(result)
+		return result
+	}
+	if origin.manual && strings.TrimSpace(origin.actor) == "" {
+		// Fail closed before any acquisition: a manual evaluation whose operator was
+		// not proved cannot be recorded honestly, and the schema refuses a manual row
+		// without a non-blank actor anyway.
+		result.Complete = false
+		result.Zones = append(result.Zones, ZoneResult{ZoneID: "", Error: "a manual cycle run requires the verified token subject of the operator"})
 		result.FinishedAt = r.now().UTC()
 		r.record(result)
 		return result
@@ -186,10 +235,16 @@ func (r *Runner) RunOnce(ctx context.Context) RunResult {
 			RequestedAt: result.StartedAt,
 			Demo:        synthetic,
 		}
-		// The scheduled seam persists the batch and never reports a job completion.
-		// ActorID is descriptive metadata for logs and the batch's origin, never a
-		// routing decision: the seam decides the origin, not this string.
-		if err := r.publisher.PublishScheduled(ctx, request); err != nil {
+		// The seam decides the origin: neither seam reports a job completion for a
+		// cycle, and only the manual one records an actor. ActorID is descriptive
+		// metadata for logs, never the provenance of the evaluation.
+		var err error
+		if origin.manual {
+			err = r.publisher.PublishManual(ctx, request, origin.actor)
+		} else {
+			err = r.publisher.PublishScheduled(ctx, request)
+		}
+		if err != nil {
 			result.Complete = false
 			result.Zones = append(result.Zones, ZoneResult{ZoneID: zone, Published: false, Error: err.Error()})
 			continue
