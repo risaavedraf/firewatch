@@ -113,10 +113,34 @@ func startupListenerTLS(environment string) (certFile, keyFile string, err error
 // requireListenerTLS accepted the development exception, because the key pair it
 // returns is the one this function receives.
 func listenAndServe(server *http.Server, certFile, keyFile string) error {
-	if certFile != "" {
-		return server.ListenAndServeTLS(certFile, keyFile)
+	if certFile == "" {
+		return server.ListenAndServe()
 	}
-	return server.ListenAndServe()
+	// The served configuration is built in one place so its key pair and its
+	// protocol floor are both decided here instead of inside ListenAndServeTLS.
+	config, err := newListenerTLSConfig(certFile, keyFile)
+	if err != nil {
+		return err
+	}
+	server.TLSConfig = config
+	// The pair is already in TLSConfig; ServeTLS only loads one when the
+	// configuration carries none.
+	return server.ListenAndServeTLS("", "")
+}
+
+// newListenerTLSConfig is the configuration the listener serves with. It loads the
+// key pair the mount holds and states the same protocol floor as the outbound
+// clients, because ListenAndServeTLS(cert, key) would build that configuration
+// internally, where neither half can be asserted. The certificate is served as the
+// mount has it: an expired or wrongly named leaf is the client's verification
+// decision, and refusing it here would hide the handshake this deployment has to
+// report instead of prevent.
+func newListenerTLSConfig(certFile, keyFile string) (*tls.Config, error) {
+	certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS12}, nil
 }
 
 // startupRootCAs reads TLS_CA_FILE and loads the internal CA. No variable is no
@@ -131,14 +155,22 @@ func startupRootCAs() (*x509.CertPool, error) {
 	return pool, nil
 }
 
-// newJWKSClient is the client the OIDC key-set fetches use. A nil pool keeps the
-// bare client with the system roots that this process used before TLS_CA_FILE
-// existed; a configured pool makes that pool the only trust anchor the identity
-// provider is reached with.
+// newJWKSClient is the client the OIDC key-set fetches use. It always carries an
+// explicit TLS configuration: a nil pool keeps the system roots this process used
+// before TLS_CA_FILE existed, and the TLS 1.2 floor is stated either way, so no
+// outbound client of this process depends on a default it does not own. A
+// configured pool makes that pool the only trust anchor the identity provider is
+// reached with.
 func newJWKSClient(rootCAs *x509.CertPool) *http.Client {
-	client := &http.Client{Timeout: 5 * time.Second}
-	if rootCAs != nil {
-		client.Transport = &http.Transport{TLSClientConfig: &tls.Config{RootCAs: rootCAs}}
-	}
-	return client
+	return &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{TLSClientConfig: newOutboundTLSConfig(rootCAs)}}
+}
+
+// newOutboundTLSConfig is the client configuration every outbound client of this
+// process verifies with, built from the pool TLS_CA_FILE produced. When a pool is
+// configured it is the only anchor; verification stays on because no field here can
+// switch it off; and the TLS 1.2 floor is stated instead of inherited from
+// whatever default the toolchain happens to ship, so a future default cannot lower
+// what this deployment requires.
+func newOutboundTLSConfig(rootCAs *x509.CertPool) *tls.Config {
+	return &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
 }
