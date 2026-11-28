@@ -146,7 +146,7 @@ function idempotencyKey(call: { init: RequestInit }): string {
   return headers['Idempotency-Key'];
 }
 
-test('the section keeps its identity, the admin-only statement and the unimplemented note', async () => {
+test('the section keeps its identity, the tactical statement and the unimplemented note', async () => {
   await connect();
   await mount();
   await serveCatalogue();
@@ -162,7 +162,8 @@ test('the section keeps its identity, the admin-only statement and the unimpleme
 
   // The action is administrative, and the view says so before the button.
   expect(section).toHaveTextContent(/ACCIÓN ADMINISTRATIVA/);
-  expect(section).toHaveTextContent(/requiere permisos de administrador/);
+  // PM-15 (D-C): dispatching a job is the tactical half of the ratified matrix.
+  expect(section).toHaveTextContent(/requiere el rol analista o admin/);
 
   // V1-P-06 — the obsolete absence is retired. The manual publication exists as
   // `POST /v1/risk/cycle/run`, so the view offers it as a real control, states its

@@ -67,19 +67,19 @@ Rutas: **inline** = documental o acotado; **worker** = implementación con super
 
 | ID | Tarea | S# | Cierra cuando | Ruta |
 |---|---|---|---|---|
-| PM-15 | Rol `analista` (ítem 16). | R1, R6 | El realm declara los tres roles del mandante, la matriz de qué puede cada uno está escrita y probada ruta por ruta, y `viewer` y `admin` conservan exactamente el comportamiento que ya está probado (decisión D-C). | bloqueado — por la decisión D-C de política de acceso |
+| PM-15 | Rol `analista` (ítem 16). | R1, R6 | El realm declara los tres roles del mandante, la matriz de qué puede cada uno está escrita y probada ruta por ruta, y `viewer` y `admin` conservan exactamente el comportamiento que ya está probado (decisión D-C). Estado: **implementación local verificada en `feat/pm-15-rol-analista`**, sin fusión ni aceptación —rol `analista` y usuario `demo-analista` en [`firewatch-realm.json`](../../backend/deploy/local/firewatch-realm.json), vocabulario cerrado y guardas tácticas/finales en los cuatro servicios Go, matriz declarada en [`firewatch-v1.yaml`](../../backend/contracts/openapi/firewatch-v1.yaml) y `SessionView` de cuatro columnas—; el tracker es [`../tasks/pm-15-rol-analista.md`](../tasks/pm-15-rol-analista.md). | worker — D-C resuelta (L12). Falta la fusión de la rama y la persona que acepte (`R6`) |
 | PM-16 | Tablero de estado de servicios (ítem 19). | R1, R6 | Una sola vista muestra API, fuente meteorológica y servicios con un veredicto operativo explícito; la fila del «modelo» dice lo que corresponde —regla activa con su versión y su hash— y no finge un modelo que no existe. | worker |
 | PM-17 | Asistente IA explicativo (ítem 20). | R1, R2, R7 | El asistente responde solo con resultados reales del sistema, cita la zona y el lote que usó, no inventa variables que el lote no trae, y responde con un texto fijo y probado ante una pregunta fuera de alcance; `GRD-I1` y `GRD-I2` están resueltos antes de abrir esta tarea. | bloqueado — por `GRD-I1`/`GRD-I2` |
 
 ## Decisiones
 
-Las cuatro decisiones que el corte dejó abiertas viven en [`../requerimientos-producto-mandante.md`](../requerimientos-producto-mandante.md) §7; aquí se registra su estado al 2026-11-25. Solo **D-C** sigue abierta, y **ninguna se resuelve por estar escrita**: la definición de D-B se implementa cuando PM-01 se implemente y el rótulo de D-D se prueba en PM-02.
+Las cuatro decisiones que el corte dejó abiertas viven en [`../requerimientos-producto-mandante.md`](../requerimientos-producto-mandante.md) §7; aquí se registra su estado, con D-A, D-B y D-D al 2026-11-25 y **D-C resuelta por ratificación del responsable del proyecto** (L12). Las cuatro quedan cerradas como decisión, y **ninguna se resuelve por estar escrita**: la definición de D-B se implementa cuando PM-01 se implemente, el rótulo de D-D se prueba en PM-02 y la matriz de D-C se prueba en PM-15.
 
 | # | Estado | Resolución vigente |
 |---|---|---|
 | D-A | **Resuelta** — S2, L7 | Hay permiso para usar datos sintéticos: se aceptan fixtures **declarados como sintéticos** en la interfaz y en el PDF. PM-11, PM-12 y PM-14 dejan de estar bloqueadas por el insumo del mandante; siguen abiertas por implementación y por aceptación (R6). R3 no se relaja. |
 | D-B | **Resuelta** — S3, L7 | Una zona es **crítica** cuando sus **dos últimos lotes publicados** tienen nivel `alto`. Se escribe en el criterio de PM-01 y en el contrato cuando se implemente; no se inventa una definición distinta. Está implementada en la rama `feat/pm-01-executive-panel` (`66f6807`), sin fusión. |
-| D-C | **Abierta** | El rol `analista` sigue sin decisión del responsable: PM-15 conserva su compuerta. |
+| D-C | **Resuelta** — ratificación del responsable del proyecto, L12 | Se agrega el rol `analista`: «Operación táctica: evalúa y gestiona acciones, sin admin». La matriz `viewer` vs `analista` vs `admin` está transcrita en L12, se implementa en PM-15 y es la referencia del ítem 16 y de la matriz de acceso del ítem 17. |
 | D-D | **Resuelta** — S4, L7 | El rótulo es «Cómo lo calculó la regla»: aritmética de la regla, no causalidad ni pronóstico. PM-02 y PM-03 lo usan; la prueba que lo fija es trabajo de PM-02. |
 
 ## Log
@@ -145,3 +145,20 @@ Las cuatro decisiones que el corte dejó abiertas viven en [`../requerimientos-p
   - **Qué queda declarado y sintético.** El catálogo es determinista y compilado, cubre las 38 comunas del catálogo geográfico y se rotula `synthetic: true` con `source_label: "SINTETICO_SEED_V1"` en la API y en la página. R3 no se relaja: no se presenta como medición real ni como fuente del mandante.
   - **Dónde vive.** La unidad conjunta de `PM-12` y `V1-P-01` se documenta en [`../tasks/v1-p-01-pm-12-vegetation.md`](../tasks/v1-p-01-pm-12-vegetation.md) sobre la rama `feat/v1-p-01-pm-12-vegetation`. Nada se fusiona ni se publica por este registro, y la fila **no se cierra**: falta la fusión, la aceptación humana (R6) y la ingesta real de la capa, que es de `V1-F-01` (G4).
   - **Lo que no cambió.** Las 18 filas, sus olas y sus compuertas; el conteo de [`../tasks/v1-produccion.md`](../tasks/v1-produccion.md) sigue igual porque ninguna fila cambia de estado, y D-C sigue abierta. L7 describía el corte sin capa y queda como historia.
+
+- **L12 — `D-C` queda resuelta: el responsable del proyecto ratifica el rol `analista` y su matriz, y `PM-15` sale de su compuerta.** Registro de la decisión y de lo que cambia en esta tabla; no fusiona, no acepta y no declara `R6`.
+  - **La decisión, textual.** «Operación táctica: evalúa y gestiona acciones, sin admin — Matriz de permisos `viewer` vs `analista` vs `admin` (`D-C`):
+    | Operación | `viewer` | `analista` | `admin` |
+    | --- | :---: | :---: | :---: |
+    | Consultas `GET` (riesgo, historial, CSV, PDF, fuentes, auditoría, alertas, usuarios) | Sí | Sí | Sí |
+    | Marcas personales de alertas (`PUT /v1/risk/alerts/{id}/state`) | Sí | Sí | Sí |
+    | Disparar evaluación / jobs (`POST /v1/risk/evaluate`, `POST /v1/jobs`) | No | **Sí** | Sí |
+    | Publicar lote evaluado (`POST /v1/risk/batches/{id}/publish`) | No | **No** (solo `admin`) | Sí |
+    | Crear/asignar acciones, subir evidencia, registrar/adoptar observaciones | No | **Sí** | Sí |
+    | Revisar fuentes (`POST /v1/risk/sources/{id}/review`) | No | **Sí** | Sí |
+    | Aprobar/rechazar revisión final de evidencia (`UNDER_REVIEW → COMPLETED/REJECTED`) y `CANCELLED` | No | **No** (solo `admin`) | Sí |
+    Se agrega el rol `analista` y usuario de prueba en `firewatch-realm.json`, middleware Go, OpenAPI y UI.»
+  - **Cómo se aplica sobre las rutas que existen.** Cuatro nombres del texto ratificado no existen literalmente en el árbol y se aplican sobre su ruta real, sin inventar ninguna: `POST /v1/risk/evaluate` es `POST /v1/risk/cycle/run` (`POST /v1/risk/simulate` no escribe y conserva los tres roles), `POST /v1/prevention/actions/{id}/transition` es `.../transitions`, `.../evidence/{evidence_id}/review` es `.../reviews`, y `POST /v1/risk/batches/{id}/publish` y `POST /v1/risk/sources/{id}/review` todavía no tienen ruta en este árbol —quedan declaradas en el contrato y en el tracker, sin guarda que aplicar aquí—. `POST /v1/models/{version}/activate` no es operación táctica y sigue siendo `admin`.
+  - **Lo que la matriz cambia respecto del comportamiento probado de `viewer`.** Las filas «Consultas `GET`» y «Marcas personales de alertas» dicen **Sí** para `viewer`, y el árbol tenía `GET /v1/audit`, `GET /v1/users` y el `PUT /v1/risk/alerts/{id}/state` cerrados a `admin`. La implementación sigue la matriz ratificada: esas tres guardas se abren a los tres roles y las pruebas que fijaban el `403` de `viewer` se reescriben citando esta decisión. El resto del comportamiento probado de `viewer` y `admin` no cambia.
+  - **Qué queda abierto.** `PM-15` pasa a `worker` con implementación local verificada en `feat/pm-15-rol-analista`, su tracker en [`../tasks/pm-15-rol-analista.md`](../tasks/pm-15-rol-analista.md) y sin fusión ni aceptación: `R6` sigue exigiendo contrato, backend probado, página y la persona que acepte. El conteo de [`../tasks/v1-produccion.md`](../tasks/v1-produccion.md) no cambia por esta entrada y L9 deja de describir el estado de `PM-15`.
+  - **Lo que no se toca.** Las entradas L1–L10 no se reescriben: L9 decía «`PM-15` espera la decisión `D-C`» y esa frase describe el momento anterior, no el vigente. La tabla del §7 de [`../requerimientos-producto-mandante.md`](../requerimientos-producto-mandante.md) queda fuera de la superficie de edición de esta rama y sigue registrando `D-C` como abierta: la resolución vigente es la de esta entrada.

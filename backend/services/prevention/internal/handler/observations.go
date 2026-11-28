@@ -178,7 +178,9 @@ type observationRequest struct {
 	Description *string `json:"description"`
 }
 
-// createObservation serves POST /v1/prevention/observations: admin only.
+// createObservation serves POST /v1/prevention/observations: a TACTICAL operation,
+// admitted for analista and admin and refused 403 to a viewer (ratified D-C
+// matrix, «registrar/adoptar observaciones»).
 //
 // The zone is checked against the catalogue by the insert itself, so a code the
 // catalogue does not hold is the documented 422 zone_not_found with no row
@@ -186,7 +188,7 @@ type observationRequest struct {
 // and the application role holds neither grant.
 func createObservation(store ObservationRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !isAdmin(r.Context()) {
+		if !isAnalystOrAdmin(r.Context()) {
 			fail(w, http.StatusForbidden, "forbidden")
 			return
 		}
@@ -298,8 +300,9 @@ type adoptionRequest struct {
 	ActionID *string `json:"action_id"`
 }
 
-// adoptObservation serves POST /v1/prevention/observations/{id}/adoption: admin
-// only.
+// adoptObservation serves POST /v1/prevention/observations/{id}/adoption: a
+// TACTICAL operation, admitted for analista and admin and refused 403 to a viewer
+// (ratified D-C matrix, «registrar/adoptar observaciones»).
 //
 // It is the one authorized operation of PM-10's relationship: an operator states
 // that the recorded observation justifies the selected existing action, and the
@@ -312,7 +315,7 @@ type adoptionRequest struct {
 // records exist and the rule refuses.
 func adoptObservation(store ObservationRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !isAdmin(r.Context()) {
+		if !isAnalystOrAdmin(r.Context()) {
 			fail(w, http.StatusForbidden, "forbidden")
 			return
 		}

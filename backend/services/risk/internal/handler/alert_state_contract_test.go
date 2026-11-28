@@ -43,7 +43,12 @@ func TestRiskContractAlertStateMatchesTheContract(t *testing.T) {
 		{"mark no-op returns the actual state", "admin", http.MethodPut, "application/json", `{"state":"read"}`, &fakeStore{alertStates: map[string]repository.AlertState{alertStateMapKey(alertID, key): dismissed}}, http.StatusOK},
 		{"mark invalid body", "admin", http.MethodPut, "application/json", `{"state":"unread"}`, &fakeStore{}, http.StatusBadRequest},
 		{"mark non-json body", "admin", http.MethodPut, "text/plain", `{"state":"read"}`, &fakeStore{}, http.StatusUnsupportedMediaType},
-		{"mark forbidden for a viewer", "viewer", http.MethodPut, "application/json", `{"state":"read"}`, &fakeStore{}, http.StatusForbidden},
+		// PM-15 (D-C): a personal mark is a per-caller preference, not an
+		// administrative action. The ratified matrix answers «Sí» for viewer,
+		// analista and admin, and an undeclared role is still refused 403.
+		{"mark accepted for a viewer", "viewer", http.MethodPut, "application/json", `{"state":"read"}`, &fakeStore{}, http.StatusOK},
+		{"mark accepted for an analista", "analista", http.MethodPut, "application/json", `{"state":"read"}`, &fakeStore{}, http.StatusOK},
+		{"mark forbidden for an undeclared role", "operator", http.MethodPut, "application/json", `{"state":"read"}`, &fakeStore{}, http.StatusForbidden},
 		{"mark missing alert", "admin", http.MethodPut, "application/json", `{"state":"read"}`, &fakeStore{missingAlerts: missing}, http.StatusNotFound},
 		{"mark storage failure", "admin", http.MethodPut, "application/json", `{"state":"read"}`, &fakeStore{alertStateErr: errors.New("storage unavailable")}, http.StatusServiceUnavailable},
 	} {

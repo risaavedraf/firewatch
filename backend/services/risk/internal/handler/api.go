@@ -131,11 +131,13 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 	// the Authorize gate and requires no further role check, and it stores nothing.
 	mux.HandleFunc("GET /v1/risk/alerts", listAlerts(store))
 	// The personal notification state is a separate resource next to the timeline,
-	// not a member of it: reading one's own mark is a viewer/admin read scoped by
-	// the verified token subject, and applying a mark is admin-only through
-	// requireAdmin. Neither route edits the PM-07 alert row.
+	// not a member of it: both routes are scoped by the verified token subject, and
+	// both admit the three declared roles. A personal mark is a per-caller
+	// preference, not an administrative action: the ratified D-C matrix answers
+	// «Sí» for viewer, analista and admin on PUT /v1/risk/alerts/{id}/state, so it
+	// carries no requireAdmin. Neither route edits the PM-07 alert row.
 	mux.HandleFunc("GET /v1/risk/alerts/{id}/state", alertStateRead(store))
-	mux.HandleFunc("PUT /v1/risk/alerts/{id}/state", requireAdmin(alertStateMark(store)))
+	mux.HandleFunc("PUT /v1/risk/alerts/{id}/state", alertStateMark(store))
 	// The counterfactual simulation is a viewer/admin read like its neighbours: it
 	// is inside the Authorize gate, requires no further role check, recomputes
 	// locally from the rule the batch recorded and writes no row. No gateway change
@@ -158,7 +160,11 @@ func newRiskHandler(store Repository, verifier Verifier, check StatusCheck, runn
 	// requireAdmin, defined in security.go.
 	mux.HandleFunc("GET /v1/models", listModels(store))
 	mux.HandleFunc("POST /v1/models/{version}/activate", requireAdmin(activateModel(store)))
-	mux.HandleFunc("POST /v1/risk/cycle/run", requireAdmin(cycleRun(runner)))
+	// The manual trigger is a tactical operation, not an administrative one: the
+	// ratified D-C matrix refuses it to a viewer and grants it to analista and
+	// admin, which is what requireTactical decides. The counterfactual simulation
+	// above is deliberately NOT in this group: it writes no row and is a read.
+	mux.HandleFunc("POST /v1/risk/cycle/run", requireTactical(cycleRun(runner)))
 	var provider DescriptorProvider
 	if len(providers) == 1 {
 		provider = providers[0]

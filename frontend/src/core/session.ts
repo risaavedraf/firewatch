@@ -11,6 +11,12 @@
 // transaction (`state` + `code_verifier`), which is only useful for the length
 // of the redirect and is removed at the callback and again on logout.
 import { clientID, googleIdentityProvider, issuer, pkceTransactionKey, redirectURI } from '../config';
+import { effectiveRole, type UserRole } from '../domain/roles';
+
+// The realm-role vocabulary the token may declare, re-exported so a consumer of the
+// session does not reach into the pure domain module for the one type it needs.
+// The value is the ratified closed vocabulary (viewer, analista, admin).
+export type { UserRole };
 
 export interface SessionState {
   status: 'signed-out' | 'signing-in' | 'signed-in';
@@ -232,6 +238,16 @@ export function decodeRoles(token: string): string[] | null {
     if (!roles.includes(name)) roles.push(name);
   }
   return roles.length > 0 ? roles : null;
+}
+
+// The single role the token effectively holds, in the ratified precedence
+// `admin > analista > viewer`, or `null` when it declares none of the three. The
+// answer is membership, never the first element: the realm grants its admin
+// account both `viewer` and `admin`, and the order of the claim is the identity
+// provider's. Like `decodeRoles` this reads an UNVERIFIED payload, so it is a
+// display and affordance hint — the server decides every permission.
+export function decodeEffectiveRole(token: string): UserRole | null {
+  return effectiveRole(decodeRoles(token));
 }
 
 // --- PKCE ------------------------------------------------------------------

@@ -130,12 +130,14 @@ func TestUsersContractUnauthorizedResponse(t *testing.T) {
 	assertResponseMatchesContract(t, contract, "/v1/users", http.MethodGet, w)
 }
 
-// TestUsersContractForbiddenResponse pins the documented 403 body a viewer gets.
+// TestUsersContractForbiddenResponse pins the documented 403 body an undeclared
+// role gets on the directory read. The ratified D-C matrix grants the read to
+// viewer, analista and admin, so the refusal case is `operator`.
 func TestUsersContractForbiddenResponse(t *testing.T) {
 	contract := loadContract(t)
 	h, signer := usersApp(t, &stubDirectory{})
 
-	w := requestWith(t, h, http.MethodGet, "/v1/users", token(t, signer, "viewer", "demo-viewer"), "")
+	w := requestWith(t, h, http.MethodGet, "/v1/users", token(t, signer, "operator", "demo-operator"), "")
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("got %d want %d: %s", w.Code, http.StatusForbidden, w.Body.String())
 	}

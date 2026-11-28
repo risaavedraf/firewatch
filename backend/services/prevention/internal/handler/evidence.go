@@ -23,8 +23,10 @@ const (
 
 // registerEvidenceRoutes mounts the S2 write routes below the same prevention
 // prefix the gateway already proxies. They are registered next to the frozen
-// action routes so one mux carries the whole contract, and the admin-only check
-// stays inside each write handler exactly like the create and transition routes.
+// action routes so one mux carries the whole contract, and the role check stays
+// inside each write handler exactly like the create and transition routes: adding
+// evidence and linking a reassessment are tactical (analista+admin), while the
+// human decision about that evidence is the one write the matrix keeps for admin.
 func registerEvidenceRoutes(mux *http.ServeMux, store Repository) {
 	mux.HandleFunc("POST /v1/prevention/actions/{id}/evidence", addEvidence(store))
 	mux.HandleFunc("POST /v1/prevention/actions/{id}/evidence/{evidence_id}/reviews", reviewEvidence(store))
@@ -41,7 +43,7 @@ type evidenceRequest struct {
 
 func addEvidence(store Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !isAdmin(r.Context()) {
+		if !isAnalystOrAdmin(r.Context()) {
 			fail(w, 403, "forbidden")
 			return
 		}
@@ -117,6 +119,9 @@ type reviewRequest struct {
 
 func reviewEvidence(store Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// The final human review of the evidence is the one prevention write the
+		// ratified D-C matrix keeps for admin alone: an analista who uploaded the
+		// evidence cannot then decide it, and the refusal happens before storage.
 		if !isAdmin(r.Context()) {
 			fail(w, 403, "forbidden")
 			return
@@ -199,7 +204,7 @@ type reassessmentRequest struct {
 
 func linkReassessment(store Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !isAdmin(r.Context()) {
+		if !isAnalystOrAdmin(r.Context()) {
 			fail(w, 403, "forbidden")
 			return
 		}

@@ -97,10 +97,13 @@ func withVerifiedIDToken(ctx context.Context, token *oidc.IDToken) context.Conte
 	return context.WithValue(ctx, statusRolesKey{}, token)
 }
 
-// statusRoleAllowed reports whether the verified token holds one of the two roles
-// this aggregate is declared for. The roles come from the signed token the bearer
-// gate already verified: a caller-supplied X-User-Role header is never consulted,
-// and the gateway deletes it before proxying anything.
+// statusRoleAllowed reports whether the verified token holds one of the three
+// roles this aggregate is declared for: viewer, analista and admin, the closed
+// vocabulary the ratified D-C matrix establishes. A GET read is granted to all
+// three, so this route is no narrower than the reads it aggregates. The roles come
+// from the signed token the bearer gate already verified: a caller-supplied
+// X-User-Role header is never consulted, and the gateway deletes it before
+// proxying anything.
 func statusRoleAllowed(ctx context.Context) bool {
 	token, _ := ctx.Value(statusRolesKey{}).(*oidc.IDToken)
 	if token == nil {
@@ -115,7 +118,7 @@ func statusRoleAllowed(ctx context.Context) bool {
 		return false
 	}
 	for _, role := range claims.Realm.Roles {
-		if role == "viewer" || role == "admin" {
+		if role == "viewer" || role == "analista" || role == "admin" {
 			return true
 		}
 	}
@@ -123,9 +126,9 @@ func statusRoleAllowed(ctx context.Context) bool {
 }
 
 // multiserviceStatusHandler is the route the deployment registers: the declared
-// role policy first, the aggregate second. A caller without viewer or admin is
-// refused before a single probe runs, so a token that may not read the status
-// surfaces cannot use this route to ask them either.
+// role policy first, the aggregate second. A caller without viewer, analista or
+// admin is refused before a single probe runs, so a token that may not read the
+// status surfaces cannot use this route to ask them either.
 func multiserviceStatusHandler(probes []statusProbe, budget time.Duration) http.HandlerFunc {
 	aggregate := multiserviceStatus(probes, budget)
 	return func(w http.ResponseWriter, r *http.Request) {
