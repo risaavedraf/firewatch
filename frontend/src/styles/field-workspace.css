@@ -1,0 +1,431 @@
+/* FireWatch · field-work workspace port (T6).
+ *
+ * The three screens come from the approved canvas: board 06 (acciones
+ * preventivas), board 10 (simulación contrafactual) and board 11 (observaciones
+ * de campo). They are not three new routes: the list, the detail, the creation,
+ * the evidence, the review and the reassessment keep living in `#actions`, the
+ * substitution and its comparison in `#simulator`, and the register and its
+ * list in `#observations`.
+ *
+ * Every selector below is scoped to one of those three ids. That scope is
+ * load-bearing twice over: the file is imported by the views, so it reaches the
+ * browser BEFORE `app.css` in the bundle, and an unscoped selector would lose to
+ * the shipped rules on equal specificity instead of adjusting them.
+ *
+ * No new palette and no new scale. Colours are the declared tokens. S8 — «los
+ * nuevos colores globalres» — retired the light islands this sheet was drawn with:
+ * the empty card painted `#f8faf7`, where `--muted` measures 1.64:1 once the page
+ * turned slate, and the refusal card painted `#fdf6ef` under the old `#9c472f`
+ * eyebrow. Both are dark now: the empty card is the shared `--soft` card with a
+ * dashed `--edge` boundary, and the refusal keeps a coral-slate surface of its own
+ * (`#2e1c1a` under `#ffd0c4`, 11.6:1) with a `#d97962` boundary (5.29:1) so it is
+ * still told apart from an empty period without relying on colour alone. Type stays
+ * in the in-use sizes (8, 9, 10, 11, 13px) and spacing in the 4px-derived values
+ * already in use.
+ *
+ * Composition, not decoration: the board's two-column workbench, its identity
+ * strip on the selected action, its grouped alta, its before/after pair and its
+ * record head are what this sheet lays out. The state cards it styles are the
+ * ones the views draw from the state they actually settled into.
+ *
+ * The audit of what the canvas carries that the product does not is in
+ * `frontend/VISUAL-BASELINE.md`, section "Prevention, simulation and
+ * observations (T6)". */
+
+/* ── The designed state card (06 / 10 / 11) ───────────────────────────────── */
+
+/* Board 06 draws three different cards for the three ways a panel can be empty.
+   The shipped `.empty-state` centres its text and pads it like a status line;
+   the card here is a left-aligned block with its own surface, so the eyebrow,
+   the sentence and the way out read in that order. */
+#actions .field-state,
+#simulator .field-state,
+#observations .field-state {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  margin: 0;
+  padding: 14px 16px 16px;
+  border: 1px dashed var(--edge);
+  border-radius: 9px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+#actions .field-state .eyebrow,
+#simulator .field-state .eyebrow,
+#observations .field-state .eyebrow {
+  margin: 0;
+  color: var(--accent);
+}
+
+#actions .field-state > strong,
+#simulator .field-state > strong,
+#observations .field-state > strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -.2px;
+  line-height: 1.35;
+}
+
+#actions .field-state .field-state-body,
+#simulator .field-state .field-state-body,
+#observations .field-state .field-state-body {
+  display: grid;
+  gap: 4px;
+  max-width: 78ch;
+}
+
+#actions .field-state .field-state-body p,
+#simulator .field-state .field-state-body p,
+#observations .field-state .field-state-body p {
+  margin: 0;
+}
+
+#actions .field-state .field-state-action,
+#simulator .field-state .field-state-action,
+#observations .field-state .field-state-action {
+  margin-top: 6px;
+}
+
+/* A refusal is not an empty period: the surface says which of the two it is, and
+   the words inside say it again — the dashed mark is never the only difference.
+   Measured: `#ffd0c4` on `#2e1c1a` 11.62:1, the `#d97962` boundary on that surface
+   5.29:1, and the `--ink` title 11.77:1. */
+#actions .field-state-error,
+#simulator .field-state-error,
+#observations .field-state-error {
+  border-style: solid;
+  border-color: #d97962;
+  background: #2e1c1a;
+  color: #ffd0c4;
+}
+
+/* The filtered queue carries the only control a card holds (`Limpiar filtros`).
+   The shipped terracotta ring measures 3.11:1 on `--paper` and 2.99:1 on the old
+   `#f8faf7` surface, so this card keeps the paper fill — the one surface the ring
+   was chosen against — and separates itself with the dashed boundary instead. The
+   error tone carries no control, which is why it can keep its own tint. */
+#actions .field-state-filtered {
+  background: var(--paper);
+}
+
+#actions .field-state-error .eyebrow,
+#simulator .field-state-error .eyebrow,
+#observations .field-state-error .eyebrow {
+  color: #ffd0c4;
+}
+
+/* ── The actions workbench (06) ───────────────────────────────────────────── */
+
+/* The board works in two columns: the queue on the left, the selected action on
+   the right. The production page keeps ONE list and ONE detail, and the detail
+   only exists while an action is selected — so the grid collapses to the list
+   alone in that state instead of reserving an empty second column. */
+#actions .actions-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+#actions .actions-workbench:has(> .actions-panel:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The panel modifier carries 18px of its own padding, so the primitive's
+   `20px 22px 17px` would inset the title from the body it labels. The three
+   panels keep the primitive's rhythm and drop only the side and top inset,
+   exactly as the decision and history panels already do. */
+#actions .actions-panel > .panel-heading,
+#actions .actions-detail > .panel-heading,
+#actions .actions-create > .panel-heading {
+  padding: 0 0 10px;
+}
+
+#actions .actions-panel > .panel-heading {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#actions .actions-panel > .panel-heading > div {
+  min-width: 0;
+}
+
+/* The badge slot carries two different facts — the read state and the number of
+   rows — so neither can squeeze the title on a narrow screen. */
+#actions .actions-head-badges {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+#actions .actions-lede {
+  max-width: 76ch;
+  margin: 0 0 10px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+#actions .actions-filters-label {
+  margin: 0 0 6px;
+}
+
+#actions .actions-filters {
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+
+/* ── The selected action (06) ─────────────────────────────────────────────── */
+
+/* The identity strip: state, identifier and deadline in one row, before the
+   facts. `chip` keeps the shipped tone rules and the AA override the sheet
+   already declares for `#actions`. */
+#actions .actions-detail-id {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 2px 0 10px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#actions .actions-detail-code {
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+#actions .actions-detail-due strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+#actions .actions-description {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  margin-bottom: 12px;
+}
+
+#actions .actions-description-label {
+  display: block;
+  margin: 0 0 3px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+#actions .actions-description-text {
+  margin: 0;
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* The facts are a two-column grid of label-over-value pairs, the way board 06
+   reads the selected action; on a phone the pairs stack one per row so no value
+   is squeezed into a column narrower than its word. */
+#actions #action-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 0 0 14px;
+}
+
+#actions #action-detail-fields > div {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  border-bottom: 0;
+}
+
+#actions #action-detail-fields dt {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+#actions #action-detail-fields dd {
+  max-width: none;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 650;
+  text-align: left;
+}
+
+/* ── The alta (06) ────────────────────────────────────────────────────────── */
+
+/* Two native groups with their own legends, one submit. The form keeps its
+   shipped two-column grid for the controls *inside* each group, so the mobile
+   rule that collapses `.actions-form` to one column still owns the width. */
+#actions .actions-fieldset {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+}
+
+#actions .actions-fieldset legend {
+  padding: 0 4px;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+#actions .actions-fieldset-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  align-items: start;
+}
+
+/* A textarea occupies the whole group, because a two-line description in half a
+   column is a field nobody can read back. */
+#actions .actions-fieldset-body > label:has(textarea) {
+  grid-column: 1 / -1;
+}
+
+/* The directory's live region and its retry belong to the responsible group. */
+#actions .actions-fieldset-body > #create-assignee-status {
+  grid-column: 1 / -1;
+  min-height: 0;
+  margin: 0;
+}
+
+#actions .actions-fieldset-body > #create-assignee-status:empty {
+  display: none;
+}
+
+#actions .actions-fieldset-body > #retry-directory {
+  justify-self: start;
+}
+
+/* ── The simulator (10) ───────────────────────────────────────────────────── */
+
+/* The factor table sits inside the result panel, under the before/after pair.
+   The eyebrow names the block the way board 10 does, and the note states which
+   column the service does not publish. */
+#simulator .simulator-factors-eyebrow {
+  margin: 14px 0 6px;
+}
+
+/* The substitution flag repeats, in a word, what the row already shows: this is
+   one of the variables the request replaced. */
+#simulator .row-flag {
+  display: block;
+  width: fit-content;
+  margin: 2px 0 0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--soft);
+  color: var(--accent);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+#simulator #simulator-factors-note {
+  margin: 6px 0 0;
+}
+
+/* The shipped `:focus-visible` rule lists `input`, `select`, `a` and `[tabindex]`
+   but not `textarea`, so Chromium paints its own 1px ring on the three textareas
+   these screens carry (evidence criterion, evidence references, observation
+   description). They get the page's 3px ring here. The colour is the shipped
+   terracotta literal on purpose: `tests/a11y/actions-accessibility.test.tsx` pins
+   it, and it measures 5.16:1 on `--paper` — above the 3:1 non-text minimum. */
+#actions textarea:focus-visible,
+#simulator textarea:focus-visible,
+#observations textarea:focus-visible {
+  outline: 3px solid #cf7d4f;
+  outline-offset: 2px;
+}
+
+/* ── The field observations (11) ──────────────────────────────────────────── */
+
+/* The board opens each record with a type mark and the date, names the zone as
+   the record's subject, and leaves the description and the attribution below.
+   The type is a word with a surface, never a colour-only category. */
+#observations .observation-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+#observations .observation-zone strong {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+#observations .observation-zone {
+  margin: 6px 0 4px;
+}
+
+#observations .observations-list-panel .field-state {
+  margin-top: 6px;
+}
+
+/* ── Narrow viewports ─────────────────────────────────────────────────────── */
+
+/* The queue is a seven-column table, and a table squeezed under its own
+   min-content shows a horizontal scrollbar on the primary surface. Board 06's
+   queue is a card list, which is why it can afford two columns from 1000px; the
+   production table cannot. S7 removed the 234 px column, so the pair now fits
+   about 100 px earlier than it did and the workbench opens at 1180 px. */
+@media (max-width: 1179px) {
+  #actions .actions-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  /* The alta keeps two full inventory rows even at phone width: the group is
+     what changes layout, not the panel around it. */
+  #actions .actions-fieldset-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #actions .actions-fieldset-body > label:has(textarea) {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  /* A two-column fact grid at 390px would put `Actualizada el` and its instant in
+     columns narrower than the instant itself. */
+  #actions #action-detail-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

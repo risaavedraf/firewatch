@@ -574,3 +574,35 @@ test('the block is labelled «Cómo lo calculó la regla» and never speaks as a
   expect(page).not.toMatch(/pronóstico de|pronostica|se pronostica|predice|riesgo esperado/i);
   expect(text('simulator-result-note')).toMatch(/no se publicó ningún lote/i);
 });
+
+// ── T6 · the field-work composition (board 10) ─────────────────────────────
+//
+// The board names the substitution that produced the comparison and marks the
+// variable it replaced in the factor table. Both facts are already in the
+// request this page sent; neither is inferred from the answer.
+
+test('the result names the substitution it applied and marks each substituted variable', async () => {
+  await mountPrefilled();
+
+  await userEvent.click(screen.getByLabelText('Sustituir temperatura'));
+  fireEvent.change(screen.getByLabelText('Temperatura'), { target: { value: '39' } });
+  await userEvent.click(screen.getByLabelText('Sustituir viento'));
+  fireEvent.change(screen.getByLabelText('Viento'), { target: { value: '55' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Simular' }));
+  await waitFor(() => expect(callsTo(SIMULATE_URL, 'POST')).toHaveLength(1));
+  await answerMethod(SIMULATE_URL, 'POST', simulationFixture());
+
+  // The two variables this request carried, in the canonical order, with the
+  // values that were sent — not the answer's values re-read.
+  expect(text('simulator-applied')).toBe('Temperatura = 39 · Viento = 55');
+  expect(text('simulator-delta')).toBe('MEDIO → ALTO');
+
+  // The factor table marks exactly the variables the request substituted.
+  expect(text('simulator-substituted-temperatura')).toBe('Sustituida');
+  expect(text('simulator-substituted-viento')).toBe('Sustituida');
+  expect(document.getElementById('simulator-substituted-humedad_relativa')).toBeNull();
+  expect(document.getElementById('simulator-substituted-incendios_historicos')).toBeNull();
+
+  // The factor block says what the table does and does not carry.
+  expect(text('simulator-factors-note')).toMatch(/no publica una recomendación/i);
+});

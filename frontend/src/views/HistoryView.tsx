@@ -11,7 +11,8 @@ import {
   useSelectedZone,
   useSessionState,
 } from '../app/store';
-import { DataList, Icon, TableWrap } from '../components/ui';
+import { DataList, Icon, PanelHeading, TableWrap } from '../components/ui';
+import { HistoryLevelMark } from '../components/history/HistoryLevelMark';
 import {
   history,
   historySeries,
@@ -20,16 +21,16 @@ import {
   type HistoryGranularity,
   type HistoryZoneSeries,
 } from '../core/api';
-import { historyCsv, saveHistoryCsv } from '../core/history-csv';
+import { historyCsv, historyCsvFilename, saveHistoryCsv } from '../core/history-csv';
 import { getSessionSnapshot } from '../core/session';
 import {
   filterHistoryRows,
   historyStatusOptions,
   historyVisibleCount,
-  levelLabel,
   selectHistoryStatus,
 } from '../domain';
 import type { RiskBatch } from '../types/api';
+import '../styles/history-workspace.css';
 
 // N8b + PM-04 — the history view has two scopes.
 //
@@ -166,24 +167,66 @@ function HistoryExport({ zone, signedIn }: { zone: string; signedIn: boolean }) 
     });
   };
 
+  // The name the save really uses. It is stated only when a zone is selected:
+  // without a selection there is no document, and a name would be a promise the
+  // blocked control cannot keep.
+  const filename = zone === '' ? null : historyCsvFilename(zone);
+
   return (
-    <div className="history-export">
-      <button
-        id="history-csv-download"
-        className="secondary-button"
-        type="button"
-        // `disabled` only when the export cannot be attempted at all. While a
-        // download is in flight the control keeps focus through `aria-disabled`
-        // and `aria-busy`, so the keyboard reader does not lose its place and the
-        // status region announces the work.
-        disabled={blocked}
-        aria-disabled={blocked || busy || undefined}
-        aria-busy={busy || undefined}
-        aria-describedby="history-csv-note"
-        onClick={start}
-      >
-        Descargar CSV
-      </button>
+    <section className="history-export" aria-labelledby="history-export-title">
+      <div className="history-export-head">
+        <div>
+          <p className="eyebrow">ENTREGA · CSV DEL SERVIDOR</p>
+          <h3 className="history-export-title" id="history-export-title">
+            Descarga del historial de la zona
+          </h3>
+        </div>
+        <span className="neutral-tag">ARCHIVO REAL</span>
+      </div>
+      {/* Board 12 previewed a file its prototype could not produce. The product
+          produces it, so the block names the document instead of illustrating
+          one: the route the bytes come from, the exact zone scope and the local
+          name the save uses. Nothing here is a sample row or a proposed column. */}
+      <DataList
+        compact
+        items={[
+          { label: 'Ruta', value: <code>/v1/risk/history.csv</code> },
+          {
+            label: 'Alcance',
+            value: `${zone === '' ? 'La zona seleccionada' : `La zona ${zone}`}, sin la búsqueda ni el filtro de estado de la tabla`,
+          },
+          {
+            label: 'Archivo',
+            value: filename === null ? 'Se nombra al seleccionar una zona' : <code>{filename}</code>,
+          },
+          {
+            label: 'Procedencia',
+            value: 'La que cada fila declare: la marca sintética viaja dentro del archivo',
+          },
+        ]}
+      />
+      <div className="history-export-actions">
+        <button
+          id="history-csv-download"
+          className="secondary-button"
+          type="button"
+          // `disabled` only when the export cannot be attempted at all. While a
+          // download is in flight the control keeps focus through `aria-disabled`
+          // and `aria-busy`, so the keyboard reader does not lose its place and the
+          // status region announces the work.
+          disabled={blocked}
+          aria-disabled={blocked || busy || undefined}
+          aria-busy={busy || undefined}
+          aria-describedby="history-csv-note"
+          onClick={start}
+        >
+          Descargar CSV
+        </button>
+        <p className="history-export-hint" id="history-csv-absence">
+          La ausencia de datos no es un nivel: una zona sin historial exporta un archivo con el encabezado solo, nunca un
+          nivel bajo.
+        </p>
+      </div>
       <p id="history-csv-note" className="panel-note">
         Descarga el historial de la zona seleccionada tal como lo devuelve <code>/v1/risk/history.csv</code>: las filas
         que la API devuelve para la zona, sin aplicar la búsqueda ni el filtro de estado de la tabla. El archivo no se
@@ -197,7 +240,7 @@ function HistoryExport({ zone, signedIn }: { zone: string; signedIn: boolean }) 
       >
         {exportMessage(state, signedIn, zone)}
       </p>
-    </div>
+    </section>
   );
 }
 
@@ -508,12 +551,31 @@ export function HistoryView() {
   const filtersActive = query !== '' || statusFilter !== '';
   const hiddenByFilters = zoneLoaded && rows.length > 0 && visible.length === 0 && filtersActive;
 
+  // A zone that returned no row and a table emptied by its own filters are two
+  // different states; both are explained in the board's card, while a load, a
+  // failure or a ready read keeps the plain status line.
+  const emptyCard = status.kind === 'empty' || hiddenByFilters;
+  const zoneStateClass = [
+    'empty-state',
+    status.kind === 'failure' ? 'risk-error' : '',
+    emptyCard ? 'history-empty-card' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <section className="view" id="history" data-view="history" aria-labelledby="history-title">
-      <div className="intro-row">
-        <div>
+    <section className="view history-view" id="history" data-view="history" aria-labelledby="history-title">
+      <div className="intro-row history-head">
+        <div className="history-head-intro">
           <p className="eyebrow">TRAZABILIDAD</p>
           <h2 id="history-title">Historial de lotes</h2>
+          {/* The board opens with a lede that states the two scopes and the one
+              honesty rule this page owes: a zone with no row was not measured as
+              low risk. */}
+          <p className="subheading">
+            Una zona o todas las zonas del servicio. Los registros se muestran como la API los devuelve; la ausencia de
+            datos no se convierte en un nivel bajo.
+          </p>
         </div>
         {/* The badge shows a number; a reader needs the noun. The name sits in the
             document before the number, so the reading matches what the badge means. */}
@@ -529,6 +591,14 @@ export function HistoryView() {
         </span>
       </div>
       <article className={`panel history-panel${hasRows ? ' has-rows' : ''}`}>
+        {/* Board 05 opens the panel by naming the question, then the counts. The
+            production panel keeps the same order and states the scope it read:
+            one zone's rows, or the every-zone series and its window. */}
+        <PanelHeading
+          eyebrow={scope === 'zone' ? 'REGISTROS DE LA ZONA SELECCIONADA' : 'SERIE DE TODAS LAS ZONAS'}
+          title={scope === 'zone' ? 'Lotes publicados de la zona' : 'Lotes publicados por zona'}
+          badge={<span className="neutral-tag" id="history-scope-tag">{scope === 'zone' ? 'POR ZONA' : 'TODAS LAS ZONAS'}</span>}
+        />
         <p className="panel-note">
           {scope === 'zone' ? (
             <>
@@ -608,7 +678,7 @@ export function HistoryView() {
                 {visibleLabel}
               </span>
             </div>
-            <div id="history-state" className={status.kind === 'failure' ? 'empty-state risk-error' : 'empty-state'}>
+            <div id="history-state" className={zoneStateClass}>
               {stateMessage(status, idleCopy(session, 'consultar el historial'))}
               {status.kind === 'empty' ? (
                 <>
@@ -636,6 +706,11 @@ export function HistoryView() {
                 <thead>
                   <tr>
                     <th>Solicitado</th>
+                    {/* The board separates the request from the publication.
+                        Both instants are in the row the API served, and they are
+                        shown exactly as served — no locale, no rounding. */}
+                    <th>Publicado</th>
+                    <th>Nivel</th>
                     <th>Estado</th>
                     <th>Lote</th>
                   </tr>
@@ -644,6 +719,10 @@ export function HistoryView() {
                   {visible.map((batch) => (
                     <tr key={batch.id}>
                       <td>{batch.requested_at ?? 'No informado'}</td>
+                      <td>{batch.published_at ?? 'No informado'}</td>
+                      <td>
+                        <HistoryLevelMark level={batch.risk_level} />
+                      </td>
                       <td>{batch.data_status ?? 'No informado'}</td>
                       <td>{batch.id}</td>
                     </tr>
@@ -707,7 +786,9 @@ export function HistoryView() {
                           <span className="history-bucket-start">
                             <code>{bucket.bucket_start}</code>
                           </span>
-                          <span className="history-bucket-level">{levelLabel(bucket.risk_level)}</span>
+                          <span className="history-bucket-level">
+                            <HistoryLevelMark level={bucket.risk_level} />
+                          </span>
                           <span className="history-bucket-provenance">
                             lote <code>{bucket.batch_id}</code> · modelo <code>{bucket.model_version}</code>
                           </span>

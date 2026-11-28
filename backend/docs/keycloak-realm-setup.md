@@ -62,7 +62,7 @@ The page offers two Keycloak round trips: **Iniciar sesión** opens `/protocol/o
 | `passwordPolicy` | `length(10) and notUsername and notEmail` | Open sign-up needs a floor. The generated demo passwords (48 hex characters locally, 24 on the pitch) already satisfy it |
 | `verifyEmail` / `resetPasswordAllowed` | `false` / `false` | Both need SMTP, which no environment here configures. Turn them on together with `smtpServer` |
 | `rememberMe` | `false` | The page keeps tokens in memory only; a long-lived Keycloak SSO cookie would contradict that |
-| `loginTheme` | `firewatch` | The sign-in and sign-up pages in the FireWatch palette |
+| `loginTheme` | `firewatch` | The sign-in and sign-up pages in the aerial night palette of the application |
 | `internationalizationEnabled`, `supportedLocales`, `defaultLocale` | `true`, `["es","en"]`, `es` | Keycloak's pages in Spanish; the page also sends `ui_locales=es` |
 | `displayName` / `displayNameHtml` | `FireWatch` | Window title and header text of the Keycloak pages |
 
@@ -70,9 +70,23 @@ The page offers two Keycloak round trips: **Iniciar sesión** opens `/protocol/o
 
 ### The theme
 
-`backend/deploy/local/keycloak-themes/firewatch/login/` is a login theme that extends `keycloak.v2`, the default login theme of the pinned Keycloak 26.5.7. It overrides **no template**: only a stylesheet (`resources/css/firewatch.css`, loaded after the parent's) and a few Spanish and English strings (`messages/`). Every flow Keycloak ships — login, registration, required actions, errors, OTP — keeps working as upstream, and a selector a future version renames simply stops applying instead of breaking the page.
+`backend/deploy/local/keycloak-themes/firewatch/login/` is a login theme that extends `keycloak.v2`, the default login theme of the pinned Keycloak 26.5.7. It is **CSS and copy only**: it overrides **no template**, so every flow Keycloak ships — login, registration, required actions, errors, OTP, update password — keeps working as upstream, and a selector a future version renames simply stops applying instead of breaking the page.
 
-`docker-compose.yml`, `docker-compose.prod.yml` and `scripts/verify_synthetic.py` mount it read-only at `/opt/keycloak/themes/firewatch`. A Keycloak **without** the mount — the Kubernetes base and the pitch overlay today — logs that it cannot find the theme and serves its built-in one, so the realm setting is never a login dependency. `start-dev` does not cache themes, so CSS edits show on reload; production mode (`start`) caches them until restart.
+The skin is the **aerial night** design the application uses (`frontend/src/styles/tokens.css`, `frontend/src/styles/auth.css`, `AuthView`): the slate/ocean surfaces, the light ink and the aqua accent are restated as literal custom properties in `resources/css/firewatch.css`, because the identity provider cannot read the frontend's stylesheet. The retired forest/cream palette is gone from every rule. The composition mirrors the delivered entrance: one atmospheric brand column with the headline and the scope statement, and one compact card with the form. On a desktop the page is a `100dvh` box that fits the login form — including an inline invalid-credentials alert — without vertical scroll, and the document is never locked (`html` and `body` keep scrolling), so taller flows such as registration and required actions scroll naturally and a 320 px phone is never clipped.
+
+The stylesheet restates the whole PatternFly 5 surface the parent paints, not just the card: the language picker, the input group with its password reveal button, the Chrome autofill overlay, the footer band, the social-provider button and the danger/success/warning/info alerts. It also measures WCAG AA rather than assuming it: body, label, helper and alert text are at least 4.5:1 against the surface they sit on, input borders, the card boundary and the `:focus-visible` ring are at least 3:1, inputs and the primary action keep 44 px touch targets, and `prefers-reduced-motion: reduce` disables the transitions. Nothing is imported and no remote resource is fetched, so the theme works offline under the deployment's own CSP.
+
+The theme directory is exactly four files, and that is a deployment contract, not a preference: `theme.properties`, `messages/messages_es.properties`, `messages/messages_en.properties` and `resources/css/firewatch.css`. The pitch overlay turns those four into the `keycloak-theme-firewatch` ConfigMap and rebuilds the directory layout with ConfigMap `items` (ConfigMap keys cannot contain `/`), and `overlays/pitch/up.sh` creates the ConfigMap from the same four paths. A FreeMarker template, an image or a font added to the directory would never reach the cluster, so `backend/scripts/test_keycloak_theme.py` fails if the directory and the overlay drift apart.
+
+`docker-compose.yml`, `docker-compose.prod.yml` and `scripts/verify_synthetic.py` mount it read-only at `/opt/keycloak/themes/firewatch`. The Kubernetes **base** does not mount it: a Keycloak started from the base logs that it cannot find the theme and serves its built-in one, so the realm setting is never a login dependency. The pitch overlay carries it as an **optional** ConfigMap, which is why a missing theme degrades to the upstream look instead of blocking sign-in. `start-dev` does not cache themes, so a CSS edit shows on reload; production mode (`start`) caches them until restart — `overlays/pitch/up.sh` restarts the identity deployment only when the ConfigMap content actually changed, because that restart ends every Keycloak session.
+
+The palette and the layout are guarded by a static check that needs no running Keycloak:
+
+```bash
+python -B -m pytest backend/scripts/test_keycloak_theme.py
+```
+
+It asserts the four-file structure against the overlay, the presence of the aerial night roles and the absence of the retired literals, WCAG 2.1 contrast computed from the declared values, the absence of imports and remote URLs, and the compact `100dvh` layout that never locks scrolling. The browser-level check is the real sign-in and sign-out round trip described under **Verification** above.
 
 ### Applying it to an existing realm
 

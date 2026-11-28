@@ -861,3 +861,39 @@ test('the verdict announces transitions once, in its own live region (PM-16)', a
     vi.useRealTimers();
   }
 });
+
+// ── T7 — board 15's head and two-column composition ────────────────────────
+// Board 15 opens with a bordered head (eyebrow, title, lede, scope chips) and
+// composes provenance in the main column with the checkable service state at the
+// side. The production view keeps its three panels and every fact inside them;
+// what the head may say is only what the view already states: the input is
+// synthetic and the provenance comes from the service.
+test('the view opens with its head and composes the same panels in two columns (T7)', () => {
+  prepare();
+  render(<SourcesView />);
+
+  const head = document.getElementById('sources-head');
+  expect(head).not.toBeNull();
+  expect(head?.querySelector('h2#sources-title')).not.toBeNull();
+  expect(head?.querySelector('.eyebrow')).toHaveTextContent('PROCEDENCIA Y SERVICIOS');
+  expect(head).toHaveTextContent(/De dónde viene la capa/i);
+  // The chips are scope facts, not a read: no chip may claim the service answered.
+  expect(head).toHaveTextContent('Entrada sintética');
+  expect(head).toHaveTextContent('Procedencia del servidor');
+  expect(head?.textContent).not.toMatch(/publicada|verificad/i);
+
+  const layout = document.querySelector('#sources .ops-layout');
+  expect(layout).not.toBeNull();
+  // The provenance answer stays in the main column; the checkable service state
+  // and the ingest cycle move to the side, where the board puts the state it can
+  // verify. Every panel and every legacy id survives the move.
+  expect(layout?.querySelector('.ops-stack #sources-badge')).not.toBeNull();
+  expect(layout?.querySelector('.ops-side #pipeline-badge')).not.toBeNull();
+  expect(layout?.querySelector('.ops-side #cycle-badge')).not.toBeNull();
+  expect(layout?.querySelector('.ops-side #operational-verdict')).not.toBeNull();
+
+  // The panels remain one per answer: the move changed placement, not content.
+  for (const id of ['sources-status', 'pipeline-status', 'cycle-status', 'operational-weather']) {
+    expect(document.getElementById(id), id).not.toBeNull();
+  }
+});

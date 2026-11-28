@@ -3,7 +3,13 @@
    Additive only: the screen is built from the existing panel, table, chip and
    button primitives. These rules cover the parts the artboard defines that the
    rest of the application does not already own — the pager row, the level bands
-   and the per-row provenance label — without changing any global surface. */
+   and the per-row provenance label — without changing any global surface.
+
+   S8 — the level bands were painted with the light page's `#e7f0e6`/`#396246`
+   chip and two light-theme text literals; on the slate page those read as
+   unreadable islands (2.18:1 and 2.36:1 measured). Each band now borrows the
+   risk role that already names it, so a chip, a badge and the map cannot drift,
+   and the empty card is the raised role with a dashed `--edge-strong` boundary. */
 
 #notifications .notification-controls {
   align-items: flex-end;
@@ -24,7 +30,14 @@
 }
 
 #notifications .status-copy:focus-visible {
-  outline: 3px solid #cf7d4f;
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The one control this sheet owns beyond the pager: a filter select that answers
+   the keyboard with the global ring instead of the browser default. */
+#notifications .notification-controls select:focus-visible {
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -68,19 +81,21 @@
   letter-spacing: 0.04em;
 }
 
+/* The word is the level; the colour only reinforces it. Each pair is the risk
+   role's own text-on-surface pair: bajo 8.83:1, medio 8.14:1, alto 6.48:1. */
 .notification-level-bajo {
-  background: #e7f0e6;
-  color: #396246;
+  background: var(--level-low-surface);
+  color: var(--level-low-text);
 }
 
 .notification-level-medio {
   background: var(--gold-soft);
-  color: #7f641e;
+  color: var(--gold);
 }
 
 .notification-level-alto {
   background: var(--terracotta-soft);
-  color: #9c472f;
+  color: var(--terracotta);
 }
 
 .notification-demo,
@@ -90,36 +105,88 @@
 }
 
 .notification-demo {
-  color: #755a22;
+  color: var(--gold);
 }
 
 .notification-provenance {
   color: var(--muted);
 }
 
-.notification-empty {
-  padding: 30px 18px;
-  border: 1px dashed var(--line);
-  border-radius: 9px;
-  background: #f8faf7;
-  text-align: center;
+/* T4 — the approved board's empty state is a designed card, not a line of
+   centred copy: a dashed mark, the eyebrow that names the state, the title, the
+   explanation and what would fill the list. Everything above stays inside the
+   real read: the card only appears when the service answered an empty page. */
+#notifications .notification-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 24px 22px 26px;
+  border: 1px dashed var(--edge-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  text-align: left;
+  transition: border-color .15s ease;
 }
 
-.notification-empty .eyebrow {
-  margin-bottom: 5px;
+#notifications .notification-empty:hover {
+  border-color: var(--accent);
 }
 
-.notification-empty h3 {
-  margin-bottom: 8px;
+#notifications .notification-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 2px;
+  border: 1px dashed var(--edge-strong);
+  border-radius: 50%;
+  color: var(--accent);
+}
+
+#notifications .notification-empty-mark svg {
+  width: 28px;
+  height: 28px;
+}
+
+#notifications .notification-empty .eyebrow {
+  margin: 0;
+  color: var(--accent);
+}
+
+#notifications .notification-empty h3 {
+  margin: 0;
   font-size: 16px;
+  letter-spacing: -0.4px;
 }
 
-.notification-empty p:last-child {
-  max-width: 640px;
-  margin: 0 auto;
+#notifications .notification-empty-copy {
+  max-width: 68ch;
+  margin: 0;
   color: var(--muted);
   font-size: 10px;
   line-height: 1.65;
+}
+
+#notifications .notification-empty-points {
+  display: grid;
+  gap: 4px;
+  max-width: 68ch;
+  margin: 2px 0 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+#notifications .notification-empty-points code {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+@media (max-width: 720px) {
+  #notifications .notification-empty {
+    padding: 20px 16px 22px;
+  }
 }
 
 @media (max-width: 720px) {
@@ -135,5 +202,12 @@
 
   .notification-page-label {
     text-align: center;
+  }
+}
+
+/* The empty card's hover is feedback only, so it is removable. */
+@media (prefers-reduced-motion: reduce) {
+  #notifications .notification-empty {
+    transition: none;
   }
 }

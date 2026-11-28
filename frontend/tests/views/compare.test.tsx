@@ -791,3 +791,49 @@ test('the catalogue is the real one, and a failed catalogue read is stated', asy
   expect(picker()).toBeDisabled();
   expect(document.getElementById('compare-catalogue-retry')).not.toBeNull();
 });
+
+// ── T4 · the approved board's selection/reading split ──────────────────────
+//
+// `design/firewatch-v1-vuelo/08-comparar-sectores.html` puts the selection in a
+// narrow panel on the left and the compared reading in the panel beside it. The
+// port keeps the production contracts: the two zones are still chosen from the
+// real catalogue, the window is still the endpoint's own cap, and every control
+// and status identifier this suite already reads keeps working.
+
+test('the comparator reads as the board: a selection panel beside the reading panel', async () => {
+  const { fetchStub, compareDouble } = await mountWithCatalogue();
+
+  const view = document.getElementById('compare') as HTMLElement;
+  const layout = view.querySelector('.compare-layout');
+  expect(layout).not.toBeNull();
+  const panels = [...(layout?.children ?? [])];
+  expect(panels).toHaveLength(2);
+  expect(panels[0].tagName).toBe('ARTICLE');
+  expect(panels[1].tagName).toBe('ARTICLE');
+  expect(panels[0].classList.contains('compare-panel')).toBe(true);
+  expect(panels[1].classList.contains('compare-panel')).toBe(true);
+
+  // The board's two headings, one per panel, under the view's own title.
+  expect(screen.getByRole('heading', { level: 3, name: 'Elige 2 o 3 zonas' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 3, name: 'Riesgo, variables e historial' })).toBeInTheDocument();
+
+  // Selection side: the real catalogue picker, the order the comparison uses and
+  // the catalogue's own status stay in the panel that owns them.
+  expect(panels[0].querySelector('#compare-zone-picker')).not.toBeNull();
+  expect(panels[0].querySelector('#compare-granularity')).not.toBeNull();
+  expect(panels[0].querySelector('#compare-selection')).not.toBeNull();
+  expect(panels[0].querySelector('#compare-catalogue-status')).not.toBeNull();
+
+  // Reading side: the window, the read status and the compared zones.
+  expect(panels[1].querySelector('#compare-window')).not.toBeNull();
+  expect(panels[1].querySelector('#compare-state')).not.toBeNull();
+  expect(panels[1].querySelector('#compare-zones')).not.toBeNull();
+
+  fireEvent.change(picker(), { target: { value: '05101' } });
+  fireEvent.change(picker(), { target: { value: '05201' } });
+  await waitFor(() => expect(compareDouble.pending()).toBe(1));
+  compareDouble.answer((request, codes) => collectionFor(request, codes.map(code => zone(code))));
+  await waitFor(() => expect(zoneBodies()).toHaveLength(2));
+  expect(document.querySelectorAll('#compare-selection li')).toHaveLength(2);
+  expect(fetchStub.callsFor(CATALOGUE_URL)).toHaveLength(1);
+});

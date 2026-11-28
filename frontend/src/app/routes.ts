@@ -1,6 +1,6 @@
 import type { IconName } from '../components/ui';
 
-// The fourteen views of the application. The nine areas of the retired page are all
+// The fifteen views of the application. The nine areas of the retired page are all
 // still here: `#sources` also carries the dependent-services status and
 // `#session` also carries the permissions matrix, which is the grouping the user
 // chose (D1). `#pending` gained the navigation entry it never had (D2): the
@@ -19,8 +19,12 @@ import type { IconName } from '../components/ui';
 // level. PM-16 adds `#status` as the single operational board of the gateway
 // aggregate, the weather source and the active rule: it is a destination of its
 // own, and `#sources` keeps the provenance and pipeline detail it already carries.
+// T4 adds `#executive`: PM-01's server summary answers the whole catalogue at once,
+// so it is a reading of its own — the canvas carries it as the bar's fourth
+// shortcut — and the overview keeps the same section for the zone it describes.
 export type ViewId =
   | 'overview'
+  | 'executive'
   | 'infrastructure'
   | 'history'
   | 'compare'
@@ -48,6 +52,7 @@ export interface RouteDefinition {
 
 export const routes: readonly RouteDefinition[] = [
   { id: 'overview', hash: '#overview', label: 'Territorio', group: 'Prevención', icon: 'territory', title: 'Estado de la zona' },
+  { id: 'executive', hash: '#executive', label: 'Panel ejecutivo', group: 'Prevención', icon: 'attention', title: 'Panel ejecutivo' },
   { id: 'infrastructure', hash: '#infrastructure', label: 'Infraestructura', group: 'Prevención', icon: 'zones', title: 'Infraestructura prioritaria' },
   { id: 'history', hash: '#history', label: 'Historial de lotes', group: 'Prevención', icon: 'history', title: 'Historial de lotes' },
   { id: 'compare', hash: '#compare', label: 'Comparador', group: 'Prevención', icon: 'zones', title: 'Comparador de zonas' },

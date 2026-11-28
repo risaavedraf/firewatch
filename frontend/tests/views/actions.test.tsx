@@ -1045,3 +1045,171 @@ test('a closed session discards the directory list and the chosen responsible', 
   expect(text('create-assignee-status')).toMatch(/sesión autorizada/i);
 });
 
+// ── T6 · the field-work composition (board 06) ─────────────────────────────
+//
+// The board opens the prevention screen with a scope lede, counts the queue it
+// read, and separates the three ways a queue can be empty (nothing returned, a
+// filter with no row, a refused read) from one another. None of that adds data:
+// every sentence below is about a response this page already holds.
+
+test('the view opens with its scope and counts the rows the service returned', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+
+  const lede = document.getElementById('actions-lede');
+  expect(lede).not.toBeNull();
+  expect(lede).toHaveTextContent(/lista y el detalle/i);
+  expect(lede).toHaveTextContent(/servidor/i);
+  // A count before a response would be a claim about nothing.
+  expect(document.getElementById('actions-count')).toBeNull();
+
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList([actionFixture(), actionFixture({ id: 'action-2', title: 'Charla' })]);
+
+  // The count repeats the number of rows the response carried, with its noun.
+  expect(text('actions-count')).toBe('2 acciones');
+  expect(text('actions-badge')).toBe('LEÍDO');
+});
+
+test('an unfiltered empty read is a designed state and offers no reset that would change nothing', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList([]);
+
+  const card = document.getElementById('actions-empty');
+  expect(card).not.toBeNull();
+  expect(card).toHaveClass('field-state');
+  expect(card).toHaveTextContent(/el servicio no devolvió acciones preventivas/i);
+  expect(card).toHaveTextContent(/\/v1\/prevention\/actions/);
+  // The empty queue is not the filtered queue: the reset belongs to the filter.
+  expect(document.getElementById('actions-clear-filters')).toBeNull();
+  expect(document.getElementById('actions-filter-empty')).toBeNull();
+  expect(text('actions-count')).toBe('0 acciones');
+  // The live region keeps reporting the response itself.
+  expect(text('actions-status')).toMatch(/no devolvió acciones preventivas/i);
+});
+
+test('an empty filtered read keeps its own card and its reset', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList([]);
+  await userEvent.type(document.getElementById('actions-community-filter') as HTMLElement, '99999');
+  await userEvent.click(document.getElementById('actions-apply-filters') as HTMLButtonElement);
+  const filtered = `${ACTIONS_URL}?community_code=99999`;
+  await waitFor(() => expect(fetchStub.callsFor(filtered)).toHaveLength(1));
+  await act(async () => {
+    fetchStub.answer(filtered, []);
+    await flush();
+  });
+
+  expect(document.getElementById('actions-empty')).toBeNull();
+  const card = document.getElementById('actions-filter-empty');
+  expect(card).not.toBeNull();
+  expect(card).toHaveTextContent(/no hay acciones que coincidan con este filtro/i);
+  expect(document.getElementById('actions-clear-filters')).not.toBeNull();
+});
+
+test('a refused read is a designed state, and the technical line stays in the live region', async () => {
+  await connect(VIEWER_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList({ code: 'forbidden' }, 403, 'req-403');
+
+  const card = document.getElementById('actions-state');
+  expect(card).not.toBeNull();
+  expect(card).toHaveClass('field-state-error');
+  expect(card).toHaveTextContent(/permiso/i);
+  expect(card).toHaveTextContent(/administrador/i);
+  // The refusal's status, code and request id are announced once, by the status.
+  expect(card).not.toHaveTextContent(/req-403/);
+  expect(text('actions-status')).toMatch(/req-403/);
+  // An error is not an empty queue: neither empty card is drawn.
+  expect(document.getElementById('actions-empty')).toBeNull();
+  expect(document.getElementById('actions-filter-empty')).toBeNull();
+});
+
+test('the detail opens with the identity of the selected action and its description', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList([actionFixture()]);
+  await userEvent.click(document.querySelector('[data-action-id="action-1"]') as HTMLElement);
+  await waitFor(() => expect(fetchStub.callsFor(`${ACTIONS_URL}/action-1`)).toHaveLength(1));
+  await answerDetail(detailFixture());
+
+  const strip = document.getElementById('action-detail-statusline');
+  expect(strip).not.toBeNull();
+  expect(strip).toHaveTextContent('Propuesta');
+  expect(text('action-detail-code')).toBe('action-1');
+  expect(text('action-detail-due')).toBe('Vence 2026-11-01');
+
+  // The description the service stored is the action's own text, not a placeholder.
+  const description = document.getElementById('action-detail-description');
+  expect(description).not.toBeNull();
+  expect(description).toHaveTextContent('Franja de 30 m junto al camino');
+
+  // The three facts the strip states are not repeated in the definition list; the
+  // list keeps the assignment, the community and the server's timestamps.
+  const fields = text('action-detail-fields');
+  expect(fields).toContain('equipo-1');
+  expect(fields).toContain('05101');
+  expect(fields).toContain('actor-1');
+  expect(fields).not.toContain('Identificador');
+  expect(fields).not.toContain('Fecha límite');
+});
+
+test('the creation form groups the record from who answers it, with one submit', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(USERS_URL)).toHaveLength(1));
+  await answerList([]);
+  await answerUsers(DIRECTORY);
+
+  const record = document.getElementById('create-fields-record') as HTMLFieldSetElement | null;
+  expect(record).not.toBeNull();
+  expect(record?.tagName).toBe('FIELDSET');
+  expect(record?.querySelector('legend')).toHaveTextContent('Datos de la acción');
+  for (const id of ['create-community', 'create-title', 'create-description', 'create-priority']) {
+    expect(record?.contains(document.getElementById(id)), id).toBe(true);
+  }
+
+  const owner = document.getElementById('create-fields-owner') as HTMLFieldSetElement | null;
+  expect(owner).not.toBeNull();
+  expect(owner?.querySelector('legend')).toHaveTextContent('Responsable y plazo');
+  for (const id of ['create-assignee', 'create-due-date', 'create-assignee-status']) {
+    expect(owner?.contains(document.getElementById(id)), id).toBe(true);
+  }
+
+  // The whole form still has exactly one submit, and it is not inside a group.
+  const submit = document.getElementById('create-action') as HTMLButtonElement;
+  expect(submit.disabled).toBe(false);
+  expect(submit.closest('fieldset')).toBeNull();
+  expect(document.querySelectorAll('#actions .actions-create button[type="submit"]')).toHaveLength(1);
+});
+
+// A header row over nothing is not a queue: board 06 shows the card, and the
+// region a keyboard user reaches must not be an empty table. The table stays in
+// the DOM (its ids are part of the screen's contract) and comes back the moment
+// the service returns a row.
+test('a queue with no row hides the table region instead of painting a header over nothing', async () => {
+  await connect(ADMIN_TOKEN);
+  render(<ActionsView />);
+
+  const region = document.getElementById('actions-table')?.closest('.table-wrap') as HTMLElement | null;
+  expect(region).not.toBeNull();
+  // Nothing has been read yet, so there is no row to announce.
+  expect(region).toHaveAttribute('hidden');
+
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await answerList([]);
+  expect(document.getElementById('actions-empty')).not.toBeNull();
+  expect(region).toHaveAttribute('hidden');
+
+  await userEvent.click(document.getElementById('actions-refresh') as HTMLButtonElement);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL).length).toBeGreaterThanOrEqual(2));
+  await answerList([actionFixture()]);
+  await waitFor(() => expect(document.getElementById('actions-rows')?.querySelectorAll('tr')).toHaveLength(1));
+  expect(region).not.toHaveAttribute('hidden');
+});

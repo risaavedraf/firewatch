@@ -249,15 +249,16 @@ test('the palette pairs painted by the actions view meet WCAG AA (4.5:1)', () =>
   const ink = palette.get('ink') as string;
   const soft = palette.get('soft') as string;
   const forest = palette.get('forest-700') as string;
-  // The base `.neutral-tag`/`.chip` colours are not AA at their 8–10 px sizes,
-  // so the actions view overrides them; the overrides are asserted below and
-  // their pairs are measured here.
-  const tagBackground = '#edf1f2';
+  // The base `.neutral-tag`/`.chip` colours are painted on the shared `--soft`
+  // role, so that is the surface their 8–10 px text is measured against. T10
+  // moved them off the light `#edf1f2` literal, which no longer exists.
+  const tagBackground = soft;
   // `canvas` and the table-header surface are real painted backgrounds that the
   // measured browser check flagged (4.44 and 4.39 with the previous `--muted`),
-  // and the footer carried its own literal instead of the token.
+  // and the footer carried its own literal instead of the token. The table header
+  // reads `--soft` since T10.
   const canvas = palette.get('canvas') as string;
-  const tableHead = '#f3f4ed';
+  const tableHead = soft;
 
   const pairs: ReadonlyArray<[string, string, string]> = [
     ['body text', ink, paper],
@@ -303,4 +304,86 @@ test('the breakpoint that covers 390 px collapses the new layout to one column',
   expect(appCss).toMatch(/\.actions-form\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
   // Tables scroll inside their own box instead of widening the page.
   expect(appCss).toMatch(/\.table-wrap[^{]*\{[^}]*overflow:\s*auto/);
+});
+
+// ── T6 · grouping and state announcements ──────────────────────────────────
+//
+// The creation form now groups its fields and the empty/refused queues gained a
+// designed card. Neither may cost the field its name or duplicate the live
+// region: the announcement belongs to the status line, the card is static
+// content a reader meets in order.
+
+test('the creation groups are fieldsets with legends and every control keeps its name', async () => {
+  await openAdminWithDetail();
+
+  const record = document.getElementById('create-fields-record') as HTMLFieldSetElement;
+  const owner = document.getElementById('create-fields-owner') as HTMLFieldSetElement;
+  expect(record.tagName).toBe('FIELDSET');
+  expect(owner.tagName).toBe('FIELDSET');
+  expect(record.querySelector('legend')).toHaveTextContent('Datos de la acción');
+  expect(owner.querySelector('legend')).toHaveTextContent('Responsable y plazo');
+
+  for (const id of ['create-community', 'create-title', 'create-description', 'create-priority']) {
+    expect(record.contains(document.getElementById(id)), id).toBe(true);
+  }
+  for (const id of ['create-assignee', 'create-due-date']) {
+    expect(owner.contains(document.getElementById(id)), id).toBe(true);
+  }
+  // `aria-describedby` still resolves to the directory status the group contains.
+  const assignee = document.getElementById('create-assignee') as HTMLSelectElement;
+  expect(assignee).toHaveAttribute('aria-describedby', 'create-assignee-status');
+  expect(owner.contains(document.getElementById('create-assignee-status'))).toBe(true);
+  expect(assignee.labels?.length ?? 0).toBeGreaterThan(0);
+});
+
+test('a refused queue is announced once, by the status live region', async () => {
+  await connect();
+  render(<ActionsView />);
+  await waitFor(() => expect(fetchStub.callsFor(ACTIONS_URL)).toHaveLength(1));
+  await act(async () => {
+    fetchStub.answer(ACTIONS_URL, { code: 'forbidden' }, 403, 'req-403');
+    await flush();
+  });
+
+  const status = document.getElementById('actions-status') as HTMLElement;
+  expect(status).toHaveAttribute('role', 'status');
+  expect(status).toHaveAttribute('aria-live', 'polite');
+  expect(status).toHaveTextContent(/req-403/);
+
+  const card = document.getElementById('actions-state') as HTMLElement;
+  expect(card).not.toBeNull();
+  // One live region, not two: the card repeats no status role and no request id.
+  expect(card.querySelector('[role="status"]')).toBeNull();
+  expect(card.querySelector('[aria-live]')).toBeNull();
+  expect(card.textContent).not.toMatch(/req-403/);
+});
+
+// A measured gap, not a guess: Chromium paints the UA's 1px auto ring on a
+// focused `textarea` because the shipped `:focus-visible` rule lists `input`,
+// `select`, `a` and `[tabindex]` but not `textarea`. The three field-work screens
+// carry textareas (the evidence criterion, the evidence references and the
+// observation description), so the scoped sheet gives them the same 3 px ring
+// the rest of the page paints. The base build measured `1px auto` on the same
+// controls; the change adds no behaviour.
+test('the field-work sheets give every textarea the shipped focus ring', () => {
+  const fieldCss = readFileSync(resolve(process.cwd(), 'src', 'styles', 'field-workspace.css'), 'utf8');
+  for (const root of ['#actions', '#simulator', '#observations']) {
+    const start = fieldCss.indexOf(`${root} textarea:focus-visible`);
+    expect(start, root).toBeGreaterThan(-1);
+    const rule = fieldCss.slice(start, fieldCss.indexOf('}', start));
+    expect(rule, root).toContain('outline: 3px solid #cf7d4f');
+    expect(rule, root).toContain('outline-offset: 2px');
+  }
+});
+
+// The one control that lives inside a state card is the filtered queue's reset.
+// The shipped ring `#cf7d4f` measures 3.11:1 on `--paper` but 2.99:1 on the
+// `#f8faf7` empty surface, so the card that carries a control keeps the paper
+// surface and distinguishes itself by its dashed border instead of by a fill.
+test('the state card that carries a control keeps the focus ring on paper', () => {
+  const fieldCss = readFileSync(resolve(process.cwd(), 'src', 'styles', 'field-workspace.css'), 'utf8');
+  const start = fieldCss.indexOf('#actions .field-state-filtered');
+  expect(start).toBeGreaterThan(-1);
+  const rule = fieldCss.slice(start, fieldCss.indexOf('}', start));
+  expect(rule).toContain('background: var(--paper)');
 });

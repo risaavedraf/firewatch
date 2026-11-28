@@ -1,53 +1,108 @@
 /* FireWatch skin for the Keycloak `keycloak.v2` login theme (PatternFly 5).
 
-   Loaded after the parent's stylesheet. It turns the upstream single-column
-   card into the same split screen as the FireWatch sign-in screen
-   (frontend/src/styles/auth.css): a forest column with the brand, the headline
-   and the scope statement, and a paper card with the form on the canvas.
+   The identity provider serves its own pages, so this is the only FireWatch
+   surface that cannot read `frontend/src/styles/tokens.css`. The aerial night
+   palette is therefore restated here as literal custom properties with the same
+   values, and the composition mirrors the delivered sign-in screen
+   (`frontend/src/styles/auth.css` and `AuthView`): one atmospheric brand column
+   plus one compact card, with the disclosure-free card as the only thing a
+   person has to act on.
+
+   S10 — «me conecté desde mi telefono y el inicio de sesión de keycloak sigue
+   con el diseño anterior». The previous skin was the retired forest/cream
+   palette; the page now continues the aerial night design instead of switching
+   product at the identity provider.
 
    Only the markup the parent's templates render is targeted (checked against
-   Keycloak 26.5.7: #kc-header, .pf-v5-c-login__main, #kc-form-login,
-   #kc-register-form, #kc-social-providers, #kc-info). No template is
-   overridden, so if a future version renames a hook the rule stops applying and
-   the page falls back to the upstream look instead of breaking.
+   Keycloak 26.5.7: `#kc-header`, `.pf-v5-c-login__main`, `#kc-form-login`,
+   `#kc-register-form`, `#kc-social-providers`, `#kc-info`, `#kc-error-message`).
+   No template is overridden, so every flow Keycloak ships (login, registration,
+   required actions, errors, OTP) keeps working upstream and a future selector
+   rename falls back to the parent's look instead of breaking the page.
 
    The headline and the scope statement live in `content:` on the header's
    pseudo-elements because no template is overridden; they are decorative
-   restatements of what the FireWatch page already says in its own markup. */
+   restatements of what the FireWatch page already says in its own markup.
+
+   Contrast is measured, not eyeballed (WCAG 2.1 relative luminance, computed
+   from the declarations below by `backend/scripts/test_keycloak_theme.py`):
+
+     ink    #f4f1eb on canvas 15.75 · water 13.32 · paper 14.33 · soft 11.82 · raised 11.46
+     muted  #b8c8d2 on canvas 10.34 · water  8.74 · paper  9.41 · soft  7.76 · raised  7.53
+     accent #94dfda on canvas 11.69 · water  9.89 · paper 10.63 · soft  8.77 · raised  8.51
+     accent-ink #0c1b24 on accent #94dfda: 11.54 — the light ink measures 1.35 on
+     the accent fill, so a filled accent control is always labelled with it
+     edge   #647b8a boundaries: canvas 4.01 · water 3.39 · paper 3.65 · soft 3.01
+     edge-strong #6b8395 boundaries: canvas 4.49 · water 3.79 · paper 4.08 · soft 3.37 · raised 3.27
+     focus  #94dfda indicator: 8.51 at its worst measured surface (raised)
+     danger #f0a184 on paper 7.80 · on danger-soft 6.57
+
+   Each rule below is one of the surfaces the parent would otherwise paint pale:
+   the page, the card, the input group, the password reveal control, the primary
+   action, the language picker, the footer band, the alerts and the native
+   autofill overlay. Nothing is imported and no remote resource is fetched, so
+   the theme loads under the deployment's own CSP and works offline. */
 
 :root {
-  --fw-forest-950: #102c2d;
-  --fw-forest-900: #173c3b;
-  --fw-forest-700: #285e56;
-  --fw-forest-500: #638579;
-  --fw-canvas: #f5f5ef;
-  --fw-paper: #fffefa;
-  --fw-ink: #233b39;
-  --fw-muted: #5c6c65;
-  --fw-line: #dde3da;
-  --fw-field-line: #c9d1c8;
-  --fw-soft: #eef1e9;
-  --fw-terracotta: #a74d34;
-  --fw-terracotta-soft: #f7e9e2;
-  --fw-gold: #d7aa73;
+  /* Surfaces, darkest first. */
+  --fw-canvas: #0f1922;
+  --fw-water: #152934;
+  --fw-paper: #17222b;
+  --fw-soft: #21313f;
+  --fw-raised: #243341;
+
+  /* Text. */
+  --fw-ink: #f4f1eb;
+  --fw-muted: #b8c8d2;
+
+  /* Lines, boundaries and the focus indicator. */
+  --fw-line: #354b5c;
+  --fw-line-soft: #2a3a47;
+  --fw-edge: #647b8a;
+  --fw-edge-strong: #6b8395;
+  --fw-accent: #94dfda;
+  --fw-focus: #94dfda;
+  /* The ink a filled accent control is labelled with. */
+  --fw-accent-ink: #0c1b24;
+
+  /* Semantic roles, dark-adapted as a family. */
+  --fw-danger: #f0a184;
+  --fw-danger-soft: #3b2a24;
+  --fw-success: #8ee0b4;
+  --fw-gold: #e5c87e;
+  --fw-warning-soft: #33301f;
+  --fw-info-surface: #1c333c;
+  --fw-info-text: #a9dbe8;
+
+  --fw-shadow: 0 12px 28px rgb(0 0 0 / 34%);
   --fw-font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Dark native widgets, autofill and the caret follow the page, not the OS. */
+  color-scheme: dark;
 
   /* The parent paints a blue band on top of the card with this variable. */
   --keycloak-card-top-color: transparent;
 
-  /* PatternFly 5 globals the parent reads. */
+  /* PatternFly 5 globals the parent reads; every one of them would otherwise
+     keep a light default from the upstream theme. */
   --pf-v5-global--FontFamily--text: var(--fw-font);
   --pf-v5-global--FontFamily--heading: var(--fw-font);
-  --pf-v5-global--primary-color--100: var(--fw-forest-900);
-  --pf-v5-global--primary-color--200: var(--fw-forest-700);
-  --pf-v5-global--link--Color: var(--fw-terracotta);
-  --pf-v5-global--link--Color--hover: #8a3c27;
+  --pf-v5-global--FontFamily--monospace: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --pf-v5-global--primary-color--100: var(--fw-accent);
+  --pf-v5-global--primary-color--200: var(--fw-accent);
+  --pf-v5-global--link--Color: var(--fw-accent);
+  --pf-v5-global--link--Color--hover: var(--fw-ink);
   --pf-v5-global--Color--100: var(--fw-ink);
   --pf-v5-global--Color--200: var(--fw-muted);
+  --pf-v5-global--Color--dark--100: var(--fw-ink);
+  --pf-v5-global--Color--light--100: var(--fw-ink);
   --pf-v5-global--BackgroundColor--100: var(--fw-paper);
+  --pf-v5-global--BackgroundColor--200: var(--fw-soft);
   --pf-v5-global--BorderColor--100: var(--fw-line);
-  --pf-v5-global--active-color--100: var(--fw-forest-700);
-  --pf-v5-global--danger-color--100: var(--fw-terracotta);
+  --pf-v5-global--BorderColor--200: var(--fw-edge);
+  --pf-v5-global--active-color--100: var(--fw-accent);
+  --pf-v5-global--danger-color--100: var(--fw-danger);
+  --pf-v5-global--success-color--100: var(--fw-success);
 }
 
 html, body, #keycloak-bg {
@@ -58,17 +113,21 @@ html, body, #keycloak-bg {
   font-family: var(--fw-font);
 }
 
-/* ── Split layout ─────────────────────────────────────────────────────────── */
+/* The parent's cover image belongs to the retired look; the page is a flat
+   aerial night surface with a single cool glow where the card sits. */
 .pf-v5-c-login {
-  min-height: 100vh;
-  display: block;
+  min-height: 100dvh;
+  display: grid;
+  align-content: center;
   padding: 0;
-  background: var(--fw-canvas);
+  background-color: var(--fw-canvas);
+  background-image: radial-gradient(70% 60% at 84% 16%, rgb(148 223 218 / 7%) 0%, transparent 60%);
 }
+
 .pf-v5-c-login__container {
   width: 100%;
   max-width: none;
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: minmax(340px, 1.05fr) minmax(360px, 1fr);
   grid-template-areas: "header main";
@@ -78,50 +137,56 @@ html, body, #keycloak-bg {
 }
 
 /* ── Brand column ─────────────────────────────────────────────────────────── */
+/* The waterline glow and the topographic grid are gradients only, so the page
+   still loads nothing from another origin. */
 #kc-header.pf-v5-c-login__header {
   grid-area: header;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: clamp(20px, 3.2dvh, 36px);
   margin: 0;
-  padding: 44px clamp(28px, 5vw, 72px) 36px;
+  padding: clamp(24px, 4dvh, 40px) clamp(28px, 5vw, 72px) clamp(20px, 3dvh, 32px);
   overflow: hidden;
-  color: #d5e1db;
-  background:
-    repeating-radial-gradient(circle at 78% 92%, transparent 0 34px, rgb(255 255 255 / 2.5%) 34px 35px),
-    radial-gradient(120% 80% at 110% 115%, rgb(215 170 115 / 22%) 0%, transparent 55%),
-    radial-gradient(90% 70% at -10% -10%, rgb(99 133 121 / 35%) 0%, transparent 60%),
-    var(--fw-forest-900);
+  color: var(--fw-muted);
+  background-color: var(--fw-water);
+  background-image:
+    linear-gradient(to right, rgb(148 223 218 / 5%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(148 223 218 / 5%) 1px, transparent 1px),
+    repeating-radial-gradient(circle at 78% 94%, transparent 0 34px, rgb(148 223 218 / 6%) 34px 35px),
+    radial-gradient(120% 90% at 110% 114%, rgb(148 223 218 / 15%) 0%, transparent 58%),
+    radial-gradient(95% 75% at -8% -12%, rgb(148 223 218 / 8%) 0%, transparent 62%);
+  background-size: 44px 44px, 44px 44px, auto, auto, auto;
 }
 
+/* The parent marks the brand text with `!important`; the override needs it too. */
 #kc-header-wrapper.pf-v5-c-brand {
   order: 0;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 11px;
   margin: 0;
-  color: #f6fff9;
-  font-size: 20px;
+  color: var(--fw-ink) !important;
+  font-size: 19px;
   font-weight: 650;
-  letter-spacing: -.6px;
-  line-height: 1.2;
+  letter-spacing: -.5px;
+  line-height: 1.15;
   text-transform: none;
 }
 /* The "F" mark of the page. */
 #kc-header-wrapper::before {
   content: "F";
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
   border-radius: 11px;
-  background: var(--fw-gold);
-  color: var(--fw-forest-900);
+  background: var(--fw-accent);
+  color: var(--fw-accent-ink);
   font-family: Georgia, serif;
-  font-size: 23px;
+  font-size: 22px;
   font-style: italic;
   font-weight: 400;
   letter-spacing: 0;
@@ -133,19 +198,19 @@ html, body, #keycloak-bg {
   margin-block: auto;
   max-width: 520px;
   content: "El riesgo territorial de incendio, comuna por comuna.";
-  color: #f6fff9;
-  font-size: clamp(30px, 3.4vw, 46px);
+  color: var(--fw-ink);
+  font-size: clamp(26px, min(3.2vw, 4.6dvh), 42px);
   font-weight: 650;
   line-height: 1.08;
-  letter-spacing: -1.6px;
+  letter-spacing: -1.1px;
 }
 /* Scope statement, at the foot of the column. */
 #kc-header::before {
   order: 2;
-  padding-top: 16px;
-  border-top: 1px solid rgb(255 255 255 / 10%);
+  padding-top: 14px;
+  border-top: 1px solid var(--fw-edge);
   content: "Entorno de demostración: entrada sintética, sin calibración y no oficial. No reemplaza a CONAF ni a SENAPRED.";
-  color: #9fbcb2;
+  color: var(--fw-muted);
   font-size: 11px;
   line-height: 1.6;
 }
@@ -157,13 +222,13 @@ html[lang^="en"] #kc-header::before { content: "Demonstration environment: synth
   grid-area: main;
   align-self: center;
   justify-self: center;
-  width: min(460px, calc(100% - 32px));
-  margin: 40px 0;
+  width: min(430px, calc(100% - 32px));
+  margin: clamp(18px, 4dvh, 36px) 0;
   overflow: visible;
-  border: 1px solid var(--fw-line);
+  border: 1px solid var(--fw-edge);
   border-radius: 16px;
   background: var(--fw-paper);
-  box-shadow: 0 18px 50px rgb(16 44 45 / 8%), 0 3px 14px rgb(24 52 40 / 3%);
+  box-shadow: var(--fw-shadow);
 }
 
 /* The parent splits the header 70/30 from 768px up, which wrapped the title;
@@ -174,17 +239,17 @@ div.pf-v5-c-login__main-header {
 .pf-v5-c-login__main-header {
   align-items: center;
   gap: 12px;
-  padding: 30px 30px 6px;
+  padding: clamp(20px, 2.8dvh, 28px) clamp(20px, 2.4vw, 28px) 2px;
   border-top: 0;
 }
 #kc-page-title,
 .pf-v5-c-login__main-header .pf-v5-c-title {
   margin: 0;
-  color: var(--fw-forest-950);
-  font-size: 22px;
+  color: var(--fw-ink);
+  font-size: 21px;
   font-weight: 650;
   line-height: 1.2;
-  letter-spacing: -.8px;
+  letter-spacing: -.6px;
 }
 
 /* The language picker: a quiet pill instead of a boxed field. */
@@ -192,8 +257,8 @@ div.pf-v5-c-login__main-header {
 .pf-v5-c-login__main-header-utilities .pf-v5-c-form-control {
   --pf-v5-c-form-control--BackgroundColor: transparent;
   width: auto;
-  min-height: 32px;
-  border: 1px solid var(--fw-line);
+  min-height: 34px;
+  border: 1px solid var(--fw-edge);
   border-radius: 999px;
   background: var(--fw-soft);
   font-size: 12px;
@@ -202,18 +267,21 @@ div.pf-v5-c-login__main-header {
 .pf-v5-c-login__main-header-utilities .pf-v5-c-form-control::after {
   border: 0;
 }
-.pf-v5-c-login__main-header-utilities select {
-  padding: 4px 26px 4px 10px;
+.pf-v5-c-login__main-header-utilities select,
+#login-select-toggle {
+  padding: 4px 26px 4px 11px;
+  border: 0;
+  background: transparent;
   color: var(--fw-muted);
   font-size: 12px;
 }
 
 .pf-v5-c-login__main-body {
-  padding: 18px 30px 6px;
+  padding: clamp(10px, 1.8dvh, 16px) clamp(20px, 2.4vw, 28px) 2px;
 }
 
 /* ── Fields ───────────────────────────────────────────────────────────────── */
-.pf-v5-c-form { gap: 14px; }
+.pf-v5-c-form { gap: 12px; }
 
 /* Registration: first and last name share a row. */
 #kc-register-form {
@@ -225,62 +293,100 @@ div.pf-v5-c-login__main-header {
 #kc-register-form > .pf-v5-c-form__group:has(#firstName),
 #kc-register-form > .pf-v5-c-form__group:has(#lastName) { grid-column: auto; }
 #kc-register-form .pf-v5-c-form__label-required { margin-left: 3px; }
-.pf-v5-c-form__group-label { padding-bottom: 6px; }
+.pf-v5-c-form__group-label { padding-bottom: 5px; }
 .pf-v5-c-form__label-text {
   color: var(--fw-ink);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 650;
 }
-.pf-v5-c-form__label-required { color: var(--fw-terracotta); }
+.pf-v5-c-form__label-required { color: var(--fw-danger); }
 
 /* One full, rounded border instead of PatternFly's underline. */
-.pf-v5-c-login__main-body .pf-v5-c-form-control {
+.pf-v5-c-login__main-body span.pf-v5-c-form-control {
   --pf-v5-c-form-control--BorderRadius: 10px;
-  min-height: 44px;
-  border: 1px solid var(--fw-field-line);
+  /* Grid, like PatternFly: the status icon of an invalid field is placed with
+     `grid-column: 2`, so a block container dropped it under the input. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0;
+  min-height: 46px;
+  border: 1px solid var(--fw-edge);
   border-radius: 10px;
-  background: #fff;
+  background: var(--fw-soft);
+  color: var(--fw-ink);
   transition: border-color .15s, box-shadow .15s;
 }
-.pf-v5-c-login__main-body .pf-v5-c-form-control::before,
-.pf-v5-c-login__main-body .pf-v5-c-form-control::after {
+.pf-v5-c-login__main-body span.pf-v5-c-form-control::before,
+.pf-v5-c-login__main-body span.pf-v5-c-form-control::after {
   border: 0;
 }
-.pf-v5-c-login__main-body .pf-v5-c-form-control:hover { border-color: var(--fw-forest-500); }
-.pf-v5-c-login__main-body .pf-v5-c-form-control:focus-within {
-  border-color: var(--fw-forest-700);
-  box-shadow: 0 0 0 3px rgb(40 94 86 / 16%);
+.pf-v5-c-login__main-body span.pf-v5-c-form-control:hover { border-color: var(--fw-edge-strong); }
+.pf-v5-c-login__main-body span.pf-v5-c-form-control:focus-within {
+  border-color: var(--fw-accent);
+  box-shadow: 0 0 0 3px rgb(148 223 218 / 20%);
 }
-.pf-v5-c-login__main-body .pf-v5-c-form-control > input,
-.pf-v5-c-login__main-body .pf-v5-c-form-control > select,
-.pf-v5-c-login__main-body .pf-v5-c-form-control > textarea {
+.pf-v5-c-login__main-body span.pf-v5-c-form-control > input,
+.pf-v5-c-login__main-body span.pf-v5-c-form-control > select,
+.pf-v5-c-login__main-body span.pf-v5-c-form-control > textarea,
+.pf-v5-c-login__main-body input.pf-v5-c-form-control {
+  width: 100%;
+  min-height: 44px;
   padding: 11px 14px;
   border: 0;
-  outline: 0;
+  border-radius: inherit;
   background: transparent;
   color: var(--fw-ink);
+  caret-color: var(--fw-accent);
   font-size: 14px;
 }
+/* The typed text gets its own inset ring, so the focus indicator survives even
+   where `:has()` and the wrapper halo are unavailable. Buttons are excluded
+   explicitly: a submit input also matches an `input` selector, and an aqua ring
+   drawn inside the aqua fill of the primary action measures 1:1 — an inset ring
+   is not a focus indicator there. */
+.pf-v5-c-login__main-body span.pf-v5-c-form-control > input:focus-visible:not(.pf-v5-c-button):not([type="submit"]):not([type="button"]):not([type="reset"]),
+.pf-v5-c-login__main-body span.pf-v5-c-form-control > select:focus-visible,
+.pf-v5-c-login__main-body span.pf-v5-c-form-control > textarea:focus-visible,
+.pf-v5-c-login__main-body input.pf-v5-c-form-control:focus-visible:not(.pf-v5-c-button):not([type="submit"]):not([type="button"]):not([type="reset"]),
+.pf-v5-c-login__main-body select:focus-visible,
+.pf-v5-c-login__main-body textarea:focus-visible {
+  outline: 2px solid var(--fw-focus);
+  outline-offset: -3px;
+  border-radius: 9px;
+}
+.pf-v5-c-login__main-body ::placeholder { color: var(--fw-muted); opacity: 1; }
+
+/* Chrome paints autofill with the platform's light-yellow background and black
+   text; the inset shadow keeps the aerial night field intact. */
+.pf-v5-c-login__main-body input:-webkit-autofill,
+.pf-v5-c-login__main-body input:-webkit-autofill:hover,
+.pf-v5-c-login__main-body input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--fw-ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--fw-soft) inset;
+  caret-color: var(--fw-accent);
+}
+
 .pf-v5-c-form-control.pf-m-error,
 .pf-v5-c-form-control:has(input[aria-invalid="true"]) {
-  border-color: var(--fw-terracotta);
+  border-color: var(--fw-danger);
 }
 
 /* Password field and its show/hide button read as one control. */
 .pf-v5-c-login__main-body .pf-v5-c-input-group {
   overflow: hidden;
-  border: 1px solid var(--fw-field-line);
+  border: 1px solid var(--fw-edge);
   border-radius: 10px;
-  background: #fff;
+  background: var(--fw-soft);
   transition: border-color .15s, box-shadow .15s;
 }
-.pf-v5-c-login__main-body .pf-v5-c-input-group:hover { border-color: var(--fw-forest-500); }
+.pf-v5-c-login__main-body .pf-v5-c-input-group:hover { border-color: var(--fw-edge-strong); }
 .pf-v5-c-login__main-body .pf-v5-c-input-group:focus-within {
-  border-color: var(--fw-forest-700);
-  box-shadow: 0 0 0 3px rgb(40 94 86 / 16%);
+  border-color: var(--fw-accent);
+  box-shadow: 0 0 0 3px rgb(148 223 218 / 20%);
 }
-.pf-v5-c-login__main-body .pf-v5-c-input-group .pf-v5-c-form-control,
-.pf-v5-c-login__main-body .pf-v5-c-input-group .pf-v5-c-form-control:focus-within {
+.pf-v5-c-login__main-body .pf-v5-c-input-group span.pf-v5-c-form-control,
+.pf-v5-c-login__main-body .pf-v5-c-input-group span.pf-v5-c-form-control:focus-within {
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -288,42 +394,70 @@ div.pf-v5-c-login__main-header {
 .pf-v5-c-button.pf-m-control {
   --pf-v5-c-button--after--BorderColor: transparent;
   --pf-v5-c-button--m-control--after--BorderBottomColor: transparent;
-  min-width: 46px;
+  min-width: 48px;
+  min-height: 46px;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--fw-muted);
 }
 .pf-v5-c-button.pf-m-control::after { border: 0; }
-.pf-v5-c-button.pf-m-control:hover { color: var(--fw-forest-900); background: var(--fw-soft); }
+.pf-v5-c-button.pf-m-control:hover { color: var(--fw-ink); background: var(--fw-raised); }
+.pf-v5-c-button.pf-m-control:focus-visible {
+  outline: 3px solid var(--fw-focus);
+  outline-offset: -3px;
+}
 
 .pf-v5-c-form__helper-text:has(.pf-v5-c-helper-text:empty) { display: none; }
 .pf-v5-c-form__helper-text,
+.pf-v5-c-helper-text,
 .pf-v5-c-helper-text__item.pf-m-error,
-.pf-v5-c-helper-text__item-text {
-  color: var(--fw-terracotta);
+.pf-v5-c-helper-text__item-text,
+.pf-v5-c-helper-text__item-text.pf-m-error {
+  color: var(--fw-danger);
   font-size: 12px;
 }
 .pf-v5-c-check__label { color: var(--fw-muted); font-size: 13px; }
+.pf-v5-c-check__input { accent-color: var(--fw-accent); }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
 .pf-v5-c-form__actions { margin-top: 0; }
-.pf-v5-c-button.pf-m-primary {
-  --pf-v5-c-button--m-primary--BackgroundColor: var(--fw-forest-900);
-  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--fw-forest-700);
-  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--fw-forest-700);
-  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--fw-forest-950);
+.pf-v5-c-button.pf-m-primary,
+#kc-login {
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--fw-accent);
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--fw-ink);
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--fw-ink);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--fw-ink);
+  --pf-v5-c-button--m-primary--Color: var(--fw-accent-ink);
+  --pf-v5-c-button--m-primary--hover--Color: var(--fw-accent-ink);
   --pf-v5-c-button--BorderRadius: 10px;
   min-height: 46px;
+  border: 1px solid var(--fw-accent);
   border-radius: 10px;
+  background: var(--fw-accent);
+  color: var(--fw-accent-ink);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 750;
+  transition: background .15s, border-color .15s, color .15s;
+}
+/* Hover brightens to the ink instead of darkening the aqua: the label keeps its
+   dark ink and the pair only gains contrast. */
+.pf-v5-c-button.pf-m-primary:hover,
+#kc-login:hover {
+  border-color: var(--fw-ink);
+  background: var(--fw-ink);
+  color: var(--fw-accent-ink);
+}
+.pf-v5-c-button.pf-m-primary:active,
+#kc-login:active {
+  border-color: var(--fw-accent);
+  background: var(--fw-accent);
+  color: var(--fw-accent-ink);
 }
 
-/* Google (and any other provider): white, light border, centred label, as on
-   the FireWatch page. The parent spreads icon and label apart with utility
-   classes that use !important, so these overrides need it as well. The footer
-   sits inside the card body, which already carries the horizontal padding. */
+/* Google (and any other provider): the raised surface, one accent border on
+   hover, centred label, as on the FireWatch page. The parent spreads icon and
+   label apart with utility classes that use !important, so these need it too. */
 #kc-social-providers ul {
   display: grid;
   gap: 10px;
@@ -334,29 +468,32 @@ div.pf-v5-c-login__main-header {
 #kc-social-providers li { padding: 0 !important; }
 #kc-social-providers .pf-v5-c-button.pf-m-secondary {
   --pf-v5-c-button--after--BorderColor: transparent;
-  --pf-v5-c-button--m-secondary--Color: #1f1f1f;
-  --pf-v5-c-button--m-secondary--hover--Color: #1f1f1f;
-  --pf-v5-c-button--m-secondary--BackgroundColor: #fff;
-  --pf-v5-c-button--m-secondary--hover--BackgroundColor: #f7f8f5;
+  --pf-v5-c-button--m-secondary--Color: var(--fw-ink);
+  --pf-v5-c-button--m-secondary--hover--Color: var(--fw-ink);
+  --pf-v5-c-button--m-secondary--BackgroundColor: var(--fw-raised);
+  --pf-v5-c-button--m-secondary--hover--BackgroundColor: var(--fw-soft);
   min-height: 46px;
   justify-content: center !important;
   gap: 10px;
-  border: 1px solid var(--fw-field-line);
+  border: 1px solid var(--fw-edge-strong);
   border-radius: 10px;
-  background: #fff;
-  color: #1f1f1f;
+  background: var(--fw-raised);
+  color: var(--fw-ink);
   font-size: 14px;
   font-weight: 650;
 }
 #kc-social-providers .pf-v5-c-button.pf-m-secondary::after { border: 0; }
-#kc-social-providers .pf-v5-c-button.pf-m-secondary:hover { border-color: var(--fw-forest-500); background: #f7f8f5; }
+#kc-social-providers .pf-v5-c-button.pf-m-secondary:hover {
+  border-color: var(--fw-accent);
+  background: var(--fw-soft);
+}
 #kc-social-providers .pf-v5-c-button span { margin: 0 !important; }
 #kc-social-providers .pf-v5-c-button svg { width: 18px; height: 18px; }
 
 /* ── Footer: divider and the sign-up / sign-in switch ─────────────────────── */
 .pf-v5-c-login__main-footer {
   display: block;
-  padding: 0 0 26px;
+  padding: 0 0 22px;
   border: 0;
   background: transparent;
 }
@@ -368,48 +505,53 @@ div.pf-v5-c-login__main-header {
   background: transparent;
 }
 
-/* "O inicie sesión con" becomes a rule with the words in the middle. */
-.pf-v5-c-login__main-footer-band:first-child {
+/* "O inicie sesión con" becomes a rule with the words in the middle. The
+   registration band (`#kc-info`) has its own rule below. */
+.pf-v5-c-login__main-footer-band:first-child:not(#kc-info) {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 18px 0 16px;
+  margin: 14px 0 12px;
   color: var(--fw-muted);
   font-size: 12px;
   text-align: center;
 }
-.pf-v5-c-login__main-footer-band:first-child::before,
-.pf-v5-c-login__main-footer-band:first-child::after {
+.pf-v5-c-login__main-footer-band:first-child:not(#kc-info)::before,
+.pf-v5-c-login__main-footer-band:first-child:not(#kc-info)::after {
   content: "";
   flex: 1;
   height: 1px;
   background: var(--fw-line);
 }
-.pf-v5-c-login__main-footer-band:first-child .pf-v5-c-login__main-footer-band-item {
+.pf-v5-c-login__main-footer-band:first-child:not(#kc-info) .pf-v5-c-login__main-footer-band-item {
   flex: 0 1 auto;
   color: var(--fw-muted);
 }
 
 #kc-info.pf-v5-c-login__main-footer-band {
-  /* The parent marks it `pf-v5-u-w-100` (width: 100% !important), which
-     pushed it past the card once it had a margin. */
+  /* The parent marks it `pf-v5-u-w-100` (width: 100% !important), which pushed
+     it past the card once it had a margin. */
   width: auto !important;
-  margin: 20px 0 0;
-  padding-top: 18px;
+  margin: 14px 0 0;
+  padding-top: 14px;
   border-top: 1px solid var(--fw-line);
   color: var(--fw-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   text-align: center;
 }
 #kc-registration a,
 #kc-info-wrapper a,
 #kc-form-options a,
 .pf-v5-c-login__main-footer-band a {
-  color: var(--fw-terracotta);
+  color: var(--fw-accent);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+#kc-registration a:hover,
+#kc-info-wrapper a:hover,
+#kc-form-options a:hover,
+.pf-v5-c-login__main-footer-band a:hover { color: var(--fw-ink); }
 
 /* Registration: "« Volver a iniciar sesión" sits under the button. */
 #kc-form-options {
@@ -421,38 +563,95 @@ div.pf-v5-c-login__main-header {
 /* ── Focus and alerts ─────────────────────────────────────────────────────── */
 .pf-v5-c-button:focus-visible,
 a:focus-visible,
-select:focus-visible {
-  outline: 3px solid #cf7d4f;
+select:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--fw-focus);
+  outline-offset: 2px;
+}
+/* The primary action is a filled accent control, so its focus ring is drawn
+   outward over the card and never inside the accent fill. The registration and
+   required-action submits are `<input type="submit">` on Keycloak's own markup,
+   which is why they are named here: the text-field ring must never capture
+   them, and this rule outranks any generic input focus rule. */
+.pf-v5-c-button.pf-m-primary:focus-visible,
+input.pf-v5-c-button.pf-m-primary:focus-visible,
+#kc-login:focus-visible,
+#kc-form-buttons input[type="submit"]:focus-visible {
+  outline: 3px solid var(--fw-focus);
   outline-offset: 2px;
 }
 .pf-v5-c-alert {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
+  border: 1px solid var(--fw-edge);
+  border-left-width: 3px;
   border-radius: 10px;
+  background: var(--fw-soft);
+  color: var(--fw-ink);
 }
+.pf-v5-c-alert__title { color: var(--fw-ink); font-size: 13px; }
+.pf-v5-c-alert__description,
+.pf-v5-c-alert__description p { color: var(--fw-ink); font-size: 12.5px; }
+.pf-v5-c-alert__icon { color: var(--fw-accent); }
 .pf-v5-c-alert.pf-m-danger,
 .pf-v5-c-alert.pf-m-error {
-  --pf-v5-c-alert--BorderTopColor: var(--fw-terracotta);
-  background: var(--fw-terracotta-soft);
+  --pf-v5-c-alert--BorderTopColor: var(--fw-danger);
+  border-left-color: var(--fw-danger);
+  background: var(--fw-danger-soft);
 }
+.pf-v5-c-alert.pf-m-danger .pf-v5-c-alert__title,
+.pf-v5-c-alert.pf-m-error .pf-v5-c-alert__title,
+.pf-v5-c-alert.pf-m-danger .pf-v5-c-alert__icon,
+.pf-v5-c-alert.pf-m-error .pf-v5-c-alert__icon {
+  color: var(--fw-danger);
+}
+.pf-v5-c-alert.pf-m-success {
+  border-left-color: var(--fw-success);
+  background: var(--fw-soft);
+}
+.pf-v5-c-alert.pf-m-success .pf-v5-c-alert__title { color: var(--fw-success); }
+.pf-v5-c-alert.pf-m-warning {
+  border-left-color: var(--fw-gold);
+  background: var(--fw-warning-soft);
+}
+.pf-v5-c-alert.pf-m-warning .pf-v5-c-alert__title { color: var(--fw-gold); }
+.pf-v5-c-alert.pf-m-info {
+  border-left-color: var(--fw-info-text);
+  background: var(--fw-info-surface);
+}
+.pf-v5-c-alert.pf-m-info .pf-v5-c-alert__title { color: var(--fw-info-text); }
+
+/* Keycloak's own error page renders `#kc-error-message`, not an alert. */
+#kc-error-message {
+  margin: 0 0 8px;
+  color: var(--fw-ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+#kc-error-message .instruction { margin: 0; }
 
 /* ── Narrow screens: brand on top, card below ─────────────────────────────── */
+/* Below the breakpoint the page is the document, not a box: one column that
+   scrolls naturally, with no fixed height to clip a 320 px card. */
 @media (max-width: 900px) {
   .pf-v5-c-login__container {
     grid-template-columns: 1fr;
     grid-template-areas: "header" "main";
+    min-height: 0;
   }
   #kc-header.pf-v5-c-login__header {
-    gap: 18px;
-    padding: 26px 16px 24px;
+    gap: 16px;
+    padding: 22px 16px 20px;
+    background-size: 34px 34px, 34px 34px, auto, auto, auto;
   }
   #kc-header::after {
     margin-block: 0;
-    font-size: 26px;
-    letter-spacing: -1px;
+    font-size: clamp(22px, 5.6vw, 27px);
+    letter-spacing: -.7px;
   }
+  #kc-header::before { padding-top: 12px; font-size: 10.5px; }
   .pf-v5-c-login__main {
     align-self: start;
-    margin: 24px 0 40px;
+    margin: 16px 0 28px;
   }
 }
 
@@ -464,5 +663,7 @@ select:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pf-v5-c-form-control, .pf-v5-c-input-group { transition: none; }
+  .pf-v5-c-form-control,
+  .pf-v5-c-input-group,
+  .pf-v5-c-button.pf-m-primary { transition: none; }
 }

@@ -1,25 +1,32 @@
-// PM-01 — the executive panel: the server's own summary of the territory, shown
-// at the top of the overview.
+// PM-01 — the executive panel: the server's own summary of the territory.
+//
+// T4 made it the body of two destinations: the executive route (`#executive)`
+// and the overview, which keeps the same section for the zone it describes. The
+// read belongs to `useExecutiveSummary`, so neither view issues a second request
+// for the same answer.
 //
 // Four honesty rules shape this section:
 //   1. every number here was computed by the server from its own snapshots; this
 //      component performs no arithmetic, so no member can silently become a
 //      ratio, a forecast or an invented zero;
-//   2. "zona crítica" is D-B, the responsible's definition, and it is shown with
-//      its own literal — "Alto en los dos últimos lotes" — rather than a
-//      severity colour a reader would have to interpret;
+//   2. "zona crítica" is D-B, the responsible's already-decided definition (the two
+//      newest published batches at `alto`), and it is shown with its own literal —
+//      "Alto en los dos últimos lotes" — rather than a severity colour a reader
+//      would have to interpret; the panel states it as decided, because it is;
 //   3. the summary's failure is stated inline and owns only this section: the
 //      rest of the overview keeps working, and a pending read is bounded by the
 //      transport deadline instead of an endless spinner;
 //   4. the classification is an active rule, not a model, and the panel says so
 //      in its tag and in its note.
 //
-// The component is presentational on purpose: the view owns the read, its abort
-// and its failure copy, so each state can be rendered and tested on its own.
+// The component is presentational on purpose: the hook owns the read, its abort
+// and its failure copy, so each state can be rendered and tested on its own and
+// both views print the same refusal.
 
 import type { ExecutiveLevelCounts, ExecutiveSummary } from '../../core/api';
 import { levelLabel } from '../../domain';
 import { DataList } from '../ui';
+import '../../styles/decision-workspace.css';
 
 // The two literals the section is required to show. They are constants so the
 // visible copy and the test that pins it cannot drift apart.
@@ -45,12 +52,7 @@ export interface ExecutivePanelProps {
   batchIsDemo?: boolean;
 }
 
-const LEVEL_ROWS: ReadonlyArray<{ key: keyof ExecutiveLevelCounts; label: string }> = [
-  { key: 'alto', label: 'Alto' },
-  { key: 'medio', label: 'Medio' },
-  { key: 'bajo', label: 'Bajo' },
-  { key: 'desconocido', label: 'Desconocido' },
-];
+const LEVEL_ORDER: ReadonlyArray<keyof ExecutiveLevelCounts> = ['alto', 'medio', 'bajo', 'desconocido'];
 
 function zonesText(count: number): string {
   return count === 1 ? '1 zona' : `${count} zonas`;
@@ -100,39 +102,54 @@ export function ExecutivePanel({ state, zoneNames, batchIsDemo = false }: Execut
       ) : null}
 
       {summary !== null ? (
-        <div className="executive-grid">
-          <section className="executive-block" aria-labelledby="executive-coverage-title">
-            <h4 id="executive-coverage-title">Cobertura</h4>
-            <DataList
-              items={[
-                {
-                  label: 'Zonas del catálogo',
-                  value: <span id="executive-coverage-catalogue">{summary.coverage.catalogue_zones}</span>,
-                },
-                {
-                  label: 'Sin lote publicado',
-                  value: <span id="executive-coverage-without-batch">{summary.coverage.zones_without_batch}</span>,
-                },
-                {
-                  label: 'Obsoletas',
-                  value: <span id="executive-coverage-stale">{summary.coverage.stale_zones}</span>,
-                },
-                {
-                  label: 'Demo',
-                  value: <span id="executive-coverage-demo">{summary.coverage.demo_zones}</span>,
-                },
-              ]}
-            />
+        <>
+          {/*
+            The board's counts band, with the server's own numbers. The cells are
+            a reading, not a filter: the summary endpoint publishes counts and no
+            per-level listing, so there is no list to narrow and no pressed state
+            to invent.
+          */}
+          <section className="decision-band" aria-labelledby="executive-levels-title">
+            <div className="decision-band__head">
+              <h4 id="executive-levels-title">Niveles</h4>
+              <p className="decision-band__hint">
+                Un conteo por nivel publicado. Los calcula el servidor sobre sus propios lotes; esta sección no los
+                recalcula ni los estima.
+              </p>
+            </div>
+            <ul className="decision-summary" id="executive-levels">
+              {LEVEL_ORDER.map((key) => (
+                <li className="decision-summary__cell" key={key} data-level={key}>
+                  <span className="decision-summary__label">{levelLabel(key)}</span>
+                  <strong id={`executive-level-${key}`}>{summary.levels[key]}</strong>
+                </li>
+              ))}
+            </ul>
           </section>
 
-          <section className="executive-block" aria-labelledby="executive-levels-title">
-            <h4 id="executive-levels-title">Niveles</h4>
-            <DataList
-              items={LEVEL_ROWS.map((row) => ({
-                label: row.label,
-                value: <span id={`executive-level-${row.key}`}>{summary.levels[row.key]}</span>,
-              }))}
-            />
+          <div className="executive-grid">
+            <section className="executive-block" aria-labelledby="executive-coverage-title">
+              <h4 id="executive-coverage-title">Cobertura</h4>
+              <DataList
+                items={[
+                  {
+                    label: 'Zonas del catálogo',
+                    value: <span id="executive-coverage-catalogue">{summary.coverage.catalogue_zones}</span>,
+                  },
+                  {
+                    label: 'Sin lote publicado',
+                    value: <span id="executive-coverage-without-batch">{summary.coverage.zones_without_batch}</span>,
+                  },
+                  {
+                    label: 'Obsoletas',
+                    value: <span id="executive-coverage-stale">{summary.coverage.stale_zones}</span>,
+                  },
+                  {
+                    label: 'Demo',
+                    value: <span id="executive-coverage-demo">{summary.coverage.demo_zones}</span>,
+                  },
+                ]}
+              />
           </section>
 
           <section className="executive-block" aria-labelledby="executive-delta-title">
@@ -220,13 +237,57 @@ export function ExecutivePanel({ state, zoneNames, batchIsDemo = false }: Execut
             </p>
           </section>
         </div>
+        </>
       ) : null}
 
+      {/*
+        The board states the panel's limits under the reading, in its own
+        disclosure band. The three statements are the ones this contract can
+        actually make: no write path, commune granularity, and the responsible's
+        open critical-zone definition.
+      */}
+      <div className="decision-limits" id="executive-limits">
+        <details className="decision-limits__item">
+          <summary>
+            <span className="eyebrow">Alcance de la vista</span>
+            <span className="decision-limits__title">Solo lectura</span>
+          </summary>
+          <p>
+            Esta ficha no publica, no aprueba ni cambia niveles y no pide un lote nuevo: lee el agregado que el
+            servidor ya calculó. Publicar, avanzar y reevaluar viven en Acciones preventivas y en Procesamiento.
+          </p>
+        </details>
+        <details className="decision-limits__item">
+          <summary>
+            <span className="eyebrow">Granularidad</span>
+            <span className="decision-limits__title">Por comuna, no por sector</span>
+          </summary>
+          <p>
+            La unidad del contrato es la comuna (código CUT). El servicio no publica conteos por sector ni un porcentaje
+            de cobertura por sector, así que esta ficha no muestra una tabla de sectores ni rellena ese eje con datos
+            inventados.
+          </p>
+        </details>
+        <details className="decision-limits__item">
+          <summary>
+            <span className="eyebrow">Definición acordada · D-B</span>
+            <span className="decision-limits__title">Zonas críticas y alertas</span>
+          </summary>
+          <p>
+            «{CRITICAL_RULE}» es la definición acordada (D-B): una zona es crítica cuando sus dos últimos lotes
+            publicados tienen nivel alto. El servidor la aplica y esta página reproduce su conteo. El conteo de alertas
+            son las filas que el servicio registró en <code>/v1/risk/alerts</code>: no hay estado de leída ni de
+            descartada, y este panel no los supone. Una zona se nombra con el nombre del catálogo cuando esta página lo
+            leyó y, si no, con el código CUT que el resumen trae; nunca con una etiqueta inventada.
+          </p>
+        </details>
+      </div>
+
       <p className="panel-note" id="executive-panel-note">
-        La etiqueta <q>{CRITICAL_RULE}</q> es D-B: una zona es crítica cuando sus dos últimos lotes publicados tienen
-        nivel alto; una zona con un solo lote, o con un lote alto seguido de otro nivel, no se cuenta. Los conteos
-        llegan calculados del servidor y esta sección no los recalcula. La clasificación la produce una regla propia
-        activa, no un modelo entrenado ni una predicción.
+        La etiqueta <q>{CRITICAL_RULE}</q> es la definición acordada (D-B) y el servidor la aplica: una zona es crítica
+        cuando sus dos últimos lotes publicados tienen nivel alto; una zona con un solo lote, o con un lote alto seguido
+        de otro nivel, no se cuenta. Los conteos llegan calculados del servidor y esta sección no los recalcula. La
+        clasificación la produce una regla propia activa, no un modelo entrenado ni una predicción.
       </p>
     </section>
   );

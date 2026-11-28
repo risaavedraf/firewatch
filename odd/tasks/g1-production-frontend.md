@@ -2,6 +2,8 @@
 Local worktree: `.worktrees/g1-production-frontend`, starting at the cached `origin/dev` (`742e760`).
 Use the existing design reference without changing the prototype delivery or any live product review branch.
 
+**Real-frontend migration of the confirmed design:** tracked in [`firewatch-design-migration.md`](firewatch-design-migration.md) on `feat/firewatch-design-migration` — `T1`–`T8` and `T10`–`T14` delivered, `T9` (production artifact and public origins) and `C3` (Keycloak-hosted login theme and desktop visual review) still open. That delivery closes no `V1-D` row and advances no `PM-*` row of this document.
+
 ## Specs
 - S1 — «no tenemos tiempo para seguir haciendo el diseño»
 - S2 — «vamos full a terminar el front de la pagina, plan producción tomando en cuenta el nuevo diseño que estamos usando»

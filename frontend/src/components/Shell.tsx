@@ -1,15 +1,29 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
-import { navigationGroups, routes, type RouteDefinition } from '../app/routes';
+import type { RouteDefinition } from '../app/routes';
 import { sessionDetailCopy } from '../app/sessionCopy';
 import { resetHistoryFilters, useSelectedZoneLabel, useSessionState } from '../app/store';
 import { ready, type Outcome } from '../core/api';
 import { signOut } from '../core/session';
+import { ProductNav } from './ProductNav';
 import { Icon } from './ui';
 
-// The application shell: sidebar, topbar, update bar and footer, ported from the
-// page that was already reviewed. Every element identifier the retired page
-// exposed survives here, because the behaviour that reads them is ported with it.
+// The application shell: the product bar above it, then one compact header, the
+// update bar, the content region and the footer. Every element identifier the
+// retired page exposed survives here, because the behaviour that reads them is
+// ported with it.
+//
+// S7 removed the left column — «también me gustaría sacar la barra lateral para
+// darle más espacio a las cosas» — so the workspace is the shell's only column and
+// `main` gets the width the column used to take. Nothing the column carried was
+// dropped with it: the brand, the territorial scope, the gateway readiness card
+// with its refresh control, the session state and the only sign-out control moved
+// into the header as one compact utility cluster, in that reading order and with
+// their ids, live region and labels intact. The brand is a mark, not a link: the
+// home destination is the first shortcut of the product bar directly above, and
+// the cluster's keyboard order (refresh, then sign-out) is what the bar hands over
+// to. The tab order is skip link → bar shortcuts and disclosure → gateway refresh
+// → sign out → the workspace.
 //
 // One thing deliberately does *not* survive: the demonstration strip is no
 // longer a full-width headline above everything. The honesty statement it carried
@@ -133,102 +147,70 @@ export function Shell({ route, children }: { route: RouteDefinition; children: R
       >
         Saltar al contenido
       </a>
+      <ProductNav route={route} />
       <div className="app-shell">
-        <aside className="sidebar">
-          <a className="brand" href="#overview" aria-label="FireWatch, inicio">
-            <span className="brand-mark" aria-hidden="true">
-              F
-            </span>
-            <span>
-              <strong>FireWatch</strong>
-              <small>Prevención territorial</small>
-            </span>
-          </a>
-          <div className="workspace">
-            <span className="workspace-mark" aria-hidden="true">
-              V
-            </span>
-            <div>
-              Valparaíso
-              <small>Ámbito regional</small>
-            </div>
-            <Icon name="territory" />
-          </div>
-          <nav aria-label="Navegación principal">
-            {navigationGroups.map(group => (
-              <div key={group}>
-                <p className="nav-group">{group}</p>
-                {routes
-                  .filter(candidate => candidate.group === group)
-                  .map(candidate => {
-                    const active = candidate.id === route.id;
-                    return (
-                      <a
-                        key={candidate.id}
-                        id={`nav-${candidate.id}`}
-                        className={active ? 'nav-link is-active' : 'nav-link'}
-                        href={candidate.hash}
-                        aria-current={active ? 'true' : undefined}
-                      >
-                        <Icon name={candidate.icon} />
-                        <span>{candidate.label}</span>
-                      </a>
-                    );
-                  })}
-              </div>
-            ))}
-          </nav>
-          <div className="sidebar-bottom">
-            <section className="health-card" aria-labelledby="health-title">
-              <div className="health-head">
-                <strong id="health-title">Gateway</strong>
-                <span className={dotClass} aria-hidden="true" />
-              </div>
-              <p id="readiness-status" role="status" aria-live="polite">
-                {readiness.message}
-              </p>
-              <button
-                id="readiness-refresh"
-                className="side-action"
-                type="button"
-                disabled={readiness.state === 'checking'}
-                onClick={checkReadiness}
-              >
-                Actualizar estado
-              </button>
-            </section>
-            <div className="session-card">
-              <span className="session-mark" aria-hidden="true">
-                ●
-              </span>
-              <div>
-                <strong id="session-state">{signedIn ? 'Sesión conectada' : 'Sin conexión'}</strong>
-                <small id="session-detail">
-                  {signedIn ? 'Permisos evaluados por el servidor' : sessionDetailCopy(session)}
-                </small>
-              </div>
-              {/* Kept in the document exactly once and hidden while signed out, which
-                  is the contract the retired page had: one control, never a duplicate. */}
-              <button id="logout" type="button" hidden={!signedIn} onClick={signOut}>
-                Cerrar sesión
-              </button>
-            </div>
-          </div>
-        </aside>
-
         <div className="main-area">
+          {/* The shell's banner. The brand, the route, the territory and the
+              session tablet share one compact row so the fold belongs to the
+              content; the cluster wraps instead of shrinking, and every box may
+              shrink (`min-width: 0`) so a long zone name cannot widen the page. */}
           <header className="topbar">
-            <div>
-              <span className="breadcrumbs">
-                FireWatch <span>/</span> {route.group}
-              </span>
-              <h1>{route.title}</h1>
+            <div className="topbar-lead">
+              <div className="brand">
+                <span className="brand-mark" aria-hidden="true">
+                  F
+                </span>
+                <span className="brand-copy">
+                  <strong>FireWatch</strong>
+                  <small>Prevención territorial</small>
+                </span>
+              </div>
+              <div className="topbar-route">
+                <span className="breadcrumbs">{route.group}</span>
+                <h1>{route.title}</h1>
+              </div>
             </div>
-            <div className="zone-chip">
-              <span aria-hidden="true">⌖</span>
-              <div>
-                <small>ZONA</small>
-                <strong id="zone-chip-name">{zoneLabel === '' ? 'Sin zona' : zoneLabel}</strong>
+            <div className="topbar-utils">
+              <div className="zone-chip">
+                <span aria-hidden="true">⌖</span>
+                <div>
+                  <small>Valparaíso · Ámbito regional</small>
+                  <strong id="zone-chip-name">{zoneLabel === '' ? 'Sin zona' : zoneLabel}</strong>
+                </div>
+              </div>
+              <section className="health-card" aria-labelledby="health-title">
+                <div className="health-head">
+                  <strong id="health-title">Gateway</strong>
+                  <span className={dotClass} aria-hidden="true" />
+                </div>
+                <p id="readiness-status" role="status" aria-live="polite">
+                  {readiness.message}
+                </p>
+                <button
+                  id="readiness-refresh"
+                  className="status-action"
+                  type="button"
+                  disabled={readiness.state === 'checking'}
+                  onClick={checkReadiness}
+                >
+                  Actualizar estado
+                </button>
+              </section>
+              <div className="session-card">
+                <span className="session-mark" aria-hidden="true">
+                  ●
+                </span>
+                <div>
+                  <strong id="session-state">{signedIn ? 'Sesión conectada' : 'Sin conexión'}</strong>
+                  <small id="session-detail">
+                    {signedIn ? 'Permisos evaluados por el servidor' : sessionDetailCopy(session)}
+                  </small>
+                </div>
+                {/* Kept in the document exactly once and hidden while signed out, which
+                    is the contract the retired page had: one control, never a duplicate. */}
+                <button id="logout" type="button" hidden={!signedIn} onClick={signOut}>
+                  Cerrar sesión
+                </button>
               </div>
             </div>
           </header>
