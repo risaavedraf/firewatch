@@ -21,3 +21,5 @@ export * from './job-progress';
 export * from './priority';
 // V1-P-01 / PM-12 — how the served land-cover layer is read and stated.
 export * from './vegetation';
+// V1-P-05 — how the served quality findings and source reviews are stated.
+export * from './source-quality';

@@ -17,6 +17,7 @@ import { completeLogin, resetSession } from '../../src/core/session';
 import type { PreventiveAction, PreventiveActionDetail } from '../../src/types/api';
 
 import { createCryptoStub, createFetchStub, createStorageStub, flush, jwt } from '../core/harness';
+import { qualityCatalogFixture, sourceEntryFixture } from '../support/source-quality';
 
 // S3 — the transport half of the frozen `prevention` contract
 // (`odd/tasks/presentation-client-ready.md` §«Contrato congelado»): the four
@@ -535,14 +536,14 @@ test('the sources read carries the per-source cycle array through untouched', as
       integrity: { algorithm: 'sha256', matches: true },
     },
     risk_input: { synthetic: true, display_name: 'Perfil', id: 'academic' },
+    quality_catalog: qualityCatalogFixture(),
     sources: [
-      {
+      sourceEntryFixture({
         source_id: 'fixture',
         last_run_at: '2026-01-01T11:45:00Z',
         next_run_at: '2026-01-01T12:00:00Z',
-        complete: true,
         age_seconds: 900,
-      },
+      }),
     ],
   };
   const read = sources();

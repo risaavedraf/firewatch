@@ -9,6 +9,7 @@ import {
   jobsStatus,
   latest,
   ready,
+  reviewSource,
   riskStatus,
   scenarios,
   sources,
@@ -21,6 +22,7 @@ import { completeLogin, getAccessToken, getSessionSnapshot, resetSession } from 
 import type { Job, RiskBatch, SourceProvenance, ZonePriority } from '../../src/types/api';
 
 import { createCryptoStub, createFetchStub, createStorageStub, createWindowStub, flush, jwt } from './harness';
+import { qualityCatalogFixture, sourceEntryFixture, sourceReviewFixture } from '../support/source-quality';
 
 const TOKEN_URL = `${issuer}/protocol/openid-connect/token`;
 
@@ -77,6 +79,8 @@ function sourceBody(): Record<string, unknown> {
       integrity: { algorithm: 'sha256', recorded_sha256: 'c'.repeat(64), computed_sha256: 'c'.repeat(64), matches: true },
     },
     risk_input: { id: 'academic', display_name: 'Perfil académico', synthetic: true },
+    quality_catalog: qualityCatalogFixture(),
+    sources: [sourceEntryFixture()],
   };
 }
 
@@ -1064,4 +1068,220 @@ test('the projection still ranks a payload whose position is consistent', () => 
     context_summary: 'Comuna 05101: prioridad 86 de 100, puesto 1 de 2 del lote publicado.',
   });
   expect(view.kind).toBe('ranked');
+});
+
+// ── V1-P-05 — the closed quality catalogue and the source review ───────────
+//
+// The catalogue is CLOSED: five codes, in the ratified order, each with its kind,
+// its severity and a Spanish description. A sixth code, a reordered list, an empty
+// description or a source carrying an undeclared finding is refused at the boundary
+// instead of being painted as a quality finding the service cannot produce.
+test('the sources read requires the closed quality catalogue and its findings', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const goodRead = sources();
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/sources`, sourceBody());
+  const good = await goodRead;
+  if (!good.ok) throw new Error(`expected a usable catalogue, got ${good.failure.reason}`);
+  expect(good.data.quality_catalog?.map(entry => entry.code)).toEqual([
+    'STALE_CUTOFF',
+    'MISSING_CANONICAL_FACTOR',
+    'OUT_OF_RANGE_CLAMPED',
+    'CHECKSUM_VERIFIED',
+    'SYNTHETIC_FALLBACK',
+  ]);
+  expect(good.data.sources?.[0].quality_findings).toEqual(['CHECKSUM_VERIFIED', 'SYNTHETIC_FALLBACK']);
+  expect(good.data.sources?.[0].review).toBeNull();
+});
+
+test('the sources read refuses a catalogue or a finding the contract does not declare', async () => {
+  const cases: Array<{ name: string; mutate: (body: Record<string, unknown>) => void }> = [
+    {
+      name: 'a missing catalogue',
+      mutate: body => delete body.quality_catalog,
+    },
+    {
+      name: 'a catalogue with an undeclared sixth code',
+      mutate: body => {
+        (body.quality_catalog as unknown[]).push({
+          code: 'INVENTED_FINDING',
+          kind: 'coverage',
+          severity: 'warning',
+          description: 'Un código que el servicio no puede producir.',
+        });
+      },
+    },
+    {
+      name: 'a reordered catalogue',
+      mutate: body => {
+        const catalog = body.quality_catalog as unknown[];
+        body.quality_catalog = [catalog[1], catalog[0], ...catalog.slice(2)];
+      },
+    },
+    {
+      name: 'a definition with an empty description',
+      mutate: body => {
+        (body.quality_catalog as Array<Record<string, unknown>>)[0].description = '';
+      },
+    },
+    {
+      name: 'a definition with an undeclared severity',
+      mutate: body => {
+        (body.quality_catalog as Array<Record<string, unknown>>)[0].severity = 'critical';
+      },
+    },
+    {
+      name: 'a definition whose kind does not belong to its code',
+      mutate: body => {
+        (body.quality_catalog as Array<Record<string, unknown>>)[0].kind = 'integrity';
+      },
+    },
+    {
+      name: 'a source with no findings',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].quality_findings = [];
+      },
+    },
+    {
+      name: 'a source with an undeclared finding',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].quality_findings = ['INVENTED_FINDING'];
+      },
+    },
+    {
+      name: 'a source repeating a finding',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].quality_findings = ['CHECKSUM_VERIFIED', 'CHECKSUM_VERIFIED'];
+      },
+    },
+    {
+      name: 'a review whose source is another source',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ source_id: 'otra-fuente' });
+      },
+    },
+    {
+      name: 'a review with a decision outside the closed pair',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ decision: 'approved' });
+      },
+    },
+    {
+      name: 'a review with no verified actor',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ reviewed_by: '' });
+      },
+    },
+    {
+      name: 'a review with no instant',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ reviewed_at: '' });
+      },
+    },
+    {
+      name: 'a review with an unparseable instant',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ reviewed_at: 'ayer' });
+      },
+    },
+    {
+      name: 'a review whose note exceeds the stored bound',
+      mutate: body => {
+        (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ note: 'ñ'.repeat(501) });
+      },
+    },
+  ];
+
+  for (const entry of cases) {
+    const { fetchStub } = await connectedSession();
+    const body = sourceBody();
+    entry.mutate(body);
+    const read = sources();
+    await flush();
+    fetchStub.answer(`${gatewayOrigin}/v1/risk/sources`, body);
+    const outcome = await read;
+    expect(outcome.ok, entry.name).toBe(false);
+    if (!outcome.ok) expect(outcome.failure.kind, entry.name).toBe('malformed');
+  }
+});
+
+test('the sources read accepts a 500 character note and a review of this source', async () => {
+  const { fetchStub } = await connectedSession();
+  const body = sourceBody();
+  (body.sources as Array<Record<string, unknown>>)[0].review = sourceReviewFixture({ note: 'ñ'.repeat(500) });
+  const read = sources();
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/sources`, body);
+  const outcome = await read;
+  if (!outcome.ok) throw new Error(`expected the longest accepted note, got ${outcome.failure.reason}`);
+  expect(outcome.data.sources?.[0].review?.note).toHaveLength(500);
+});
+
+test('reviewSource posts the decision and echoes the source it reviewed', async () => {
+  const { fetchStub } = await connectedSession();
+
+  const accepted = reviewSource('fixture-sample', { decision: 'incorporated', note: 'revisado' });
+  await flush();
+  const calls = fetchStub.callsFor(`${gatewayOrigin}/v1/risk/sources/fixture-sample/review`);
+  expect(calls).toHaveLength(1);
+  expect(calls[0].init.method).toBe('POST');
+  expect(JSON.parse(String(calls[0].init.body))).toEqual({ decision: 'incorporated', note: 'revisado' });
+  fetchStub.answer(
+    `${gatewayOrigin}/v1/risk/sources/fixture-sample/review`,
+    sourceReviewFixture({ note: 'revisado' }),
+  );
+  const outcome = await accepted;
+  if (!outcome.ok) throw new Error(`expected the stored review, got ${outcome.failure.reason}`);
+  expect(outcome.data.decision).toBe('incorporated');
+  expect(outcome.data.reviewed_by).toBe('operator@example.test');
+
+  // The answer must name the source that was reviewed: a body about another source
+  // would be a different decision painted as this one.
+  const mismatched = reviewSource('fixture-sample', { decision: 'acknowledged' });
+  await flush();
+  fetchStub.answer(
+    `${gatewayOrigin}/v1/risk/sources/fixture-sample/review`,
+    sourceReviewFixture({ source_id: 'otra-fuente', decision: 'acknowledged' }),
+  );
+  expect(expectFailure(await mismatched).reason).toBe('source_mismatch');
+
+  // A malformed answer is not a stored decision either.
+  const malformed = reviewSource('fixture-sample', { decision: 'acknowledged' });
+  await flush();
+  fetchStub.answer(`${gatewayOrigin}/v1/risk/sources/fixture-sample/review`, { decision: 'acknowledged' });
+  expect(expectFailure(await malformed).reason).toBe('invalid_shape');
+});
+
+test('reviewSource refuses an unhonourable request before it reaches the gateway', async () => {
+  const { fetchStub } = await connectedSession();
+  const cases: Array<{ name: string; sourceId: string; input: { decision: string; note?: string } }> = [
+    { name: 'an empty source', sourceId: '  ', input: { decision: 'incorporated' } },
+    { name: 'an unknown decision', sourceId: 'fixture-sample', input: { decision: 'approved' } },
+    { name: 'a note past the stored bound', sourceId: 'fixture-sample', input: { decision: 'incorporated', note: 'ñ'.repeat(501) } },
+  ];
+  for (const entry of cases) {
+    const outcome = await reviewSource(entry.sourceId, entry.input as { decision: 'incorporated'; note?: string });
+    expect(outcome.ok, entry.name).toBe(false);
+    if (!outcome.ok) expect(outcome.failure.kind, entry.name).toBe('malformed');
+  }
+  expect(fetchStub.calls).toHaveLength(0);
+});
+
+test('reviewSource reports the documented refusals the service actually answered', async () => {
+  const { fetchStub } = await connectedSession();
+  const refused = reviewSource('fixture-sample', { decision: 'incorporated' });
+  await flush();
+  fetchStub.answer(
+    `${gatewayOrigin}/v1/risk/sources/fixture-sample/review`,
+    { code: 'invalid_decision', request_id: '00000000-0000-4000-8000-000000000000' },
+    422,
+  );
+  const outcome = await refused;
+  expect(outcome.ok).toBe(false);
+  if (!outcome.ok) {
+    expect(outcome.failure.kind).toBe('unavailable');
+    expect(outcome.failure.status).toBe(422);
+    expect(outcome.failure.reason).toBe('invalid_decision');
+  }
 });

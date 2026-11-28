@@ -158,17 +158,41 @@ func TestSourcesExposesCycleFreshness(t *testing.T) {
 	}
 }
 
-// T4: with no runner configured the field is an empty list, never null, so the
-// UI can render "no sources" without a special case.
-func TestSourcesFreshnessIsEmptyWithoutARunner(t *testing.T) {
+// V1-P-05 (S3): with no runner configured the ACTIVE source is still published,
+// with no reading reported for it. A manual-only deployment accepts a review of its
+// active source through POST /v1/risk/sources/{source_id}/review, so the read has to
+// publish that source - otherwise the accepted write would never be readable, and
+// "no sources" would contradict the route that just stored a decision about one.
+func TestSourcesReportsTheActiveSourceWithoutARunner(t *testing.T) {
 	handler, token := authorizedServerWith(t, "viewer", &fakeStore{}, nil, source.NewFixtureProvider())
 	w := getZones(t, handler, token, "/v1/risk/sources")
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(w.Body.Bytes(), &raw); err != nil {
+	if w.Code != http.StatusOK {
+		t.Fatalf("got %d: %s", w.Code, w.Body.String())
+	}
+	var body sourcesResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	if string(raw["sources"]) != "[]" {
-		t.Fatalf("sources = %s, want []", raw["sources"])
+	if len(body.Sources) != 1 {
+		t.Fatalf("sources = %+v, want the one active source", body.Sources)
+	}
+	entry := body.Sources[0]
+	if entry.SourceID != "fixture-sample" {
+		t.Fatalf("source_id = %q, want the active source", entry.SourceID)
+	}
+	// No reading has been reported for it: the age, the run instants and the
+	// completeness are the honest absence, never a zero or an invented run.
+	if entry.LastRunAt != nil || entry.NextRunAt != nil || entry.AgeSeconds != nil || entry.Complete {
+		t.Fatalf("a source that never ran reported a reading: %+v", entry)
+	}
+	if len(entry.QualityFindings) == 0 {
+		t.Fatal("the active source was served with no quality findings")
+	}
+	if entry.QualityFindings[0] != "STALE_CUTOFF" {
+		t.Fatalf("findings = %v, want STALE_CUTOFF first for a source that never ran", entry.QualityFindings)
+	}
+	if entry.Review != nil {
+		t.Fatalf("review = %+v, want null", entry.Review)
 	}
 }
 

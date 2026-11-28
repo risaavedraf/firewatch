@@ -411,3 +411,56 @@ func TestReadingsMigrationIsGuardedAndIdempotent(t *testing.T) {
 		}
 	}
 }
+
+// TestSourceQualityReviewsMigrationIsGuardedAndIdempotent protects V1-P-05's
+// write resource: one append-only table, its CHECK constraints stating the closed
+// decision vocabulary and the 500 character note bound in the schema, the monotonic
+// sequence that orders reviews recorded in the same instant, the latest index the
+// read uses, and the append-only grant. Every statement is guarded so
+// applying the file twice is a no-op, and nothing here destroys data.
+func TestSourceQualityReviewsMigrationIsGuardedAndIdempotent(t *testing.T) {
+	migration := migrationFor(t, 21)
+	if migration.Name != "source_quality_reviews" {
+		t.Errorf("migration 21 is named %q, want %q", migration.Name, "source_quality_reviews")
+	}
+	sql := migration.SQL
+	for _, fragment := range []string{
+		"CREATE TABLE IF NOT EXISTS source_quality_reviews",
+		"CHECK (decision IN ('incorporated','acknowledged'))",
+		"CHECK (char_length(note) <= 500)",
+		"CREATE INDEX IF NOT EXISTS source_quality_reviews_latest",
+		"GRANT SELECT, INSERT ON source_quality_reviews TO risk_app",
+	} {
+		if !strings.Contains(sql, fragment) {
+			t.Errorf("021_source_quality_reviews.sql does not contain %q", fragment)
+		}
+	}
+	// The column definitions are aligned for reading, so these checks collapse runs of
+	// whitespace instead of pinning the alignment: what matters is that the monotonic
+	// column exists, that the index orders by it, and that the role that appends may
+	// draw the sequence its default reads.
+	compact := strings.Join(strings.Fields(sql), " ")
+	for _, fragment := range []string{
+		"review_seq bigserial NOT NULL",
+		"source_quality_reviews(source_id, reviewed_at DESC, review_seq DESC)",
+		"GRANT USAGE, SELECT ON SEQUENCE source_quality_reviews_review_seq_seq TO risk_app",
+	} {
+		if !strings.Contains(compact, fragment) {
+			t.Errorf("021_source_quality_reviews.sql does not contain %q", fragment)
+		}
+	}
+	// The identifier is a random uuid and must not decide the append order.
+	if strings.Contains(compact, "reviewed_at DESC, id DESC") {
+		t.Error("021_source_quality_reviews.sql orders the latest index by the random identifier; the monotonic sequence is the tie-break")
+	}
+	// The trace is append-only in both directions: no rewrite of a stored decision
+	// and no removal of a stored row.
+	if strings.Contains(sql, "GRANT SELECT, INSERT, UPDATE") || strings.Contains(sql, "GRANT DELETE") {
+		t.Error("021_source_quality_reviews.sql grants a write privilege beyond appending; the review trace is append-only")
+	}
+	for _, forbidden := range []string{"DROP TABLE", "TRUNCATE", "DELETE FROM", "UPDATE "} {
+		if strings.Contains(sql, forbidden) {
+			t.Errorf("021_source_quality_reviews.sql contains %q; schema migrations here never destroy data", forbidden)
+		}
+	}
+}
