@@ -11,10 +11,15 @@ import (
 
 // cadencePublisher counts cycles published from the goroutine Start runs on. It
 // is mutex-guarded because the test reads it while that goroutine is running,
-// which the unsynchronised stub in runner_test.go is not used for.
+// which the unsynchronised stub in runner_test.go is not used for. It implements
+// both publication seams the runner owns and keeps them apart: the request series
+// is shared, so count and requestAt observe every publish, while the manual seam
+// additionally records the verified operator, so a test can prove the origin was
+// decided by the seam and not by the request's descriptive actor string.
 type cadencePublisher struct {
 	mu       chan struct{}
 	requests []v1.Event
+	actors   []string
 }
 
 func newCadencePublisher() *cadencePublisher {
@@ -28,11 +33,34 @@ func (p *cadencePublisher) PublishScheduled(_ context.Context, request v1.Event)
 	return nil
 }
 
+// PublishManual records a manual publish in the same request series as the
+// automatic one, so the cadence assertions describe one loop whichever seam ran,
+// and appends the operator the API gate proved. The operator is the only state a
+// manual publish adds: the request series already carries everything else, which
+// keeps this double as small as the seam allows while staying observable.
+func (p *cadencePublisher) PublishManual(_ context.Context, request v1.Event, actor string) error {
+	p.mu <- struct{}{}
+	p.requests = append(p.requests, request)
+	p.actors = append(p.actors, actor)
+	<-p.mu
+	return nil
+}
+
 // count returns how many cycles have been published so far.
 func (p *cadencePublisher) count() int {
 	p.mu <- struct{}{}
 	defer func() { <-p.mu }()
 	return len(p.requests)
+}
+
+// manualActors returns a copy of the operators the manual seam recorded, so a
+// caller observes them without sharing the double's slice.
+func (p *cadencePublisher) manualActors() []string {
+	p.mu <- struct{}{}
+	defer func() { <-p.mu }()
+	actors := make([]string, len(p.actors))
+	copy(actors, p.actors)
+	return actors
 }
 
 // requestAt returns a copy of one published request.
@@ -272,6 +300,64 @@ func (p *timedPublisher) PublishScheduled(ctx context.Context, request v1.Event)
 	err := p.cadencePublisher.PublishScheduled(ctx, request)
 	p.clock.spend(p.perCycle)
 	return err
+}
+
+// PublishManual makes a manual publish observable through the same seam the
+// automatic one uses, because a manual run performs the same ingest, validation
+// and persistence a cycle performs and therefore spends the same span of the
+// injected clock. The verified operator is recorded alongside the request, so a
+// caller's assertions see one consistent series instead of a second, silent path.
+func (p *timedPublisher) PublishManual(ctx context.Context, request v1.Event, actor string) error {
+	err := p.cadencePublisher.PublishManual(ctx, request, actor)
+	p.clock.spend(p.perCycle)
+	return err
+}
+
+// The timed double stands in for the production Publisher, so it must satisfy the
+// whole seam rather than only the automatic half. A manual publish has to land in
+// the same recorded series the automatic one does -count and requestAt observe it-
+// keep the operator that identifies the manual origin, and spend the same span of
+// the injected clock, otherwise a cadence measured over a manual run would report
+// a runtime the real path never had.
+func TestTimedPublisherSatisfiesBothPublicationSeams(t *testing.T) {
+	var _ Publisher = (*timedPublisher)(nil)
+
+	const perCycle = 45 * time.Second
+	instant := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	publisher := newCadencePublisher()
+	clock := newAdvancingClock(instant)
+	publishing := &timedPublisher{cadencePublisher: publisher, clock: clock, perCycle: perCycle}
+
+	manual := v1.Event{ID: "manual-id", ZoneID: "valparaiso-demo", ActorID: "cycle-scheduler"}
+	if err := publishing.PublishManual(context.Background(), manual, "operator-1"); err != nil {
+		t.Fatalf("manual publish = %v, want no error", err)
+	}
+	scheduled := v1.Event{ID: "scheduled-id", ZoneID: "valparaiso-demo", ActorID: "cycle-scheduler"}
+	if err := publishing.PublishScheduled(context.Background(), scheduled); err != nil {
+		t.Fatalf("scheduled publish = %v, want no error", err)
+	}
+
+	// Both origins land in one series, in the order they were published.
+	if got := publisher.count(); got != 2 {
+		t.Fatalf("recorded %d requests, want 2 (one per origin)", got)
+	}
+	if got := publisher.requestAt(0).ID; got != manual.ID {
+		t.Fatalf("request 0 = %q, want the manual publish %q", got, manual.ID)
+	}
+	if got := publisher.requestAt(1).ID; got != scheduled.ID {
+		t.Fatalf("request 1 = %q, want the scheduled publish %q", got, scheduled.ID)
+	}
+
+	// The seam, not the request's descriptive actor, decides the origin.
+	actors := publisher.manualActors()
+	if len(actors) != 1 || actors[0] != "operator-1" {
+		t.Fatalf("manual actors = %v, want exactly the verified operator [operator-1]", actors)
+	}
+
+	// Every publish spends the fixed span the double stands for.
+	if got, want := clock.now(), instant.Add(2*perCycle); !got.Equal(want) {
+		t.Fatalf("clock = %v, want %v after two publishes of %v", got, want, perCycle)
+	}
 }
 
 func collectWaits(t *testing.T, schedule *scheduler.Schedule, cycles int) (*cadencePublisher, []time.Duration) {
